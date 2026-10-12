@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Envs
+.venv/
+venv/
+
+# Tooling
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Kullanıcının gerçek verisi (§5.1) — repoya girmez
+data/real/
+
+# Üretilen raporlar ve önbellekler
+reports/
+.fdo_cache/
+
+# Editör / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
