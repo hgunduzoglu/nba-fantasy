@@ -1,0 +1,11 @@
+file: data/synthetic/players_synthetic.csv
+kind: players
+source_name: synthetic
+source_url: null
+retrieved_at: '2026-10-12'
+retrieved_by: scripts/make_synthetic.py (seed=7)
+license_status: personal_use_confirmed
+license_notes: Repo içinde üretilen sentetik veri; gerçek oyuncu değeri değildir.
+season: null
+basis: per_game
+is_synthetic: true
