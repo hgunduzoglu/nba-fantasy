@@ -83,3 +83,24 @@ def test_group_oracle(config):
     _, fills, needs = oracle.analyze(np.array([0, 2, 0], dtype=np.int16))
     assert fills.tolist() == [True, True, True]
     assert needs.tolist() == [True, False, True]
+
+
+def test_group_flow_matches_assignment_solver(config):
+    from fdo.roster.assignment import GroupFlow
+
+    groups = [P(x) for x in ["PG", "SG", "SF", "PF", "C", "PG,SG", "SG,SF", "SF,PF", "PF,C",
+                             "PG,SG,SF", "SG,SF,PF", "SF,PF,C"]]
+    flow = GroupFlow(groups, config)
+    pos_flow = GroupFlow(groups, config, positional_only=True)
+    model = RosterModel(config)
+    pos_model = RosterModel(config, positional_only=True)
+    rng = np.random.default_rng(0)
+    for _ in range(400):
+        n = int(rng.integers(0, 13))
+        counts = np.bincount(rng.integers(0, len(groups), n), minlength=len(groups))
+        roster = [groups[g] for g, c in enumerate(counts) for _ in range(c)]
+        for f, m in ((flow, model), (pos_flow, pos_model)):
+            open_, reduces = f.solve(counts)
+            assert open_ == m.open_active_count(roster)
+            for g in range(len(groups)):
+                assert reduces[g] == (open_ > 0 and m.open_active_count([*roster, groups[g]]) < open_)

@@ -123,6 +123,69 @@ def feasible_group_table(model: RosterModel, base: list[frozenset[str]], groups:
     return out
 
 
+class GroupFlow:
+    """Grup sayımları üzerinde kapasiteli bipartite eşleme (aktif slot doldurma).
+
+    ``linear_sum_assignment`` ile aynı **eksik aktif slot sayısını** verir (aktif slot
+    doldurmayı maksimize eden atama), ama grup × slot tipi düzeyinde çalıştığı için çok daha
+    hızlıdır. Ayrıca tek eşlemeden, her grup için "bir oyuncu eklemek eksik slotu azaltır mı"
+    sorusunu artık-graf erişilebilirliğiyle cevaplar (augmenting path var mı).
+    """
+
+    def __init__(self, groups: list[frozenset[str]], config: Config, positional_only: bool = False):
+        types = [s for s in config.roster.active_slots
+                 if not positional_only or slot_tier(s, config) in ("specific", "flex")]
+        self.types = types
+        self.cap = [config.roster.slots[t] for t in types]
+        self.elig = [[t for t, s in enumerate(types) if g & config.roster.slot_eligibility[s]]
+                     for g in groups]
+        self.total_cap = sum(self.cap)
+
+    def solve(self, counts) -> tuple[int, list[bool]]:
+        """``(eksik aktif slot, reduces[g])``."""
+        G, T = len(self.elig), len(self.cap)
+        x = [[0] * T for _ in range(G)]           # x[g][t]: g grubundan t tipine atanan oyuncu
+        used = [0] * T
+        matched = 0
+
+        def augment(g: int, seen: list[bool]) -> bool:
+            for t in self.elig[g]:
+                if seen[t]:
+                    continue
+                seen[t] = True
+                if used[t] < self.cap[t]:
+                    x[g][t] += 1
+                    used[t] += 1
+                    return True
+                for g2 in range(G):
+                    if x[g2][t] > 0 and augment(g2, seen):
+                        x[g2][t] -= 1
+                        x[g][t] += 1
+                        return True
+            return False
+
+        for g in range(G):
+            for _ in range(int(counts[g])):
+                if augment(g, [False] * T):
+                    matched += 1
+        open_ = self.total_cap - matched
+        if open_ == 0:
+            return 0, [False] * G
+        # R: boş kapasitesi olan ya da içindeki bir oyuncu R'deki bir tipe kaydırılabilen tipler
+        reach = [used[t] < self.cap[t] for t in range(T)]
+        changed = True
+        while changed:
+            changed = False
+            for t in range(T):
+                if reach[t]:
+                    continue
+                for g2 in range(G):
+                    if x[g2][t] > 0 and any(reach[t2] for t2 in self.elig[g2]):
+                        reach[t] = changed = True
+                        break
+        return open_, [any(reach[t] for t in self.elig[g]) for g in range(G)]
+
+
 class GroupOracle:
     """Pozisyon grubu sayımlarından hızlı kadro analizi (botlar ve simülasyon için).
 
@@ -136,31 +199,17 @@ class GroupOracle:
 
     def __init__(self, groups: list[frozenset[str]], config: Config):
         self.groups = list(groups)
-        self.model = RosterModel(config)
-        self.positional = RosterModel(config, positional_only=True)
+        self.active = GroupFlow(self.groups, config)
+        self.positional = GroupFlow(self.groups, config, positional_only=True)
         self._cache: dict[bytes, tuple[int, np.ndarray, np.ndarray]] = {}
-
-    def _open(self, model: RosterModel, counts: np.ndarray) -> int:
-        positions = [self.groups[g] for g, c in enumerate(counts) for _ in range(int(c))]
-        return model.open_active_count(positions)
-
-    def _reduces(self, model: RosterModel, counts: np.ndarray) -> tuple[int, np.ndarray]:
-        base = self._open(model, counts)
-        out = np.zeros(len(self.groups), dtype=bool)
-        if base > 0:
-            for g in range(len(self.groups)):
-                c = counts.copy()
-                c[g] += 1
-                out[g] = self._open(model, c) < base
-        return base, out
 
     def analyze(self, counts: np.ndarray) -> tuple[int, np.ndarray, np.ndarray]:
         key = counts.tobytes()
         hit = self._cache.get(key)
         if hit is not None:
             return hit
-        base, fills = self._reduces(self.model, counts)
-        _, needs = self._reduces(self.positional, counts)
-        res = (base, fills, needs)
+        base, fills = self.active.solve(counts)
+        _, needs = self.positional.solve(counts)
+        res = (base, np.array(fills, dtype=bool), np.array(needs, dtype=bool))
         self._cache[key] = res
         return res
