@@ -42,9 +42,27 @@ def pav_increasing(y: np.ndarray, w: np.ndarray | None = None) -> np.ndarray:
     return np.repeat(vals, counts)
 
 
+def _tail_slope(x: np.ndarray, y: np.ndarray, tail_fraction: float) -> float:
+    """Son ``tail_fraction``'lık x diliminde ham noktalara en küçük kareler eğimi.
+
+    PAV basamaklarının uç noktaları gürültülü olduğundan eğim noktalardan fit edilir.
+    Pozitif bir eğim bulunamazsa 1.0 (sıra → sıra) kullanılır.
+    """
+    if len(x) < 2 or x[-1] <= x[0]:
+        return 1.0
+    sel = x >= x[0] + (1 - tail_fraction) * (x[-1] - x[0])
+    if sel.sum() < 3:
+        sel = np.zeros_like(x, dtype=bool)
+        sel[-min(len(x), 3):] = True
+    xs, ys = x[sel], y[sel]
+    var = float(np.var(xs))
+    slope = float(np.cov(xs, ys, bias=True)[0, 1] / var) if var > 0 else 0.0
+    return slope if slope > 0 else 1.0
+
+
 @dataclass(frozen=True)
 class IsotonicMap:
-    """Değer sırası → ADP monoton eşlemesi; kapsam ötesine doğrusal uzatma."""
+    """``x → y`` monoton eşlemesi; kapsam ötesine doğrusal uzatma."""
 
     x: np.ndarray
     y: np.ndarray
@@ -61,17 +79,7 @@ class IsotonicMap:
         ux, inv = np.unique(x, return_inverse=True)
         uy = np.bincount(inv, weights=fitted) / np.bincount(inv)
         uy = np.maximum.accumulate(uy)
-        slope = 1.0
-        if len(ux) >= 2:
-            start = ux[0] + (1 - tail_fraction) * (ux[-1] - ux[0])
-            sel = ux >= start
-            if sel.sum() < 2:
-                sel = np.zeros_like(ux, dtype=bool)
-                sel[-2:] = True
-            dx = ux[sel][-1] - ux[sel][0]
-            slope = float((uy[sel][-1] - uy[sel][0]) / dx) if dx > 0 else 1.0
-            slope = max(slope, 0.0) or 1.0
-        return cls(x=ux, y=uy, tail_slope=slope)
+        return cls(x=ux, y=uy, tail_slope=_tail_slope(x, y, tail_fraction))
 
     def __call__(self, x_new) -> np.ndarray:
         x_new = np.asarray(x_new, dtype=float)
@@ -79,6 +87,25 @@ class IsotonicMap:
         beyond = x_new > self.x[-1]
         out[beyond] = self.y[-1] + self.tail_slope * (x_new[beyond] - self.x[-1])
         return out
+
+    def inverse(self) -> "IsotonicMap":
+        """``y → x`` ters eşleme (aynı ``y`` basamakları için ``x`` ortalaması).
+
+        Uzatma eğimi ileri eğimin tersidir.
+        """
+        uy, inv = np.unique(self.y, return_inverse=True)
+        ux = np.bincount(inv, weights=self.x) / np.bincount(inv)
+        return IsotonicMap(x=uy, y=np.maximum.accumulate(ux), tail_slope=1.0 / self.tail_slope)
+
+
+def value_to_adp_map(value_rank, adp, tail_fraction: float = 0.2) -> IsotonicMap:
+    """Dengeli değer sırası → ADP monoton eşlemesi.
+
+    Fit ``ADP → değer sırası`` yönünde yapılıp ters çevrilir: ``ok`` sınıfı
+    ``adp ≤ coverage_limit`` ile seçildiği için seçim ADP üzerindedir; ADP'yi
+    regresör yapmak bu kesilmenin eşlemeyi ve uzatma eğimini yanlı kılmasını önler.
+    """
+    return IsotonicMap.fit(adp, value_rank, tail_fraction).inverse()
 
 
 def apply_adp_fallback(draft_ids: list[str], adp: pd.DataFrame, value_rank: pd.Series,
@@ -109,8 +136,8 @@ def apply_adp_fallback(draft_ids: list[str], adp: pd.DataFrame, value_rank: pd.S
 
     fit_mask = ok & df["value_rank"].notna()
     if fit_mask.sum() >= 2:
-        iso = IsotonicMap.fit(df.loc[fit_mask, "value_rank"], df.loc[fit_mask, "adp"],
-                              params.extrapolation_tail_fraction)
+        iso = value_to_adp_map(df.loc[fit_mask, "value_rank"], df.loc[fit_mask, "adp"],
+                               params.extrapolation_tail_fraction)
         df["adp_hat"] = np.where(df["value_rank"].notna(), iso(df["value_rank"].fillna(0)), np.nan)
     else:
         notes.append("İzotonik eşleme için yeterli 'ok' ADP yok — Â = değer sırası")
