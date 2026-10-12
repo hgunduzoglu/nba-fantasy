@@ -39,8 +39,11 @@ bots:
   sigma0: 1.5
   sigma1: 0.12
   sigma_floor: 1.0
-  t_df: 5
-  t_df_random_human: 3
+  sigma_cap: 25.0          # taban σ üst sınırı (pick); tail oyuncuların erken turda absürt reach'ini önler
+  # t_df 5→8, t_df_random_human 3→5, RandomHuman σ 1.5→1.25: ilk gerçekçilik raporunda
+  # (sentetik veri, 200 mock) erken tur uygunsuz reach %8–18 idi; bu ayarla ≈%2–3.
+  t_df: 8
+  t_df_random_human: 5
   jitter_rho: 0.15
   value_lambda: 0.3
   punt_lambda: 0.4
@@ -55,7 +58,7 @@ bots:
     PositionAware: 1.0
     PuntBuilder: 1.0
     AutoDrafter: 0.3
-    RandomHuman: 1.5
+    RandomHuman: 1.25
 
 variance:
   phi:                    # aşırı yayılımlı Poisson çarpanı (stat başına), kalibre edilmemiş

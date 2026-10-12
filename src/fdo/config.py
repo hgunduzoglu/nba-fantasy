@@ -122,6 +122,7 @@ class BotParams:
     sigma0: float = 1.5
     sigma1: float = 0.12
     sigma_floor: float = 1.0
+    sigma_cap: float = 25.0
     t_df: float = 5.0
     t_df_random_human: float = 3.0
     jitter_rho: float = 0.15
