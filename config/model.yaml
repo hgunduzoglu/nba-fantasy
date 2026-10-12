@@ -44,7 +44,7 @@ bots:
   sigma0: 1.5
   sigma1: 0.12
   sigma_floor: 1.0
-  sigma_cap: 25.0          # taban σ üst sınırı (pick); tail oyuncuların erken turda absürt reach'ini önler
+  sigma_cap: 25.0          # σ üst sınırı (pick), sınıf çarpanından sonra; tail oyuncuların absürt reach'ini önler
   # t_df 5→8, t_df_random_human 3→5, RandomHuman σ 1.5→1.25: ilk gerçekçilik raporunda
   # (sentetik veri, 200 mock) erken tur uygunsuz reach %8–18 idi; bu ayarla ≈%2–3.
   t_df: 8

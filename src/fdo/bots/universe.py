@@ -45,17 +45,20 @@ class BotUniverse:
 
 
 def player_sigma(adp_tab: pd.DataFrame, config: Config) -> np.ndarray:
-    """``σ_i = mult · min(σ_cap, max(σ_floor, adp_std))`` (varsa), yoksa ``mult · min(σ_cap, σ₀ + σ₁·A)``.
+    """``σ_i = min(σ_cap, mult · max(σ_floor, adp_std))`` (varsa), yoksa ``min(σ_cap, mult · (σ₀ + σ₁·A))``.
 
-    ``σ_cap`` olmadan σ ADP ile sınırsız büyür ve ADP'si havuzun çok ötesindeki
-    (tail) oyuncular t-kuyruğu yüzünden ilk turlarda seçilebilir (ilk gerçekçilik raporu).
+    ``σ_cap`` olmadan σ ADP ile sınırsız büyür ve ADP'si havuzun çok ötesindeki (tail)
+    oyuncular t-kuyruğu yüzünden ilk turlarda seçilebilir (ilk gerçekçilik raporu). Sınır sınıf
+    çarpanından **sonra** uygulanır: önce uygulandığında kapsam dışındaki yüzlerce oyuncu
+    σ = 2 × 25 = 50 ile her draft'ta ~10 kez 9–13. turlara reach ediyor, ADP'si 97–160 olan
+    oyuncuları ortalamada ~+18 pick kaydırıyordu (gerçek Yahoo verisi).
     """
     b = config.model.bots
     a = adp_tab["adp_eff"].to_numpy(float)
     std = adp_tab["adp_std"].to_numpy(float) if "adp_std" in adp_tab else np.full(len(a), np.nan)
     mult = adp_tab["sigma_mult"].to_numpy(float)
     base = np.where(np.isnan(std), b.sigma0 + b.sigma1 * a, np.maximum(b.sigma_floor, np.nan_to_num(std)))
-    return mult * np.minimum(b.sigma_cap, base)
+    return np.minimum(b.sigma_cap, mult * base)
 
 
 def build_universe(dataset: Dataset, config: Config) -> BotUniverse:
