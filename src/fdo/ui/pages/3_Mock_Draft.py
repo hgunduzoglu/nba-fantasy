@@ -7,6 +7,7 @@ import pandas as pd
 import streamlit as st
 
 from fdo.bots.mock import MockDraft
+from fdo.config import BOT_PROFILES
 from fdo.draft.events import DraftError
 from fdo.draft.io import export_csv, export_json, import_log
 from fdo.realism.metrics import reach_class
@@ -22,8 +23,22 @@ lg = cfg.league
 with st.sidebar:
     st.header("Mock")
     new_seed = st.number_input("Mock seed", 0, 2**31 - 1, int(st.session_state.seed))
-    if st.button("Yeni mock başlat", type="primary"):
+    bp = cfg.model.bots
+    with st.expander(f"Bot karışımı ({lg.teams - 1} rakip)"):
+        mix = {name: st.number_input(name, 0, lg.teams - 1, int(bp.mix.get(name, 0)), key=f"mix_{name}")
+               for name in BOT_PROFILES}
+        assignment = st.selectbox("Koltuk ataması", ["random_per_draft", "fixed"],
+                                  index=0 if bp.seat_assignment == "random_per_draft" else 1)
+        total = sum(mix.values())
+        if total != lg.teams - 1:
+            st.warning(f"Toplam {total}; {lg.teams - 1} olmalı.")
+        st.caption("Değişiklik 'Yeni mock başlat' ile uygulanır. " + common.UNCALIBRATED)
+    if st.button("Yeni mock başlat", type="primary", disabled=total != lg.teams - 1):
         st.session_state.seed = int(new_seed)
+        if mix != dict(bp.mix) or assignment != bp.seat_assignment:
+            common.set_config(cfg.with_overrides({"model": {"bots": {"mix": mix, "seat_assignment": assignment}}}))
+            cfg = common.config()
+            u = common.universe()
         st.session_state.mock = MockDraft(ds, cfg, int(new_seed), u)
         st.session_state.advisor_result = None
         st.rerun()
@@ -80,6 +95,11 @@ if c[5].button(f"Pick {back_to}'e dön", disabled=not len(log)):
 if not log.is_complete:
     taken = log.taken
     avail = [str(u.ids[i]) for i in np.argsort(u.adp, kind="stable") if str(u.ids[i]) not in taken]
+    blocked = [p for p in avail if not m.is_allowed(p)]
+    if blocked:
+        avail = [p for p in avail if p not in set(blocked)]
+        st.caption(f"Yahoo pozisyon kuralı: seat {log.next_seat} için {len(blocked)} oyuncu seçilemez "
+                   "(kalan pick'lerle aktif slotlar doldurulamaz).")
     labels = {p: f"{common.name_of(p)} · {','.join(sorted(ds.positions()[p]))} · ADP {u.adp[u.index[p]]:.1f} "
                  f"({u.status[u.index[p]]})" for p in avail}
     cc = st.columns([4, 1])
