@@ -140,6 +140,7 @@ def setup_problem(ctx: AdvisorContext, log: DraftLog, fill: FillTable) -> Proble
         ctx=ctx, fill=fill, user=user, turn=turn, next_turn=nxt, roster=roster,
         roster_vec=roster_vec, after_turn=after_turn, after_next=after_next, opp_seats=opp_seats,
         opp_static=np.stack([static_vec(s) for s in opp_seats]), available=available,
+        roster_model=RosterModel(cfg),
     )
 
 
@@ -251,7 +252,7 @@ def recommend(ctx: AdvisorContext, log: DraftLog, *, mode: str = "fast", n_sims:
     cands = candidate_set(prob, delta, surv_next, pin_idx)
     size = len(prob.turn)
     combos = [tuple(sorted(c)) for c in itertools.combinations(cands, size)]
-    model = RosterModel(cfg)
+    model = prob.roster_model
     feasible = [c for c in combos if feasible_combo(prob, model, c)]
     q = static_scores(prob, feasible)
     order = np.argsort(-q, kind="stable")

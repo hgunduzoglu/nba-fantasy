@@ -28,6 +28,7 @@ from fdo.advisor.simulate import (
 from fdo.draft.events import DraftLog
 from fdo.draft.order import turns_for_seat
 from fdo.matchup.ecw import ecw_vs
+from fdo.roster.assignment import feasible_group_table
 from fdo.types import CATEGORY_LABELS
 
 
@@ -78,6 +79,16 @@ def run_scenarios(ctx: AdvisorContext, log: DraftLog, *, n_sims: int | None = No
     turns = [t for t in turns_for_seat(user, lg.teams, lg.rounds, lg.third_round_reversal)
              if t[-1] >= eng.k]
     all_user_picks = [n for t in turns for n in t]
+    uni = ctx.universe
+    feas_cache: dict[tuple, np.ndarray] = {}
+
+    def feasible(counts: np.ndarray, n_pick: int, remaining_after: int) -> np.ndarray:
+        key = (counts.tobytes(), n_pick, remaining_after)
+        if key not in feas_cache:
+            base = [uni.groups[g] for g, c in enumerate(counts) for _ in range(int(c))]
+            feas_cache[key] = feasible_group_table(prob.roster_model, base, uni.groups, n_pick,
+                                                   remaining_after)
+        return feas_cache[key]
 
     for ti, turn in enumerate(turns):
         if progress:
@@ -98,6 +109,9 @@ def run_scenarios(ctx: AdvisorContext, log: DraftLog, *, n_sims: int | None = No
             single = prob.ecw_static(base[None, :] + fill.sum(turn[1:]) + vecs[idx])
             short = idx[np.argsort(-single, kind="stable")[: adv.next_policy_top_l]]
             combos = list(itertools.combinations(short.tolist(), len(turn)))
+            table = feasible(eng.counts[s, user - 1], len(turn), len(later))
+            ok = [c for c in combos if table[tuple(uni.group[list(c)])]]
+            combos = ok or combos
             V = np.stack([vecs[list(c)].sum(axis=0) for c in combos])
             best = combos[int(np.argmax(prob.ecw_static(base[None, :] + V)))]
             choices[s, : len(best)] = best

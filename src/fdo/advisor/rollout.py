@@ -22,6 +22,7 @@ from fdo.advisor.survival import go_pick_quantiles, survival
 from fdo.bots.thurstone import BatchDraft
 from fdo.matchup.ecw import ecw_vs, p_at_least
 from fdo.matchup.fill import FillTable
+from fdo.roster.assignment import RosterModel, feasible_group_table
 
 NEG = -np.inf
 
@@ -42,6 +43,7 @@ class Problem:
     opp_seats: np.ndarray                   # (T−1,) rakip koltukları
     opp_static: np.ndarray                  # (T−1, 24) mevcut kadro + doldurma
     available: np.ndarray                   # (n,) bool, mevcut state'te uygun
+    roster_model: RosterModel | None = None
 
     def ecw_static(self, user_vecs: np.ndarray) -> np.ndarray:
         """Statik rakiplere karşı ECW, ``(..., 24)`` → ``(...)``."""
@@ -73,9 +75,12 @@ class PolicySetup:
     fallback_vec: np.ndarray    # π doldurma ile (shortlist yetmezse)
 
 
-def policy_setup(prob: Problem, pair_vec: np.ndarray, available: np.ndarray) -> PolicySetup:
+def policy_setup(prob: Problem, pair: tuple[int, ...], pair_vec: np.ndarray,
+                 available: np.ndarray) -> PolicySetup:
     """π için kısa liste: ``u₁``'de en az bir simülasyonda uygun olan (``available``)
-    oyuncular arasından ``R ∪ {a, b}``'ye göre ΔECW sırasıyla ilk ``K``."""
+    oyuncular arasından ``R ∪ {a, b}``'ye göre ΔECW sırasıyla ilk ``K``.
+
+    Kadroyu tamamlanamaz yapan seçimler (Yahoo pozisyon kuralı, §3.2) π için −∞ alır."""
     adv = prob.ctx.config.model.advisor
     u = prob.next_turn
     r2_vec = prob.roster_vec + pair_vec
@@ -94,6 +99,14 @@ def policy_setup(prob: Problem, pair_vec: np.ndarray, available: np.ndarray) -> 
             vals[iu] = prob.ecw_static(base_u[None, :] + V[iu[0]] + V[iu[1]])
     else:
         vals = prob.ecw_static(base_u[None, :] + V) if k else np.zeros(0)
+    if k:
+        uni = prob.ctx.universe
+        model = prob.roster_model or RosterModel(prob.ctx.config)
+        base_pos = [uni.groups[uni.group[i]] for i in (*prob.roster.tolist(), *pair)]
+        table = feasible_group_table(model, base_pos, uni.groups, len(u), len(prob.after_next))
+        g = uni.group[short]
+        ok = table[g[:, None], g[None, :]] if len(u) == 2 else table[g]
+        vals = np.where(ok, vals, NEG)
     fallback = base_u + prob.fill_sum(u)
     return PolicySetup(shortlist=short, delta=d[short], values=vals, base_vec=base_u,
                        fallback_vec=fallback)
@@ -175,7 +188,7 @@ def rollout_pair(prob: Problem, engine: BatchDraft, snap0: dict, pair: tuple[int
     surv = se = None
     if u:
         surv, se = survival(engine)
-        ps = policy_setup(prob, pair_vec, surv > 0)
+        ps = policy_setup(prob, tuple(pair), pair_vec, surv > 0)
         avail_short = engine.taken_at[:, ps.shortlist] == 0
         user_vec, choices = apply_policy(ps, avail_short, adv.next_policy_top_l, len(u), ctx.vecs)
         out_pool, out_tiers = pool_tables(prob, engine, ps, surv, se)
