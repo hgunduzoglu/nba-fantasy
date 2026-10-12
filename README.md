@@ -428,12 +428,22 @@ Her oyuncuya bir `adp_status` ve bir efektif ADP `A_i` atanır. Thurstone σ'sı
 |---|---|---|---|
 | `ok` | ADP var; `pct_drafted ≥ τ_pct` veya `pct_drafted` verilmemiş; `adp ≤ coverage_limit` | `adp` | 1.0 |
 | `low_confidence` | ADP var ama `pct_drafted < τ_pct` veya `adp > coverage_limit` | `w·adp + (1−w)·Â_i`, `w = clip(pct_drafted/τ_pct, 0, 1)` (pct yoksa `w = 0.5`) | 1.5 |
-| `imputed` | ADP yok | `Â_i` | 2.0 |
-| `tail` | ADP yok ve değer sırası havuz kapsamının dışında | `max(A) + (değer sırası − kapsama sınırı)` | 2.0 |
+| `imputed` | ADP yok, değer sırası ≤ N | `Â_i` | 2.0 |
+| `tail` | ADP yok, değer sırası > N | `Â_i` (`after_coverage`) / `max(A) + (değer sırası − N)` (`isotonic`) | 2.0 |
 
 `Â_i` (imputasyon): `ok` sınıfındaki oyuncular üzerinde **dengeli Z-değer sırası → ADP** monoton eşlemesi (izotonik regresyon, `scipy`/elle PAV) kurulur. Eşleme, kapsamın ötesine son %20'lik dilimin eğimiyle doğrusal olarak uzatılır.
 
-*Uygulama notu (ilk gerçekçilik raporundan sonra):* `ok` sınıfı `adp ≤ coverage_limit` ile seçildiği için kesilme ADP ekseni üzerindedir. Eşleme bu yüzden **ADP → değer sırası** yönünde fit edilip ters çevrilir (seçim regresör üzerinde olduğundan yanlılık yok). Uzatma eğimi, PAV basamaklarının uç noktaları yerine son %20'lik dilimdeki ham noktalara en küçük kareler ile fit edilir. Değer → ADP yönünde doğrudan fit, imputasyonu geç turlarda belirgin biçimde erkene sıkıştırıyordu. Bu, değerin ADP'ye sızdığı **tek** yerdir. `adp_status` her ekranda görünür.
+**`missing_adp_policy` (varsayılan `after_coverage`, gerçek Yahoo verisiyle değiştirildi).** Yahoo Draft Analysis ADP'si yalnızca ~187 oyuncuyu ve en fazla ~123. pick'i kapsıyor (çoğunlukla 10–12 takımlı ligler); 16 takımlı lig 208 pick ister. Aşağıdaki izotonik yöntemle ADP'si olmayan oyuncular kapsamın *içine* (92–121) sıkışıyor ve 208. en küçük efektif ADP 121 çıkıyordu; botlar 9–13. turlarda ~100 oyuncuyu "geç kalmış" görüyordu (medyan `pick − A` +81'e kadar). `after_coverage`'da:
+
+```
+Â_i = max(gözlenen adp) + (ok olmayan oyuncular arasındaki değer sırası)
+imputed / tail : A_i = Â_i
+low_confidence : A_i = w·adp + (1−w)·Â_i      (w = pct/τ: liglerin pct'sinde ADP civarında, kalanında kapsam sonrasında)
+```
+
+Kaynakta listelenmeyen ya da az draft edilen oyuncu pratikte kaynağın kapsadığı pick'lerde seçilmiyordur; bu yüzden kapsamın sonrasına değer sırasıyla yerleşir ve `k.` en küçük efektif ADP ≈ `k` korunur (gerçek veride 100/130/160/190/208 → 102/122/148/180/200). Aşağıdaki ilk şartname yöntemi `missing_adp_policy: isotonic` ile seçilebilir.
+
+*Uygulama notu (ilk gerçekçilik raporundan sonra, `isotonic` politikası için):* `ok` sınıfı `adp ≤ coverage_limit` ile seçildiği için kesilme ADP ekseni üzerindedir. Eşleme bu yüzden **ADP → değer sırası** yönünde fit edilip ters çevrilir (seçim regresör üzerinde olduğundan yanlılık yok). Uzatma eğimi, PAV basamaklarının uç noktaları yerine son %20'lik dilimdeki ham noktalara en küçük kareler ile fit edilir. Değer → ADP yönünde doğrudan fit, imputasyonu geç turlarda belirgin biçimde erkene sıkıştırıyordu. Bu, değerin ADP'ye sızdığı **tek** yerdir. `adp_status` her ekranda görünür.
 
 Varsayılanlar (`config/model.yaml`, kalibre edilmemiş):
 
@@ -441,6 +451,7 @@ Varsayılanlar (`config/model.yaml`, kalibre edilmemiş):
 adp_fallback:
   pct_drafted_threshold: 50     # τ_pct
   coverage_limit: 150           # çoğunlukla 12 takımlı lig ADP'sinin güvenilir kapsamı (varsayım)
+  missing_adp_policy: after_coverage   # | isotonic
 ```
 
 **Not:** 16 takımlı ligin 145–208 arası seçimleri, 12 takımlı ağırlıklı ADP verisinin seyrek olduğu bölgeye düşer. Bu nedenle geç turlarda ADP'den gelen olasılıklar daha belirsizdir ve UI bunu gösterir.
@@ -450,7 +461,7 @@ adp_fallback:
 `scripts/make_synthetic.py --n 400 --seed 7` şunları üretir:
 - `SYN_001 … SYN_400` adlı oyuncular. Gerçek ad, takım veya ID kullanılmaz. `nba_team = "SYN"`.
 - Parametrik bir modelden çekilen istatistikler: dakika → hacim, pozisyon arketipine göre kategori profili, korelasyonlu gürültü. Gerçek oyunculardan kopyalanan değer yoktur.
-- `ADP = dengeli değer sırası + N(0, σ(sıra))` gürültüsü. Bu sayede bot ve fallback yolları da test edilebilir.
+- ADP, Yahoo Draft Analysis gibi 12 takımlı lig kaynaklarını taklit eder: oyuncunun pick pozisyonu `dengeli değer sırası + N(0, σ(sıra))`; `% drafted = P(pozisyon ≤ 156)`, `ADP = E[pozisyon | pozisyon ≤ 156]` (kesik ortalama), %2'nin altındakiler listelenmez. Bu sayede bot ve fallback yolları gerçek veriye benzer koşullarda test edilebilir.
 - Pozisyon dağılımı yaklaşık PG %20, SG %20, SF %18, PF %20, C %22, oyuncuların yaklaşık %35'i çoklu pozisyon.
 - Her dosyada `is_synthetic=true` ve otomatik manifest (`license_status: personal_use_confirmed`, `source_name: synthetic`) bulunur.
 
@@ -1084,7 +1095,7 @@ Hedef aşılırsa sırayla şunlar uygulanır: (1) ECW değerlendirmesi vektöri
 - **Doldurma profilleri nötrdür.** Rakip ve kullanıcı punt eğilimlerini modellemez.
 - **Sonraki çift politikası miyopiktir** (π). 49'dan sonrası doldurma profiliyle temsil edilir. H-score tarzı gelecek pick stratejisi V2'dedir.
 - **Bot parametreleri gerçek draft verisiyle kalibre edilmemiştir.** Olasılıklar `uncalibrated` olarak etiketlidir.
-- **`pick − A` medyanında yapısal pozitif kayma.** `q = A + σ·ε` modelinde σ ADP ile büyüdüğü için yukarıdan gelen reach'ler aşağıdan gelen slide'lardan fazladır; bu, oyuncuların ortalamada ADP'lerinden biraz *geç* gitmesine yol açar (sentetik veride orta turlarda +2…+5, son turlarda +10 civarı). Survival olasılıkları bu yüzden hafif iyimser olabilir. Olası düzeltme (V2): simülasyonla ADP-tutarlı konum kalibrasyonu (`E[pick_i] ≈ A_i`).
+- **`pick − A` medyanında yapısal pozitif kayma.** `q = A + σ·ε` modelinde σ ADP ile büyüdüğü için yukarıdan gelen reach'ler aşağıdan gelen slide'lardan fazladır; bu, oyuncuların ortalamada ADP'lerinden biraz *geç* gitmesine yol açar (gerçek Yahoo verisinde 1–8. turlarda medyan −0.4…+7, 9–13. turlarda +17…+26; ADP kapsamı dışındaki σ×1.5–2 oyuncular bu bölgede yoğun). Survival olasılıkları bu yüzden hafif iyimser olabilir. Olası düzeltme (V2): simülasyonla ADP-tutarlı konum kalibrasyonu (`E[pick_i] ≈ A_i`).
 - **ADP büyük ölçüde 10/12 takımlı liglerden gelir.** 16 takımlı ligin geç turlarında belirsizlik yüksektir.
 - **Sezon boyu rastgele rakip varsayımı:** Gerçek H2H takvimi ve playoff haftaları yok sayılır.
 
