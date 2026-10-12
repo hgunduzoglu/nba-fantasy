@@ -128,7 +128,7 @@ def synthetic_frames(n_players: int, rng: np.random.Generator, config: Config | 
     adp = np.maximum(1.0, adp)
     missing = (adp > 260) | (rng.random(n_players) < 0.03)
     pct = 100.0 / (1.0 + np.exp((adp - 170.0) / 18.0))
-    std = 0.6 * sigma
+    std = sigma
     default_order = np.argsort(np.argsort(adp + rng.normal(0, 2.0, n_players))) + 1.0
     adp_df = pd.DataFrame({
         "player_id": ids,
