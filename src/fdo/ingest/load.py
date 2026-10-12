@@ -79,9 +79,16 @@ class Dataset:
         return self.players.set_index("player_id")["positions"]
 
     def sources(self) -> list[dict]:
-        """Her öneri/export'un taşıdığı kaynak kaydı (§5.2)."""
-        return [{"kind": k, "source_name": m.get("source_name"), "retrieved_at": m.get("retrieved_at"),
-                 "license_status": m.get("license_status")} for k, m in sorted(self.manifests.items())]
+        """Her öneri/export'un taşıdığı kaynak kaydı (§5.2): kaynak, alınma ve ``as_of`` tarihi."""
+        as_of = {"projections": self.projections.get("as_of"), "adp": self.adp.get("as_of")}
+        out = []
+        for k, m in sorted(self.manifests.items()):
+            col = as_of.get(k)
+            out.append({"kind": k, "source_name": m.get("source_name"),
+                        "retrieved_at": m.get("retrieved_at"),
+                        "as_of": str(col.dropna().max()) if col is not None and col.notna().any() else None,
+                        "license_status": m.get("license_status")})
+        return out
 
 
 # --------------------------------------------------------------------------
