@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-from fdo.advisor.pairs import AdvisorError, recommend
+from fdo.advisor.pairs import AdvisorError
 from fdo.advisor.scenarios import run_scenarios
 from fdo.types import CATEGORY_LABELS
 from fdo.ui import common
@@ -34,8 +34,12 @@ if log.next_seat != lg.my_seat:
         st.rerun()
     st.stop()
 
-if cfg.unverified.pick_timer_seconds is None:
+timer = cfg.unverified.pick_timer_seconds
+if timer is None:
     st.warning("`pick_timer_seconds` bilinmiyor: tam mod Yahoo pick süresini aşabilir; hızlı mod varsayılandır.")
+else:
+    st.caption(f"Bilgi: gerçek Yahoo draft'ında pick süresi {timer} s. Bu mock'ta süre yok; botlar hesap biter "
+               "bitmez seçer, siz istediğiniz kadar düşünebilirsiniz.")
 
 u = common.universe()
 avail = [str(u.ids[i]) for i in np.argsort(u.adp, kind="stable")
@@ -53,7 +57,8 @@ with st.form("advisor"):
     go = st.form_submit_button("Öneri hesapla", type="primary")
 
 if go:
-    ctx = common.advisor_context()
+    common.advisor_context()
+    st.button("Hesabı iptal et", help="Herhangi bir etkileşim (ya da sağ üstteki Stop) çalışan hesabı keser.")
     with st.status("Advisor çalışıyor…", expanded=True) as status:
         bar = st.progress(0.0)
 
@@ -61,9 +66,8 @@ if go:
             bar.progress(i / n if n else 0.0, text=f"{step} {i}/{n}" if n else step)
 
         try:
-            res = recommend(ctx, log, mode=mode, pinned_players=pins,
-                            pinned_pairs=[tuple(pp)] if len(pp) == 2 else (), conditional_fill=cond,
-                            progress=progress)
+            res = common.advise(log, mode=mode, pins=pins, pin_pairs=[tuple(pp)] if len(pp) == 2 else (),
+                                conditional=cond, progress=progress)
             st.session_state.advisor_result = res
             status.update(label=f"Tamamlandı ({res.elapsed:.1f} s)", state="complete")
         except AdvisorError as e:
@@ -81,7 +85,9 @@ st.markdown(
     f"doldurma: {res.params['fill']} ({res.params['fill_sims']} sim) · "
     f"{res.params['pairs_rolled_out']}/{res.params['pairs_considered']} çift rollout"
 )
-st.caption("Kaynaklar: " + " · ".join(f"{s['kind']}: {s['source_name']} ({s['retrieved_at']})" for s in res.sources))
+st.caption("Kaynaklar: " + common.format_sources(res.sources))
+if timer and res.elapsed > timer:
+    st.caption(f"Not: bu hesap {res.elapsed:.0f} s sürdü; gerçek draft'taki {timer} s pick süresini aşar.")
 st.markdown(" ".join([common.UNCALIBRATED] + [f"`{x}`" for x in res.uncalibrated]))
 st.caption(f"Kullanıcı kadrosu: {res.real_players}/{res.roster_size} gerçek oyuncu (gerisi doldurma profili). "
            + ("Düşük gerçek oran → belirsizlik yüksek." if res.real_players < res.roster_size / 2 else ""))
