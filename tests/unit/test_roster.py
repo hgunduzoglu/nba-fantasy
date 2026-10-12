@@ -75,6 +75,11 @@ def test_can_complete_catches_infeasible(config, model):
 def test_group_oracle(config):
     groups = [P("PG"), P("C"), P("SF,PF")]
     oracle = GroupOracle(groups, config)
-    open_, fills = oracle.analyze(np.array([0, 4, 0], dtype=np.int16))
+    open_, fills, needs = oracle.analyze(np.array([0, 4, 0], dtype=np.int16))
     assert open_ == 6
     assert fills.tolist() == [True, False, True]
+    assert needs.tolist() == [True, False, True]
+    # 2 C: UTIL açık olduğundan herkes "fills"; ama C pozisyonel ihtiyacı doldu
+    _, fills, needs = oracle.analyze(np.array([0, 2, 0], dtype=np.int16))
+    assert fills.tolist() == [True, True, True]
+    assert needs.tolist() == [True, False, True]

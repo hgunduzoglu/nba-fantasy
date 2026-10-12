@@ -33,12 +33,23 @@ class Assignment:
 
 
 class RosterModel:
-    """Config'e bağlı slot yapısı; pozisyon kümeleri listesi üzerinde çalışır."""
+    """Config'e bağlı slot yapısı; pozisyon kümeleri listesi üzerinde çalışır.
 
-    def __init__(self, config: Config):
+    ``positional_only=True`` iken her pozisyonu kabul eden UTIL slotları aktif
+    sayılmaz: yalnızca pozisyonel ihtiyaç (PG/SG/G/SF/PF/F/C) ölçülür. Bot
+    ``need_bonus``'u bunu kullanır; aksi hâlde UTIL açıkken herkes "ihtiyaç"
+    karşılar ve bonus ayrıştırıcı olmaz.
+    """
+
+    def __init__(self, config: Config, positional_only: bool = False):
         self.config = config
-        self.instances = slot_instances(config)
-        self.allowed = [config.roster.slot_eligibility[s] for s in self.instances]
+        inst = slot_instances(config)
+        if positional_only:
+            inst = [s for s in inst if slot_tier(s, config) in ("specific", "flex")]
+            inst += ["BN"] * config.league.rounds
+        self.instances = inst
+        bench_ok = frozenset().union(*config.roster.slot_eligibility.values())
+        self.allowed = [config.roster.slot_eligibility.get(s, bench_ok) for s in self.instances]
         self.cost = np.array([TIER_COST[slot_tier(s, config)] for s in self.instances])
         self.is_active = np.array([s in config.roster.active_slots for s in self.instances])
         self.n_active = int(self.is_active.sum())
@@ -99,31 +110,40 @@ class GroupOracle:
     """Pozisyon grubu sayımlarından hızlı kadro analizi (botlar ve simülasyon için).
 
     ``groups[g]`` bir pozisyon kümesidir. Kadro, grup başına sayım vektörü ile
-    temsil edilir. ``analyze(counts)`` → ``(eksik aktif slot sayısı,
-    fills[g] = g grubundan bir oyuncu eklemek eksik aktif slotu azaltır mı)``.
+    temsil edilir. ``analyze(counts)`` →
+
+    * eksik aktif slot sayısı,
+    * ``fills[g]``: g grubundan bir oyuncu eklemek eksik aktif slotu azaltır mı (feasibility),
+    * ``needs[g]``: eksik **pozisyonel** slotu (UTIL hariç) azaltır mı (need_bonus).
     """
 
     def __init__(self, groups: list[frozenset[str]], config: Config):
         self.groups = list(groups)
         self.model = RosterModel(config)
-        self._cache: dict[bytes, tuple[int, np.ndarray]] = {}
+        self.positional = RosterModel(config, positional_only=True)
+        self._cache: dict[bytes, tuple[int, np.ndarray, np.ndarray]] = {}
 
-    def _open(self, counts: np.ndarray) -> int:
+    def _open(self, model: RosterModel, counts: np.ndarray) -> int:
         positions = [self.groups[g] for g, c in enumerate(counts) for _ in range(int(c))]
-        return self.model.open_active_count(positions)
+        return model.open_active_count(positions)
 
-    def analyze(self, counts: np.ndarray) -> tuple[int, np.ndarray]:
-        key = counts.tobytes()
-        hit = self._cache.get(key)
-        if hit is not None:
-            return hit
-        base = self._open(counts)
-        fills = np.zeros(len(self.groups), dtype=bool)
+    def _reduces(self, model: RosterModel, counts: np.ndarray) -> tuple[int, np.ndarray]:
+        base = self._open(model, counts)
+        out = np.zeros(len(self.groups), dtype=bool)
         if base > 0:
             for g in range(len(self.groups)):
                 c = counts.copy()
                 c[g] += 1
-                fills[g] = self._open(c) < base
-        res = (base, fills)
+                out[g] = self._open(model, c) < base
+        return base, out
+
+    def analyze(self, counts: np.ndarray) -> tuple[int, np.ndarray, np.ndarray]:
+        key = counts.tobytes()
+        hit = self._cache.get(key)
+        if hit is not None:
+            return hit
+        base, fills = self._reduces(self.model, counts)
+        _, needs = self._reduces(self.positional, counts)
+        res = (base, fills, needs)
         self._cache[key] = res
         return res

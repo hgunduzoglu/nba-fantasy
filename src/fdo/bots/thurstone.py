@@ -193,11 +193,12 @@ class BatchDraft:
         counts = self.counts[:, seat_i, :]
         opens = np.empty(self.S, dtype=np.int64)
         fills = np.empty((self.S, len(u.groups)), dtype=bool)
+        needs = np.empty((self.S, len(u.groups)), dtype=bool)
         for row in range(self.S):
-            opens[row], fills[row] = self.oracle.analyze(counts[row])
+            opens[row], fills[row], needs[row] = self.oracle.analyze(counts[row])
         fill_mat = fills[:, u.group]
         need = bp.beta_need * pt.need_mult[prof] * (rnd / self.rounds)
-        score = score - need[:, None] * fill_mat
+        score = score - need[:, None] * needs[:, u.group]
 
         if bp.beta_stack > 0:
             pure_counts = np.where(self.pure_group[None, :] >= 0,
