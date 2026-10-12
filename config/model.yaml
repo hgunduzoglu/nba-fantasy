@@ -1,0 +1,105 @@
+# Model parametreleri. Tamamı KALİBRE EDİLMEMİŞ varsayılanlardır (README §6, §7).
+
+valuation:
+  basis: total                 # total | per_game
+  method: z                    # z | g
+  pool_size: null              # null → teams × rounds
+  pool_size_options: [180, 208, 240]
+  max_pool_iterations: 10
+  g_kappa: 1.0                 # Rosenof G-score katsayısı — makaleden DOĞRULANMADI
+  weight_min: 0.0
+  weight_max: 3.0
+  weight_step: 0.05
+  presets:
+    balanced:   {}
+    punt_FT:    {FT_PCT: 0}
+    punt_FG:    {FG_PCT: 0}
+    punt_TO:    {TOV: 0}
+    punt_AST:   {AST: 0}
+    punt_PTS:   {PTS: 0}
+    punt_3PM:   {FG3M: 0}
+    punt_FT_TO: {FT_PCT: 0, TOV: 0}
+    punt_FG_FT: {FG_PCT: 0, FT_PCT: 0}
+
+adp_fallback:
+  pct_drafted_threshold: 50     # τ_pct
+  coverage_limit: 150           # 12 takımlı lig ADP'sinin güvenilir kapsamı (varsayım)
+  sigma_mult:
+    ok: 1.0
+    low_confidence: 1.5
+    imputed: 2.0
+    tail: 2.0
+  low_confidence_default_w: 0.5
+  extrapolation_tail_fraction: 0.2
+
+bots:
+  mix: {MarketFollower: 6, ValueHunter: 3, PositionAware: 2, PuntBuilder: 2, RandomHuman: 1, AutoDrafter: 1}   # toplam 15
+  seat_assignment: random_per_draft      # veya fixed
+  user_auto_profile: MarketFollower      # "kullanıcıya/sona kadar oynat"ta kullanıcı koltuğu
+  sigma0: 1.5
+  sigma1: 0.12
+  sigma_floor: 1.0
+  t_df: 5
+  t_df_random_human: 3
+  jitter_rho: 0.15
+  value_lambda: 0.3
+  punt_lambda: 0.4
+  punt_after_round: 3
+  beta_need: 4.0          # pick birimi
+  position_aware_need_mult: 3.0
+  beta_stack: 3.0
+  enforce_completion_feasibility: true
+  profile_sigma_mult:
+    MarketFollower: 0.8
+    ValueHunter: 1.0
+    PositionAware: 1.0
+    PuntBuilder: 1.0
+    AutoDrafter: 0.3
+    RandomHuman: 1.5
+
+variance:
+  phi:                    # aşırı yayılımlı Poisson çarpanı (stat başına), kalibre edilmemiş
+    fgm: 1.0
+    fga: 1.0
+    ftm: 1.0
+    fta: 1.0
+    fg3m: 1.0
+    pts: 1.0
+    reb: 1.0
+    ast: 1.0
+    stl: 1.0
+    blk: 1.0
+    tov: 1.0
+
+matchup:
+  games_per_week: 3.5          # ortalama; takvim V2. Varsayım.
+  utilization: 0.92            # 13 kişiden oynatılabilen maç oranı. Kalibre edilmemiş.
+  games_cap: 82
+  winnable_threshold: 0.6
+  lost_threshold: 0.4
+
+advisor:
+  k1_top_ecw: 20
+  k2_urgency_pool: 35
+  urgency_survival_threshold: 0.5
+  max_candidates: 25
+  m_pairs_to_rollout: 30
+  sims_per_pair: 500        # tam mod
+  sims_per_pair_fast: 200   # hızlı mod (varsayılan)
+  next_policy_top_l: 12
+  policy_shortlist_k: 60
+  fill_sims_base: 200
+  fill_sims_conditional: 100
+  fill_smoothing_window: 5
+  scenario_full_sims: 200
+  pool_table_size: 30
+  pool_tiers: 5
+  tier_se_mult: 2.0
+
+realism:
+  reach_z_warn: 1.5
+  reach_z_bad: 2.5
+  slide_z: 2.5
+  extreme_adp_center: 90
+  extreme_adp_halfwidth: 5
+  diversity_top_n: 32

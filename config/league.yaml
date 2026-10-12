@@ -1,0 +1,40 @@
+# Lig konfigürasyonu (README §3). Kesinleşmiş alanlar.
+league:
+  platform: yahoo
+  season: "2026-27"
+  teams: 16
+  my_seat: 16
+  rounds: 13               # toplam 208 seçim
+  draft_type: snake
+  third_round_reversal: false   # varsayılan kapalı; true yapılabilir
+
+scoring:
+  format: h2h_each_category
+  categories: [FG_PCT, FT_PCT, FG3M, PTS, REB, AST, STL, BLK, TOV]
+  lower_is_better: [TOV]
+  ratio_categories:
+    FG_PCT: {makes: FGM, attempts: FGA}
+    FT_PCT: {makes: FTM, attempts: FTA}
+
+roster:
+  slots: {PG: 1, SG: 1, G: 1, SF: 1, PF: 1, F: 1, C: 2, UTIL: 2, BN: 3}   # 10 aktif + 3 bench = 13
+  active_slots: [PG, SG, G, SF, PF, F, C, UTIL]
+  slot_eligibility:
+    PG:   [PG]
+    SG:   [SG]
+    G:    [PG, SG]
+    SF:   [SF]
+    PF:   [PF]
+    F:    [SF, PF]
+    C:    [C]
+    UTIL: [PG, SG, SF, PF, C]
+    BN:   [PG, SG, SF, PF, C]
+
+# Doğrulanmamış ayarlar (README §3.2). null değerler sessizce varsayılana çevrilmez.
+unverified:
+  tie_value: 0.5              # kategori beraberliği; Yahoo lig kuralından doğrulanacak
+  pick_timer_seconds: null    # advisor hesaplama bütçesini etkiler
+  lineup_lock: null           # daily_today | daily_tomorrow | weekly
+  il_slots: null              # IL/IL+ draft kadrosuna dahil değil kabul edilir
+  keepers: false
+  position_limits_enforced_in_draft: null   # Yahoo draft sırasında pozisyon sınırı uyguluyor mu?
