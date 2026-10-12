@@ -2,7 +2,8 @@
 
 Yahoo Fantasy Basketball 2026–27 için **16 takımlı, H2H 9-Cat Each Category** draft simülatörü ve karar destek sistemi.
 
-> **Durum:** Tasarım ve implementasyon şartnamesi. Bu README yazıldığında henüz kod yok.
+> **Durum:** V1 (M0–M6) implementasyonu tamamlandı; sentetik veriyle uçtan uca çalışır ve testleri geçer.
+> Gerçek veri kaynağı kararı ve manifest'ler kullanıcı eylemidir (§5.1, §10 M0).
 > Bu dosya projenin referans dokümanıdır. Kodla çeliştiği yerde ya kod düzeltilir ya da README bilinçli olarak güncellenir.
 >
 > **Normatif dil:** **ZORUNLU** = kabul kriteri, **ÖNERİLİR** = gerekçesi olmadan sapılmaz, **OPSİYONEL** = zaman kalırsa.
@@ -430,7 +431,9 @@ Her oyuncuya bir `adp_status` ve bir efektif ADP `A_i` atanır. Thurstone σ'sı
 | `imputed` | ADP yok | `Â_i` | 2.0 |
 | `tail` | ADP yok ve değer sırası havuz kapsamının dışında | `max(A) + (değer sırası − kapsama sınırı)` | 2.0 |
 
-`Â_i` (imputasyon): `ok` sınıfındaki oyuncular üzerinde **dengeli Z-değer sırası → ADP** monoton eşlemesi (izotonik regresyon, `scipy`/elle PAV) kurulur. Eşleme, kapsamın ötesine son %20'lik dilimin eğimiyle doğrusal olarak uzatılır. Bu, değerin ADP'ye sızdığı **tek** yerdir. `adp_status` her ekranda görünür.
+`Â_i` (imputasyon): `ok` sınıfındaki oyuncular üzerinde **dengeli Z-değer sırası → ADP** monoton eşlemesi (izotonik regresyon, `scipy`/elle PAV) kurulur. Eşleme, kapsamın ötesine son %20'lik dilimin eğimiyle doğrusal olarak uzatılır.
+
+*Uygulama notu (ilk gerçekçilik raporundan sonra):* `ok` sınıfı `adp ≤ coverage_limit` ile seçildiği için kesilme ADP ekseni üzerindedir. Eşleme bu yüzden **ADP → değer sırası** yönünde fit edilip ters çevrilir (seçim regresör üzerinde olduğundan yanlılık yok). Uzatma eğimi, PAV basamaklarının uç noktaları yerine son %20'lik dilimdeki ham noktalara en küçük kareler ile fit edilir. Değer → ADP yönünde doğrudan fit, imputasyonu geç turlarda belirgin biçimde erkene sıkıştırıyordu. Bu, değerin ADP'ye sızdığı **tek** yerdir. `adp_status` her ekranda görünür.
 
 Varsayılanlar (`config/model.yaml`, kalibre edilmemiş):
 
@@ -591,9 +594,11 @@ Her draft (simülasyon) başında, her bot `b` ve her oyuncu `i` için **kalıc�
 
 ```
 q_bi = A_i + σ_i · ε_bi,     ε_bi ~ t_ν (Student-t, ölçeklenmiş, varyans 1)
-σ_i  = sigma_mult_i · max(σ_floor, adp_std_i)          adp_std varsa
-     = sigma_mult_i · (σ₀ + σ₁ · A_i)                   yoksa
+σ_i  = sigma_mult_i · min(σ_cap, max(σ_floor, adp_std_i))     adp_std varsa
+     = sigma_mult_i · min(σ_cap, σ₀ + σ₁ · A_i)                 yoksa
 ```
+
+`σ_cap` ilk gerçekçilik raporundan sonra eklendi: üst sınır olmadan σ, ADP ile sınırsız büyüyor ve ADP'si havuzun çok ötesindeki (`tail`, A ≈ 400–600) oyuncular t-kuyruğu yüzünden ilk turlarda seçilebiliyordu.
 
 Her pick'te küçük bir anlık titreşim eklenir: `q_bi(t) = q_bi + ρ · σ_i · η_bit`, `η ~ N(0,1)`, `ρ` küçük. Gürültünün büyük kısmı kalıcı olduğu için bot draft boyunca **tutarlı** tercihler sergiler. Bir oyuncuyu "beğenen" bot onu beğenmeye devam eder.
 
@@ -622,7 +627,9 @@ Bu modelin özellikleri:
 | `AutoDrafter` | `default_rank` varsa o, yoksa `A` | Ortada olmayan menajeri temsil eder | 0.3 |
 | `RandomHuman` | `q` | Daha kalın kuyruk (`ν` daha küçük) | 1.5 |
 
-`need_bonus_b(i,t)`: Oyuncu, botun henüz doldurulmamış bir **aktif** slotunu dolduruyorsa (§6.5 ataması ile kontrol edilir), bonus `β_need · f(tur)` kadardır. `f` turla artar, çünkü erken turlarda pozisyon ihtiyacı daha az önemlidir.
+`need_bonus_b(i,t)`: Oyuncu, botun henüz doldurulmamış bir **pozisyonel aktif** slotunu (PG/SG/G/SF/PF/F/C; her pozisyonu kabul eden UTIL hariç) dolduruyorsa (§6.5 ataması ile kontrol edilir), bonus `β_need · f(tur)` kadardır; `f(tur) = tur / rounds`. `f` turla artar, çünkü erken turlarda pozisyon ihtiyacı daha az önemlidir. UTIL dahil edildiğinde UTIL açık kaldığı sürece herkes "ihtiyaç" karşıladığı için bonus ayrıştırıcı olmuyordu.
+
+`penalty_b(i,t)` için kullanılan eşik: saf pozisyon P'nin "kapasitesi" = P'ye özgü aktif slot sayısı + 1 (PG/SG/SF/PF: 2, C: 3); bu sayıyı aşan her saf-P oyuncu için `β_stack`.
 
 `penalty_b(i,t)`: Aynı saf pozisyondan (örn. yalnızca C) aşırı birikim varsa yumuşak ceza uygulanır (`β_stack`).
 
@@ -638,19 +645,26 @@ Bu modelin özellikleri:
 bots:
   mix: {MarketFollower: 6, ValueHunter: 3, PositionAware: 2, PuntBuilder: 2, RandomHuman: 1, AutoDrafter: 1}   # toplam 15
   seat_assignment: random_per_draft      # veya fixed
+  user_auto_profile: MarketFollower       # "oynat" işlemlerinde kullanıcı koltuğu
   sigma0: 1.5
   sigma1: 0.12
   sigma_floor: 1.0
-  t_df: 5
-  t_df_random_human: 3
+  sigma_cap: 25.0         # ilk rapordan sonra eklendi
+  t_df: 8                 # ilk rapordan sonra 5 → 8
+  t_df_random_human: 5    # ilk rapordan sonra 3 → 5
   jitter_rho: 0.15
   value_lambda: 0.3
   punt_lambda: 0.4
   punt_after_round: 3
   beta_need: 4.0          # pick birimi
+  position_aware_need_mult: 3.0
   beta_stack: 3.0
   enforce_completion_feasibility: true
+  profile_sigma_mult: {MarketFollower: 0.8, ValueHunter: 1.0, PositionAware: 1.0,
+                       PuntBuilder: 1.0, AutoDrafter: 0.3, RandomHuman: 1.25}   # RandomHuman 1.5 → 1.25
 ```
+
+İlk gerçekçilik raporu (sentetik veri, 200 mock) varsayılanlarla erken turlarda %8–18 uygunsuz reach (z > 2.5) ve tail oyuncuların 1. turda seçildiği örnekler gösterdi. Yukarıdaki üç değişiklikten sonra (500 mock, seed 1): erken tur uygunsuz reach ≈ %2.2–2.9, orta–geç turlarda ≤ %1; ADP≈90 oyuncunun ilk 16'da gitmesi 4 olay / 4500 oyuncu-mock; Kendall τ ≈ 0.77; tamamlanamayan kadro 0.
 
 #### 6.4.4 Arayüz
 
@@ -1002,44 +1016,44 @@ UI kuralları:
 Her kilometre taşı bağımsız olarak çalışır ve testleri geçer. Bir sonraki kilometre taşı öncekini bozmaz.
 
 ### M0 — Veri temeli
-- [ ] Repo iskeleti, `pyproject.toml`, `config/league.yaml`, `config/model.yaml`
-- [ ] Şemalar, loader, kolon eşleme, validasyon raporu, manifest zorunluluğu
-- [ ] Sentetik veri üretici ve sentetik bandı politikası
-- [ ] ADP güven sınıfları ve imputasyon
-- [ ] §9.1 ingest testleri
+- [x] Repo iskeleti, `pyproject.toml`, `config/league.yaml`, `config/model.yaml`
+- [x] Şemalar, loader, kolon eşleme, validasyon raporu, manifest zorunluluğu
+- [x] Sentetik veri üretici ve sentetik bandı politikası
+- [x] ADP güven sınıfları ve imputasyon
+- [x] §9.1 ingest testleri
 - [ ] **Kullanıcı eylemi:** gerçek projeksiyon ve ADP kaynağı kararı, manifest'lerin doldurulması (§5.1 tablosu)
 
 ### M1 — Projection Explorer
-- [ ] Havuz iterasyonu, Z, hacim ağırlıklı FG/FT, G (κ etiketli), ağırlıklar ve presetler
-- [ ] Sayfa 1 ve 2
-- [ ] §9.1 valuation testleri
+- [x] Havuz iterasyonu, Z, hacim ağırlıklı FG/FT, G (κ etiketli), ağırlıklar ve presetler
+- [x] Sayfa 1 ve 2
+- [x] §9.1 valuation testleri
 
 ### M2 — Snake engine ve manuel draft board
-- [ ] Sıra, turn'ler, event log, undo/replay, import/export
-- [ ] Roster eligibility ve assignment
-- [ ] Sayfa 3 (yalnızca manuel seçim)
-- [ ] §9.1 draft ve roster testleri
+- [x] Sıra, turn'ler, event log, undo/replay, import/export
+- [x] Roster eligibility ve assignment
+- [x] Sayfa 3 (yalnızca manuel seçim)
+- [x] §9.1 draft ve roster testleri
 
 ### M3 — Thurstone botları ve mock simülatörü
-- [ ] `BotLeague`, profiller, feasibility
-- [ ] Sayfa 3'te bot oynatma ve reach renkleri
-- [ ] `run_mock_batch.py` ve sayfa 6 (realism report)
-- [ ] §9.1 bot testleri, ilk gerçekçilik raporu ve buna göre parametre gözden geçirme
+- [x] `BotLeague`, profiller, feasibility
+- [x] Sayfa 3'te bot oynatma ve reach renkleri
+- [x] `run_mock_batch.py` ve sayfa 6 (realism report)
+- [x] §9.1 bot testleri, ilk gerçekçilik raporu ve buna göre parametre gözden geçirme
 
 ### M4 — Matchup modeli
-- [ ] Oyuncu haftalık ortalama/varyans, takım toplamları, P(win), ECW
-- [ ] Doldurma profilleri (taban ve koşullu)
-- [ ] Sayfa 5
-- [ ] §9.1 matchup testleri
+- [x] Oyuncu haftalık ortalama/varyans, takım toplamları, P(win), ECW
+- [x] Doldurma profilleri (taban ve koşullu)
+- [x] Sayfa 5
+- [x] §9.1 matchup testleri
 
 ### M5 — Pair advisor ve 48/49 havuzu (V1'in asıl hedefi)
-- [ ] CRN simülasyon çekirdeği, survival, aday üretimi, çift skorlama, rollout
-- [ ] Sayfa 4: çift tablosu, 48/49 havuzu, karşılaştırma, bekleme maliyeti
-- [ ] §9.1 advisor testleri, §11 süre ölçümü
-- [ ] **Kabul:** Sentetik veriyle 16/17'de en az 5 aday çift için, 48/49'da uygun oyuncu olasılıkları SE ile birlikte görüntülenir. İki çift yan yana karşılaştırılabilir. Sonuç aynı seed ile tekrar üretilebilir.
+- [x] CRN simülasyon çekirdeği, survival, aday üretimi, çift skorlama, rollout
+- [x] Sayfa 4: çift tablosu, 48/49 havuzu, karşılaştırma, bekleme maliyeti
+- [x] §9.1 advisor testleri, §11 süre ölçümü
+- [x] **Kabul:** Sentetik veriyle 16/17'de en az 5 aday çift için, 48/49'da uygun oyuncu olasılıkları SE ile birlikte görüntülenir. İki çift yan yana karşılaştırılabilir. Sonuç aynı seed ile tekrar üretilebilir.
 
 ### M6 — Alternatif kadro senaryoları (hafif)
-- [ ] Tam rollout, arketip gruplama, sayfa 4'e sekme olarak eklenir
+- [x] Tam rollout, arketip gruplama, sayfa 4'e sekme olarak eklenir
 
 ---
 
@@ -1047,14 +1061,14 @@ Her kilometre taşı bağımsız olarak çalışır ve testleri geçer. Bir sonr
 
 Hedefler sıradan bir dizüstü bilgisayar içindir ve **ölçülerek doğrulanacaktır**. `scripts/profile_advisor.py` her kilometre taşında çalıştırılır ve sonuçları raporlar.
 
-| İşlem | Hedef |
-|---|---|
-| Valuation (600 oyuncu, ağırlık değişimi) | < 0.5 s |
-| Tek tam mock (208 pick, 15 bot) | < 0.2 s |
-| 500 mock batch | < 90 s |
-| Doldurma tablosu (200 mock) | < 40 s (önbellekli) |
-| Advisor hızlı mod (`S = 200`, 30 çift) | < 15 s |
-| Advisor tam mod (`S = 500`, 30 çift) | < 45 s |
+| İşlem | Hedef | Ölçülen (V1, Windows dizüstü, sentetik 400 oyuncu) |
+|---|---|---|
+| Valuation (600 oyuncu, ağırlık değişimi) | < 0.5 s | 0.03 s |
+| Tek tam mock (208 pick, 15 bot) | < 0.2 s | 0.19 s |
+| 500 mock batch | < 90 s | 25 s |
+| Doldurma tablosu (200 mock) | < 40 s (önbellekli) | 11 s |
+| Advisor hızlı mod (`S = 200`, 30 çift) | < 15 s | 10 s |
+| Advisor tam mod (`S = 500`, 30 çift) | < 45 s | 20 s |
 
 Hedef aşılırsa sırayla şunlar uygulanır: (1) ECW değerlendirmesi vektörize edilir, (2) aday ve çift sayısı küçültülür, (3) ardışık yarılama (successive halving) kullanılır: önce `S = 100` ile kötü çiftler elenir, kalanlara `S` artırılır. Yahoo pick süresi (§3.2) öğrenildiğinde tam mod bütçesi buna göre ayarlanır.
 
@@ -1070,6 +1084,7 @@ Hedef aşılırsa sırayla şunlar uygulanır: (1) ECW değerlendirmesi vektöri
 - **Doldurma profilleri nötrdür.** Rakip ve kullanıcı punt eğilimlerini modellemez.
 - **Sonraki çift politikası miyopiktir** (π). 49'dan sonrası doldurma profiliyle temsil edilir. H-score tarzı gelecek pick stratejisi V2'dedir.
 - **Bot parametreleri gerçek draft verisiyle kalibre edilmemiştir.** Olasılıklar `uncalibrated` olarak etiketlidir.
+- **`pick − A` medyanında yapısal pozitif kayma.** `q = A + σ·ε` modelinde σ ADP ile büyüdüğü için yukarıdan gelen reach'ler aşağıdan gelen slide'lardan fazladır; bu, oyuncuların ortalamada ADP'lerinden biraz *geç* gitmesine yol açar (sentetik veride orta turlarda +2…+5, son turlarda +10 civarı). Survival olasılıkları bu yüzden hafif iyimser olabilir. Olası düzeltme (V2): simülasyonla ADP-tutarlı konum kalibrasyonu (`E[pick_i] ≈ A_i`).
 - **ADP büyük ölçüde 10/12 takımlı liglerden gelir.** 16 takımlı ligin geç turlarında belirsizlik yüksektir.
 - **Sezon boyu rastgele rakip varsayımı:** Gerçek H2H takvimi ve playoff haftaları yok sayılır.
 
@@ -1109,10 +1124,10 @@ Hedef aşılırsa sırayla şunlar uygulanır: (1) ECW değerlendirmesi vektöri
 
 ## 14. Kurulum ve çalıştırma
 
-*(Kod yazıldıktan sonra doğrulanacak hedef komutlar.)*
+Aşağıdaki komutlar V1 ile doğrulanmıştır.
 
 ```bash
-python -m venv .venv && source .venv/bin/activate
+python -m venv .venv && source .venv/bin/activate     # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
 
 # sentetik veri
@@ -1124,9 +1139,14 @@ pytest -q
 # gerçekçilik raporu
 python scripts/run_mock_batch.py --n 500 --seed 1 --data data/synthetic/
 
+# performans ölçümü (§11); --batch ile 500 mock dahil
+python scripts/profile_advisor.py
+
 # arayüz
 streamlit run src/fdo/ui/app.py
 ```
+
+Raporlar `reports/` altına yazılır (git'e girmez). Sentetik veri manifest'leri `data/synthetic/manifests/` altındadır; loader manifest'i önce CSV'nin yanındaki `manifests/`, sonra bir üst dizindeki `manifests/` (ör. `data/manifests/`) altında arar.
 
 Gerçek veri: CSV'ler `data/real/` altına, manifest'ler `data/manifests/` altına konur ve sayfa 1'den yüklenir. `data/real/` dizini `.gitignore` içindedir.
 
