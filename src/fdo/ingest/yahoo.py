@@ -92,7 +92,11 @@ def match(proj: pd.DataFrame, adp: pd.DataFrame) -> tuple[pd.Series, list[str]]:
     return out, log
 
 
-def manifest(kind: str, file: Path, source: str, extracted: str, notes: str, season: str) -> dict:
+def manifest(kind: str, file: Path, source: str, extracted: str, notes: str, season: str,
+             license_status: str = "unknown", license_notes: str | None = None) -> dict:
+    """Manifest sözlüğü. Lisans kararı kullanıcınındır (§5.1); verilmezse ``unknown``."""
+    if license_notes is None:
+        license_notes = "Kullanım şartları doğrulanmadı — kullanıcı okuyup güncellemeli (README §5.1)."
     return {
         "file": file.relative_to(REPO_ROOT).as_posix(),
         "kind": kind,
@@ -100,8 +104,8 @@ def manifest(kind: str, file: Path, source: str, extracted: str, notes: str, sea
         "source_url": None,
         "retrieved_at": extracted[:10],
         "retrieved_by": "manual export (JSON) + scripts/import_yahoo_json.py",
-        "license_status": "unknown",
-        "license_notes": "Kullanım şartları doğrulanmadı — kullanıcı okuyup güncellemeli (README §5.1). " + notes,
+        "license_status": license_status,
+        "license_notes": f"{license_notes} {notes}",
         "season": season,
         "basis": "per_game",
         "is_synthetic": False,

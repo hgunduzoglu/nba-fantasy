@@ -1,9 +1,9 @@
 """Yahoo JSON dışa aktarımlarını şemaya uygun CSV'lere ve manifest'lere çevirir (README §5.2–§5.4).
 
-Eşleştirme ve dönüşüm ``fdo.ingest.yahoo`` içindedir. Çıktılar ``data/real/`` (git'e girmez)
+Eşleştirme ve dönüşüm ``fdo.ingest.yahoo`` içindedir. Çıktılar ``data/real/``
 ve ``data/manifests/`` altına yazılır; ham JSON'lar ``data/real/raw/`` altına taşınır.
-Manifest'lerde ``license_status: unknown`` yazılır: kaynağın kullanım şartlarını okuyup kararı
-**kullanıcı** verir (§5.1).
+Lisans kararını **kullanıcı** verir (§5.1) ve ``--license-status`` / ``--license-notes`` ile
+manifest'e yazdırır; verilmezse ``unknown`` yazılır.
 
     python scripts/import_yahoo_json.py --players players.json --adp adp.json
 """
@@ -31,6 +31,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--manifests", default=str(REPO_ROOT / "data" / "manifests"))
     ap.add_argument("--adp-field", default="adp_preseason", choices=["adp_preseason", "adp_all", "adp_last7"])
     ap.add_argument("--keep-raw", action="store_true", help="ham JSON'ları taşımak yerine kopyala")
+    ap.add_argument("--license-status", default="unknown",
+                    choices=["personal_use_confirmed", "assumed", "unknown"])
+    ap.add_argument("--license-notes", default=None, help="kullanıcının lisans kararı / gerekçesi")
     args = ap.parse_args(argv)
     sys.stdout.reconfigure(errors="replace")
 
@@ -55,7 +58,8 @@ def main(argv: list[str] | None = None) -> int:
     ):
         path = out / f"{kind}_yahoo_{date}.csv"
         df.to_csv(path, index=False)
-        m = manifest(kind, path, src, extracted, note, cfg.league.season)
+        m = manifest(kind, path, src, extracted, note, cfg.league.season,
+                     args.license_status, args.license_notes)
         (mdir / f"{path.name}.yaml").write_text(yaml.safe_dump(m, sort_keys=False, allow_unicode=True),
                                                 encoding="utf-8")
         paths[kind] = path
