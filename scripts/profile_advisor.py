@@ -2,6 +2,7 @@
 
     python scripts/profile_advisor.py            # hepsi (500 mock batch hariç)
     python scripts/profile_advisor.py --batch    # 500 mock batch dahil
+    python scripts/profile_advisor.py --data data/real/   # mock/advisor ölçümleri gerçek veriyle
 """
 
 from __future__ import annotations
@@ -45,6 +46,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--seed", type=int, default=7)
     ap.add_argument("--batch", action="store_true", help="500 mock batch'i de ölç")
     ap.add_argument("--out", default="reports/")
+    ap.add_argument("--data", default=None, help="mock/advisor için veri dizini (varsayılan: sentetik 400)")
     args = ap.parse_args(argv)
     sys.stdout.reconfigure(errors="replace")
 
@@ -58,7 +60,18 @@ def main(argv: list[str] | None = None) -> int:
     t, _ = timed(lambda: value_players(ds600.projections, cfg, weights=preset(cfg, "punt_FT")))
     rows.append(("Valuation (600 oyuncu, ağırlık değişimi)", t))
 
-    ds = make_synthetic(400, np.random.default_rng(args.seed), cfg, seed=args.seed)
+    if args.data:
+        from run_mock_batch import find_files
+
+        from fdo.ingest import load_dataset
+
+        files = find_files(Path(args.data))
+        ds, report = load_dataset(files["players"], files["projections"], files["adp"], config=cfg)
+        if ds is None:
+            print("Veri yüklenemedi:", *report.errors, sep="\n  - ")
+            return 1
+    else:
+        ds = make_synthetic(400, np.random.default_rng(args.seed), cfg, seed=args.seed)
     universe = build_universe(ds, cfg)
     MockDraft(ds, cfg, 0, universe).play_to_end()
     t, _ = timed(lambda: MockDraft(ds, cfg, 1, universe).play_to_end())
@@ -85,7 +98,8 @@ def main(argv: list[str] | None = None) -> int:
     print(df.to_string(index=False))
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
-    (out / "profile_advisor.md").write_text("# Performans ölçümü (README §11)\n\n" + md_table(df, index=False)
+    label = args.data or "sentetik 400 oyuncu"
+    (out / "profile_advisor.md").write_text(f"# Performans ölçümü (README §11) — {label}\n\n" + md_table(df, index=False)
                                             + "\n", encoding="utf-8")
     return 0
 
