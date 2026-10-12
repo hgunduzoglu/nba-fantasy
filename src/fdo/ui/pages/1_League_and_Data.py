@@ -131,7 +131,7 @@ with tab_disk:
 
 with tab_upload:
     st.markdown(
-        "Dosyalar `data/real/` altına (git'e girmez), manifest'ler `data/manifests/` altına yazılır. "
+        "Dosyalar `data/real/` altına, manifest'ler `data/manifests/` altına yazılır. "
         "**Manifest olmadan dosya yüklenmez.** Kaynağın kullanım şartlarını okuyup kararınızı manifest'e "
         "siz yazarsınız; kod bunu doğrulayamaz, yalnızca kaydeder (§5.1–5.2)."
     )

@@ -1,0 +1,12 @@
+file: data/real/projections_yahoo_2026-10-12.csv
+kind: projections
+source_name: Yahoo Fantasy Basketball
+source_url: null
+retrieved_at: '2026-10-12'
+retrieved_by: manual export (JSON) + scripts/import_yahoo_json.py
+license_status: personal_use_confirmed
+license_notes: 'Kullanıcı kararı (2026-10-12): Yahoo sayfaları public; kişisel kullanım.
+  stats_mode=S_PSR; sezon toplamları gp''ye bölünerek maç başına çevrildi.'
+season: 2026-27
+basis: per_game
+is_synthetic: false

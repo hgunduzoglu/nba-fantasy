@@ -17,9 +17,6 @@ venv/
 .coverage
 htmlcov/
 
-# Kullanıcının gerçek verisi (§5.1) — repoya girmez
-data/real/
-
 # Üretilen raporlar ve önbellekler
 reports/
 .fdo_cache/

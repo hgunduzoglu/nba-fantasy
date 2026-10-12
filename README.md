@@ -207,7 +207,7 @@ fantasy-draft-optimizer/
     model.yaml                # bot, varyans, advisor parametreleri (§6)
   data/
     synthetic/                # üretilen sentetik veri (repoda olabilir)
-    real/                     # kullanıcının gerçek CSV'leri (.gitignore)
+    real/                     # kullanıcının gerçek CSV'leri (+ raw/ ham dışa aktarımlar)
     manifests/                # her veri seti için manifest (§5.2)
   src/fdo/
     __init__.py
@@ -1159,7 +1159,12 @@ streamlit run src/fdo/ui/app.py
 
 Raporlar `reports/` altına yazılır (git'e girmez). Sentetik veri manifest'leri `data/synthetic/manifests/` altındadır; loader manifest'i önce CSV'nin yanındaki `manifests/`, sonra bir üst dizindeki `manifests/` (ör. `data/manifests/`) altında arar.
 
-Gerçek veri: CSV'ler `data/real/` altına, manifest'ler `data/manifests/` altına konur ve sayfa 1'den yüklenir. `data/real/` dizini `.gitignore` içindedir.
+Gerçek veri: CSV'ler `data/real/` altına, manifest'ler `data/manifests/` altına konur ve sayfa 1'den yüklenir. Repoda Yahoo dışa aktarımından (12 Ekim 2026) üretilmiş veri seti ve ham JSON'ları bulunur; yeniden üretmek için:
+
+```bash
+python scripts/import_yahoo_json.py --players data/real/raw/yahoo_players_2026-10-12.json \
+    --adp data/real/raw/yahoo_adp_2026-10-12.json --license-status personal_use_confirmed
+```
 
 ---
 
