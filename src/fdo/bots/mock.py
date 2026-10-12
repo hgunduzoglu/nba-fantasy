@@ -13,8 +13,10 @@ from fdo.bots.thurstone import BatchDraft
 from fdo.bots.universe import BotUniverse, build_universe
 from fdo.config import Config
 from fdo.draft.events import DraftError, DraftLog
+from fdo.draft.rules import check_pick, validate_log
 from fdo.draft.state import DraftState
 from fdo.ingest.load import Dataset
+from fdo.roster.assignment import RosterModel
 
 
 def replay_into(engine: BatchDraft, player_ids_in_order) -> None:
@@ -64,6 +66,8 @@ class MockDraft:
         self.universe = universe or build_universe(dataset, config)
         self.engine = BatchDraft(self.universe, config, 1, self.seed)
         self.log = DraftLog.new(config)
+        self._positions = dataset.positions().to_dict()
+        self._roster_model = RosterModel(config)
 
     @property
     def profiles(self) -> list[str]:
@@ -77,12 +81,15 @@ class MockDraft:
         replay_into(self.engine, [p.player_id for p in self.log.picks])
 
     def set_log(self, log: DraftLog) -> None:
+        """Log'u yükler; pozisyon kuralı açıksa her pick denetlenir (§3.2)."""
+        validate_log(log, self._positions, self.config)
         self.log = log
         self._sync()
 
     def pick(self, player_id: str, source: str = "user") -> None:
         if player_id not in self.universe.index:
             raise DraftError(f"{player_id} draft havuzunda yok")
+        check_pick(self.log, player_id, self._positions, self.config, self._roster_model)
         new_log = self.log.make_pick(player_id, source)
         self.engine.force(self.universe.index[player_id])
         self.log = new_log
@@ -105,7 +112,17 @@ class MockDraft:
             self.play_next()
 
     def undo(self) -> None:
-        self.set_log(self.log.undo())
+        self.log = self.log.undo()
+        self._sync()
 
     def truncate(self, overall_pick: int) -> None:
-        self.set_log(self.log.truncate(overall_pick))
+        self.log = self.log.truncate(overall_pick)
+        self._sync()
+
+    def is_allowed(self, player_id: str) -> bool:
+        """Sıradaki pick için pozisyon kuralına uygun mu?"""
+        try:
+            check_pick(self.log, player_id, self._positions, self.config, self._roster_model)
+        except DraftError:
+            return False
+        return True

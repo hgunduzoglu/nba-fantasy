@@ -106,6 +106,23 @@ def can_complete(positions: list[frozenset[str]], n_remaining_picks: int, config
     return RosterModel(config).can_complete(positions, n_remaining_picks)
 
 
+def feasible_group_table(model: RosterModel, base: list[frozenset[str]], groups: list[frozenset[str]],
+                         n_pick: int, remaining_after: int) -> np.ndarray:
+    """``base`` kadroya ``n_pick`` (1 ya da 2) oyuncu eklenince kadro tamamlanabilir mi?
+
+    Dönüş: ``n_pick == 1`` → ``(G,)``, ``n_pick == 2`` → ``(G, G)`` bool tablo (grup düzeyinde;
+    oyuncu düzeyine ``table[group[i]]`` / ``table[group[i], group[j]]`` ile indirgenir).
+    """
+    G = len(groups)
+    if n_pick == 1:
+        return np.array([model.can_complete([*base, groups[g]], remaining_after) for g in range(G)])
+    out = np.zeros((G, G), dtype=bool)
+    for a in range(G):
+        for b in range(a, G):
+            out[a, b] = out[b, a] = model.can_complete([*base, groups[a], groups[b]], remaining_after)
+    return out
+
+
 class GroupOracle:
     """Pozisyon grubu sayımlarından hızlı kadro analizi (botlar ve simülasyon için).
 

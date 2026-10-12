@@ -72,6 +72,9 @@ class BatchDraft:
         self.ptab = profile_table(self.bp)
         self.oracle = GroupOracle(universe.groups, config)
         self.cache_jitter = cache_jitter
+        # Yahoo pozisyon kuralı uygulanıyorsa (§3.2) tamamlanabilirlik botlar için de zorunludur.
+        self.enforce_feasibility = bool(self.bp.enforce_completion_feasibility
+                                        or config.unverified.position_limits_enforced_in_draft)
         self._jitter_cache: dict[int, np.ndarray] = {}
 
         inst = slot_instances(config)
@@ -208,7 +211,7 @@ class BatchDraft:
             score = score + np.where(pp[None, :] >= 0, pen[:, np.maximum(pp, 0)], 0.0)
 
         ok = self.taken_at == 0
-        if bp.enforce_completion_feasibility:
+        if self.enforce_feasibility:
             remaining_after = self.rounds - self.n_picked[:, seat_i].astype(np.int64) - 1
             feasible = (opens[:, None] - fill_mat) <= remaining_after[:, None]
             cand = ok & feasible
