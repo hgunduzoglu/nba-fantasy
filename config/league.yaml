@@ -30,12 +30,13 @@ roster:
     UTIL: [PG, SG, SF, PF, C]
     BN:   [PG, SG, SF, PF, C]
 
-# Lig kuralları (README §3.2). İlk üç alan kullanıcı tarafından doğrulandı (2026-10-12);
-# null değerler hâlâ doğrulanmamıştır ve sessizce varsayılana çevrilmez.
+# Lig kuralları (README §3.2). Kullanıcı tarafından doğrulandı (2026-10-12, 2026-10-13);
+# null değerler doğrulanmamıştır ve sessizce varsayılana çevrilmez.
 unverified:
   tie_value: 0.5              # doğrulandı: kategori beraberliği T olarak yazılır (W-L-T; win% için 0.5)
   pick_timer_seconds: 45      # doğrulandı: advisor hesaplama bütçesi
-  lineup_lock: null           # daily_today | daily_tomorrow | weekly
-  il_slots: null              # IL/IL+ draft kadrosuna dahil değil kabul edilir
+  lineup_lock: daily_today    # doğrulandı: maç başlayana kadar günlük değişiklik (utilization bkz. model.yaml)
+  il_slots: 3                 # doğrulandı: 3 IL; draft kadrosuna dahil değil (13 pick)
+  il_plus_slots: 0            # doğrulandı: IL+ yok; Q (questionable) oyuncu hiçbir etki almaz
   keepers: false
   position_limits_enforced_in_draft: true   # doğrulandı: Yahoo draft sırasında pozisyon kuralını uygular

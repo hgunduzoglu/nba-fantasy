@@ -81,10 +81,21 @@ variance:
 
 matchup:
   games_per_week: 3.5          # ortalama; takvim V2. Varsayım.
-  utilization: 0.92            # 13 kişiden oynatılabilen maç oranı. Kalibre edilmemiş.
+  # Oynanan maçların aktif slotta sayılan oranı. lineup_lock = daily_today için
+  # scripts/estimate_utilization.py (480 mock kadrosu, varsayımsal takvim): daily_today 0.982,
+  # daily_tomorrow 0.961, weekly 0.864. Takvim varsayımsal → kalibre edilmemiş.
+  utilization: 0.98
   games_cap: 82
   winnable_threshold: 0.6
   lost_threshold: 0.4
+
+availability:
+  # Yahoo durumu bu listedeyse (O = out) projected_gp bu katsayıyla çarpılır: değerleme (total
+  # tabanı) ve haftalık matchup vektörleri. Yahoo projeksiyonunun gp'si zaten düşük olabilir;
+  # katsayı dönüş tarihi / tekrar sakatlanma belirsizliği için ek indirimdir. Kalibre edilmemiş.
+  # Q (questionable), GTD, NA etkilenmez (IL+ yok; kullanıcı kararı 2026-10-13).
+  out_statuses: [O]
+  out_gp_factor: 0.85
 
 advisor:
   k1_top_ecw: 20

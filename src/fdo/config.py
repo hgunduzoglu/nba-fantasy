@@ -84,6 +84,7 @@ class UnverifiedSettings:
     il_slots: int | None
     keepers: bool | None
     position_limits_enforced_in_draft: bool | None
+    il_plus_slots: int | None = None
 
     def null_fields(self) -> list[str]:
         return [f.name for f in dataclasses.fields(self) if getattr(self, f.name) is None]
@@ -152,6 +153,13 @@ class MatchupParams:
 
 
 @dataclass(frozen=True)
+class AvailabilityParams:
+    """Oyuncu durumuna göre maç sayısı düzeltmesi (README §5.8). Q/GTD/NA etkilenmez."""
+    out_statuses: tuple[str, ...] = ("O",)
+    out_gp_factor: float = 0.85
+
+
+@dataclass(frozen=True)
 class AdvisorParams:
     k1_top_ecw: int = 20
     k2_urgency_pool: int = 35
@@ -190,6 +198,7 @@ class ModelSettings:
     matchup: MatchupParams
     advisor: AdvisorParams
     realism: RealismParams
+    availability: AvailabilityParams = field(default_factory=AvailabilityParams)
 
 
 @dataclass(frozen=True)
@@ -295,6 +304,7 @@ def config_from_dict(raw: dict[str, Any]) -> Config:
         matchup=_build(MatchupParams, m.get("matchup")),
         advisor=_build(AdvisorParams, m.get("advisor")),
         realism=_build(RealismParams, m.get("realism")),
+        availability=_build(AvailabilityParams, m.get("availability")),
     )
     cfg = Config(league=league, scoring=scoring, roster=roster, unverified=unverified,
                  model=model, raw=raw)
@@ -357,6 +367,10 @@ def validate_config(cfg: Config) -> None:
 
     if cfg.model.adp_fallback.missing_adp_policy not in ("after_coverage", "isotonic"):
         raise ConfigError("adp_fallback.missing_adp_policy: after_coverage | isotonic")
+    if not 0.0 < cfg.model.availability.out_gp_factor <= 1.0:
+        raise ConfigError("availability.out_gp_factor (0, 1] aralığında olmalı")
+    if cfg.unverified.lineup_lock not in (None, "daily_today", "daily_tomorrow", "weekly"):
+        raise ConfigError("lineup_lock: daily_today | daily_tomorrow | weekly")
 
     val = cfg.model.valuation
     if val.basis not in ("total", "per_game"):

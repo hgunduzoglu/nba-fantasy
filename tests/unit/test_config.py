@@ -26,10 +26,19 @@ def test_bot_mix_must_cover_opponents(config):
 
 
 def test_unverified_nulls_are_reported(config):
-    nulls = config.unverified.null_fields()
-    assert "lineup_lock" in nulls
-    assert "pick_timer_seconds" not in nulls and "tie_value" not in nulls
-    assert config.unverified.position_limits_enforced_in_draft is True
+    assert config.unverified.null_fields() == []
+    un = config.unverified
+    assert un.position_limits_enforced_in_draft is True
+    assert (un.lineup_lock, un.il_slots, un.il_plus_slots) == ("daily_today", 3, 0)
+    nulls = config.with_overrides({"unverified": {"lineup_lock": None}}).unverified.null_fields()
+    assert nulls == ["lineup_lock"]
+
+
+def test_invalid_availability_and_lineup_lock_rejected(config):
+    with pytest.raises(ConfigError):
+        config.with_overrides({"model": {"availability": {"out_gp_factor": 0}}})
+    with pytest.raises(ConfigError):
+        config.with_overrides({"unverified": {"lineup_lock": "monthly"}})
 
 
 def test_overrides_change_hash(config, config_3rr):
