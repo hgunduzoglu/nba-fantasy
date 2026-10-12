@@ -121,7 +121,11 @@ def synthetic_frames(n_players: int, rng: np.random.Generator, config: Config | 
 
     rank = balanced_value_rank(proj, config).reindex(ids).to_numpy(float)
     sigma = 1.5 + 0.12 * rank
-    adp = np.maximum(1.0, rank + rng.normal(0, sigma))
+    # ADP bir "ortalama pick pozisyonu"dur: gürültülü sıranın pozisyonu alınır, böylece
+    # k. en küçük ADP ≈ k olur (bağımsız gürültü ADP ölçeğini sola kaydırırdı).
+    noisy = rank + rng.normal(0, sigma)
+    adp = np.argsort(np.argsort(noisy)) + 1.0 + rng.uniform(-0.3, 0.3, n_players)
+    adp = np.maximum(1.0, adp)
     missing = (adp > 260) | (rng.random(n_players) < 0.03)
     pct = 100.0 / (1.0 + np.exp((adp - 170.0) / 18.0))
     std = 0.6 * sigma
