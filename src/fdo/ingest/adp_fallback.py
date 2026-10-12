@@ -1,14 +1,27 @@
 """ADP güven sınıfları ve imputasyon (README §5.6).
 
-Bu, değerin ADP'ye sızdığı **tek** yerdir: ADP'si olmayan oyuncu için dengeli
-Z-değer sırasından izotonik (monoton) bir eşleme ile ADP *tahmini* üretilir.
+Bu, değerin ADP'ye sızdığı **tek** yerdir: ADP'si olmayan oyuncunun efektif ADP'si
+dengeli Z-değer sırasından türetilir.
 
-| adp_status       | A_i                                         | σ çarpanı |
-|------------------|---------------------------------------------|-----------|
-| ok               | adp                                         | 1.0       |
-| low_confidence   | w·adp + (1−w)·Â                             | 1.5       |
-| imputed          | Â                                           | 2.0       |
-| tail             | max(A) + (değer sırası − havuz boyutu N)    | 2.0       |
+| adp_status       | A_i                                                   | σ çarpanı |
+|------------------|-------------------------------------------------------|-----------|
+| ok               | adp                                                   | 1.0       |
+| low_confidence   | w·adp + (1−w)·Â                                       | 1.5       |
+| imputed / tail   | ``missing_adp_policy``'ye göre (aşağıda)              | 2.0       |
+
+``missing_adp_policy``:
+
+* ``after_coverage`` (varsayılan): ADP kaynağında listelenmeyen ya da az draft edilen oyuncu
+  pratikte kaynağın kapsadığı pick'lerde (çoğu ligde) seçilmiyordur. ``Â`` bu oyuncular için
+  kapsamın **sonrasıdır**, değer sırasıyla: ``Â = max(gözlenen adp) + (ok olmayanlar arasındaki
+  değer sırası)``. ``imputed``/``tail`` için ``A = Â``; ``low_confidence`` harmanı aynen
+  ``w·adp + (1−w)·Â`` (``w = pct/τ``: oyuncunun liglerin ``pct``'sinde ADP civarında, kalanında
+  kapsam sonrasında gitmesi). Böylece k. en küçük efektif ADP ≈ k korunur (ADP'si 123'te biten
+  bir kaynakla 208 pick'lik ligde imputasyonun kapsam içine sıkışmasını önler).
+* ``isotonic`` (README'nin ilk şartnamesi): ``imputed`` için ``Â`` (değer sırası → ADP izotonik
+  eşlemesi), ``tail`` için ``max(A) + (değer sırası − N)``.
+
+Her iki politikada da ``status``: değer sırası ≤ N → ``imputed``, aksi hâlde ``tail``.
 """
 
 from __future__ import annotations
@@ -134,6 +147,9 @@ def apply_adp_fallback(draft_ids: list[str], adp: pd.DataFrame, value_rank: pd.S
     pct = df["pct_drafted"]
     ok = has_adp & (pct.isna() | (pct >= tau)) & (df["adp"] <= params.coverage_limit)
 
+    if params.missing_adp_policy not in ("after_coverage", "isotonic"):
+        raise ValueError(f"missing_adp_policy: after_coverage | isotonic ({params.missing_adp_policy!r})")
+
     fit_mask = ok & df["value_rank"].notna()
     if fit_mask.sum() >= 2:
         iso = value_to_adp_map(df.loc[fit_mask, "value_rank"], df.loc[fit_mask, "adp"],
@@ -143,24 +159,34 @@ def apply_adp_fallback(draft_ids: list[str], adp: pd.DataFrame, value_rank: pd.S
         notes.append("İzotonik eşleme için yeterli 'ok' ADP yok — Â = değer sırası")
         df["adp_hat"] = df["value_rank"]
 
+    missing = ~has_adp
+    low = has_adp & ~ok
+    if params.missing_adp_policy == "after_coverage":
+        # Â: kaynağın kapsamı (gözlenen en büyük ADP) + ok olmayanlar arasındaki değer sırası
+        edge = float(df.loc[has_adp, "adp"].max()) if has_adp.any() else 0.0
+        not_ok = (low | missing) & df["value_rank"].notna()
+        df.loc[not_ok, "adp_hat"] = edge + df.loc[not_ok, "value_rank"].rank(method="first")
+        df.loc[ok, "adp_hat"] = np.nan
+
     status = pd.Series("ok", index=df.index, dtype=object)
     eff = df["adp"].copy()
 
-    low = has_adp & ~ok
     status[low] = "low_confidence"
     w = (pct / tau).clip(0, 1).fillna(params.low_confidence_default_w)
     blended = w * df["adp"] + (1 - w) * df["adp_hat"]
     eff[low] = blended[low].fillna(df["adp"][low])
 
-    missing = ~has_adp
     is_tail = missing & (df["value_rank"] > pool_size)
     imputed = missing & ~is_tail
     status[imputed] = "imputed"
-    eff[imputed] = df.loc[imputed, "adp_hat"]
-    if is_tail.any():
-        base = float(eff[~is_tail].max()) if (~is_tail).any() else float(pool_size)
-        status[is_tail] = "tail"
-        eff[is_tail] = base + (df.loc[is_tail, "value_rank"] - pool_size)
+    status[is_tail] = "tail"
+    if params.missing_adp_policy == "after_coverage":
+        eff[missing] = df.loc[missing, "adp_hat"]
+    else:
+        eff[imputed] = df.loc[imputed, "adp_hat"]
+        if is_tail.any():
+            base = float(eff[~is_tail].max()) if (~is_tail).any() else float(pool_size)
+            eff[is_tail] = base + (df.loc[is_tail, "value_rank"] - pool_size)
 
     df["adp_eff"] = eff.astype(float)
     df["adp_status"] = status

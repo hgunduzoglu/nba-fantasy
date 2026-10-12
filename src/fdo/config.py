@@ -112,6 +112,7 @@ class AdpFallbackParams:
     )
     low_confidence_default_w: float = 0.5
     extrapolation_tail_fraction: float = 0.2
+    missing_adp_policy: str = "after_coverage"
 
 
 @dataclass(frozen=True)
@@ -353,6 +354,9 @@ def validate_config(cfg: Config) -> None:
         raise ConfigError(f"user_auto_profile bilinmiyor: {bots.user_auto_profile}")
     if bots.seat_assignment not in ("random_per_draft", "fixed"):
         raise ConfigError("seat_assignment: random_per_draft | fixed")
+
+    if cfg.model.adp_fallback.missing_adp_policy not in ("after_coverage", "isotonic"):
+        raise ConfigError("adp_fallback.missing_adp_policy: after_coverage | isotonic")
 
     val = cfg.model.valuation
     if val.basis not in ("total", "per_game"):

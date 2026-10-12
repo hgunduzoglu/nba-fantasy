@@ -161,6 +161,26 @@ def test_missing_adp_is_imputed_and_low_pct_is_low_confidence():
     assert tab.loc["p10", "adp_eff"] > tab.drop(index="p10")["adp_eff"].max()
 
 
+def test_after_coverage_places_unlisted_players_after_listed_in_value_order():
+    ids = [f"p{i}" for i in range(1, 9)]
+    # ADP kaynağı yalnızca ilk 5'i listeliyor; listelenmeyenlerin değer sırası 2, 6, 7
+    adp = pd.DataFrame({"player_id": ids, "adp": [1, np.nan, 2, 3, 4, np.nan, np.nan, 5.0],
+                        "pct_drafted": 99.0})
+    vrank = pd.Series([1, 2, 3, 4, 5, 6, 7, 8], index=ids, dtype=float)
+    tab, _ = apply_adp_fallback(ids, adp, vrank, AdpFallbackParams(), pool_size=6)
+    assert tab.loc[["p2", "p6", "p7"], "adp_eff"].tolist() == [6.0, 7.0, 8.0]
+    assert tab.loc[["p2", "p6", "p7"], "adp_status"].tolist() == ["imputed", "imputed", "tail"]
+    # k. en küçük efektif ADP ≈ k (kapsam içine sıkışma yok)
+    assert np.sort(tab["adp_eff"].to_numpy()).tolist() == [1, 2, 3, 4, 5, 6, 7, 8]
+
+
+def test_isotonic_policy_still_available():
+    ids, adp, vrank = _fallback_input()
+    params = AdpFallbackParams(missing_adp_policy="isotonic")
+    tab, _ = apply_adp_fallback(ids, adp, vrank, params, pool_size=9)
+    assert tab.loc["p8", "adp_eff"] == pytest.approx(tab.loc["p8", "adp_hat"])
+
+
 def test_low_confidence_without_pct_uses_half_weight():
     ids = ["a", "b", "c", "d"]
     adp = pd.DataFrame({"player_id": ids, "adp": [1.0, 2.0, 3.0, 200.0], "pct_drafted": np.nan})
