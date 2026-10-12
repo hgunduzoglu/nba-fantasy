@@ -18,6 +18,7 @@ import numpy as np
 import pandas as pd
 import yaml
 
+from fdo.availability import out_mask
 from fdo.config import Config, load_config
 from fdo.ingest import schema
 from fdo.ingest.adp_fallback import apply_adp_fallback
@@ -332,6 +333,13 @@ def build_dataset(players: pd.DataFrame, projections: pd.DataFrame, adp: pd.Data
 
     excluded = set(report.excluded)
     proj = projections[~projections["player_id"].isin(excluded)].reset_index(drop=True)
+    if "injury_status" in players:   # §5.8: durum oyuncu dosyasından; katsayı okunurken uygulanır
+        status = players.set_index("player_id")["injury_status"].fillna("").astype(str)
+        proj = proj.assign(injury_status=proj["player_id"].map(status).fillna(""))
+        n_out = int(out_mask(proj, config).sum())
+        if n_out:
+            report.note(f"Out durumundaki {n_out} oyuncunun maç sayısı ×"
+                        f"{config.model.availability.out_gp_factor:g} ile düzeltilir (Q/NA etkilenmez)")
     vrank = balanced_value_rank(proj, config) if len(proj) else pd.Series(dtype=float)
 
     known = set(players["player_id"])

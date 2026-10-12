@@ -29,7 +29,7 @@ def jsons():
          ]}
     A = {"source": "Yahoo Draft Analysis", "extracted_at": "2026-10-12T19:27:34Z", "players": [
         _adp("1", "Shai Gilgeous-Alexander", "OKC", "OKC - PG Q", 1, 1.5, 100),
-        _adp("2", "Luka Dončić", "LAL", "LAL - PG,SG", 2, 3.4, 100),
+        _adp("2", "Luka Dončić", "LAL", "LAL - PG,SG O", 2, 3.4, 100),
         _adp("9", "Jonas Aidoo", "UTA", "UTA - C NA", 3),
         _adp("7", "John Doe", "BOS", "BOS - SF", 99),
     ]}
@@ -53,6 +53,7 @@ def test_convert_matches_by_id_rank_and_initials(jsons):
     assert players.loc[0, "name"] == "Shai Gilgeous-Alexander"
     assert players.loc[0, "aliases"] == "S. Gilgeous-Alexander"
     assert players.loc[1, "yahoo_positions"] == "PG,SG"
+    assert list(players["injury_status"]) == ["Q", "O", "NA", ""]
     # projeksiyon: toplam / gp; eksik projeksiyon yazılmaz
     assert set(proj["player_id"]) == {"y_1", "y_2", "y_7"}
     luka = proj.set_index("player_id").loc["y_2"]
@@ -69,3 +70,21 @@ def test_converted_tables_validate(jsons, config):
     assert rep.ok, rep.errors
     assert not ds.is_synthetic
     assert "y_9" in rep.excluded          # projeksiyon ve ADP yok
+
+
+def test_out_factor_applies_only_to_out_players(jsons, config):
+    from fdo.availability import effective_projections
+    from fdo.matchup.player_week import per_game_variance, weekly_vectors
+
+    players, proj, adp, _ = convert(*jsons)
+    ds, rep = build_dataset(players, proj, adp, config)
+    assert any("Out durumundaki 1 oyuncu" in n for n in rep.notes)
+    eff = effective_projections(ds.projections, config).set_index("player_id")["projected_gp"]
+    f = config.model.availability.out_gp_factor
+    assert eff["y_2"] == pytest.approx(35 * f)     # O
+    assert eff["y_1"] == 70 and eff["y_7"] == 70   # Q ve durumsuz etkilenmez
+    off = config.with_overrides({"model": {"availability": {"out_gp_factor": 1.0}}})
+    var, _ = per_game_variance(ds.projections, None, {})
+    on_w, off_w = weekly_vectors(ds.projections, var, config), weekly_vectors(ds.projections, var, off)
+    assert on_w.loc["y_2", 1] == pytest.approx(off_w.loc["y_2", 1] * f)
+    assert on_w.loc["y_1", 1] == pytest.approx(off_w.loc["y_1", 1])

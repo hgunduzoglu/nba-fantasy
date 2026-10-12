@@ -140,6 +140,7 @@ def convert(players_json: dict, adp_json: dict, adp_field: str = "adp_preseason"
         "nba_person_id": "",
         "aliases": [n if n and n != full else "" for n, full in zip(proj["name"], a["name"])],
         "is_synthetic": False,
+        "injury_status": a["flags"],
     })
 
     complete = proj["projection_complete"].astype(bool) & proj["gp"].fillna(0).gt(0)
