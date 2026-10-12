@@ -113,17 +113,21 @@ roster:
 
 Bu ligde `FC` slotu **yoktur** ve iki `C` slotu vardır. Config yüklenirken `sum(slots) == rounds` kontrolü yapılır (13 = 13).
 
-### 3.2 Doğrulanmamış ayarlar — sabitlenmez, parametre olarak tutulur
+### 3.2 Lig kuralları — doğrulanan ve doğrulanmamış ayarlar
+
+İlk üç ayar kullanıcı tarafından doğrulandı (12 Ekim 2026). `null` olanlar hâlâ doğrulanmamıştır.
 
 ```yaml
 unverified:
-  tie_value: 0.5              # kategori beraberliği; Yahoo lig kuralından doğrulanacak
-  pick_timer_seconds: null    # advisor hesaplama bütçesini etkiler
+  tie_value: 0.5              # doğrulandı: kategori beraberliği T yazılır (5-3-1 gibi); win% için 0.5
+  pick_timer_seconds: 45      # doğrulandı: gerçek draft'ta advisor bütçesi (mock'ta süre yok)
   lineup_lock: null           # daily_today | daily_tomorrow | weekly
   il_slots: null              # IL/IL+ draft kadrosuna dahil değil kabul edilir
   keepers: false
-  position_limits_enforced_in_draft: null   # Yahoo draft sırasında pozisyon sınırı uyguluyor mu?
+  position_limits_enforced_in_draft: true   # doğrulandı: Yahoo draft sırasında pozisyon kuralını uygular
 ```
+
+Ligde otomatik draft eden menajer yoktur (kullanıcı); bot karışımında `AutoDrafter` 0'dır (§6.4.3).
 
 `null` değerler hiçbir hesapta sessizce varsayılana çevrilmez. Hesabı etkileyen bir değer `null` ise ilgili ekranda uyarı gösterilir.
 
@@ -593,7 +597,7 @@ class DraftLog:              # değişmez liste + yardımcılar
 Kurallar:
 - Bir oyuncu yalnızca bir kez seçilebilir.
 - `seat` değeri `seat_for_pick(overall_pick)` ile tutarlı olmalıdır. Import sırasında tutarsızlık hata sayılır.
-- Pozisyon kısıtı draft motorunda **uygulanmaz**, çünkü Yahoo'nun draft sırasında pozisyon sınırı uygulayıp uygulamadığı doğrulanmadı (§3.2). Kısıtlar botlarda ve advisor'da yumuşak/sert kural olarak uygulanır.
+- **Pozisyon kuralı** (`position_limits_enforced_in_draft: true`, §3.2): bir pick, takımın kalan pick'leriyle tüm aktif slotları doldurmasını imkânsız kılıyorsa geçersizdir (`fdo/draft/rules.py`). `DraftLog` pozisyon bilmediği için kural log'a pick ekleyen katmanlarda uygulanır: kullanıcı/manuel seçim ve import (`MockDraft`), botlar (bu durumda `enforce_completion_feasibility` kapalı olsa bile zorunlu), advisor'ın çift filtresi, π politikası ve senaryolar. Kural `false` yapılırsa yalnızca botlarda ve advisor'da yumuşak/sert kural olarak kalır.
 
 Undo + replay aynı state'i üretmelidir (ZORUNLU test). Export formatları CSV ve JSON'dur ve manifest referansları ile seed bilgisi de eklenir.
 
@@ -605,11 +609,11 @@ Her draft (simülasyon) başında, her bot `b` ve her oyuncu `i` için **kalıc�
 
 ```
 q_bi = A_i + σ_i · ε_bi,     ε_bi ~ t_ν (Student-t, ölçeklenmiş, varyans 1)
-σ_i  = sigma_mult_i · min(σ_cap, max(σ_floor, adp_std_i))     adp_std varsa
-     = sigma_mult_i · min(σ_cap, σ₀ + σ₁ · A_i)                 yoksa
+σ_i  = min(σ_cap, sigma_mult_i · max(σ_floor, adp_std_i))     adp_std varsa
+     = min(σ_cap, sigma_mult_i · (σ₀ + σ₁ · A_i))               yoksa
 ```
 
-`σ_cap` ilk gerçekçilik raporundan sonra eklendi: üst sınır olmadan σ, ADP ile sınırsız büyüyor ve ADP'si havuzun çok ötesindeki (`tail`, A ≈ 400–600) oyuncular t-kuyruğu yüzünden ilk turlarda seçilebiliyordu.
+`σ_cap` ilk gerçekçilik raporundan sonra eklendi: üst sınır olmadan σ, ADP ile sınırsız büyüyor ve ADP'si havuzun çok ötesindeki (`tail`, A ≈ 400–600) oyuncular t-kuyruğu yüzünden ilk turlarda seçilebiliyordu. Sınır sınıf çarpanından **sonra** uygulanır: önce uygulandığında gerçek Yahoo verisinde kapsam dışındaki yüzlerce oyuncu σ = 2 × 25 = 50 ile draft başına ~10 kez 9–13. turlara reach ediyor, ADP'si 97–160 olan oyuncuları ortalamada ~+18 pick kaydırıyor ve ADP'si 161–208 olanların yalnızca %44–75'i seçilebiliyordu.
 
 Her pick'te küçük bir anlık titreşim eklenir: `q_bi(t) = q_bi + ρ · σ_i · η_bit`, `η ~ N(0,1)`, `ρ` küçük. Gürültünün büyük kısmı kalıcı olduğu için bot draft boyunca **tutarlı** tercihler sergiler. Bir oyuncuyu "beğenen" bot onu beğenmeye devam eder.
 
@@ -654,7 +658,9 @@ Bu modelin özellikleri:
 
 ```yaml
 bots:
-  mix: {MarketFollower: 6, ValueHunter: 3, PositionAware: 2, PuntBuilder: 2, RandomHuman: 1, AutoDrafter: 1}   # toplam 15
+  mix: {MarketFollower: 5, ValueHunter: 4, PositionAware: 2, PuntBuilder: 3, RandomHuman: 1, AutoDrafter: 0}   # toplam 15
+  # ilk şartname: {MarketFollower: 6, ValueHunter: 3, PositionAware: 2, PuntBuilder: 2, RandomHuman: 1, AutoDrafter: 1};
+  # ligde otomatik draft eden olmadığı için AutoDrafter 0, değer ve punt odaklı profillerin payı artırıldı
   seat_assignment: random_per_draft      # veya fixed
   user_auto_profile: MarketFollower       # "oynat" işlemlerinde kullanıcı koltuğu
   sigma0: 1.5
@@ -676,6 +682,10 @@ bots:
 ```
 
 İlk gerçekçilik raporu (sentetik veri, 200 mock) varsayılanlarla erken turlarda %8–18 uygunsuz reach (z > 2.5) ve tail oyuncuların 1. turda seçildiği örnekler gösterdi. Yukarıdaki üç değişiklikten sonra (500 mock, seed 1): erken tur uygunsuz reach ≈ %2.2–2.9, orta–geç turlarda ≤ %1; ADP≈90 oyuncunun ilk 16'da gitmesi 4 olay / 4500 oyuncu-mock; Kendall τ ≈ 0.77; tamamlanamayan kadro 0.
+
+Gerçek Yahoo verisiyle (σ sınırı çarpandan sonra, yeni karışım, 500 mock, seed 1): uygunsuz reach 1–4. turlarda %2.3–3.0, 5. turdan sonra ≤ %1.7; `pick − A` medyanı 1–7. turlarda −1.3…+1.9, 8–13. turlarda +6.5…+16.3; ADP≈90 oyuncunun ilk 16'da gitmesi 2 olay / 4500 oyuncu-mock; Kendall τ ≈ 0.76; tamamlanamayan kadro 0. Arayüzde mock sayfasından karışım ve koltuk ataması değiştirilebilir.
+
+*Denenip bırakılan yöntem:* oyuncu başına konum düzeltmesi (`q = A + δ_i + σ·ε`; `δ_i` simülasyonla `medyan pick − A`'ya göre iteratif) ve tur başına düğümlü düzgün bir `δ(A)`. İkisi de yakınsamadı: pick'ler bir permütasyon olduğundan düzeltmeler birbirini itiyor ve sansür (seçilmeyen oyuncu) farkları sistematik pozitif gösteriyordu. Asıl neden olan büyük tail σ'sı yukarıdaki sınırla giderildi.
 
 #### 6.4.4 Arayüz
 
@@ -1072,14 +1082,16 @@ Her kilometre taşı bağımsız olarak çalışır ve testleri geçer. Bir sonr
 
 Hedefler sıradan bir dizüstü bilgisayar içindir ve **ölçülerek doğrulanacaktır**. `scripts/profile_advisor.py` her kilometre taşında çalıştırılır ve sonuçları raporlar.
 
-| İşlem | Hedef | Ölçülen (V1, Windows dizüstü, sentetik 400 oyuncu) |
+| İşlem | Hedef | Ölçülen (Windows dizüstü, gerçek Yahoo verisi, 508 oyuncu) |
 |---|---|---|
 | Valuation (600 oyuncu, ağırlık değişimi) | < 0.5 s | 0.03 s |
-| Tek tam mock (208 pick, 15 bot) | < 0.2 s | 0.19 s |
-| 500 mock batch | < 90 s | 25 s |
-| Doldurma tablosu (200 mock) | < 40 s (önbellekli) | 11 s |
-| Advisor hızlı mod (`S = 200`, 30 çift) | < 15 s | 10 s |
-| Advisor tam mod (`S = 500`, 30 çift) | < 45 s | 20 s |
+| Tek tam mock (208 pick, 15 bot) | < 0.2 s | 0.08 s |
+| 500 mock batch | < 90 s | 16 s |
+| Doldurma tablosu (200 mock) | < 40 s (önbellekli) | 6 s |
+| Advisor hızlı mod (`S = 200`, 30 çift) | < 15 s | 8–12 s (16/17 ve 48/49) |
+| Advisor tam mod (`S = 500`, 30 çift) | < 45 s | 21–36 s |
+
+Gerçek veride ilk ölçümler bütçeyi aşıyordu (tek mock 0.52 s, hızlı mod 16–26 s). Neden: 3 pozisyonlu oyuncularla 12 pozisyon grubu oluşuyor ve bot kadro analizi her durumda `linear_sum_assignment` çözüyordu. Bot analizi grup × slot tipi düzeyinde kapasiteli eşlemeye (`GroupFlow`) çevrildi; "bu oyuncu boş slotu azaltır mı" sorusu tek eşlemeden artık-graf erişilebilirliğiyle cevaplanıyor (eski çözücüyle eşdeğerliği testle korunur). CI her push'ta bu ölçümü raporlar.
 
 Hedef aşılırsa sırayla şunlar uygulanır: (1) ECW değerlendirmesi vektörize edilir, (2) aday ve çift sayısı küçültülür, (3) ardışık yarılama (successive halving) kullanılır: önce `S = 100` ile kötü çiftler elenir, kalanlara `S` artırılır. Yahoo pick süresi (§3.2) öğrenildiğinde tam mod bütçesi buna göre ayarlanır.
 
@@ -1095,22 +1107,23 @@ Hedef aşılırsa sırayla şunlar uygulanır: (1) ECW değerlendirmesi vektöri
 - **Doldurma profilleri nötrdür.** Rakip ve kullanıcı punt eğilimlerini modellemez.
 - **Sonraki çift politikası miyopiktir** (π). 49'dan sonrası doldurma profiliyle temsil edilir. H-score tarzı gelecek pick stratejisi V2'dedir.
 - **Bot parametreleri gerçek draft verisiyle kalibre edilmemiştir.** Olasılıklar `uncalibrated` olarak etiketlidir.
-- **`pick − A` medyanında yapısal pozitif kayma.** `q = A + σ·ε` modelinde σ ADP ile büyüdüğü için yukarıdan gelen reach'ler aşağıdan gelen slide'lardan fazladır; bu, oyuncuların ortalamada ADP'lerinden biraz *geç* gitmesine yol açar (gerçek Yahoo verisinde 1–8. turlarda medyan −0.4…+7, 9–13. turlarda +17…+26; ADP kapsamı dışındaki σ×1.5–2 oyuncular bu bölgede yoğun). Survival olasılıkları bu yüzden hafif iyimser olabilir. Olası düzeltme (V2): simülasyonla ADP-tutarlı konum kalibrasyonu (`E[pick_i] ≈ A_i`).
+- **Geç turlarda `pick − A` medyanında pozitif kayma.** Reach'ler `pick − A` dağılımına sol kuyruk ekler; medyan bu yüzden ortalamadan büyüktür. Gerçek Yahoo verisinde kalan kayma 8–13. turlarda +6.5…+16.3 (σ sınırı çarpandan sonraya alınmadan önce +17…+26). ADP'si 97–160 bandındaki oyuncular ortalamada ADP'lerinden birkaç pick geç gider; bu bölgede survival olasılıkları hafif iyimser olabilir. Oyuncu başına konum kalibrasyonu denendi ve yakınsamadı (§6.4.3); gerçek draft log'larıyla kalibrasyon V2'dedir.
 - **ADP büyük ölçüde 10/12 takımlı liglerden gelir.** 16 takımlı ligin geç turlarında belirsizlik yüksektir.
 - **Sezon boyu rastgele rakip varsayımı:** Gerçek H2H takvimi ve playoff haftaları yok sayılır.
 
 ### 12.2 Kullanıcının doğrulaması gereken açık sorular
-1. Kategori beraberlik kuralı ve standings'te nasıl sayıldığı (`tie_value`).
-2. Draft pick süresi (advisor bütçesi için).
-3. Yahoo'nun draft sırasında pozisyon sınırı uygulayıp uygulamadığı.
-4. Lineup kilit kuralı, IL/IL+ slotları.
-5. Kullanılacak projeksiyon kaynağının kullanım şartları (§5.1).
-6. Kullanılacak ADP kaynağının kolonları: `% drafted`, std, min/max ve zaman penceresi var mı?
-7. Liginizde otomatik draft eden veya ortada olmayan menajer beklentisi (AutoDrafter sayısı).
+1. ~~Kategori beraberlik kuralı~~ — cevaplandı: kategori beraberliği T yazılır (W-L-T), `tie_value: 0.5`.
+2. ~~Draft pick süresi~~ — cevaplandı: 45 s (yalnızca gerçek draft için advisor bütçesi; mock'ta süre yok).
+3. ~~Yahoo'nun draft sırasında pozisyon sınırı uygulayıp uygulamadığı~~ — cevaplandı: uygular (§6.3.2).
+4. Lineup kilit kuralı, IL/IL+ slotları. **Açık.**
+5. ~~Projeksiyon kaynağının kullanım şartları~~ — kullanıcı kararı: Yahoo sayfaları public, kişisel kullanım (`personal_use_confirmed`).
+6. ~~ADP kaynağının kolonları~~ — Yahoo Draft Analysis: `% drafted`, preseason / all / last 7 days ADP var; std ve min/max yok. ADP en fazla ~123. pick'i kapsıyor (§5.6 `after_coverage`).
+7. ~~Otomatik draft eden menajer~~ — cevaplandı: yok, `AutoDrafter: 0`.
 
 ### 12.3 Doğrulanmamış teknik iddialar
 - G-score paydasındaki kesin katsayı (`κ`). Makaleden doğrulanacak.
-- Yahoo autodraft'ın varsayılan sıralamayı kullandığı. Doğrulanmadı, AutoDrafter profili bu varsayıma dayanıyor.
+- Yahoo autodraft'ın varsayılan sıralamayı kullandığı. Doğrulanmadı; AutoDrafter profili bu varsayıma dayanıyor (bu ligde kullanılmıyor).
+- Yahoo pozisyon kuralının tam tanımı. "Kalan pick'lerle aktif slotlar doldurulamıyorsa pick reddedilir" yorumu uygulanıyor.
 - §7'deki gerçekçilik hedef değerleri birer varsayımdır.
 
 ---
@@ -1157,7 +1170,7 @@ python scripts/profile_advisor.py
 streamlit run src/fdo/ui/app.py
 ```
 
-Raporlar `reports/` altına yazılır (git'e girmez). Sentetik veri manifest'leri `data/synthetic/manifests/` altındadır; loader manifest'i önce CSV'nin yanındaki `manifests/`, sonra bir üst dizindeki `manifests/` (ör. `data/manifests/`) altında arar.
+Raporlar `reports/` altına yazılır (git'e girmez). GitHub Actions (`.github/workflows/ci.yml`) her push'ta testleri Python 3.11 ve 3.13'te çalıştırır; gerçekçilik raporu ve performans ölçümünü test eşiği olmadan job özetine ve artifact olarak raporlar (§9.4). Sentetik veri manifest'leri `data/synthetic/manifests/` altındadır; loader manifest'i önce CSV'nin yanındaki `manifests/`, sonra bir üst dizindeki `manifests/` (ör. `data/manifests/`) altında arar.
 
 Gerçek veri: CSV'ler `data/real/` altına, manifest'ler `data/manifests/` altına konur ve sayfa 1'den yüklenir. Repoda Yahoo dışa aktarımından (12 Ekim 2026) üretilmiş veri seti ve ham JSON'ları bulunur; yeniden üretmek için:
 
