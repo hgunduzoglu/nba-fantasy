@@ -20,7 +20,7 @@ import pandas as pd
 from fdo.advisor.simulate import AdvisorContext, team_vectors
 from fdo.advisor.survival import go_pick_quantiles, survival
 from fdo.bots.thurstone import BatchDraft
-from fdo.matchup.ecw import ecw_vs
+from fdo.matchup.ecw import ecw_vs, p_at_least
 from fdo.matchup.fill import FillTable
 
 NEG = -np.inf
@@ -153,6 +153,8 @@ class RolloutOutcome:
     next_choices: pd.DataFrame = field(default_factory=pd.DataFrame)
     survival: np.ndarray | None = None  # (n,) u₁ anında
     survival_se: np.ndarray | None = None
+    #: P(≥5 kategori), rakip ortalaması — **bağımsızlık varsayar**, optimizasyonda kullanılmaz
+    p_at_least_5: np.ndarray | None = None
 
 
 def rollout_pair(prob: Problem, engine: BatchDraft, snap0: dict, pair: tuple[int, ...]) -> RolloutOutcome:
@@ -187,7 +189,8 @@ def rollout_pair(prob: Problem, engine: BatchDraft, snap0: dict, pair: tuple[int
     P = ecw_vs(user_vec, opp, cfg)                  # (S, T−1, n_cat)
     return RolloutOutcome(pair=tuple(int(p) for p in pair), W=P.sum(axis=-1).mean(axis=-1),
                           cat_p=P.mean(axis=1), pool=out_pool, pool_tiers=out_tiers,
-                          next_choices=out_next, survival=surv, survival_se=se)
+                          next_choices=out_next, survival=surv, survival_se=se,
+                          p_at_least_5=p_at_least(P, 5).mean(axis=1))
 
 
 def pool_tables(prob: Problem, engine: BatchDraft, ps: PolicySetup, surv: np.ndarray,
