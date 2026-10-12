@@ -47,9 +47,10 @@ def test_sim_streams_do_not_depend_on_batch_size(universe, config):
 
 
 def test_zero_sigma_follows_adp_order(universe, config):
-    cfg = config.with_overrides({"model": {"bots": {
-        "mix": ONLY_MARKET, "beta_need": 0.0, "beta_stack": 0.0,
-        "enforce_completion_feasibility": False}}})
+    cfg = config.with_overrides({
+        "unverified": {"position_limits_enforced_in_draft": False},
+        "model": {"bots": {"mix": ONLY_MARKET, "beta_need": 0.0, "beta_stack": 0.0,
+                           "enforce_completion_feasibility": False}}})
     u = copy.copy(universe)
     u.sigma = np.zeros_like(universe.sigma)
     b = BatchDraft(u, cfg, 2, seed=3)
