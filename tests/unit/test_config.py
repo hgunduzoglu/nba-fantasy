@@ -27,8 +27,9 @@ def test_bot_mix_must_cover_opponents(config):
 
 def test_unverified_nulls_are_reported(config):
     nulls = config.unverified.null_fields()
-    assert "pick_timer_seconds" in nulls
-    assert "tie_value" not in nulls
+    assert "lineup_lock" in nulls
+    assert "pick_timer_seconds" not in nulls and "tie_value" not in nulls
+    assert config.unverified.position_limits_enforced_in_draft is True
 
 
 def test_overrides_change_hash(config, config_3rr):
