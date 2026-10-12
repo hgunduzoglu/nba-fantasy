@@ -173,7 +173,8 @@ def validate_cross(players: pd.DataFrame, proj: pd.DataFrame, adp: pd.DataFrame,
             if pid not in ad_ids:
                 report.exclude(pid, "projeksiyon ve ADP yok")
 
-    adp_no_proj = sorted((ad_ids & pl_ids) - pr_ids)
+    valued = set(adp.loc[adp["adp"].notna(), "player_id"]) if "adp" in adp else set()
+    adp_no_proj = sorted((valued & pl_ids) - pr_ids)
     if adp_no_proj:
         report.warn("ADP'si olan ama projeksiyonu olmayan oyuncu(lar) bot havuzunda kalır, "
                     f"kullanıcıya önerilmez: {_fmt_ids(adp_no_proj)}")
