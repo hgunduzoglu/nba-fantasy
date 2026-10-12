@@ -77,6 +77,8 @@ pos = ds.positions()
 df = table.copy()
 df.insert(0, "name", names.reindex(df.index).to_numpy())
 df.insert(1, "pos", [",".join(sorted(p)) for p in pos.reindex(df.index)])
+if "injury_status" in ds.projections:   # §5.8: yalnızca O maç sayısını düşürür
+    df.insert(2, "durum", ds.projections.set_index("player_id")["injury_status"].reindex(df.index).fillna(""))
 df["adp_eff"] = adp["adp_eff"].reindex(df.index)
 df["rank − ADP"] = df["rank"] - df["adp_eff"]
 df["adp_status"] = adp["adp_status"].reindex(df.index)
