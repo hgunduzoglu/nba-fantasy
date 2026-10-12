@@ -18,7 +18,8 @@ def test_profile_assignment(config):
     assert len(names) == 16
     assert names[15] == config.model.bots.user_auto_profile
     opp = names[:15]
-    assert opp.count("MarketFollower") == 6 and opp.count("AutoDrafter") == 1
+    assert opp.count("MarketFollower") == 5 and opp.count("PuntBuilder") == 3
+    assert "AutoDrafter" not in opp
 
 
 def test_scaled_t_has_unit_variance():

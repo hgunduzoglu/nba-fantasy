@@ -36,7 +36,9 @@ adp_fallback:
   missing_adp_policy: after_coverage
 
 bots:
-  mix: {MarketFollower: 6, ValueHunter: 3, PositionAware: 2, PuntBuilder: 2, RandomHuman: 1, AutoDrafter: 1}   # toplam 15
+  # Ligde otomatik draft eden menajer yok (kullanıcı, 2026-10-12) → AutoDrafter 0; aktif menajerler
+  # için değer ve punt odaklı profillerin payı artırıldı. Kalibre edilmemiş.
+  mix: {MarketFollower: 5, ValueHunter: 4, PositionAware: 2, PuntBuilder: 3, RandomHuman: 1, AutoDrafter: 0}   # toplam 15
   seat_assignment: random_per_draft      # veya fixed
   user_auto_profile: MarketFollower      # "kullanıcıya/sona kadar oynat"ta kullanıcı koltuğu
   sigma0: 1.5
