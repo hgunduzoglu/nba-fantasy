@@ -3,7 +3,8 @@
 * ``SYN_001 … SYN_n`` adlı oyuncular; gerçek ad, takım veya ID kullanılmaz (``nba_team = "SYN"``).
 * İstatistikler parametrik bir modelden çekilir: dakika → hacim, pozisyon arketipine
   göre kategori profili, korelasyonlu gürültü. Gerçek oyunculardan kopyalanan değer yoktur.
-* ``ADP = dengeli değer sırası + N(0, σ(sıra))``.
+* ``ADP``: dengeli değer sırası + N(0, σ(sıra)) gürültüsüyle bir pozisyon; kaynak 12 takımlı
+  lig kapsamını taklit eder (% drafted, kesik ortalama ADP, kapsam dışı listelenmez).
 * Her dosyada ``is_synthetic = true`` ve otomatik manifest bulunur.
 """
 
@@ -15,6 +16,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import yaml
+from scipy import stats
 
 from fdo.config import Config, load_config
 
@@ -33,6 +35,8 @@ ARCHETYPES = {
 }
 
 SYNTHETIC_SOURCE = "synthetic"
+#: Taklit edilen ADP kaynağının kapsamı: 12 takım × 13 tur.
+SOURCE_COVERAGE = 156.0
 
 
 def _positions(n: int, rng: np.random.Generator) -> list[str]:
@@ -124,12 +128,19 @@ def synthetic_frames(n_players: int, rng: np.random.Generator, config: Config | 
     # ADP bir "ortalama pick pozisyonu"dur: gürültülü sıranın pozisyonu alınır, böylece
     # k. en küçük ADP ≈ k olur (bağımsız gürültü ADP ölçeğini sola kaydırırdı).
     noisy = rank + rng.normal(0, sigma)
-    adp = np.argsort(np.argsort(noisy)) + 1.0 + rng.uniform(-0.3, 0.3, n_players)
-    adp = np.maximum(1.0, adp)
-    missing = (adp > 260) | (rng.random(n_players) < 0.03)
-    pct = 100.0 / (1.0 + np.exp((adp - 170.0) / 18.0))
-    std = sigma
-    default_order = np.argsort(np.argsort(adp + rng.normal(0, 2.0, n_players))) + 1.0
+    position = np.argsort(np.argsort(noisy)) + 1.0 + rng.uniform(-0.3, 0.3, n_players)
+    # Kaynak, Yahoo Draft Analysis gibi çoğunlukla 12 takımlı liglerden derlenir: oyuncunun
+    # pick pozisyonu ~ N(position, σ); yalnızca kapsam (12×13 pick) içinde seçildiği liglerde
+    # sayılır. % drafted = P(pozisyon ≤ C); ADP = kesik ortalama E[pozisyon | pozisyon ≤ C];
+    # %2'nin altındakiler listelenmez.
+    beta = (SOURCE_COVERAGE - position) / sigma
+    cdf = np.clip(stats.norm.cdf(beta), 1e-12, 1.0)
+    lam = stats.norm.pdf(beta) / cdf
+    pct = 100.0 * cdf
+    adp = np.maximum(1.0, position - sigma * lam)
+    std = sigma * np.sqrt(np.clip(1.0 - beta * lam - lam ** 2, 0.01, None))
+    missing = pct < 2.0
+    default_order = np.argsort(np.argsort(position + rng.normal(0, 2.0, n_players))) + 1.0
     adp_df = pd.DataFrame({
         "player_id": ids,
         "adp": np.where(missing, np.nan, np.round(adp, 1)),
