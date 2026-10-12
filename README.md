@@ -115,14 +115,15 @@ Bu ligde `FC` slotu **yoktur** ve iki `C` slotu vardır. Config yüklenirken `su
 
 ### 3.2 Lig kuralları — doğrulanan ve doğrulanmamış ayarlar
 
-İlk üç ayar kullanıcı tarafından doğrulandı (12 Ekim 2026). `null` olanlar hâlâ doğrulanmamıştır.
+Ayarlar kullanıcı tarafından doğrulandı (12–13 Ekim 2026). Bir alan `null` yapılırsa doğrulanmamış sayılır.
 
 ```yaml
 unverified:
   tie_value: 0.5              # doğrulandı: kategori beraberliği T yazılır (5-3-1 gibi); win% için 0.5
   pick_timer_seconds: 45      # doğrulandı: gerçek draft'ta advisor bütçesi (mock'ta süre yok)
-  lineup_lock: null           # daily_today | daily_tomorrow | weekly
-  il_slots: null              # IL/IL+ draft kadrosuna dahil değil kabul edilir
+  lineup_lock: daily_today    # doğrulandı: maç başlayana kadar günlük değişiklik → utilization (§6.6.1)
+  il_slots: 3                 # doğrulandı: draft kadrosuna dahil değil (13 pick)
+  il_plus_slots: 0            # doğrulandı: IL+ yok; Q (questionable) oyuncu hiçbir etki almaz (§5.8)
   keepers: false
   position_limits_enforced_in_draft: true   # doğrulandı: Yahoo draft sırasında pozisyon kuralını uygular
 ```
@@ -269,6 +270,8 @@ fantasy-draft-optimizer/
     make_synthetic.py
     run_mock_batch.py         # N mock → realism raporu
     profile_advisor.py        # süre ölçümü
+    estimate_utilization.py   # lineup kilidine göre utilization tahmini (§6.6.1)
+    import_yahoo_json.py      # Yahoo JSON → şema CSV + manifest
   tests/
     unit/ ...                 # modül başına
     statistical/ ...          # seed'li dağılım testleri
@@ -336,6 +339,7 @@ Projeksiyon ve ADP **ayrı dosyalardır** ve `player_id` üzerinden birleşir. B
 | `nba_person_id` | str | | V2 nba_api eşleşmesi için |
 | `aliases` | str | | `;` ile ayrılmış alternatif yazımlar |
 | `is_synthetic` | bool | ✔ | |
+| `injury_status` | str | | Kaynağın durum etiketi (`O`, `Q`, `NA`…); yalnızca `O` etkiler (§5.8) |
 
 #### `projections_<kaynak>_<tarih>.csv` — maç başına projeksiyon
 
@@ -470,6 +474,23 @@ adp_fallback:
 - Her dosyada `is_synthetic=true` ve otomatik manifest (`license_status: personal_use_confirmed`, `source_name: synthetic`) bulunur.
 
 UI'da sentetik veri yüklüyken her sayfada kırmızı bir **"SENTETİK VERİ — gerçek oyuncu değeri değildir"** bandı gösterilir. Sentetik ve gerçek dosyalar aynı oturumda birleştirilemez.
+
+### 5.8 Oyuncu durumu (out katsayısı)
+
+Yahoo Draft Analysis'teki durum etiketi `players.csv`'de `injury_status` olarak saklanır (gerçek veride 21 `O`, 109 `Q`, 127 `NA`). Kullanıcı kararı (13 Ekim 2026):
+
+- **`O` (out):** `projected_gp × out_gp_factor` (varsayılan 0.85, kalibre edilmemiş). Yahoo projeksiyonunun `gp`'si bazı oyuncularda zaten düşüktür (örn. Jimmy Butler III: 35); katsayı dönüş tarihi ve tekrar sakatlanma belirsizliği için ek indirimdir.
+- **`Q`, `GTD`, `NA`:** hiçbir etki yok; oyuncu durumsuz gibi değerlendirilir (ligde IL+ yok).
+
+```yaml
+availability:
+  out_statuses: [O]
+  out_gp_factor: 0.85
+```
+
+Katsayı ham tabloyu değiştirmez; değerleme (`total` tabanı) ve haftalık matchup vektörleri projeksiyonu `fdo.availability.effective_projections` üzerinden okur. Bu yüzden config değişince veri setinin yeniden yüklenmesi gerekmez. `per_game` tabanında maç sayısı kullanılmadığından katsayı değerlemeyi etkilemez (matchup'ı etkiler). Botlar katsayıyı değerleme üzerinden görür (ValueHunter, PuntBuilder); piyasa (ADP) durumu zaten fiyatlar.
+
+Gerçek veride etkisi (dengeli Z sırası, katsayı 1.0 → 0.8 denemesi): Brandon Ingram 89 → 155, Isaiah Stewart 132 → 200, Jimmy Butler III 267 → 302. 0.8 sert bulunduğu için varsayılan 0.85 seçildi.
 
 ---
 
@@ -721,16 +742,26 @@ Matchup modeli yalnızca projeksiyonları ve opsiyonel varyans dosyasını okur.
 ```yaml
 matchup:
   games_per_week: 3.5          # ortalama; takvim V2. Varsayım.
-  utilization: 0.92            # 13 kişiden oynatılabilen maç oranı (10 aktif slot). Kalibre edilmemiş.
+  utilization: 0.98            # oynanan maçların aktif slotta sayılan oranı (lineup_lock = daily_today)
   games_cap: 82
 ```
 
 Oyuncu `i` için:
 
 ```
-a_i = min(projected_gp_i, 82) / 82               # müsaitlik
+a_i = min(projected_gp_i, 82) / 82               # müsaitlik (out ise gp × out_gp_factor, §5.8)
 k_i = utilization · games_per_week · a_i          # haftalık beklenen sayılan maç
 ```
+
+`utilization`, `scripts/estimate_utilization.py` ile tahmin edildi. 480 mock kadrosu (13 oyuncu, pozisyon uygunluğuyla 10 aktif slot) 20 hafta simüle edildi. Takım takvimi varsayımsaldır: gün başına ortalama maç sayısı Pzt–Paz 8/6/9/5/8/6/7, haftalık sapma σ = 3 maç. Sonuçlar:
+
+| lineup_lock | utilization |
+|---|---|
+| daily_today | 0.982 |
+| daily_tomorrow | 0.961 |
+| weekly | 0.864 |
+
+Sapma olmadan (her hafta aynı takvim) daily_today 0.996 çıkar; kayıp neredeyse tamamen kalabalık gecelerden gelir. IL slotlarıyla yapılan stream/yerine oyuncu alma modellenmez. Gerçek takvim V2'dir.
 
 #### 6.6.2 Oyuncu haftalık ortalama ve varyansı
 
@@ -1115,7 +1146,7 @@ Hedef aşılırsa sırayla şunlar uygulanır: (1) ECW değerlendirmesi vektöri
 1. ~~Kategori beraberlik kuralı~~ — cevaplandı: kategori beraberliği T yazılır (W-L-T), `tie_value: 0.5`.
 2. ~~Draft pick süresi~~ — cevaplandı: 45 s (yalnızca gerçek draft için advisor bütçesi; mock'ta süre yok).
 3. ~~Yahoo'nun draft sırasında pozisyon sınırı uygulayıp uygulamadığı~~ — cevaplandı: uygular (§6.3.2).
-4. Lineup kilit kuralı, IL/IL+ slotları. **Açık.**
+4. Lineup kilit kuralı, IL/IL+ slotları. **Yanıtlandı (13 Ekim 2026):** daily_today → `utilization` 0.98 (§6.6.1); 3 IL, IL+ yok; Q etkisiz, O için maç sayısı katsayısı (§5.8).
 5. ~~Projeksiyon kaynağının kullanım şartları~~ — kullanıcı kararı: Yahoo sayfaları public, kişisel kullanım (`personal_use_confirmed`).
 6. ~~ADP kaynağının kolonları~~ — Yahoo Draft Analysis: `% drafted`, preseason / all / last 7 days ADP var; std ve min/max yok. ADP en fazla ~123. pick'i kapsıyor (§5.6 `after_coverage`).
 7. ~~Otomatik draft eden menajer~~ — cevaplandı: yok, `AutoDrafter: 0`.
@@ -1176,7 +1207,10 @@ Gerçek veri: CSV'ler `data/real/` altına, manifest'ler `data/manifests/` altı
 
 ```bash
 python scripts/import_yahoo_json.py --players data/real/raw/yahoo_players_2026-10-12.json \
-    --adp data/real/raw/yahoo_adp_2026-10-12.json --license-status personal_use_confirmed
+    --adp data/real/raw/yahoo_adp_2026-10-12.json --license-status personal_use_confirmed     --license-notes "Kullanıcı kararı (2026-10-12): Yahoo sayfaları public; kişisel kullanım."
+
+# utilization tahmini (§6.6.1)
+python scripts/estimate_utilization.py --data data/real/ --mocks 30
 ```
 
 ---
