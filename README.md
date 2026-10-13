@@ -24,7 +24,7 @@ Yahoo Fantasy Basketball 2026–27 için **16 takımlı, H2H 9-Cat Each Category
 10. [Kilometre taşları ve kabul kriterleri](#10-kilometre-taşları-ve-kabul-kriterleri)
 11. [Performans bütçeleri](#11-performans-bütçeleri)
 12. [Bilinen sınırlamalar ve açık sorular](#12-bilinen-sınırlamalar-ve-açık-sorular)
-13. [Yol haritası (V2+)](#13-yol-haritası-v2)
+13. [V2](#13-v2)
 14. [Kurulum ve çalıştırma](#14-kurulum-ve-çalıştırma)
 15. [Sözlük](#15-sözlük)
 
@@ -124,6 +124,7 @@ unverified:
   lineup_lock: daily_today    # doğrulandı: maç başlayana kadar günlük değişiklik → utilization (§6.6.1)
   il_slots: 3                 # doğrulandı: draft kadrosuna dahil değil (13 pick)
   il_plus_slots: 0            # doğrulandı: IL+ yok; Q (questionable) oyuncu hiçbir etki almaz (§5.8)
+  playoff_weeks: null         # V2 takvim: fantasy playoff'u olan son hafta sayısı (doğrulanmadı)
   keepers: false
   position_limits_enforced_in_draft: true   # doğrulandı: Yahoo draft sırasında pozisyon kuralını uygular
 ```
@@ -252,11 +253,18 @@ fantasy-draft-optimizer/
       pairs.py                # aday üretimi + çift skorlama
       rollout.py              # sonraki turn'e kadar rollout
       scenarios.py            # alternatif kadro arketipleri (hafif)
+      deep.py                 # V2: tam ufuk rollout + kademeli yarılama (§13.3)
+      uncertainty.py          # V2: sakatlık/rol senaryoları (§13.5)
     realism/
       metrics.py              # pick−ADP dağılımı, reach, çeşitlilik
       report.py
     evaluation/
-      interface.py            # V2 backtest arayüzü (V1'de yalnızca protokol)
+      interface.py            # SeasonEvaluator protokolü
+      evaluators.py           # V2: projeksiyon+gürültü ve game log değerlendiricileri (all-play)
+      backtest.py             # V2: strateji karşılaştırması (§13.1)
+    schedule/                 # V2: takvim, fantasy haftaları, günlük lineup (§13.4)
+    calibration/              # V2: varyans (§13.2) ve bot (§13.6) kalibrasyonu
+    yahoo_api/                # V2: OAuth, draftresults, log birleştirme (§13.7)
     ui/
       app.py
       pages/
@@ -272,6 +280,11 @@ fantasy-draft-optimizer/
     profile_advisor.py        # süre ölçümü
     estimate_utilization.py   # lineup kilidine göre utilization tahmini (§6.6.1)
     import_yahoo_json.py      # Yahoo JSON → şema CSV + manifest
+    fetch_nba_schedule.py     # V2: NBA takvimi → schedule CSV
+    fetch_gamelogs_nba_api.py # V2: game log'ları (nba_api, opsiyonel)
+    calibrate_variance.py     # V2: φ, oyuncu varyansı, kategori korelasyonu
+    calibrate_bots.py         # V2: σ₀/σ₁ uyumu, survival güvenilirliği
+    backtest.py               # V2: strateji karşılaştırması
   tests/
     unit/ ...                 # modül başına
     statistical/ ...          # seed'li dağılım testleri
@@ -339,7 +352,8 @@ Projeksiyon ve ADP **ayrı dosyalardır** ve `player_id` üzerinden birleşir. B
 | `nba_person_id` | str | | V2 nba_api eşleşmesi için |
 | `aliases` | str | | `;` ile ayrılmış alternatif yazımlar |
 | `is_synthetic` | bool | ✔ | |
-| `injury_status` | str | | Kaynağın durum etiketi (`O`, `Q`, `NA`…); yalnızca `O` etkiler (§5.8) |
+| `injury_status` | str | | Kaynağın durum etiketi (`O`, `Q`, `NA`…); `NA` draft edilmez (§5.8) |
+| `is_rookie` | bool | | V2 senaryolarında daha geniş belirsizlik (§13.5) |
 
 #### `projections_<kaynak>_<tarih>.csv` — maç başına projeksiyon
 
@@ -383,7 +397,25 @@ Ham yüzde kolonu yoktur. Yüzdeler `fgm/fga`, `ftm/fta` üzerinden türetilir. 
 | `n_games` | int | Tahmin örneklemi |
 | `seasons` | str | |
 
-Bu dosya yoksa §6.6.2'deki model varsayılanları kullanılır ve sonuçlar `uncalibrated` olarak etiketlenir.
+Bu dosya yoksa §6.6.2'deki model varsayılanları kullanılır ve sonuçlar `uncalibrated` olarak etiketlenir. V2'de `scripts/calibrate_variance.py` bu dosyayı game log'larından üretir (§13.2).
+
+#### `schedule_<kaynak>.csv` — V2, OPSİYONEL (§13.4)
+
+| Kolon | Tip | Zorunlu | Açıklama |
+|---|---|---|---|
+| `game_date` | date | ✔ | Yerel (ET) maç tarihi |
+| `home_team`, `away_team` | str | ✔ | `players.nba_team` ile aynı kodlar (GS, NY, SA… gibi alternatifler çevrilir) |
+| `game_id` | str | | |
+
+#### `gamelogs_<kaynak>.csv` — V2, OPSİYONEL (§13.1, §13.2)
+
+| Kolon | Tip | Zorunlu | Açıklama |
+|---|---|---|---|
+| `player_id` | str | ✔ | Yoksa `name` ile eşlenir; eşleşmeyen satırlar düşürülüp uyarılır |
+| `game_date` | date | ✔ | |
+| `season` | str | ✔ | Örn. `2025-26` |
+| `nba_team`, `minutes` | str, float | | |
+| `fgm` … `tov` | float | ✔ | Maçtaki değerler |
 
 #### `draft_log.csv` / `.json` — draft event'leri
 
@@ -962,15 +994,15 @@ Hedef değerler gerçek veriyle **doğrulanmış değildir**. İlk raporla birli
 
 ## 8. Streamlit arayüzü
 
-Tek uygulama ve çok sayfa (`st.navigation` veya `pages/`). Durum `st.session_state` içinde tutulur: `dataset`, `config`, `draft_log`, `seed`, `weights`. Ağır hesaplar `st.cache_data` ile `(dataset_hash, config_hash, state_hash, seed, params)` anahtarına göre önbelleklenir.
+Tek uygulama ve çok sayfa (`st.navigation` veya `pages/`). Durum `st.session_state` içinde tutulur: `dataset`, `config`, `draft_log`, `seed`, `weights`. Ağır hesaplar `(dataset_hash, config_hash, state_hash, seed, params)` anahtarına göre önbelleklenir (advisor sonuçları oturum durumunda: hesap sırasında ilerleme çubuğu güncellendiği için `st.cache_*` tekrar oynatma hatası verir).
 
 | Sayfa | İçerik |
 |---|---|
-| **1. League & Data** | Lig config görüntüleme/düzenleme (kesin alanlar kilitli, doğrulanmamış alanlar uyarılı); CSV yükleme, kolon eşleme, validasyon raporu, manifest durumu; sentetik veri üret butonu; `adp_status` dağılımı |
+| **1. League & Data** | Lig config görüntüleme/düzenleme (kesin alanlar kilitli, doğrulanmamış alanlar uyarılı); CSV yükleme, kolon eşleme, validasyon raporu, manifest durumu; sentetik veri üret butonu; `adp_status` dağılımı; V2: takvim yükleme ve hafta özeti |
 | **2. Projection Explorer** | Oyuncu tablosu: Z/G seçimi, `per_game`/`total`, 9 kategori skoru, `V`, sıra, `adp_eff` ve `value_rank − ADP`, `adp_status`, pozisyonlar; ağırlık slider'ları ve presetler; havuz boyutu (180/208/240) duyarlılığı; filtre ve arama |
 | **3. Mock Draft** | 16×13 board; seed; bot karışımı; "sıradaki pick'i oynat", "kullanıcıya kadar oynat", "sona kadar oynat"; manuel seçim (arama); undo, "pick k'ye dön", replay; CSV/JSON export ve import; reach renkleri |
-| **4. Draft Assistant** | Kullanıcının sırası geldiğinde: aday çift tablosu (E[W], P10–P90, SE, kademe); seçili çift için **48/49 havuzu** (§6.7.4); iki çift karşılaştırması; bekleme maliyeti; hesap parametreleri ve süre; "hızlı / tam" mod |
-| **5. Team Dashboard** | 16 takım × 9 kategori ortalama P(win); kullanıcı vs her rakip matrisi; kazanılabilir/sınırda/kaybedilmiş kategoriler; gerçek/doldurma oranı; FG%/FT% toplamdan hesaplanmış takım oranları |
+| **4. Draft Assistant** | Kullanıcının sırası geldiğinde: aday çift tablosu (E[W], P10–P90, SE, kademe); seçili çift için **48/49 havuzu** (§6.7.4); iki çift karşılaştırması; bekleme maliyeti; hesap parametreleri ve süre; "hızlı / tam" mod; V2: tam ufuk derin analiz, sakatlık/rol belirsizliği kutusu, Yahoo canlı draft senkronizasyonu |
+| **5. Team Dashboard** | 16 takım × 9 kategori ortalama P(win); kullanıcı vs her rakip matrisi; kazanılabilir/sınırda/kaybedilmiş kategoriler; gerçek/doldurma oranı; FG%/FT% toplamdan hesaplanmış takım oranları; V2: takvim yüklüyse kadronun haftalık maç / sayılan maç tablosu |
 | **6. Realism Report** | §7 metrikleri: son mock ve batch raporu; histogramlar; uygunsuz reach listesi |
 
 UI kuralları:
@@ -1129,12 +1161,12 @@ Hedef aşılırsa sırayla şunlar uygulanır: (1) ECW değerlendirmesi vektöri
 
 ### 12.1 Model sınırlamaları (V1'de bilinçli olarak kabul edilenler)
 - **Normal yaklaşım:** STL/BLK gibi düşük sayılı kategorilerde haftalık dağılım çarpık ve ayrıktır. Beraberlikler yok sayılır.
-- **Maç sayısı sabit** (`games_per_week`). Takvim farkları ve B2B dikkate alınmaz. Maç sayısının varyansı ihmal edilir.
+- **Maç sayısı** takvim yoksa sabittir (`games_per_week`); takvim yüklüyse takım ortalamasıdır (§13.4). Varyans opsiyoneldir ve oyuncular arası kovaryans yoktur.
 - **Varyans parametreleri (`φ`) kalibre edilmemiştir.** Oran kategorilerinde binom terimi yapısal olarak doğrudur. Hacim varyansı ise varsayımdır.
-- **Utilization tek bir katsayıdır.** Günlük lineup çözülmez.
+- **Utilization tek bir katsayıdır** (advisor'da). Günlük lineup çözücü Team Dashboard, utilization tahmini ve backtest'te kullanılır (§13.4).
 - **Doldurma profilleri nötrdür.** Rakip ve kullanıcı punt eğilimlerini modellemez.
-- **Sonraki çift politikası miyopiktir** (π). 49'dan sonrası doldurma profiliyle temsil edilir. H-score tarzı gelecek pick stratejisi V2'dedir.
-- **Bot parametreleri gerçek draft verisiyle kalibre edilmemiştir.** Olasılıklar `uncalibrated` olarak etiketlidir.
+- **Sonraki çift politikası miyopiktir** (π). V1'de 49'dan sonrası doldurma profiliyle temsil edilir; V2 tam ufuk modu draft'ı sonuna kadar açgözlü ECW π ile oynar (§13.3).
+- **Bot parametreleri gerçek draft verisiyle kalibre edilmemiştir.** Olasılıklar `uncalibrated` olarak etiketlidir. Kalibrasyon aracı V2'de vardır (§13.6); draft log'u gerekir.
 - **Geç turlarda `pick − A` medyanında pozitif kayma.** Reach'ler `pick − A` dağılımına sol kuyruk ekler; medyan bu yüzden ortalamadan büyüktür. Gerçek Yahoo verisinde kalan kayma 8–13. turlarda +6.5…+16.3 (σ sınırı çarpandan sonraya alınmadan önce +17…+26). ADP'si 97–160 bandındaki oyuncular ortalamada ADP'lerinden birkaç pick geç gider; bu bölgede survival olasılıkları hafif iyimser olabilir. Oyuncu başına konum kalibrasyonu denendi ve yakınsamadı (§6.4.3); gerçek draft log'larıyla kalibrasyon V2'dedir.
 - **ADP büyük ölçüde 10/12 takımlı liglerden gelir.** 16 takımlı ligin geç turlarında belirsizlik yüksektir.
 - **Sezon boyu rastgele rakip varsayımı:** Gerçek H2H takvimi ve playoff haftaları yok sayılır.
@@ -1147,6 +1179,9 @@ Hedef aşılırsa sırayla şunlar uygulanır: (1) ECW değerlendirmesi vektöri
 5. ~~Projeksiyon kaynağının kullanım şartları~~ — kullanıcı kararı: Yahoo sayfaları public, kişisel kullanım (`personal_use_confirmed`).
 6. ~~ADP kaynağının kolonları~~ — Yahoo Draft Analysis: `% drafted`, preseason / all / last 7 days ADP var; std ve min/max yok. ADP en fazla ~123. pick'i kapsıyor (§5.6 `after_coverage`).
 7. ~~Otomatik draft eden menajer~~ — cevaplandı: yok, `AutoDrafter: 0`.
+8. **V2:** fantasy playoff hafta sayısı (`playoff_weeks`) ve birleşik haftalar (`merge_with_next`). **Açık.**
+9. **V2:** NBA takvimi ve stats.nba.com game log'ları için kullanım şartları kararı (manifest'e yazılır). **Açık.**
+10. **V2:** Yahoo API uygulaması (client id/secret) ve league key. **Açık.**
 
 ### 12.3 Doğrulanmamış teknik iddialar
 - G-score paydasındaki kesin katsayı (`κ`). Makaleden doğrulanacak.
@@ -1156,21 +1191,150 @@ Hedef aşılırsa sırayla şunlar uygulanır: (1) ECW değerlendirmesi vektöri
 
 ---
 
-## 13. Yol haritası (V2+)
+## 13. V2
 
-1. **Backtest çerçevesi** (`fdo.evaluation`): Arayüz V1'de tanımlıdır:
-   ```python
-   class SeasonEvaluator(Protocol):
-       def evaluate(self, rosters: dict[int, list[str]], season: str) -> EvaluationResult: ...
-   ```
-   Strateji karşılaştırması şunlar arasında yapılır: Z-greedy, G-greedy, ECW-advisor (aynı bot ligine karşı). Değerlendirme gerçekleşen haftalık istatistiklerle yapılır (nba_api, şartlara uygun olarak).
-   **Veri sorunu:** Geçmiş sezonların *sezon öncesi* projeksiyon ve ADP snapshot'larına yasal olarak erişim belirsizdir. Erişilemezse yedek yöntem "gerçekleşen ortalama + gürültü" projeksiyonlarıdır. Bu yöntem iyimser sonuç verir ve sonuçlar bu kayıtla raporlanmalıdır.
-2. **Varyans kalibrasyonu:** nba_api game log'ları ile oyuncu bazında `per_game_var`, kategori bazında `φ`, kategori korelasyonları.
-3. **Derin lookahead:** 13 tura kadar rollout, beam search, successive halving. H-score tarzı gelecek pick ağırlık optimizasyonu (bağımsız implementasyon, Rosenof makaleleri referans alınarak).
-4. **Haftalık takvim ve günlük lineup çözücü**, maç sayısı varyansı, playoff haftaları.
-5. **Sakatlık ve rol senaryoları:** GP aralıkları, rookie belirsizlik genişletmesi.
-6. **Bot kalibrasyonu:** Gerçek draft log'larından (indirilen mock CSV'leri, kendi liginin geçmişi) σ₀, σ₁ ve profil karışımının fit edilmesi; survival güvenilirlik grafiği.
-7. **Yahoo API senkronizasyonu:** API başvurusu ve onay, OAuth, `draftresults` üzerinden polling, event dedupe ve boşluk tespiti, manuel override. Yahoo atıf gereksinimi uygulanır. Manuel giriş her zaman yedek olarak kalır.
+V2'nin yedi maddesi uygulanmıştır. Dış veri isteyen parçalar (takvim, game log, draft log,
+Yahoo API) **dosya tabanlıdır**: veri kullanıcı tarafından indirilir ve manifest'le yüklenir
+(§5.1–5.2); script'ler veriyi yalnızca kullanıcı çalıştırdığında çeker.
+
+### 13.1 Backtest (`fdo.evaluation`)
+
+`SeasonEvaluator` protokolünün iki uygulaması vardır; ikisi de **all-play** skorlar (her hafta
+her takım diğer 15 takımla kategori bazında karşılaştırılır, beraberlik `tie_value`).
+`category_wins[seat]` eşleşme başına ortalama kategori galibiyetidir (0–9, ECW ile aynı ölçek).
+
+- `ProjectionNoiseEvaluator`: gerçekleşen sezon simüle edilir. Oyuncunun gerçek maç başı üretimi
+  `projeksiyon × exp(σ·z − σ²/2)` (`--projection-sd`, varsayılan 0.12), maç oranı Beta(κ = 8),
+  haftalık toplamlar normal yaklaşımla çekilir. **İyimserdir** (projeksiyon hatası modelden gelir)
+  ve rapora bu not yazılır.
+- `GameLogEvaluator`: gerçekleşen maç kayıtları; fantasy haftaları `assign_weeks`, her gün oynayan
+  oyuncular günlük lineup çözücüsüyle (§13.4) aktif slotlara yerleştirilir, yalnızca sayılan maçlar toplanır.
+
+Stratejiler (`fdo.evaluation.backtest`): `adp` (en düşük ADP), `z` / `g` (dengeli Z / G), `ecw`
+(V1 advisor'ın en iyi seçimi, hızlı ayarlarla). Her draft `d` için tüm stratejiler aynı bot
+gürültüsünü ve aynı gerçekleşen sezonu görür (CRN); rapor ortalama kategori galibiyeti, lig sırası,
+ilk 3 oranı ve `adp`'ye göre eşleşmeli farkı verir.
+
+```bash
+python scripts/backtest.py --data data/real/ --n 30 --strategies adp,z,g,ecw
+```
+
+İlk ölçüm (gerçek Yahoo verisi, `noise`, 12 draft, koltuk 16, 50 s; küçük örneklem):
+
+| Strateji | Eşleşme başına kategori galibiyeti | SE | Ortalama sıra (16) | İlk 3 |
+|---|---|---|---|---|
+| ecw | 5.24 | 0.12 | 3.9 | %50 |
+| g | 5.11 | 0.14 | 5.1 | %42 |
+| z | 5.02 | 0.19 | 6.0 | %42 |
+| adp | 4.63 | 0.16 | 7.7 | %8 |
+
+`adp`'ye göre eşleşmeli fark: ecw +0.61 ± 0.24, g +0.48 ± 0.21, z +0.39 ± 0.25. Gerçekleşen sezon
+projeksiyon + gürültü olduğu için bu farklar iyimserdir (projeksiyonu iyi kullanan strateji ödüllenir).
+İlk backtest, advisor'ın geç turlarda hiç geçerli çift bulamadığı bir hatayı ortaya çıkardı (aday
+kümesi pozisyon kuralını yok sayıyordu); aday kümesi artık kurala uygun oyunculardan kurulur ve geçerli
+çift yoksa her pozisyon grubundan en iyi oyuncularla genişletilir.
+
+**Veri sorunu sürüyor:** geçmiş sezonların sezon öncesi projeksiyon/ADP snapshot'ları yok. Bu
+yüzden `gamelogs` değerlendiricisi bu veri setiyle ancak içinde bulunulan sezonun sonunda
+(o sezonun log'larıyla) anlamlıdır.
+
+### 13.2 Varyans kalibrasyonu (`fdo.calibration.variance`)
+
+Girdi `gamelogs` şemasıdır (§5.3). `scripts/fetch_gamelogs_nba_api.py` bir sezonu `nba_api` ile
+indirir (opsiyonel bağımlılık `.[nba]`; stats.nba.com şartları kullanıcının kararıdır, manifest'e
+`unknown` yazılır). `scripts/calibrate_variance.py`:
+
+- `φ_s` = oyuncu başına `s²/μ` oranlarının medyanı (≥ `min_games` maç),
+- oyuncu varyansı: oran `φ_s`'ye büzülür `d̂ = ((n−1)·d + n₀·φ_s)/(n−1+n₀)`, projeksiyon
+  ortalamasıyla ölçeklenir (`Var = d̂ · μ_proj`; oyuncunun yeni rolüne uyar) → `variance` CSV + manifest,
+- kategori korelasyonu: oyuncu içi standartlaştırılmış maç kalıntılarının havuzlanmış korelasyonu
+  (oran kategorileri `makes − p̄·att`, TOV ters) → `model.variance.category_corr` için YAML parçası.
+
+Korelasyon yalnızca **P(≥5 kategori)** göstergesinde kullanılır (Gauss kopulası: `z ~ N(0, R)`,
+kategori kazanılır ⇔ `z_c < Φ⁻¹(p_c)`; marjinaller korunur). ECW beklenti olduğu için korelasyondan
+etkilenmez. Korelasyon yoksa gösterge `assumes_independence` rozetini taşır.
+
+```bash
+python scripts/fetch_gamelogs_nba_api.py --season 2025-26
+python scripts/calibrate_variance.py --gamelogs data/real/gamelogs_nba_2025-26.csv --data data/real/
+```
+
+### 13.3 Derin lookahead (`fdo.advisor.deep`)
+
+**Tam ufuk rollout.** V1 sonraki turn'den sonrasını doldurma profiliyle temsil eder. Tam ufuk
+modunda her aday çift için draft sonuna kadar simüle edilir: kullanıcının her sonraki pick'inde π,
+o simülasyonda uygun ve kadroyu tamamlanabilir bırakan oyuncular arasından
+`ECW(mevcut kadro + i + kalan pick doldurması)`'nı en büyükleyeni seçer (kısa liste her pick'te
+ΔECW ile yeniden kurulur, `deep_shortlist_k`). `W`, 16 takımın 13'er gerçek oyuncusuyla hesaplanır.
+π her pick'te kadroya göre ECW'yi optimize ettiği için punt/denge kararları kendiliğinden oluşur
+(H-score'un "gelecek pick'ler kadroya uyum sağlar" fikrinin simülasyonla karşılığı).
+
+**Kademeli yarılama.** V1 sıralamasının ilk `deep_pairs` (8) çifti `deep_rungs` (40, 40, 80) yeni
+simülasyonla basamak basamak değerlendirilir; her basamakta en iyi yarı (en az 2) devam eder. Yeni
+simülasyonlar `sim_offset` ile eklenir: önceki simülasyonlar yeniden hesaplanmaz, CRN korunur.
+
+Gerçek Yahoo verisinde (Windows dizüstü): pick 16'da 12 s, pick 80'de 9 s, pick 144'te 4 s.
+Sıralama V1'den farklılaşabilir (pick 16 örneği: V1'in ilk çifti tam ufukta 5. sıraya düştü).
+Draft Assistant'ta "Derin analiz" bölümünden çalıştırılır.
+
+**Uygulanmayan:** beam search (π her turn'de zaten kısa liste üzerinde tam arama yapar) ve
+H-score'un kapalı biçimli ağırlık optimizasyonu.
+
+### 13.4 Takvim ve günlük lineup (`fdo.schedule`)
+
+- `schedule` şeması (§5.3); `scripts/fetch_nba_schedule.py` NBA'in public takvim JSON'unu
+  normal sezon maçlarına çevirir (`--download` ya da `--input`; manifest'e lisans kararı kullanıcıdan).
+- Fantasy haftası `schedule.week_start` (pazartesi) gününde başlar; `schedule.merge_with_next`
+  birleşen haftalar (ör. All-Star arası). Son `unverified.playoff_weeks` hafta playoff'tur.
+- Takvim yüklüyse oyuncunun haftalık beklenen maçı sabit `games_per_week` yerine takımının eşleşme
+  başına ortalamasıdır; playoff haftaları `matchup.playoff_weight` ile ağırlıklanır.
+  `matchup.games_variance: true` haftadan haftaya maç sayısı varyansını ekler
+  (`Var(X) = E[N]σ² + Var(N)μ²`, oran bileşenlerine de; oyuncular arası kovaryans yok).
+- Günlük lineup çözücü: her gün oynayanlar aktif slotlara pozisyon uygunluğuyla en büyük atama.
+  Team Dashboard kadronuzun hafta başına takvim maçı / sayılan / yedekte kalan maçını gösterir.
+  `scripts/estimate_utilization.py --schedule` utilization'ı gerçek takvimle tahmin eder.
+
+### 13.5 Sakatlık ve rol senaryoları (`fdo.advisor.uncertainty`)
+
+Simülasyon başına oyuncu çarpanı `m = (a/ā)·r`: maç oranı `a ~ Beta(ā·κ, (1−ā)·κ)`
+(`ā = projected_gp/82`), rol `r = exp(σ_r·z − σ_r²/2)`. Rookie'ler (`players.is_rookie`) için
+κ küçük (5 vs 8), σ_r büyük (0.20 vs 0.08). Çarpanın beklentisi 1'dir: E[W] az değişir, P10–P90
+riski yansıtır. Draft Assistant'ta "Sakatlık/rol belirsizliği" kutusuyla açılır; V1 rollout'unda
+kullanıcı ve rakip kadrolarına, tam ufukta final kadrolara uygulanır (π gelecekteki sakatlığı
+bilmez). Çarpanlar simülasyon kimliğiyle tohumlanır (CRN). Kalibre edilmemiştir.
+
+### 13.6 Bot kalibrasyonu (`fdo.calibration.bots`)
+
+Draft log'ları (`draft_log` şeması: Mock Draft export'u, Yahoo senkronizasyonu, elle girilen mock/lig
+draft'ları) ile σ₀, σ₁ **simülasyonlu momentler** yöntemiyle uydurulur: ADP bandı (16 pick) başına
+`pick − A` dağılımının P10/P50/P90'ı hedeftir; ızgaranın her noktası aynı seed'le (CRN) simüle
+edilir. σ₀/σ₁ yalnızca `adp_std`'si olmayan oyuncuların σ'sını belirler (Yahoo verisinde hepsi).
+Survival güvenilirliği: kullanıcının pick'lerinde tahmin edilen `P(uygun)` aralıklarına göre gözlenen
+frekans ve Brier skoru (mevcut ve uyumlu parametrelerle). Sentetik testte gerçek (σ₀ = 3, σ₁ = 0.1)
+3 × 3 ızgarada geri bulunur. Profil karışımı uydurulmaz.
+
+```bash
+python scripts/calibrate_bots.py --logs "data/real/draft_logs/*.csv" --data data/real/
+```
+
+### 13.7 Yahoo API senkronizasyonu (`fdo.yahoo_api`)
+
+- OAuth 2.0 yetkilendirme kodu akışı (`redirect_uri=oob`). Uygulama bilgisi `YAHOO_CLIENT_ID` /
+  `YAHOO_CLIENT_SECRET` ya da `~/.fdo/yahoo_app.json`; token `~/.fdo/yahoo_token.json` (repo dışı),
+  süresi dolunca yenilenir.
+- Yalnızca okuma: `league/{league_key}/draftresults`. `player_key` `466.p.5352` → `y_5352`.
+- Birleştirme: numara sırasıyla eklenir; tekrar eden pick atlanır; boş pick'ten sonra dolu pick
+  varsa **boşluk** raporlanır; aynı `team_key` iki koltukta görünürse draft sırası config'le uyuşmuyor
+  hatası; log'daki pick API ile çelişirse **elle girilen kazanır**, diğer kaynaklarda log o pick'ten
+  API ile yeniden kurulur; veri setinde olmayan oyuncu → elle giriş.
+- Draft Assistant'ta panel: "Şimdi çek" ya da 10 saniyede bir otomatik. Atıf: "Veri: Yahoo Fantasy
+  Sports API". Uygulama anahtarı olmadan test edilemediği için gerçek API yanıtıyla doğrulanmadı;
+  ayrıştırıcı Yahoo'nun belgelenen JSON biçimine göre savunmacı yazıldı ve sahte yanıtlarla test edilir.
+
+### 13.8 V3 adayları
+
+Beam search ve H-score ağırlık optimizasyonu; profil karışımı uyumu; oyuncular arası maç sayısı
+kovaryansı; gerçek H2H takvimi ve playoff eşleşmeleri; geçmiş sezon snapshot'larıyla gerçek backtest.
 
 ---
 
@@ -1207,8 +1371,15 @@ python scripts/import_yahoo_json.py --players data/real/raw/yahoo_players_2026-1
     --adp data/real/raw/yahoo_adp_2026-10-12.json --license-status personal_use_confirmed \
     --license-notes "Kullanıcı kararı (2026-10-12): Yahoo sayfaları public; kişisel kullanım."
 
-# utilization tahmini (§6.6.1)
+# utilization tahmini (§6.6.1); --schedule ile gerçek takvim
 python scripts/estimate_utilization.py --data data/real/ --mocks 30
+
+# V2 (§13)
+python scripts/fetch_nba_schedule.py --download --license-status personal_use_confirmed
+python scripts/fetch_gamelogs_nba_api.py --season 2025-26        # pip install -e ".[nba]"
+python scripts/calibrate_variance.py --gamelogs data/real/gamelogs_nba_2025-26.csv --data data/real/
+python scripts/calibrate_bots.py --logs "data/real/draft_logs/*.csv" --data data/real/
+python scripts/backtest.py --data data/real/ --n 30 --strategies adp,z,g,ecw
 ```
 
 ---
