@@ -85,9 +85,18 @@ class UnverifiedSettings:
     keepers: bool | None
     position_limits_enforced_in_draft: bool | None
     il_plus_slots: int | None = None
+    playoff_weeks: int | None = None     # fantasy playoff'u olan son hafta sayısı (V2 takvim)
 
     def null_fields(self) -> list[str]:
         return [f.name for f in dataclasses.fields(self) if getattr(self, f.name) is None]
+
+
+@dataclass(frozen=True)
+class ScheduleSettings:
+    """Fantasy haftaları (README §13.4). Hafta ``week_start`` gününde başlar; ``merge_with_next``
+    içindeki hafta numaraları sonraki haftayla tek eşleşme sayılır (örn. All-Star arası)."""
+    week_start: str = "monday"
+    merge_with_next: tuple[int, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -148,6 +157,8 @@ class MatchupParams:
     games_per_week: float = 3.5
     utilization: float = 0.92
     games_cap: float = 82.0
+    playoff_weight: float = 1.0      # takvimde playoff haftalarının ağırlığı (V2)
+    games_variance: bool = False     # haftadan haftaya maç sayısı varyansı (V2, bağımsızlık varsayar)
     winnable_threshold: float = 0.6
     lost_threshold: float = 0.4
 
@@ -207,6 +218,7 @@ class Config:
     roster: RosterSettings
     unverified: UnverifiedSettings
     model: ModelSettings
+    schedule: ScheduleSettings = field(default_factory=ScheduleSettings)
     raw: dict[str, Any] = field(repr=False, compare=False, default_factory=dict)
 
     # --- kısayollar ---------------------------------------------------------
@@ -306,7 +318,7 @@ def config_from_dict(raw: dict[str, Any]) -> Config:
         availability=_build(AvailabilityParams, m.get("availability")),
     )
     cfg = Config(league=league, scoring=scoring, roster=roster, unverified=unverified,
-                 model=model, raw=raw)
+                 model=model, schedule=_build(ScheduleSettings, raw.get("schedule")), raw=raw)
     validate_config(cfg)
     return cfg
 
@@ -366,6 +378,11 @@ def validate_config(cfg: Config) -> None:
 
     if cfg.model.adp_fallback.missing_adp_policy not in ("after_coverage", "isotonic"):
         raise ConfigError("adp_fallback.missing_adp_policy: after_coverage | isotonic")
+    days = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
+    if cfg.schedule.week_start not in days:
+        raise ConfigError(f"schedule.week_start: {' | '.join(days)}")
+    if cfg.model.matchup.playoff_weight < 0:
+        raise ConfigError("matchup.playoff_weight ≥ 0 olmalı")
     if cfg.unverified.lineup_lock not in (None, "daily_today", "daily_tomorrow", "weekly"):
         raise ConfigError("lineup_lock: daily_today | daily_tomorrow | weekly")
 

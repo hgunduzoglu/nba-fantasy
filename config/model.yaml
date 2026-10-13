@@ -85,6 +85,10 @@ matchup:
   # scripts/estimate_utilization.py (480 mock kadrosu, varsayımsal takvim): daily_today 0.982,
   # daily_tomorrow 0.961, weekly 0.864. Takvim varsayımsal → kalibre edilmemiş.
   utilization: 0.98
+  # V2 takvim (§13.4): takvim yüklüyse oyuncunun haftalık maç sayısı takımının fantasy
+  # haftalarındaki ortalamasıdır; playoff haftaları playoff_weight ile ağırlıklanır.
+  playoff_weight: 1.0
+  games_variance: false        # true: haftalık maç sayısı varyansı eklenir (oyuncular arası bağımsız)
   games_cap: 82
   winnable_threshold: 0.6
   lost_threshold: 0.4
