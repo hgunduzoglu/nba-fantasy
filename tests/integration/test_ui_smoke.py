@@ -82,3 +82,41 @@ def test_pages_with_schedule(env, page):
                                np.random.default_rng(0))
     at = run_page((cfg, ds.with_schedule(sched), mock), page)
     assert at.dataframe
+
+
+def test_yahoo_sync_panel_merges_picks(env, monkeypatch, tmp_path):
+    import copy
+    import time
+
+    from fdo.ui import yahoo_sync
+    from fdo.yahoo_api.client import DraftResult
+    from fdo.yahoo_api.oauth import Token
+
+    cfg, ds, mock = env
+    mock = copy.deepcopy(mock)
+    taken = set(mock.log.taken)
+    free = [p for p in ds.draft_ids if p not in taken and mock.is_allowed(p)][:2]
+    picks = [p.player_id for p in mock.log.picks] + free
+    results = [DraftResult(k, (k - 1) // 16 + 1, f"t.{mock.log.seat_for(k)}", f"466.p.{pid.removeprefix('y_')}")
+               for k, pid in enumerate(picks, start=1)]
+
+    class FakeClient:
+        def draft_results(self, league_key):
+            return {"name": "Test", "draft_status": "drafting"}, results
+
+    class FakeStore:
+        def load(self):
+            return Token("a", "r", time.time() + 3600)
+
+    monkeypatch.setenv("YAHOO_CLIENT_ID", "x")
+    monkeypatch.setenv("YAHOO_CLIENT_SECRET", "y")
+    monkeypatch.setattr(yahoo_sync, "TokenStore", FakeStore)
+    monkeypatch.setattr(yahoo_sync, "_client", lambda: FakeClient())
+    monkeypatch.setattr("fdo.yahoo_api.sync.player_id_from_key", lambda k: k.split(".p.")[-1])
+
+    def act(at):
+        at.text_input[0].set_value("466.l.1")
+        at.run()
+        next(b for b in at.button if b.label == "Şimdi çek").click()
+    at = run_page((cfg, ds, mock), "pages/4_Draft_Assistant.py", act)
+    assert len(at.session_state["mock"].log) == len(picks)

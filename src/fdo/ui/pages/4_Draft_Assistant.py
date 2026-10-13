@@ -14,7 +14,7 @@ from fdo.advisor.deep import deep_recommend
 from fdo.advisor.pairs import AdvisorError
 from fdo.advisor.scenarios import run_scenarios
 from fdo.types import CATEGORY_LABELS
-from fdo.ui import common
+from fdo.ui import common, yahoo_sync
 
 common.page("4 · Draft Assistant")
 cfg = common.config()
@@ -22,6 +22,7 @@ ds = common.dataset()
 lg = cfg.league
 adv = cfg.model.advisor
 m = common.mock()
+yahoo_sync.panel()
 log = m.log
 
 if log.is_complete:
