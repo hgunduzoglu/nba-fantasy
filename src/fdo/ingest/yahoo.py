@@ -12,6 +12,7 @@ Eşleştirme sırası: (1) ``player_id``, (2) ID'si boş satırlar için takım 
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import numpy as np
@@ -169,3 +170,66 @@ def convert(players_json: dict, adp_json: dict, adp_field: str = "adp_preseason"
         "is_synthetic": False,
     })
     return players, projections.reset_index(drop=True), adp_out, log
+
+
+# --------------------------------------------------------------------------
+# draft sonuçları (bot kalibrasyonu, README §13.6)
+# --------------------------------------------------------------------------
+
+_RESULT_LINE = re.compile(r"^\((\d+)\)\s+(.*?)\s+-\s+(.+?),\s+(.+?)\s+\(([A-Z]{2,4})\s+-\s+([A-Z,]+)\)\s*$")
+_BOT_TEAM = re.compile(r"^Team \d+$")
+
+
+def flip_name(last_first: str) -> str:
+    """``"Murphy III, Trey"`` → ``"Trey Murphy III"``."""
+    last, _, first = last_first.partition(", ")
+    return f"{first} {last}".strip() if first else last_first.strip()
+
+
+def parse_results_text(text: str, user_team: str | None = None, teams: int | None = None) -> pd.DataFrame:
+    """Yahoo mock draft sonuç sayfası metni (``Round N`` + ``(i) Takım - Soyad, Ad (NBA - POS)``).
+
+    Dönüş: ``pick, round, pick_in_round, fantasy_team, player, nba_team, positions, auto, user``.
+    ``auto``: takım adı ``Team N`` (Yahoo botu); ``user``: ``user_team`` ile aynı ad.
+    """
+    rows, rnd = [], 0
+    for line in text.splitlines():
+        line = line.strip()
+        if line.lower().startswith("round "):
+            rnd = int(line.split()[1])
+            continue
+        m = _RESULT_LINE.match(line)
+        if not m:
+            continue
+        i, team, last, first, nba, pos = m.groups()
+        rows.append({"round": rnd, "pick_in_round": int(i), "fantasy_team": team,
+                     "player": flip_name(f"{last}, {first}"), "nba_team": nba, "positions": pos})
+    df = pd.DataFrame(rows)
+    n = teams or int(df["pick_in_round"].max())
+    df["pick"] = (df["round"] - 1) * n + df["pick_in_round"]
+    df["auto"] = df["fantasy_team"].str.match(_BOT_TEAM)
+    df["user"] = df["fantasy_team"] == user_team if user_team else False
+    cols = ["pick", "round", "pick_in_round", "fantasy_team", "player", "nba_team", "positions", "auto", "user"]
+    return df.sort_values("pick").reset_index(drop=True)[cols]
+
+
+def results_from_json(data: dict, user_team: str | None = None) -> pd.DataFrame:
+    """Yahoo draft sonuçları JSON'u (``picks``: overall_pick, player, fantasy_team, …)."""
+    df = pd.DataFrame(data["picks"]).rename(columns={"overall_pick": "pick"})
+    df["positions"] = df["positions"].map(lambda p: ",".join(p) if isinstance(p, list) else p)
+    df["auto"] = df["fantasy_team"].str.match(_BOT_TEAM)
+    df["user"] = df["fantasy_team"] == user_team if user_team else False
+    cols = ["pick", "round", "pick_in_round", "fantasy_team", "player", "nba_team", "positions", "auto", "user"]
+    return df.sort_values("pick").reset_index(drop=True)[cols]
+
+
+def snake_violations(df: pd.DataFrame, teams: int) -> list[str]:
+    """Her takımın her turda snake sırasına uygun koltukta olup olmadığı (3RR yok)."""
+    seat_of: dict[str, int] = {}
+    out = []
+    for r in df.itertuples():
+        rnd, pos = (int(r.pick) - 1) // teams + 1, (int(r.pick) - 1) % teams + 1
+        seat = pos if rnd % 2 else teams + 1 - pos
+        if seat_of.setdefault(r.fantasy_team, seat) != seat:
+            out.append(f"pick {r.pick}: {r.fantasy_team} seat {seat}, önce {seat_of[r.fantasy_team]}")
+    return out
