@@ -56,6 +56,7 @@ class PairResult:
     tier: int = 1
     pinned: bool = False
     feasible: bool = True
+    ecw: float = float("nan")          # ağırlıksız ECW (strateji ağırlıkları varken de 9 kategori eşit)
     outcome: RolloutOutcome | None = field(default=None, repr=False)
 
     @property
@@ -79,7 +80,7 @@ class AdvisorResult:
 
     def pair_table(self) -> pd.DataFrame:
         return pd.DataFrame([{
-            "tier": p.tier, "pair": p.label, "E[W]": p.mean, "SE": p.se, "P10": p.p10,
+            "tier": p.tier, "pair": p.label, "E[W]": p.mean, "ECW": p.ecw, "SE": p.se, "P10": p.p10,
             "P50": p.p50, "P90": p.p90, "regret": p.regret, "regret_SE": p.regret_se,
             "Q_static": p.q_static, "pinned": p.pinned,
         } for p in self.pairs])
@@ -100,7 +101,21 @@ def current_turn(log: DraftLog, seat: int) -> tuple[int, ...]:
     raise AdvisorError(f"Pick {k} kullanıcının turn'ü değil")
 
 
-def setup_problem(ctx: AdvisorContext, log: DraftLog, fill: FillTable) -> Problem:
+def category_weight_vector(config, weights: dict[str, float] | None) -> np.ndarray | None:
+    """Strateji ağırlıkları → kategori sırasında dizi (None ya da hepsi 1 → None: saf ECW)."""
+    if not weights:
+        return None
+    unknown = set(weights) - set(config.categories)
+    if unknown:
+        raise AdvisorError(f"Bilinmeyen kategori: {sorted(unknown)}")
+    w = np.array([float(weights.get(c, 1.0)) for c in config.categories])
+    if (w < 0).any() or not (w > 0).any():
+        raise AdvisorError("Ağırlıklar ≥ 0 olmalı ve en az biri pozitif")
+    return None if np.allclose(w, 1.0) else w
+
+
+def setup_problem(ctx: AdvisorContext, log: DraftLog, fill: FillTable,
+                  category_weights: dict[str, float] | None = None) -> Problem:
     cfg = ctx.config
     lg = cfg.league
     user = lg.my_seat
@@ -142,7 +157,7 @@ def setup_problem(ctx: AdvisorContext, log: DraftLog, fill: FillTable) -> Proble
         ctx=ctx, fill=fill, user=user, turn=turn, next_turn=nxt, roster=roster,
         roster_vec=roster_vec, after_turn=after_turn, after_next=after_next, opp_seats=opp_seats,
         opp_static=np.stack([static_vec(s) for s in opp_seats]), available=available,
-        roster_model=RosterModel(cfg),
+        roster_model=RosterModel(cfg), cat_weights=category_weight_vector(cfg, category_weights),
     )
 
 
@@ -253,12 +268,15 @@ def assign_tiers(results: list[PairResult], se_mult: float) -> None:
 def recommend(ctx: AdvisorContext, log: DraftLog, *, mode: str = "fast", n_sims: int | None = None,
               seed: int | None = None, pinned_players=(), pinned_pairs=(),
               conditional_fill: bool = True, uncertainty: bool = False, opponent_probs: np.ndarray | None = None,
-              progress=None) -> AdvisorResult:
+              category_weights: dict[str, float] | None = None, progress=None) -> AdvisorResult:
     """Kullanıcının mevcut turn'ü için çift (ya da tek) önerisi.
 
     ``uncertainty``: V2 sakatlık/rol senaryoları (§13.5) — simülasyon başına oyuncu çarpanları.
     ``opponent_probs``: rakip stratejisi tahmini ``(T, P)`` (§6.4.5); rakip koltuklarının profilleri
     karışım yerine bu dağılımdan çekilir (koşullu doldurma ve rollout'ta).
+    ``category_weights``: kullanıcının strateji ağırlıkları (0 = punt); verilirse adaylar, çiftler ve
+    rollout ``Σ w_c·P_c`` ile sıralanır (İlke 2'nin kullanıcı isteğiyle bilinçli istisnası). Ağırlıksız ECW
+    her seçim için ``PairResult.ecw`` olarak ayrıca raporlanır.
     """
     t0 = time.perf_counter()
     cfg = ctx.config
@@ -277,7 +295,7 @@ def recommend(ctx: AdvisorContext, log: DraftLog, *, mode: str = "fast", n_sims:
         report("Koşullu doldurma tablosu")
         fill = build_fill(u, cfg, ctx.vecs, adv.fill_sims_conditional, sub_seed(seed, STREAM_FILL_COND),
                           log=log, base=ctx.base_fill, seat_profile_probs=opponent_probs)
-    prob = setup_problem(ctx, log, fill)
+    prob = setup_problem(ctx, log, fill, category_weights)
     k = log.next_pick
     t1 = prob.turn[0]
 
@@ -326,6 +344,7 @@ def recommend(ctx: AdvisorContext, log: DraftLog, *, mode: str = "fast", n_sims:
             p10=float(np.quantile(W, 0.1)), p50=float(np.quantile(W, 0.5)),
             p90=float(np.quantile(W, 0.9)), pinned=combo in pin_pairs or bool(set(combo) & set(pin_idx)),
             feasible=combo in feasible or feasible_combo(prob, model, combo), outcome=out,
+            ecw=float(out.cat_p.sum(axis=-1).mean()),
         ))
     results.sort(key=lambda r: -r.mean)
     if results:
@@ -350,7 +369,8 @@ def recommend(ctx: AdvisorContext, log: DraftLog, *, mode: str = "fast", n_sims:
         params={"mode": mode, "S": S, "seed": seed, "pick": k, "fill": fill.source,
                 "fill_sims": fill.n_sims, "candidates": len(cands), "pairs_considered": len(feasible),
                 "pairs_rolled_out": len(chosen), "next_policy_top_l": adv.next_policy_top_l,
-                "uncertainty": uncertainty, "opponent_model": opponent_probs is not None},
+                "uncertainty": uncertainty, "opponent_model": opponent_probs is not None,
+                "category_weights": dict(category_weights) if prob.cat_weights is not None else None},
         elapsed=time.perf_counter() - t0,
         real_players=len(prob.roster) + size + (len(prob.next_turn) if prob.next_turn else 0),
         roster_size=cfg.league.rounds, sources=ctx.dataset.sources(), uncalibrated=uncal,

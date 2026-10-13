@@ -160,3 +160,15 @@ def test_not_users_turn_raises(ctx, config):
 def test_largest_gap_tiers():
     v = np.array([1.0, 0.95, 0.5, 0.48, 0.1])
     assert largest_gap_tiers(v, 3).tolist() == [1, 1, 2, 2, 3]
+
+
+def test_category_weights_change_objective(ctx, log16):
+    base = recommend(ctx, log16, mode="fast", n_sims=30)
+    punt = recommend(ctx, log16, mode="fast", n_sims=30, category_weights={"FT_PCT": 0.0, "TOV": 0.0})
+    assert base.params["category_weights"] is None and punt.params["category_weights"]["FT_PCT"] == 0.0
+    for p in punt.pairs:
+        assert p.mean < p.ecw                                    # iki kategori sıfır → ağırlıklı < ECW
+    for p in base.pairs:
+        assert abs(p.mean - p.ecw) < 1e-9
+    with pytest.raises(AdvisorError):
+        recommend(ctx, log16, mode="fast", n_sims=10, category_weights={"XYZ": 1.0})

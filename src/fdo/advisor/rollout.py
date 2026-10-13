@@ -45,11 +45,18 @@ class Problem:
     opp_static: np.ndarray                  # (T−1, 24) mevcut kadro + doldurma
     available: np.ndarray                   # (n,) bool, mevcut state'te uygun
     roster_model: RosterModel | None = None
+    #: kullanıcının strateji ağırlıkları (kategori sırasında; None = eşit, saf ECW). 0 = punt.
+    cat_weights: np.ndarray | None = None
+
+    def objective(self, P: np.ndarray) -> np.ndarray:
+        """``P (..., K, C)`` → optimize edilen büyüklük: rakip ortalaması ``Σ_c w_c·P_c`` (ağırlıksız: ECW)."""
+        if self.cat_weights is None:
+            return P.sum(axis=-1).mean(axis=-1)
+        return (P * self.cat_weights).sum(axis=-1).mean(axis=-1)
 
     def ecw_static(self, user_vecs: np.ndarray) -> np.ndarray:
-        """Statik rakiplere karşı ECW, ``(..., 24)`` → ``(...)``."""
-        p = ecw_vs(user_vecs, self.opp_static, self.ctx.config)
-        return p.sum(axis=-1).mean(axis=-1)
+        """Statik rakiplere karşı (ağırlıklı) ECW, ``(..., 24)`` → ``(...)``."""
+        return self.objective(ecw_vs(user_vecs, self.opp_static, self.ctx.config))
 
     def fill_sum(self, picks) -> np.ndarray:
         return self.fill.sum(picks)
@@ -209,7 +216,7 @@ def rollout_pair(prob: Problem, engine: BatchDraft, snap0: dict, pair: tuple[int
         if u:
             user_vec = user_vec + choice_correction(ctx.vecs, mult, choices)
     P = ecw_vs(user_vec, opp, cfg)                  # (S, T−1, n_cat)
-    return RolloutOutcome(pair=tuple(int(p) for p in pair), W=P.sum(axis=-1).mean(axis=-1),
+    return RolloutOutcome(pair=tuple(int(p) for p in pair), W=prob.objective(P),
                           cat_p=P.mean(axis=1), pool=out_pool, pool_tiers=out_tiers,
                           next_choices=out_next, survival=surv, survival_se=se,
                           p_at_least_5=p_at_least(P, 5, category_corr_matrix(cfg), n_draws=500).mean(axis=1))

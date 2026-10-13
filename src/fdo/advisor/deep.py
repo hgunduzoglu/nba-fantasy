@@ -117,7 +117,7 @@ def full_rollout(prob: Problem, log: DraftLog, pair: tuple[int, ...], n_sims: in
     teams = team_vectors(eng, ctx.vecs, prob.fill, eng.total + 1, mult)  # (S, T, 24)
     user = teams[:, prob.user - 1, :]
     opp = teams[:, prob.opp_seats - 1, :]
-    return ecw_vs(user, opp, ctx.config).sum(axis=-1).mean(axis=-1)
+    return prob.objective(ecw_vs(user, opp, ctx.config))
 
 
 @dataclass
@@ -186,7 +186,7 @@ def deep_recommend(ctx: AdvisorContext, log: DraftLog, base: AdvisorResult, *, n
         uncertainty = bool(base.params.get("uncertainty"))
     useed = sub_seed(master, STREAM_UNCERTAINTY + 100) if uncertainty else None
     fill = ctx.base_fill
-    prob = setup_problem(ctx, log, fill)
+    prob = setup_problem(ctx, log, fill, base.params.get("category_weights"))
     u = ctx.universe
     chosen = base.pairs[:n_pairs]
     combos = [tuple(int(u.index[p]) for p in pr.players) for pr in chosen]

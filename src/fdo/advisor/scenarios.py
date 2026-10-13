@@ -65,7 +65,7 @@ def archetype_label(signature: tuple[str, ...]) -> str:
 
 
 def rollout_to_end(ctx: AdvisorContext, log: DraftLog, S: int, seed: int, *, punt: tuple[str, ...] = (),
-                   progress=None):
+                   weights: dict[str, float] | None = None, progress=None):
     """Draft sonuna kadar rollout: kullanıcı her turn'de ``punt`` dışındaki kategorilerin beklenen
     galibiyetini en büyükleyen seçimi yapar (``punt = ()`` → miyopik ECW π). Dönüş: ``(P (S, T−1, C),
     kullanıcı kadro matrisi, motor)``; P her zaman 9 kategorinin hepsiyle hesaplanır."""
@@ -73,11 +73,11 @@ def rollout_to_end(ctx: AdvisorContext, log: DraftLog, S: int, seed: int, *, pun
     adv = cfg.model.advisor
     lg = cfg.league
     prob = setup_problem(ctx, log, ctx.base_fill)
-    keep = np.array([c not in punt for c in cfg.categories])
+    keep = np.array([0.0 if c in punt else float((weights or {}).get(c, 1.0)) for c in cfg.categories])
 
     def policy_score(vecs_):
         p = ecw_vs(vecs_, prob.opp_static, cfg)                       # (..., T−1, C)
-        return p[..., keep].sum(axis=-1).mean(axis=-1)
+        return (p * keep).sum(axis=-1).mean(axis=-1)
 
     user = prob.user
     eng = make_engine(ctx, log, S, sub_seed(seed, STREAM_SCENARIO), cache_jitter=False)
@@ -176,25 +176,34 @@ class PlanResult:
 
 
 def compare_punt_plans(ctx: AdvisorContext, log: DraftLog, *, n_sims: int = 100, seed: int | None = None,
-                       plans=None, progress=None) -> PlanResult:
+                       plans=None, custom_weights: dict[str, float] | None = None, progress=None) -> PlanResult:
     """Her plan aynı ``n_sims`` draft senaryosunda (CRN) sona kadar oynanır; kullanıcının sonraki pick'leri
     plandaki punt dışı kategorilerin beklenen galibiyetini en büyükler. Final kadro 9 kategoriyle
-    değerlendirilir: E[W] (rakip başına beklenen kategori galibiyeti) ve dengeli plana göre eşleşmeli fark."""
+    değerlendirilir: E[W] (rakip başına beklenen kategori galibiyeti) ve dengeli plana göre eşleşmeli fark.
+    ``custom_weights``: kullanıcının strateji ağırlıkları "benim stratejim" planı olarak eklenir."""
     t0 = time.perf_counter()
     cfg = ctx.config
     seed = ctx.seed if seed is None else int(seed)
     cats = list(cfg.categories)
     if plans is None:
         plans = [(), *((c,) for c in cats), *(p for p in COMMON_PAIRS if set(p) <= set(cats))]
+    plans = [tuple(p) for p in plans]
+    if custom_weights:
+        plans.append("custom")
     W = {}
     rows = []
     for i, plan in enumerate(plans):
         if progress:
             progress("Plan", i + 1, len(plans))
-        P, _, _ = rollout_to_end(ctx, log, n_sims, seed, punt=tuple(plan))
+        if plan == "custom":
+            P, _, _ = rollout_to_end(ctx, log, n_sims, seed, weights=custom_weights)
+            label = "benim stratejim"
+        else:
+            P, _, _ = rollout_to_end(ctx, log, n_sims, seed, punt=plan)
+            label = archetype_label(plan).replace(" benzeri", "") if plan else "dengeli"
         W[plan] = P.sum(axis=-1).mean(axis=-1)                      # (S,)
-        rows.append({"plan": archetype_label(tuple(plan)).replace(" benzeri", "") if plan else "dengeli",
-                     "punt": tuple(plan), "E[W]": float(W[plan].mean()),
+        rows.append({"plan": label,
+                     "punt": plan, "E[W]": float(W[plan].mean()),
                      "P10": float(np.quantile(W[plan], 0.1)), "P90": float(np.quantile(W[plan], 0.9)),
                      **{CATEGORY_LABELS.get(c, c): float(v) for c, v in zip(cats, P.mean(axis=(0, 1)))}})
     base = W[()]
