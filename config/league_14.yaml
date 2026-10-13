@@ -1,0 +1,60 @@
+# 14 takımlı ikinci lig (kullanıcı, 2026-10-13). Ana ligden farkları: 14 takım, kullanıcı 9. sırada ve
+# C slotlarından biri yerine FC. Diğer kurallar (kategoriler, lineup, IL, takvim) ana ligle aynı kabul edildi.
+# Ortak model parametreleri config/model.yaml'dan gelir; model_overrides bu lige özgü farkları ezer.
+league:
+  name: "14 takımlı lig (sıra 9)"
+  platform: yahoo
+  season: "2026-27"
+  teams: 14
+  my_seat: 9
+  rounds: 13               # toplam 182 seçim
+  draft_type: snake
+  third_round_reversal: false   # varsayılan kapalı; true yapılabilir
+
+scoring:
+  format: h2h_each_category
+  categories: [FG_PCT, FT_PCT, FG3M, PTS, REB, AST, STL, BLK, TOV]
+  lower_is_better: [TOV]
+  ratio_categories:
+    FG_PCT: {makes: FGM, attempts: FGA}
+    FT_PCT: {makes: FTM, attempts: FTA}
+
+roster:
+  slots: {PG: 1, SG: 1, G: 1, SF: 1, PF: 1, F: 1, C: 1, FC: 1, UTIL: 2, BN: 3}   # 10 aktif + 3 bench = 13
+  active_slots: [PG, SG, G, SF, PF, F, C, FC, UTIL]
+  slot_eligibility:
+    PG:   [PG]
+    SG:   [SG]
+    G:    [PG, SG]
+    SF:   [SF]
+    PF:   [PF]
+    F:    [SF, PF]
+    C:    [C]
+    FC:   [SF, PF, C]      # forvet ya da pivot (Yahoo "F/C"); doğrulanmadı — yalnızca PF/C ise değiştirin
+    UTIL: [PG, SG, SF, PF, C]
+    BN:   [PG, SG, SF, PF, C]
+
+# Lig kuralları (README §3.2). Kullanıcı tarafından doğrulandı (2026-10-12, 2026-10-13);
+# null değerler doğrulanmamıştır ve sessizce varsayılana çevrilmez.
+unverified:
+  tie_value: 0.5              # doğrulandı: kategori beraberliği T olarak yazılır (W-L-T; win% için 0.5)
+  pick_timer_seconds: 45      # doğrulandı: advisor hesaplama bütçesi
+  lineup_lock: daily_today    # doğrulandı: maç başlayana kadar günlük değişiklik (utilization bkz. model.yaml)
+  il_slots: 3                 # doğrulandı: 3 IL; draft kadrosuna dahil değil (13 pick)
+  il_plus_slots: 0            # doğrulandı: IL+ yok; Q (questionable) oyuncu hiçbir etki almaz
+  playoff_weeks: 3            # doğrulandı (2026-10-13): fantasy playoff'u son 3 eşleşme haftası
+  keepers: false
+  position_limits_enforced_in_draft: true   # doğrulandı: Yahoo draft sırasında pozisyon kuralını uygular
+
+# Fantasy haftaları (README §13.4, V2 takvim). Yahoo eşleşme haftası pazartesi başlar.
+# merge_with_next: sonraki haftayla birleşen hafta numaraları. Doğrulandı (2026-10-13): yalnızca All-Star
+# haftası birleşir. 2026-27 takviminde All-Star arası 19–24 Şubat 2027: 18. hafta (15–21 Şubat)
+# 19. haftayla (22–28 Şubat) tek eşleşme. Sezon değişince takvime göre güncellenmeli.
+schedule:
+  week_start: monday
+  merge_with_next: [18]
+
+model_overrides:
+  bots:
+    # 13 rakip: ana ligin karışımı (5/4/2/3/1) en büyük kalan yöntemiyle ölçeklendi; autodraft yok.
+    mix: {MarketFollower: 4, ValueHunter: 3, PositionAware: 2, PuntBuilder: 3, RandomHuman: 1, AutoDrafter: 0}

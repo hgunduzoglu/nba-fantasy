@@ -44,3 +44,24 @@ def test_overrides_change_hash(config, config_3rr):
     assert config_3rr.league.third_round_reversal is True
     assert config.config_hash != config_3rr.config_hash
     assert load_config().config_hash == config.config_hash
+
+
+def test_league_14_config():
+    from fdo.config import DEFAULT_CONFIG_DIR, league_files
+
+    c = load_config(DEFAULT_CONFIG_DIR / "league_14.yaml")
+    assert (c.league.teams, c.league.my_seat, c.league.total_picks) == (14, 9, 182)
+    assert c.roster.slots["FC"] == 1 and c.roster.slots["C"] == 1 and c.roster.size == 13
+    assert "FC" in c.roster.active_slots and sum(c.model.bots.mix.values()) == 13
+    assert c.model.bots.sigma1 == load_config().model.bots.sigma1          # ortak model parametreleri
+    assert DEFAULT_CONFIG_DIR / "league_14.yaml" in league_files()
+
+
+def test_league_14_mock_draft(synthetic_ds):
+    from fdo.bots.mock import MockDraft
+    from fdo.config import DEFAULT_CONFIG_DIR
+
+    c = load_config(DEFAULT_CONFIG_DIR / "league_14.yaml")
+    m = MockDraft(synthetic_ds, c, 3)
+    m.play_to_end()
+    assert len(m.log) == 182
