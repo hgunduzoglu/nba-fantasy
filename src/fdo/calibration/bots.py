@@ -1,5 +1,10 @@
 """Gerçek draft log'larından bot kalibrasyonu (README §13.6).
 
+Log'lar farklı büyüklükte bir ligden gelebilir (``league_config``): simülasyon o ligin takım ve tur
+sayısıyla yapılır; ``pick − A`` sapması pick sırası (kaçıncı seçilen oyuncu) üzerinden ölçüldüğü için
+σ₀/σ₁ lig büyüklüğüne büyük ölçüde taşınır. Yahoo'nun otomatik seçtiği pick'ler (``import:auto``)
+draft'ta kalır ama momentlere girmez.
+
 **σ₀, σ₁ uyumu (simülasyonlu momentler yöntemi).** σ₀/σ₁ yalnızca ``adp_std``'si olmayan
 oyuncuların σ'sını belirler (Yahoo verisinde hepsi; §6.4.1). Gözlenen log'larda her seçilen oyuncu için
 ``d = pick − A`` hesaplanır; ``A`` bandına göre (``band_size`` pick) ``d``'nin P10/P50/P90'ı
@@ -31,6 +36,42 @@ from fdo.ingest.load import Dataset
 QUANTILES = (0.1, 0.5, 0.9)
 
 
+def league_config(config: Config, teams: int, rounds: int | None = None) -> Config:
+    """Farklı büyüklükteki lig log'ları için config (ör. Yahoo'da 16 takımlı mock yok, 14 var).
+
+    Bot karışımı ``teams − 1`` rakibe en büyük kalan yöntemiyle ölçeklenir; kadro slot toplamı
+    ``rounds``'a eşit olacak şekilde bench (``BN``) ayarlanır; kullanıcı koltuğu lige sığdırılır.
+    """
+    lg = config.league
+    rounds = int(rounds or lg.rounds)
+    if teams == lg.teams and rounds == lg.rounds:
+        return config
+    mix = {k: int(v) for k, v in config.model.bots.mix.items()}
+    total = sum(mix.values())
+    quota = {k: v * (teams - 1) / total for k, v in mix.items()}
+    new = {k: int(np.floor(q)) for k, q in quota.items()}
+    for k in sorted(quota, key=lambda k: -(quota[k] - new[k]))[: teams - 1 - sum(new.values())]:
+        new[k] += 1
+    slots = dict(config.roster.slots)
+    bn = rounds - sum(n for s, n in slots.items() if s != "BN")
+    if bn < 0:
+        raise ValueError(f"{rounds} tur aktif slotları ({rounds - bn}) dolduramaz")
+    slots["BN"] = bn
+    return config.with_overrides({"league": {"teams": int(teams), "rounds": rounds,
+                                             "my_seat": min(lg.my_seat, int(teams))},
+                                  "roster": {"slots": slots}, "model": {"bots": {"mix": new}}})
+
+
+def auto_mask(logs: list[DraftLog]) -> np.ndarray:
+    """``(L, total)``: Yahoo'nun otomatik seçtiği pick'ler (kaynak ``import:auto``) — momentlerden dışlanır."""
+    total = logs[0].total_picks if logs else 0
+    out = np.zeros((len(logs), total), dtype=bool)
+    for row, log in enumerate(logs):
+        for p in log.picks:
+            out[row, p.overall_pick - 1] = p.source.startswith("import:auto")
+    return out
+
+
 def logs_to_matrix(logs: list[DraftLog], universe: BotUniverse) -> tuple[np.ndarray, int]:
     """``(L, total)`` evren indeksleri (-1 = boş ya da evrende olmayan oyuncu) ve atlanan pick sayısı."""
     total = logs[0].total_picks if logs else 0
@@ -55,10 +96,12 @@ def taken_pick(matrix: np.ndarray, n_players: int) -> np.ndarray:
     return out
 
 
-def deviation_moments(matrix: np.ndarray, universe: BotUniverse, band_size: int = 16) -> pd.DataFrame:
-    """ADP bandı başına ``pick − A`` dağılımı: n, P10, P50, P90."""
+def deviation_moments(matrix: np.ndarray, universe: BotUniverse, band_size: int = 16,
+                      exclude: np.ndarray | None = None) -> pd.DataFrame:
+    """ADP bandı başına ``pick − A`` dağılımı: n, P10, P50, P90 (``exclude`` maskesindeki pick'ler hariç)."""
     total = matrix.shape[1]
-    rows, ks = np.nonzero(matrix >= 0)
+    valid = matrix >= 0 if exclude is None else (matrix >= 0) & ~exclude
+    rows, ks = np.nonzero(valid)
     players = matrix[rows, ks]
     a = universe.adp[players]
     d = (ks + 1) - a
@@ -102,13 +145,15 @@ class BotFit:
     missing_picks: int
     #: σ'sı σ₀ + σ₁·A ile belirlenen (``adp_std``'si olmayan) oyuncu payı; düşükse uyum zayıftır
     param_share: float = 1.0
+    auto_picks: int = 0
 
 
 def fit_sigma(logs: list[DraftLog], dataset: Dataset, universe: BotUniverse, config: Config, *,
               sigma0_grid=(0.5, 1.0, 1.5, 2.5, 4.0), sigma1_grid=(0.04, 0.08, 0.12, 0.18, 0.25),
               n_sims: int = 60, seed: int = 1, band_size: int = 16, progress=None) -> BotFit:
     obs_mat, missing = logs_to_matrix(logs, universe)
-    obs = deviation_moments(obs_mat, universe, band_size)
+    auto = auto_mask(logs)
+    obs = deviation_moments(obs_mat, universe, band_size, exclude=auto)
     rows = []
     sims: dict[tuple[float, float], pd.DataFrame] = {}
     grid = list(itertools.product(sigma0_grid, sigma1_grid))
@@ -127,7 +172,7 @@ def fit_sigma(logs: list[DraftLog], dataset: Dataset, universe: BotUniverse, con
     share = float(std.isna().mean()) if std is not None else 1.0
     return BotFit(grid=table, best={"sigma0": float(b["sigma0"]), "sigma1": float(b["sigma1"])},
                   observed=obs, fitted=sims[(b["sigma0"], b["sigma1"])], current=current,
-                  n_logs=len(logs), missing_picks=missing, param_share=share)
+                  n_logs=len(logs), missing_picks=missing, param_share=share, auto_picks=int(auto.sum()))
 
 
 def survival_reliability(sim_matrix: np.ndarray, obs_matrix: np.ndarray, checkpoints, n_players: int, *,
