@@ -42,12 +42,16 @@ jobs:
         run: python scripts/run_mock_batch.py --n 300 --seed 1 --data data/synthetic/ --out reports/synthetic/
       - name: Performans ölçümü (gerçek veri)
         run: python scripts/profile_advisor.py --batch --data data/real/ --out reports/
+      - name: V2 backtest (gerçek veri, projeksiyon + gürültü, 10 draft)
+        run: python scripts/backtest.py --data data/real/ --n 10 --strategies adp,z,g --out reports/
       - name: Job özeti
         if: always()
         run: |
           cat reports/profile_advisor.md >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           sed -n '1,40p' reports/realism_n300_seed1.md >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          cat reports/backtest.md >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

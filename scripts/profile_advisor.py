@@ -14,6 +14,7 @@ from pathlib import Path
 
 import numpy as np
 
+from fdo.advisor.deep import deep_recommend
 from fdo.advisor.pairs import recommend
 from fdo.advisor.simulate import build_fill, player_vectors, prepare_context
 from fdo.bots.mock import MockDraft
@@ -32,6 +33,7 @@ TARGETS = {
     "Doldurma tablosu (200 mock)": 40.0,
     "Advisor hızlı mod (S=200, 30 çift)": 15.0,
     "Advisor tam mod (S=500, 30 çift)": 45.0,
+    "V2 tam ufuk (8 çift, kademeli yarılama)": 45.0,
 }
 
 
@@ -92,6 +94,8 @@ def main(argv: list[str] | None = None) -> int:
     rows.append(("Advisor hızlı mod (S=200, 30 çift)", t))
     t, _ = timed(lambda: recommend(ctx, m.log, mode="full"))
     rows.append(("Advisor tam mod (S=500, 30 çift)", t))
+    t, _ = timed(lambda: deep_recommend(ctx, m.log, res))
+    rows.append(("V2 tam ufuk (8 çift, kademeli yarılama)", t))
 
     df = pd.DataFrame([{"işlem": k, "süre_s": v, "hedef_s": TARGETS[k], "durum": "OK" if v < TARGETS[k] else "AŞILDI"}
                        for k, v in rows])
