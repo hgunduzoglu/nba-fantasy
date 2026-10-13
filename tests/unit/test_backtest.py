@@ -59,3 +59,14 @@ def test_ecw_strategy_plays_full_draft(synthetic_ds, universe, config):
     strats = build_strategies(["ecw"], synthetic_ds, config, universe, seed=1)
     rosters = play(synthetic_ds, config, universe, strats["ecw"], seed=2)
     assert len(rosters[config.league.my_seat]) == 13
+
+
+def test_backtest_script(tmp_path, config):
+    from backtest import main
+
+    from fdo.ingest.synthetic import write_synthetic
+
+    write_synthetic(tmp_path, 260, 2, config, "2026-10-01")
+    assert main(["--data", str(tmp_path), "--n", "2", "--strategies", "adp,z", "--out", str(tmp_path / "rep")]) == 0
+    text = (tmp_path / "rep" / "backtest.md").read_text(encoding="utf-8")
+    assert "iyimser" in text and "| z |" in text
