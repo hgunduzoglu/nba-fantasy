@@ -252,10 +252,13 @@ def assign_tiers(results: list[PairResult], se_mult: float) -> None:
 
 def recommend(ctx: AdvisorContext, log: DraftLog, *, mode: str = "fast", n_sims: int | None = None,
               seed: int | None = None, pinned_players=(), pinned_pairs=(),
-              conditional_fill: bool = True, uncertainty: bool = False, progress=None) -> AdvisorResult:
+              conditional_fill: bool = True, uncertainty: bool = False, opponent_probs: np.ndarray | None = None,
+              progress=None) -> AdvisorResult:
     """Kullanıcının mevcut turn'ü için çift (ya da tek) önerisi.
 
     ``uncertainty``: V2 sakatlık/rol senaryoları (§13.5) — simülasyon başına oyuncu çarpanları.
+    ``opponent_probs``: rakip stratejisi tahmini ``(T, P)`` (§6.4.4); rakip koltuklarının profilleri
+    karışım yerine bu dağılımdan çekilir (koşullu doldurma ve rollout'ta).
     """
     t0 = time.perf_counter()
     cfg = ctx.config
@@ -273,7 +276,7 @@ def recommend(ctx: AdvisorContext, log: DraftLog, *, mode: str = "fast", n_sims:
     if conditional_fill and len(log):
         report("Koşullu doldurma tablosu")
         fill = build_fill(u, cfg, ctx.vecs, adv.fill_sims_conditional, sub_seed(seed, STREAM_FILL_COND),
-                          log=log, base=ctx.base_fill)
+                          log=log, base=ctx.base_fill, seat_profile_probs=opponent_probs)
     prob = setup_problem(ctx, log, fill)
     k = log.next_pick
     t1 = prob.turn[0]
@@ -282,7 +285,7 @@ def recommend(ctx: AdvisorContext, log: DraftLog, *, mode: str = "fast", n_sims:
     base_vec = prob.roster_vec + prob.fill_sum([n for n in prob.turn + prob.after_turn if n != t1])
     delta = delta_ecw(prob, base_vec, t1, prob.available)
 
-    engine = make_engine(ctx, log, S, sub_seed(seed, STREAM_ROLLOUT))
+    engine = make_engine(ctx, log, S, sub_seed(seed, STREAM_ROLLOUT), seat_profile_probs=opponent_probs)
     snap0 = engine.snapshot()
     mult = multipliers(ctx, engine.sim_ids, sub_seed(seed, STREAM_UNCERTAINTY)) if uncertainty else None
 
@@ -340,12 +343,14 @@ def recommend(ctx: AdvisorContext, log: DraftLog, *, mode: str = "fast", n_sims:
         uncal.insert(1, "varyans φ (varyans dosyası yok)")
     if uncertainty:
         uncal.append("sakatlık/rol senaryoları (κ, σ_r)")
+    if opponent_probs is not None:
+        uncal.append("rakip profil tahmini (yaklaşık olabilirlik)")
     return AdvisorResult(
         turn=prob.turn, next_turn=prob.next_turn, pairs=results, candidates=cand_df,
         params={"mode": mode, "S": S, "seed": seed, "pick": k, "fill": fill.source,
                 "fill_sims": fill.n_sims, "candidates": len(cands), "pairs_considered": len(feasible),
                 "pairs_rolled_out": len(chosen), "next_policy_top_l": adv.next_policy_top_l,
-                "uncertainty": uncertainty},
+                "uncertainty": uncertainty, "opponent_model": opponent_probs is not None},
         elapsed=time.perf_counter() - t0,
         real_players=len(prob.roster) + size + (len(prob.next_turn) if prob.next_turn else 0),
         roster_size=cfg.league.rounds, sources=ctx.dataset.sources(), uncalibrated=uncal,

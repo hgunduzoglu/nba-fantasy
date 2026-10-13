@@ -68,20 +68,23 @@ class AdvisorContext:
 
 
 def make_engine(ctx: AdvisorContext, log: DraftLog | None, n_sims: int, seed: int, *,
-                cache_jitter: bool = True, sim_offset: int = 0) -> BatchDraft:
-    eng = BatchDraft(ctx.universe, ctx.config, n_sims, seed, cache_jitter=cache_jitter, sim_offset=sim_offset)
+                cache_jitter: bool = True, sim_offset: int = 0,
+                seat_profile_probs: np.ndarray | None = None) -> BatchDraft:
+    eng = BatchDraft(ctx.universe, ctx.config, n_sims, seed, cache_jitter=cache_jitter, sim_offset=sim_offset,
+                     seat_profile_probs=seat_profile_probs)
     if log is not None and len(log):
         replay_into(eng, [p.player_id for p in log.picks])
     return eng
 
 
 def build_fill(universe: BotUniverse, config: Config, vecs: np.ndarray, n_sims: int, seed: int, *,
-               log: DraftLog | None = None, base: FillTable | None = None) -> FillTable:
+               log: DraftLog | None = None, base: FillTable | None = None,
+               seat_profile_probs: np.ndarray | None = None) -> FillTable:
     """Tüm koltuklar bot iken tam draft simülasyonlarından doldurma tablosu.
 
     ``log`` verilirse mevcut state'ten başlanır (koşullu tablo, README §6.6.4).
     """
-    eng = BatchDraft(universe, config, n_sims, seed)
+    eng = BatchDraft(universe, config, n_sims, seed, seat_profile_probs=seat_profile_probs)
     start = 1
     if log is not None and len(log):
         replay_into(eng, [p.player_id for p in log.picks])

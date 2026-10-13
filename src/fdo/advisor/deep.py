@@ -95,14 +95,15 @@ def greedy_pick(prob: Problem, engine: BatchDraft, n: int, rest: list[int], shor
 
 
 def full_rollout(prob: Problem, log: DraftLog, pair: tuple[int, ...], n_sims: int, seed: int,
-                 sim_offset: int, shortlist_k: int, uncertainty_seed: int | None = None) -> np.ndarray:
+                 sim_offset: int, shortlist_k: int, uncertainty_seed: int | None = None,
+                 opponent_probs: np.ndarray | None = None) -> np.ndarray:
     """Bir çift için ``(n_sims,)`` tam ufuk ``W`` değerleri (simülasyonlar ``sim_offset``'ten).
 
     ``uncertainty_seed`` verilirse V2 sakatlık/rol çarpanları (§13.5) final kadrolara uygulanır;
     π'nin kararları çarpanları görmez (gelecekteki sakatlık draft sırasında bilinmez).
     """
     ctx = prob.ctx
-    eng = make_engine(ctx, log, n_sims, seed, sim_offset=sim_offset)
+    eng = make_engine(ctx, log, n_sims, seed, sim_offset=sim_offset, seat_profile_probs=opponent_probs)
     for p in pair:
         eng.force(int(p))
     later = list(prob.after_turn)
@@ -173,7 +174,7 @@ def successive_halving(evaluate, items: list, rungs: tuple[int, ...], min_keep: 
 
 def deep_recommend(ctx: AdvisorContext, log: DraftLog, base: AdvisorResult, *, n_pairs: int | None = None,
                    rungs: tuple[int, ...] | None = None, seed: int | None = None, uncertainty: bool | None = None,
-                   progress=None) -> DeepResult:
+                   opponent_probs: np.ndarray | None = None, progress=None) -> DeepResult:
     """V1 sonucunun ilk ``n_pairs`` çiftini tam ufuk rollout ve kademeli yarılama ile yeniden sıralar."""
     t0 = time.perf_counter()
     adv = ctx.config.model.advisor
@@ -199,7 +200,7 @@ def deep_recommend(ctx: AdvisorContext, log: DraftLog, base: AdvisorResult, *, n
         calls["n"] += 1
         if progress:
             progress(calls["n"], total_calls)
-        return full_rollout(prob, log, combo, n, seed, offset, adv.deep_shortlist_k, useed)
+        return full_rollout(prob, log, combo, n, seed, offset, adv.deep_shortlist_k, useed, opponent_probs)
 
     W, reached = successive_halving(evaluate, combos, rungs)
     pairs = [DeepPair(label=pr.label, players=pr.players, W=W[i], rung=reached[i], v1_mean=pr.mean)
