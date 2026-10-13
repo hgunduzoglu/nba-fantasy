@@ -161,20 +161,28 @@ def state_key(log) -> str:
     return f"{len(log)}:{hashlib.sha1(blob).hexdigest()[:12]}"
 
 
-@st.cache_resource(max_entries=32, show_spinner=False)
-def _advise(_ctx: AdvisorContext, _log, ds_hash: str, cfg_hash: str, seed: int, state: str,
-            mode: str, pins: tuple, pin_pairs: tuple, conditional: bool, _progress=None):
-    from fdo.advisor.pairs import recommend
-
-    return recommend(_ctx, _log, mode=mode, pinned_players=list(pins), pinned_pairs=list(pin_pairs),
-                     conditional_fill=conditional, progress=_progress)
+ADVISE_CACHE_SIZE = 32
 
 
 def advise(log, *, mode: str, pins=(), pin_pairs=(), conditional: bool = True, progress=None):
-    """Advisor sonucu; ``(veri, config, state, seed, parametreler)`` anahtarıyla önbelleklenir (§8)."""
-    return _advise(advisor_context(), log, dataset().content_hash, config().config_hash,
-                   int(st.session_state.seed), state_key(log), mode, tuple(pins),
-                   tuple(tuple(p) for p in pin_pairs), conditional, _progress=progress)
+    """Advisor sonucu; ``(veri, config, state, seed, parametreler)`` anahtarıyla önbelleklenir (§8).
+
+    Önbellek oturum durumundadır (``st.cache_resource`` değil): hesap sırasında ilerleme çubuğu
+    güncellenir ve önbellekli fonksiyon içindeki Streamlit çağrıları tekrar oynatılamaz.
+    """
+    from fdo.advisor.pairs import recommend
+
+    key = (dataset().content_hash, config().config_hash, int(st.session_state.seed), state_key(log), mode,
+           tuple(pins), tuple(tuple(p) for p in pin_pairs), conditional)
+    cache = st.session_state.setdefault("advise_cache", {})
+    if key in cache:
+        return cache[key]
+    res = recommend(advisor_context(), log, mode=mode, pinned_players=list(pins),
+                    pinned_pairs=list(pin_pairs), conditional_fill=conditional, progress=progress)
+    cache[key] = res
+    while len(cache) > ADVISE_CACHE_SIZE:
+        cache.pop(next(iter(cache)))
+    return res
 
 
 def style_reach(df: pd.DataFrame, cls: pd.DataFrame):
