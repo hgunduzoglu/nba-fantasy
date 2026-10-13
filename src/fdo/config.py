@@ -189,6 +189,9 @@ class AdvisorParams:
     pool_table_size: int = 30
     pool_tiers: int = 5
     tier_se_mult: float = 2.0
+    deep_pairs: int = 8                         # V2 tam ufuk: V1 sıralamasından alınan çift sayısı
+    deep_rungs: tuple[int, ...] = (40, 40, 80)  # basamak başına yeni simülasyon (kademeli yarılama)
+    deep_shortlist_k: int = 40                  # π'nin her pick'teki aday kısa listesi
 
 
 @dataclass(frozen=True)

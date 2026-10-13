@@ -118,6 +118,11 @@ advisor:
   pool_table_size: 30
   pool_tiers: 5
   tier_se_mult: 2.0
+  # V2 tam ufuk rollout (§13.3): V1'in ilk deep_pairs çifti draft sonuna kadar simüle edilir;
+  # kademeli yarılama: her basamakta en iyi yarı yeni simülasyonlarla devam eder.
+  deep_pairs: 8
+  deep_rungs: [40, 40, 80]
+  deep_shortlist_k: 40
 
 realism:
   reach_z_warn: 1.5

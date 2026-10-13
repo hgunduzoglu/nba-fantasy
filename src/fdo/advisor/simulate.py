@@ -67,8 +67,8 @@ class AdvisorContext:
 
 
 def make_engine(ctx: AdvisorContext, log: DraftLog | None, n_sims: int, seed: int, *,
-                cache_jitter: bool = True) -> BatchDraft:
-    eng = BatchDraft(ctx.universe, ctx.config, n_sims, seed, cache_jitter=cache_jitter)
+                cache_jitter: bool = True, sim_offset: int = 0) -> BatchDraft:
+    eng = BatchDraft(ctx.universe, ctx.config, n_sims, seed, cache_jitter=cache_jitter, sim_offset=sim_offset)
     if log is not None and len(log):
         replay_into(eng, [p.player_id for p in log.picks])
     return eng
