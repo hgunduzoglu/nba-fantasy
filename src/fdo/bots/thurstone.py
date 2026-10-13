@@ -159,6 +159,17 @@ class BatchDraft:
         arr = np.broadcast_to(np.asarray(players, dtype=np.int64), (self.S,)).copy()
         self._record(arr)
 
+    def reserve(self, players) -> None:
+        """Oyuncuları botlara kapat (``release`` ya da ``force`` ile seçilene kadar); senaryo koşullaması
+        için: "16'da bu ikili hâlâ uygunsa"."""
+        idx = np.atleast_1d(np.asarray(players, dtype=np.int64))
+        free = self.taken_at[:, idx] == 0
+        self.taken_at[:, idx] = np.where(free, -1, self.taken_at[:, idx])
+
+    def release(self) -> None:
+        """``reserve`` edilmiş ve seçilmemiş oyuncuları yeniden uygun yap."""
+        self.taken_at[self.taken_at < 0] = 0
+
     def skip(self) -> None:
         """Pick'i oyuncu almadan geç (yalnızca survival ön elemesi için)."""
         self.pick_player[:, self.k - 1] = -1

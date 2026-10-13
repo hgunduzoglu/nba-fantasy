@@ -64,30 +64,41 @@ def archetype_label(signature: tuple[str, ...]) -> str:
     return "punt " + "+".join(CATEGORY_LABELS.get(c, c) for c in signature) + " benzeri"
 
 
-def rollout_to_end(ctx: AdvisorContext, log: DraftLog, S: int, seed: int, *, punt: tuple[str, ...] = (),
-                   weights: dict[str, float] | None = None, progress=None):
-    """Draft sonuna kadar rollout: kullanıcı her turn'de ``punt`` dışındaki kategorilerin beklenen
-    galibiyetini en büyükleyen seçimi yapar (``punt = ()`` → miyopik ECW π). Dönüş: ``(P (S, T−1, C),
-    kullanıcı kadro matrisi, motor)``; P her zaman 9 kategorinin hepsiyle hesaplanır. Sıra kullanıcıda
-    değilse aradaki rakip pick'lerini botlar oynar ve rollout kullanıcının sıradaki turn'ünden başlar."""
+@dataclass
+class DraftRollout:
+    P: np.ndarray                  # (S, T−1, C) final kadro, 9 kategori
+    rosters: np.ndarray            # (S, rounds) kullanıcı kadrosu (evren indeksleri)
+    engine: object                 # BatchDraft
+    weights: np.ndarray            # (n_turn, S, C) her turn'de kullanılan ağırlıklar (zorlanan turn'de NaN)
+    turns: list[tuple[int, ...]]
+
+
+def play_draft(ctx: AdvisorContext, log: DraftLog, S: int, seed: int, *, policy, forced: dict | None = None,
+               reserve=(), progress=None) -> DraftRollout:
+    """Draft sonuna kadar rollout; kullanıcı her turn'de ``policy``'nin verdiği kategori ağırlıklarıyla
+    statik rakiplere karşı ağırlıklı beklenen galibiyeti en büyükleyen seçimi yapar (miyopik π).
+
+    ``policy(ti, team_p) → (S, C)``: ``ti`` turn sırası (0 = ilk kalan turn), ``team_p (S, C)`` o anki
+    kadro + kalan pick'lerin doldurma profiliyle kategori P'leri. ``forced``: ``{pick: evren indeksi}``
+    — o pick'ler zorlanır. ``reserve``: kullanıcının ilk turn'üne kadar botlara kapalı oyuncular
+    (senaryoyu "bu oyuncular kalırsa" diye koşullar). P her zaman 9 kategoriyle hesaplanır.
+    """
     cfg = ctx.config
     adv = cfg.model.advisor
     lg = cfg.league
     prob = setup_problem(ctx, log, ctx.base_fill, upcoming=True)
-    keep = np.array([0.0 if c in punt else float((weights or {}).get(c, 1.0)) for c in cfg.categories])
-
-    def policy_score(vecs_):
-        p = ecw_vs(vecs_, prob.opp_static, cfg)                       # (..., T−1, C)
-        return (p * keep).sum(axis=-1).mean(axis=-1)
-
+    forced = dict(forced or {})
     user = prob.user
     eng = make_engine(ctx, log, S, sub_seed(seed, STREAM_SCENARIO), cache_jitter=False)
+    if len(reserve):
+        eng.reserve([int(i) for i in reserve])
     vecs, fill = ctx.vecs, ctx.base_fill
     turns = [t for t in turns_for_seat(user, lg.teams, lg.rounds, lg.third_round_reversal)
              if t[-1] >= eng.k]
     all_user_picks = [n for t in turns for n in t]
     uni = ctx.universe
     feas_cache: dict[tuple, np.ndarray] = {}
+    used = np.full((len(turns), S, len(cfg.categories)), np.nan)
 
     def feasible(counts: np.ndarray, n_pick: int, remaining_after: int) -> np.ndarray:
         key = (counts.tobytes(), n_pick, remaining_after)
@@ -102,12 +113,26 @@ def rollout_to_end(ctx: AdvisorContext, log: DraftLog, S: int, seed: int, *, pun
             progress("Senaryo rollout", ti + 1, len(turns))
         turn = tuple(n for n in turn if n >= eng.k)
         eng.run_until(turn[0], skip_seat=None)
+        if ti == 0:
+            eng.release()
+        if all(n in forced for n in turn):
+            for n in turn:
+                eng.force(forced[n])
+            continue
         later = [n for n in all_user_picks if n > turn[-1]]
         roster = eng.roster_matrix(user, upto=turn[0])
         roster_picks = eng.seat_picks(user)[: roster.shape[1]]
         roster_vec = vec_or_fill(vecs, roster, roster_picks[None, :], fill).sum(axis=1)
+        team_p = ecw_vs(roster_vec + fill.sum(list(turn) + later), prob.opp_static, cfg).mean(axis=-2)
+        W = np.asarray(policy(ti, team_p), dtype=float)
+        used[ti] = W
         choices = np.full((S, len(turn)), -1, dtype=np.int64)
         for s in range(S):
+            keep = W[s]
+
+            def policy_score(vecs_):
+                return (ecw_vs(vecs_, prob.opp_static, cfg) * keep).sum(axis=-1).mean(axis=-1)
+
             base = roster_vec[s] + fill.sum(later)
             avail = (eng.taken_at[s] == 0) & ctx.has_vec
             idx = np.flatnonzero(avail)
@@ -129,7 +154,20 @@ def rollout_to_end(ctx: AdvisorContext, log: DraftLog, S: int, seed: int, *, pun
     teams = team_vectors(eng, vecs, fill, eng.total + 1)
     user_vec = teams[:, user - 1, :]
     opp = teams[:, prob.opp_seats - 1, :]
-    return ecw_vs(user_vec, opp, cfg), eng.roster_matrix(user), eng
+    return DraftRollout(P=ecw_vs(user_vec, opp, cfg), rosters=eng.roster_matrix(user), engine=eng, weights=used,
+                        turns=turns)
+
+
+def rollout_to_end(ctx: AdvisorContext, log: DraftLog, S: int, seed: int, *, punt: tuple[str, ...] = (),
+                   weights: dict[str, float] | None = None, progress=None):
+    """Sabit ağırlıklı ``play_draft``: kullanıcı her turn'de ``punt`` dışındaki kategorilerin beklenen
+    galibiyetini en büyükleyen seçimi yapar (``punt = ()`` → miyopik ECW π). Dönüş: ``(P (S, T−1, C),
+    kullanıcı kadro matrisi, motor)``. Sıra kullanıcıda değilse aradaki rakip pick'lerini botlar oynar."""
+    cfg = ctx.config
+    keep = np.array([0.0 if c in punt else float((weights or {}).get(c, 1.0)) for c in cfg.categories])
+    r = play_draft(ctx, log, S, seed, policy=lambda ti, team_p: np.broadcast_to(keep, team_p.shape),
+                   progress=progress)
+    return r.P, r.rosters, r.engine
 
 
 def run_scenarios(ctx: AdvisorContext, log: DraftLog, *, n_sims: int | None = None,

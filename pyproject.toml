@@ -19,6 +19,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
 nba = ["nba_api>=1.4"]          # scripts/fetch_gamelogs_nba_api.py (opsiyonel)
+excel = ["openpyxl>=3.1"]       # scripts/draft_scenarios.py xlsx çıktısı (opsiyonel)
 
 [tool.setuptools.packages.find]
 where = ["src"]
