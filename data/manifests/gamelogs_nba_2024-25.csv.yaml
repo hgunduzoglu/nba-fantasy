@@ -1,0 +1,11 @@
+file: data/real/gamelogs_nba_2024-25.csv
+kind: gamelogs
+source_name: stats.nba.com via nba_api
+source_url: https://stats.nba.com
+retrieved_at: '2026-10-13'
+retrieved_by: scripts/fetch_gamelogs_nba_api.py
+license_status: personal_use_confirmed
+license_notes: 'Kullanıcı kararı (2026-10-13): stats.nba.com game log''ları kişisel
+  kullanım için.'
+season: 2024-25
+is_synthetic: false
