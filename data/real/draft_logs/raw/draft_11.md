@@ -1,0 +1,228 @@
+# Draft 11
+
+- Kaynak: Yahoo mock draft sonuç sayfası (kullanıcı yapıştırdı, 2026-10-13)
+- Takım: 14, tur: 13
+- Otomatik (Yahoo botu): adı "Team N" olan takımlar (bu draft'ta yok)
+- Kullanıcı: Hüsamettin (sıra 1); pick'leri kalibrasyondan dışlanır
+
+```
+Round 1
+(1) Hüsamettin - Jokić, Nikola (DEN - C)
+(2) Yoni - Dončić, Luka (LAL - PG,SG)
+(3) Lauren - Wembanyama, Victor (SAS - C)
+(4) Muzz - Gilgeous-Alexander, Shai (OKC - PG)
+(5) gordon - Cunningham, Cade (DET - PG,SG)
+(6) Kerem - Antetokounmpo, Giannis (MIA - PF,C)
+(7) Костадин - Tatum, Jayson (BOS - SF,PF)
+(8) blake - Maxey, Tyrese (PHI - PG)
+(9) Mario - Haliburton, Tyrese (IND - PG,SG)
+(10) Ry - Johnson, Jalen (ATL - PF,SF)
+(11) Ian - Flagg, Cooper (DAL - SG,SF,PF)
+(12) EzMoney - Edwards, Anthony (MIN - PG,SG)
+(13) Clemance - Barnes, Scottie (TOR - SF,PF,C)
+(14) Baagii - Mitchell, Donovan (CLE - SG,PG)
+
+
+Round 2
+(1) Baagii - Şengün, Alperen (HOU - C,PF)
+(2) Clemance - Towns, Karl-Anthony (NYK - C,PF)
+(3) EzMoney - Young, Trae (WAS - PG)
+(4) Ian - Murray, Jamal (DEN - PG)
+(5) Ry - Giddey, Josh (CHI - PG,SG)
+(6) Mario - Holmgren, Chet (OKC - PF,C)
+(7) blake - Curry, Stephen (GSW - PG)
+(8) Костадин - Brunson, Jalen (NYK - PG)
+(9) Kerem - Adebayo, Bam (MIA - C,PF)
+(10) gordon - Durant, Kevin (HOU - SF,PF,SG)
+(11) Muzz - Markkanen, Lauri (UTA - PF,SF)
+(12) Lauren - Thompson, Amen (HOU - PG,SG)
+(13) Yoni - Booker, Devin (PHX - SG,PG)
+(14) Hüsamettin - Reaves, Austin (LAL - SG,PG,SF)
+
+
+Round 3
+(1) Hüsamettin - Brown, Jaylen (PHI - SG,SF,PF)
+(2) Yoni - Ware, Kel'el (MIL - C)
+(3) Lauren - Ball, LaMelo (MIN - PG)
+(4) Muzz - Duren, Jalen (DET - C)
+(5) gordon - Mobley, Evan (CLE - C,PF)
+(6) Kerem - Kessler, Walker (LAL - C)
+(7) Костадин - Miller, Brandon (CHA - SF,PF)
+(8) blake - Murphy III, Trey (NOP - SG,SF)
+(9) Mario - Leonard, Kawhi (TOR - SG,SF,PF)
+(10) Ry - Jackson Jr., Jaren (UTA - C,PF)
+(11) Ian - Harden, James (CLE - SG,PG)
+(12) EzMoney - Avdija, Deni (POR - SF,PF,SG)
+(13) Clemance - Banchero, Paolo (ORL - PF)
+(14) Baagii - Sabonis, Domantas (SAC - C,PF)
+
+
+Round 4
+(1) Baagii - Williams, Jalen (OKC - SF,PF)
+(2) Clemance - Siakam, Pascal (IND - PF,C)
+(3) EzMoney - Clingan, Donovan (POR - C)
+(4) Ian - White, Derrick (BOS - SG,PG)
+(5) Ry - Davis, Anthony (WAS - PF,C)
+(6) Mario - George, Keyonte (UTA - SG,PG)
+(7) blake - Irving, Kyrie (DAL - PG)
+(8) Костадин - Bane, Desmond (ORL - SF,SG)
+(9) Kerem - Alexander-Walker, Nickeil (ATL - PG,SG)
+(10) gordon - James, LeBron (PHI - SF,PF)
+(11) Muzz - Wagner, Franz (ORL - SF,PF)
+(12) Lauren - Okongwu, Onyeka (ATL - C)
+(13) Yoni - Boozer, Cameron (MEM - PF)
+(14) Hüsamettin - Castle, Stephon (SAS - PG,SG)
+
+
+Round 5
+(1) Hüsamettin - Garland, Darius (LAC - PG)
+(2) Yoni - Buzelis, Matas (CHI - SF,PF)
+(3) Lauren - Embiid, Joel (PHI - C)
+(4) Muzz - Knueppel, Kon (CHA - SF,SG)
+(5) gordon - Zubac, Ivica (IND - C)
+(6) Kerem - Lillard, Damian (POR - PG)
+(7) Костадин - Reid, Naz (CHA - C,PF)
+(8) blake - Sarr, Alex (WAS - C)
+(9) Mario - Edey, Zach (MEM - C)
+(10) Ry - Randle, Julius (BKN - PF)
+(11) Ian - Porter Jr., Michael (BKN - SF,PF)
+(12) EzMoney - Allen, Jarrett (CLE - C)
+(13) Clemance - Daniels, Dyson (ATL - SG,SF)
+(14) Baagii - Murray, Dejounte (NOP - PG)
+
+
+Round 6
+(1) Baagii - Rollins, Ryan (MIL - PG,SG)
+(2) Clemance - Herro, Tyler (MIL - SG,PG)
+(3) EzMoney - Thompson, Ausar (DET - SF,PF,SG)
+(4) Ian - Pritchard, Payton (BOS - PG)
+(5) Ry - Jerome, Ty (MEM - SG,PG)
+(6) Mario - Coward, Cedric (MEM - SG,SF)
+(7) blake - Anunoby, OG (NYK - SF,PF)
+(8) Костадин - Williamson, Zion (NOP - PF,C)
+(9) Kerem - Powell, Norman (CHI - SG,SF)
+(10) gordon - Fox, De'Aaron (SAS - PG)
+(11) Muzz - Harper, Dylan (SAS - SG,PG)
+(12) Lauren - George, Paul (BOS - SF,PF)
+(13) Yoni - Gobert, Rudy (MIN - C)
+(14) Hüsamettin - Queen, Derik (NOP - C,PF)
+
+
+Round 7
+(1) Hüsamettin - Bridges, Mikal (NYK - SF,PF)
+(2) Yoni - Wilson, Caleb (CHI - PF)
+(3) Lauren - Ingram, Brandon (LAC - SG,SF,PF)
+(4) Muzz - Wiggins, Andrew (MIA - SG,SF,PF)
+(5) gordon - Edgecombe, VJ (PHI - SG,PG)
+(6) Kerem - White, Coby (CHA - PG,SG)
+(7) Костадин - McDaniels, Jaden (MIN - SF)
+(8) blake - Quickley, Immanuel (TOR - PG,SG)
+(9) Mario - Queta, Neemias (BOS - C)
+(10) Ry - Dybantsa, AJ (WAS - SF)
+(11) Ian - Green, Jalen (PHX - SG,SF)
+(12) EzMoney - Sharpe, Day'Ron (BKN - C)
+(13) Clemance - McCollum, CJ (ATL - SG,PG)
+(14) Baagii - Morant, Ja (POR - PG)
+
+
+Round 8
+(1) Baagii - Suggs, Jalen (ORL - PG,SG)
+(2) Clemance - Murray-Boyles, Collin (TOR - PF,C)
+(3) EzMoney - Smith Jr., Jabari (HOU - PF,C)
+(4) Ian - Lendeborg, Yaxel (GSW - PF)
+(5) Ry - LaVine, Zach (SAC - PG,SG,SF)
+(6) Mario - Peterson, Darryn (UTA - SG)
+(7) blake - Collins, John (DET - PF,C)
+(8) Костадин - Bridges, Miles (PHX - PF)
+(9) Kerem - Murray, Keegan (SAC - SF,PF)
+(10) gordon - Hart, Josh (NYK - SG,SF)
+(11) Muzz - Hartenstein, Isaiah (OKC - C)
+(12) Lauren - Podziemski, Brandin (GSW - SG,PG)
+(13) Yoni - Dosunmu, Ayo (MIN - PG,SG)
+(14) Hüsamettin - Portis Jr., Bobby (MIA - PF,C)
+
+
+Round 9
+(1) Hüsamettin - Gordon, Aaron (DEN - PF,C)
+(2) Yoni - Camara, Toumani (POR - SF,PF)
+(3) Lauren - Hachimura, Rui (LAC - PF,SF)
+(4) Muzz - Nembhard, Andrew (IND - SG,PG)
+(5) gordon - Claxton, Nic (CHI - C)
+(6) Kerem - Mitchell, Davion (MIA - PG)
+(7) Костадин - Carter Jr., Wendell (ORL - C)
+(8) blake - Maluach, Khaman (PHX - C)
+(9) Mario - Mitchell, Ajay (OKC - PG,SG)
+(10) Ry - George, Kyshawn (WAS - SF,SG,PF)
+(11) Ian - Acuff Jr., Darius (SAC - PG)
+(12) EzMoney - Nurkić, Jusuf (UTA - C)
+(13) Clemance - Poeltl, Jakob (TOR - C)
+(14) Baagii - Turner, Myles (MIL - C)
+
+
+Round 10
+(1) Baagii - Watson, Peyton (CLE - SF,PF)
+(2) Clemance - Barrett, RJ (TOR - SF,PF,SG)
+(3) EzMoney - Wallace, Cason (OKC - SG,PG,SF)
+(4) Ian - Jaquez Jr., Jaime (MIL - SF,SG,PF)
+(5) Ry - Mamukelashvili, Sandro (LAL - PF,C)
+(6) Mario - Porziņģis, Kristaps (GSW - C)
+(7) blake - Gillespie, Collin (PHX - PG,SG)
+(8) Костадин - Brooks, Dillon (PHX - SF,PF)
+(9) Kerem - Gafford, Daniel (DAL - C)
+(10) gordon - Porter Jr., Kevin (MIL - PG,SG)
+(11) Muzz - Holiday, Jrue (POR - PG,SG)
+(12) Lauren - Grimes, Quentin (LAL - SG,SF)
+(13) Yoni - Missi, Yves (NOP - C)
+(14) Hüsamettin - Kuzma, Kyle (MIL - PF,SF)
+
+
+Round 11
+(1) Hüsamettin - Brown Jr., Mikel (BKN - PG)
+(2) Yoni - Kuminga, Jonathan (MIN - SF,PF)
+(3) Lauren - Washington, P.J. (DAL - PF,C)
+(4) Muzz - DeRozan, DeMar (DEN - SF,PF)
+(5) gordon - Jones, Tre (CHI - PG,SG)
+(6) Kerem - Sheppard, Reed (HOU - PG,SG)
+(7) Костадин - Dëmin, Egor (BKN - PG,SG)
+(8) blake - Diabaté, Moussa (CHA - C)
+(9) Mario - Nesmith, Aaron (IND - SF,SG)
+(10) Ry - Butler III, Jimmy (GSW - SF,PF)
+(11) Ian - Grant, Jerami (MEM - PF,SF)
+(12) EzMoney - Johnson, Cameron (DEN - SF,PF)
+(13) Clemance - VanVleet, Fred (HOU - PG)
+(14) Baagii - Bailey, Ace (UTA - SF,PF)
+
+
+Round 12
+(1) Baagii - Black, Anthony (ORL - PG,SG,SF)
+(2) Clemance - Reed, Paul (DET - C,PF)
+(3) EzMoney - Santos, Gui (GSW - PF,SF)
+(4) Ian - Allen, Grayson (CHA - SG,SF)
+(5) Ry - Bey, Saddiq (NOP - PF,SF)
+(6) Mario - Raynaud, Maxime (SAC - C)
+(7) blake - Green, Draymond (GSW - PF,C)
+(8) Костадин - Vassell, Devin (SAS - SF,SG)
+(9) Kerem - Larsson, Pelle (MIA - SG,SF)
+(10) gordon - Braun, Christian (DEN - SG,SF,PF)
+(11) Muzz - Smith, Jalen (CHI - C,PF)
+(12) Lauren - Harris, Tobias (SAS - PF)
+(13) Yoni - Eason, Tari (HOU - SF,PF,SG)
+(14) Hüsamettin - Champagnie, Julian (SAS - SF,PF)
+
+
+Round 13
+(1) Hüsamettin - Hardaway Jr., Tim (MIA - SG,SF)
+(2) Yoni - Mathurin, Bennedict (NOP - SG,SF)
+(3) Lauren - Jones, Herbert (NOP - SG,SF)
+(4) Muzz - LaRavia, Jake (LAL - PF,SF)
+(5) gordon - Pippen Jr., Scotty (MEM - PG)
+(6) Kerem - Vučević, Nikola (ORL - C)
+(7) Костадин - Wagler, Keaton (LAC - SG)
+(8) blake - Jackson, Isaiah (LAC - C)
+(9) Mario - Wells, Jaylen (MEM - SG,SF)
+(10) Ry - McCain, Jared (OKC - PG,SG)
+(11) Ian - Fears, Jeremiah (NOP - PG,SG)
+(12) EzMoney - Lopez, Brook (LAC - C)
+(13) Clemance - Henderson, Scoot (POR - PG)
+(14) Baagii - Stewart, Isaiah (MEM - C,PF)
+```
