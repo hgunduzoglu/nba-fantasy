@@ -1,6 +1,7 @@
 """Sayfa 4 — Draft Assistant (README §6.7, §8). V1'in ana ekranı.
 
-Öneriler yalnızca ECW (E[W]) ile sıralanır. İstatistiksel olarak ayırt edilemeyen
+Sıra kullanıcıdaysa öneri sayfa açılınca kendiliğinden (hızlı mod) hesaplanır; form yalnızca tam mod,
+pin ve seçenekler için. Öneriler yalnızca ECW (E[W]) ile sıralanır. İstatistiksel olarak ayırt edilemeyen
 çiftler aynı kademede gösterilir (sahte kesinlik yok).
 """
 
@@ -16,7 +17,7 @@ from fdo.advisor.scenarios import compare_punt_plans, run_scenarios
 from fdo.types import CATEGORY_LABELS
 from fdo.ui import common
 
-common.page("4 · Draft Assistant")
+common.page("Detaylı Advisor")
 cfg = common.config()
 ds = common.dataset()
 lg = cfg.league
@@ -25,12 +26,12 @@ m = common.mock()
 log = m.log
 
 if log.is_complete:
-    st.info("Draft tamamlandı. Yeni bir mock başlatın (Sayfa 3).")
+    st.info("Draft tamamlandı. Yeni bir mock başlatın (Mock Draft).")
     st.stop()
 if log.next_seat != lg.my_seat:
     st.info(f"Sıra sizde değil (pick {log.next_pick}, seat {log.next_seat}).")
     if st.session_state.get("live"):
-        st.caption("Canlı draft modu: rakip pick'lerini Sayfa 7'den girin.")
+        st.caption("Canlı draft modu: rakip pick'lerini Canlı Draft sayfasından girin.")
     elif st.button("Kullanıcıya kadar oynat", type="primary"):
         m.play_until_user()
         st.session_state.advisor_result = None
@@ -66,9 +67,10 @@ with st.form("advisor"):
     unc = st.checkbox("Sakatlık/rol belirsizliği (V2)", value=False,
                       help="Simülasyon başına oyuncu maç oranı (Beta) ve rol çarpanı (log-normal); "
                            "rookie'lerde daha geniş. Beklenti aynı kalır, P10–P90 riski yansıtır.")
-    go = st.form_submit_button("Öneri hesapla", type="primary")
+    go = st.form_submit_button("Yeniden hesapla", type="primary")
 
-if go:
+prev = st.session_state.advisor_result
+if go or prev is None or prev.params["pick"] != log.next_pick:
     common.advisor_context()
     st.button("Hesabı iptal et", help="Herhangi bir etkileşim (ya da sağ üstteki Stop) çalışan hesabı keser.")
     with st.status("Advisor çalışıyor…", expanded=True) as status:
