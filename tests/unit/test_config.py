@@ -26,12 +26,13 @@ def test_bot_mix_must_cover_opponents(config):
 
 
 def test_unverified_nulls_are_reported(config):
-    assert config.unverified.null_fields() == ["playoff_weeks"]
+    assert config.unverified.null_fields() == []
+    assert config.unverified.playoff_weeks == 3 and config.schedule.merge_with_next == (18,)
     un = config.unverified
     assert un.position_limits_enforced_in_draft is True
     assert (un.lineup_lock, un.il_slots, un.il_plus_slots) == ("daily_today", 3, 0)
     nulls = config.with_overrides({"unverified": {"lineup_lock": None}}).unverified.null_fields()
-    assert nulls == ["lineup_lock", "playoff_weeks"]
+    assert nulls == ["lineup_lock"]
 
 
 def test_invalid_lineup_lock_rejected(config):

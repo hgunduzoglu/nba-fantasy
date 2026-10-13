@@ -37,6 +37,7 @@ def test_team_aliases():
 
 
 def test_calendar_counts_and_playoff_weighting(tiny, config):
+    config = config.with_overrides({"unverified": {"playoff_weeks": None}, "schedule": {"merge_with_next": []}})
     cal = build_calendar(tiny, config)
     assert list(cal.weeks.index) == [1, 2, 3]
     assert cal.team_week.loc["BOS"].tolist() == [2, 3, 1]

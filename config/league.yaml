@@ -38,12 +38,14 @@ unverified:
   lineup_lock: daily_today    # doğrulandı: maç başlayana kadar günlük değişiklik (utilization bkz. model.yaml)
   il_slots: 3                 # doğrulandı: 3 IL; draft kadrosuna dahil değil (13 pick)
   il_plus_slots: 0            # doğrulandı: IL+ yok; Q (questionable) oyuncu hiçbir etki almaz
-  playoff_weeks: null         # fantasy playoff'u olan son hafta sayısı (takvim ağırlığı, V2)
+  playoff_weeks: 3            # doğrulandı (2026-10-13): fantasy playoff'u son 3 eşleşme haftası
   keepers: false
   position_limits_enforced_in_draft: true   # doğrulandı: Yahoo draft sırasında pozisyon kuralını uygular
 
 # Fantasy haftaları (README §13.4, V2 takvim). Yahoo eşleşme haftası pazartesi başlar.
-# merge_with_next: sonraki haftayla birleşen hafta numaraları (örn. All-Star arası); doğrulanmadı.
+# merge_with_next: sonraki haftayla birleşen hafta numaraları. Doğrulandı (2026-10-13): yalnızca All-Star
+# haftası birleşir. 2026-27 takviminde All-Star arası 19–24 Şubat 2027: 18. hafta (15–21 Şubat)
+# 19. haftayla (22–28 Şubat) tek eşleşme. Sezon değişince takvime göre güncellenmeli.
 schedule:
   week_start: monday
-  merge_with_next: []
+  merge_with_next: [18]
