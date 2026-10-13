@@ -22,6 +22,7 @@ from fdo.advisor.rollout import Problem, RolloutOutcome, delta_ecw, rollout_pair
 from fdo.advisor.simulate import (
     STREAM_FILL_COND,
     STREAM_ROLLOUT,
+    STREAM_UNCERTAINTY,
     AdvisorContext,
     build_fill,
     make_engine,
@@ -29,6 +30,7 @@ from fdo.advisor.simulate import (
     vec_or_fill,
 )
 from fdo.advisor.survival import survival
+from fdo.advisor.uncertainty import multipliers
 from fdo.draft.events import DraftLog
 from fdo.draft.order import next_turn_after, picks_for_seat, turns_for_seat
 from fdo.matchup.fill import FillTable
@@ -208,8 +210,11 @@ def assign_tiers(results: list[PairResult], se_mult: float) -> None:
 
 def recommend(ctx: AdvisorContext, log: DraftLog, *, mode: str = "fast", n_sims: int | None = None,
               seed: int | None = None, pinned_players=(), pinned_pairs=(),
-              conditional_fill: bool = True, progress=None) -> AdvisorResult:
-    """Kullanıcının mevcut turn'ü için çift (ya da tek) önerisi."""
+              conditional_fill: bool = True, uncertainty: bool = False, progress=None) -> AdvisorResult:
+    """Kullanıcının mevcut turn'ü için çift (ya da tek) önerisi.
+
+    ``uncertainty``: V2 sakatlık/rol senaryoları (§13.5) — simülasyon başına oyuncu çarpanları.
+    """
     t0 = time.perf_counter()
     cfg = ctx.config
     adv = cfg.model.advisor
@@ -237,6 +242,7 @@ def recommend(ctx: AdvisorContext, log: DraftLog, *, mode: str = "fast", n_sims:
 
     engine = make_engine(ctx, log, S, sub_seed(seed, STREAM_ROLLOUT))
     snap0 = engine.snapshot()
+    mult = multipliers(ctx, engine.sim_ids, sub_seed(seed, STREAM_UNCERTAINTY)) if uncertainty else None
 
     # aciliyet ön elemesi: kullanıcı pick'leri boş geçilerek sonraki turn'e kadar
     surv_next = None
@@ -267,7 +273,7 @@ def recommend(ctx: AdvisorContext, log: DraftLog, *, mode: str = "fast", n_sims:
     results: list[PairResult] = []
     for i, combo in enumerate(chosen):
         report("Rollout", i + 1, len(chosen))
-        out = rollout_pair(prob, engine, snap0, combo)
+        out = rollout_pair(prob, engine, snap0, combo, mult)
         W = out.W
         ids = tuple(str(u.ids[j]) for j in combo)
         results.append(PairResult(
@@ -291,11 +297,14 @@ def recommend(ctx: AdvisorContext, log: DraftLog, *, mode: str = "fast", n_sims:
              "doldurma profilleri nötr"]
     if not ctx.variance_calibrated:
         uncal.insert(1, "varyans φ (varyans dosyası yok)")
+    if uncertainty:
+        uncal.append("sakatlık/rol senaryoları (κ, σ_r)")
     return AdvisorResult(
         turn=prob.turn, next_turn=prob.next_turn, pairs=results, candidates=cand_df,
         params={"mode": mode, "S": S, "seed": seed, "pick": k, "fill": fill.source,
                 "fill_sims": fill.n_sims, "candidates": len(cands), "pairs_considered": len(feasible),
-                "pairs_rolled_out": len(chosen), "next_policy_top_l": adv.next_policy_top_l},
+                "pairs_rolled_out": len(chosen), "next_policy_top_l": adv.next_policy_top_l,
+                "uncertainty": uncertainty},
         elapsed=time.perf_counter() - t0,
         real_players=len(prob.roster) + size + (len(prob.next_turn) if prob.next_turn else 0),
         roster_size=cfg.league.rounds, sources=ctx.dataset.sources(), uncalibrated=uncal,

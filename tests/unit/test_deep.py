@@ -39,3 +39,10 @@ def test_deep_recommend_ranks_survivors_first(setup):
     t = res.table()
     assert len(t) == 4 and t["basamak"].iloc[0] == 2 and t["sims"].iloc[0] == 12
     assert set(t["pair"]) == {p.label for p in base.pairs[:4]}
+
+
+def test_deep_with_uncertainty_runs(setup):
+    ctx, log, base = setup
+    res = deep_recommend(ctx, log, base, n_pairs=2, rungs=(4,), uncertainty=True)
+    assert res.params["uncertainty"] and len(res.pairs) == 2
+    assert all(((p.W > 0) & (p.W < 9)).all() for p in res.pairs)

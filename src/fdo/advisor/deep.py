@@ -25,7 +25,16 @@ import pandas as pd
 
 from fdo.advisor.pairs import AdvisorResult, setup_problem
 from fdo.advisor.rollout import Problem
-from fdo.advisor.simulate import STREAM_ROLLOUT, AdvisorContext, make_engine, sub_seed, team_vectors, vec_or_fill
+from fdo.advisor.simulate import (
+    STREAM_ROLLOUT,
+    STREAM_UNCERTAINTY,
+    AdvisorContext,
+    make_engine,
+    sub_seed,
+    team_vectors,
+    vec_or_fill,
+)
+from fdo.advisor.uncertainty import multipliers
 from fdo.bots.thurstone import BatchDraft
 from fdo.draft.events import DraftLog
 from fdo.matchup.ecw import ecw_vs
@@ -77,8 +86,12 @@ def greedy_pick(prob: Problem, engine: BatchDraft, n: int, rest: list[int], shor
 
 
 def full_rollout(prob: Problem, log: DraftLog, pair: tuple[int, ...], n_sims: int, seed: int,
-                 sim_offset: int, shortlist_k: int) -> np.ndarray:
-    """Bir çift için ``(n_sims,)`` tam ufuk ``W`` değerleri (simülasyonlar ``sim_offset``'ten)."""
+                 sim_offset: int, shortlist_k: int, uncertainty_seed: int | None = None) -> np.ndarray:
+    """Bir çift için ``(n_sims,)`` tam ufuk ``W`` değerleri (simülasyonlar ``sim_offset``'ten).
+
+    ``uncertainty_seed`` verilirse V2 sakatlık/rol çarpanları (§13.5) final kadrolara uygulanır;
+    π'nin kararları çarpanları görmez (gelecekteki sakatlık draft sırasında bilinmez).
+    """
     ctx = prob.ctx
     eng = make_engine(ctx, log, n_sims, seed, sim_offset=sim_offset)
     for p in pair:
@@ -88,7 +101,8 @@ def full_rollout(prob: Problem, log: DraftLog, pair: tuple[int, ...], n_sims: in
         eng.run_until(n)
         eng.force(greedy_pick(prob, eng, n, later[j + 1:], shortlist_k))
     eng.run_until(eng.total + 1)
-    teams = team_vectors(eng, ctx.vecs, prob.fill, eng.total + 1)        # (S, T, 24)
+    mult = None if uncertainty_seed is None else multipliers(ctx, eng.sim_ids, uncertainty_seed)
+    teams = team_vectors(eng, ctx.vecs, prob.fill, eng.total + 1, mult)  # (S, T, 24)
     user = teams[:, prob.user - 1, :]
     opp = teams[:, prob.opp_seats - 1, :]
     return ecw_vs(user, opp, ctx.config).sum(axis=-1).mean(axis=-1)
@@ -147,13 +161,18 @@ def successive_halving(evaluate, items: list, rungs: tuple[int, ...], min_keep: 
 
 
 def deep_recommend(ctx: AdvisorContext, log: DraftLog, base: AdvisorResult, *, n_pairs: int | None = None,
-                   rungs: tuple[int, ...] | None = None, seed: int | None = None, progress=None) -> DeepResult:
+                   rungs: tuple[int, ...] | None = None, seed: int | None = None, uncertainty: bool | None = None,
+                   progress=None) -> DeepResult:
     """V1 sonucunun ilk ``n_pairs`` çiftini tam ufuk rollout ve kademeli yarılama ile yeniden sıralar."""
     t0 = time.perf_counter()
     adv = ctx.config.model.advisor
     n_pairs = n_pairs or adv.deep_pairs
     rungs = tuple(rungs or adv.deep_rungs)
-    seed = sub_seed(ctx.seed if seed is None else int(seed), STREAM_ROLLOUT + 100)
+    master = ctx.seed if seed is None else int(seed)
+    seed = sub_seed(master, STREAM_ROLLOUT + 100)
+    if uncertainty is None:
+        uncertainty = bool(base.params.get("uncertainty"))
+    useed = sub_seed(master, STREAM_UNCERTAINTY + 100) if uncertainty else None
     fill = ctx.base_fill
     prob = setup_problem(ctx, log, fill)
     u = ctx.universe
@@ -169,11 +188,12 @@ def deep_recommend(ctx: AdvisorContext, log: DraftLog, base: AdvisorResult, *, n
         calls["n"] += 1
         if progress:
             progress(calls["n"], total_calls)
-        return full_rollout(prob, log, combo, n, seed, offset, adv.deep_shortlist_k)
+        return full_rollout(prob, log, combo, n, seed, offset, adv.deep_shortlist_k, useed)
 
     W, reached = successive_halving(evaluate, combos, rungs)
     pairs = [DeepPair(label=pr.label, players=pr.players, W=W[i], rung=reached[i], v1_mean=pr.mean)
              for i, pr in enumerate(chosen)]
     pairs.sort(key=lambda p: (-p.rung, -p.mean))
     return DeepResult(pairs=pairs, rungs=rungs, elapsed=time.perf_counter() - t0,
-                      params={"seed": seed, "shortlist_k": adv.deep_shortlist_k, "pick": log.next_pick})
+                      params={"seed": seed, "shortlist_k": adv.deep_shortlist_k, "pick": log.next_pick,
+                              "uncertainty": uncertainty})

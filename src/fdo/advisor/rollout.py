@@ -19,6 +19,7 @@ import pandas as pd
 
 from fdo.advisor.simulate import AdvisorContext, team_vectors
 from fdo.advisor.survival import go_pick_quantiles, survival
+from fdo.advisor.uncertainty import choice_correction, roster_correction
 from fdo.bots.thurstone import BatchDraft
 from fdo.matchup.ecw import category_corr_matrix, ecw_vs, p_at_least
 from fdo.matchup.fill import FillTable
@@ -171,7 +172,9 @@ class RolloutOutcome:
     p_at_least_5: np.ndarray | None = None
 
 
-def rollout_pair(prob: Problem, engine: BatchDraft, snap0: dict, pair: tuple[int, ...]) -> RolloutOutcome:
+def rollout_pair(prob: Problem, engine: BatchDraft, snap0: dict, pair: tuple[int, ...],
+                 mult: np.ndarray | None = None) -> RolloutOutcome:
+    """``mult``: V2 senaryo çarpanları ``(S, n)`` (§13.5); verilirse kullanıcı ve rakip kadroları ölçeklenir."""
     ctx = prob.ctx
     cfg = ctx.config
     adv = cfg.model.advisor
@@ -187,6 +190,7 @@ def rollout_pair(prob: Problem, engine: BatchDraft, snap0: dict, pair: tuple[int
     out_tiers = pd.DataFrame()
     out_next = pd.DataFrame()
     surv = se = None
+    choices: list[tuple[int, ...]] = []
     if u:
         surv, se = survival(engine)
         ps = policy_setup(prob, tuple(pair), pair_vec, surv > 0)
@@ -198,8 +202,12 @@ def rollout_pair(prob: Problem, engine: BatchDraft, snap0: dict, pair: tuple[int
         user_vec = np.repeat((prob.roster_vec + pair_vec + prob.fill_sum(prob.after_turn))[None, :],
                              engine.S, axis=0)
 
-    teams = team_vectors(engine, ctx.vecs, prob.fill, stop)
+    teams = team_vectors(engine, ctx.vecs, prob.fill, stop, mult)
     opp = teams[:, prob.opp_seats - 1, :]
+    if mult is not None:
+        user_vec = user_vec + roster_correction(ctx.vecs, mult, [*prob.roster.tolist(), *pair])
+        if u:
+            user_vec = user_vec + choice_correction(ctx.vecs, mult, choices)
     P = ecw_vs(user_vec, opp, cfg)                  # (S, T−1, n_cat)
     return RolloutOutcome(pair=tuple(int(p) for p in pair), W=P.sum(axis=-1).mean(axis=-1),
                           cat_p=P.mean(axis=1), pool=out_pool, pool_tiers=out_tiers,

@@ -27,6 +27,7 @@ STREAM_ROLLOUT = 0
 STREAM_FILL_BASE = 1
 STREAM_FILL_COND = 2
 STREAM_SCENARIO = 3
+STREAM_UNCERTAINTY = 4      # V2 sakatlık/rol çarpanları (§13.5)
 
 
 def sub_seed(seed: int, stream: int) -> int:
@@ -111,8 +112,12 @@ def vec_or_fill(vecs: np.ndarray, players: np.ndarray, picks: np.ndarray, fill: 
     return np.where(bad[..., None], fill.means[picks], v)
 
 
-def team_vectors(engine: BatchDraft, vecs: np.ndarray, fill: FillTable, upto: int) -> np.ndarray:
-    """``(S, T, 24)``: ``upto``'dan önceki seçimler (gerçek vektör) + kalan pick'ler (doldurma)."""
+def team_vectors(engine: BatchDraft, vecs: np.ndarray, fill: FillTable, upto: int,
+                 mult: np.ndarray | None = None) -> np.ndarray:
+    """``(S, T, 24)``: ``upto``'dan önceki seçimler (gerçek vektör) + kalan pick'ler (doldurma).
+
+    ``mult (S, n)``: V2 senaryo çarpanları (§13.5); gerçek oyuncu vektörleri simülasyon başına ölçeklenir.
+    """
     T, total = engine.T, engine.total
     upto = min(upto, total + 1)
     onehot = np.zeros((total, T))
@@ -122,6 +127,10 @@ def team_vectors(engine: BatchDraft, vecs: np.ndarray, fill: FillTable, upto: in
         picked = engine.pick_player[:, : upto - 1]
         ks = np.arange(1, upto)
         v = vec_or_fill(vecs, picked, ks[None, :], fill)
+        if mult is not None:
+            real = (picked >= 0) & ~np.isnan(vecs[np.maximum(picked, 0)]).any(axis=-1)
+            m = np.take_along_axis(mult, np.maximum(picked, 0), axis=1)
+            v = v * np.where(real, m, 1.0)[..., None]
         out += np.einsum("skd,kt->std", v, onehot[: upto - 1])
     if upto <= total:
         out += (onehot[upto - 1:].T @ fill.means[upto:])[None, :, :]
