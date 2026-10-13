@@ -125,7 +125,7 @@ def test_variance_file_overrides_default(config):
     var_file = pd.DataFrame({"player_id": ["a"], "stat": ["reb"], "per_game_var": [9.0]})
     var, calibrated = per_game_variance(df, var_file, config.model.variance.phi)
     assert var.loc["a", "reb"] == 9.0
-    assert var.loc["a", "pts"] == pytest.approx(df.loc[0, "pts"])
+    assert var.loc["a", "pts"] == pytest.approx(df.loc[0, "pts"] * config.model.variance.phi["pts"])
     assert not calibrated["a"]
 
 

@@ -1,0 +1,10 @@
+file: data/real/variance_nba_2024-25_nba_2025-26.csv
+kind: variance
+source_name: calibrate_variance ← stats.nba.com via nba_api
+source_url: https://stats.nba.com
+retrieved_at: '2026-10-13'
+retrieved_by: scripts/calibrate_variance.py
+license_status: personal_use_confirmed
+license_notes: 'Türetilmiş veri; kaynak: data/real/gamelogs_nba_2024-25.csv, data/real/gamelogs_nba_2025-26.csv'
+season: 2024-25,2025-26
+is_synthetic: false

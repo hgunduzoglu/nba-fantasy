@@ -66,28 +66,38 @@ bots:
     RandomHuman: 1.25
 
 variance:
-  phi:                    # aşırı yayılımlı Poisson çarpanı (stat başına), kalibre edilmemiş
-    fgm: 1.0
-    fga: 1.0
-    ftm: 1.0
-    fta: 1.0
-    fg3m: 1.0
-    pts: 1.0
-    reb: 1.0
-    ast: 1.0
-    stl: 1.0
-    blk: 1.0
-    tov: 1.0
-  # Kategori korelasyonu (V2, scripts/calibrate_variance.py çıktısı). null → P(≥5) bağımsızlık
-  # varsayar. Yalnızca P(≥5 kategori) göstergesinde kullanılır; ECW bundan etkilenmez.
-  category_corr: null
+  # scripts/calibrate_variance.py, nba_api game log'ları 2024-25 + 2025-26 (596 oyuncu, 46 858 maç).
+  # φ: varyans dosyasında olmayan oyuncular (rookie vb.) için Var = φ·μ (s²/μ medyanı).
+  phi:
+    fgm: 1.373
+    fga: 1.646
+    ftm: 1.948
+    fta: 2.186
+    fg3m: 1.176
+    pts: 3.456
+    reb: 1.402
+    ast: 1.266
+    stl: 1.075
+    blk: 1.067
+    tov: 1.065
+  # Kategori korelasyonu (kazanma yönünde, oyuncu içi maç kalıntıları). Yalnızca P(≥5 kategori)
+  # göstergesinde kullanılır (Gauss kopulası); ECW bundan etkilenmez. Üst üçgen yeterli.
+  category_corr:
+    FG_PCT: {FT_PCT: -0.011, FG3M: 0.399, PTS: 0.598, REB: 0.02, AST: 0.034, STL: 0.042, BLK: 0.008, TOV: -0.03}
+    FT_PCT: {FG3M: 0.015, PTS: 0.115, REB: 0.002, AST: 0.012, STL: 0.004, BLK: 0.0, TOV: -0.006}
+    FG3M: {PTS: 0.665, REB: 0.14, AST: 0.119, STL: 0.082, BLK: 0.05, TOV: -0.084}
+    PTS: {REB: 0.31, AST: 0.221, STL: 0.171, BLK: 0.094, TOV: -0.152}
+    REB: {AST: 0.245, STL: 0.106, BLK: 0.124, TOV: -0.163}
+    AST: {STL: 0.134, BLK: 0.07, TOV: -0.122}
+    STL: {BLK: 0.042, TOV: -0.095}
+    BLK: {TOV: -0.043}
 
 matchup:
   games_per_week: 3.5          # ortalama; takvim V2. Varsayım.
-  # Oynanan maçların aktif slotta sayılan oranı. lineup_lock = daily_today için
-  # scripts/estimate_utilization.py (480 mock kadrosu, varsayımsal takvim): daily_today 0.982,
-  # daily_tomorrow 0.961, weekly 0.864. Takvim varsayımsal → kalibre edilmemiş.
-  utilization: 0.98
+  # Oynanan maçların aktif slotta sayılan oranı (lineup_lock = daily_today).
+  # scripts/estimate_utilization.py, 2026-27 NBA takvimi (24 eşleşme haftası), 480 mock kadrosu:
+  # daily_today 0.987, daily_tomorrow 0.971, weekly 0.821 (varsayımsal takvimle 0.982 / 0.961 / 0.864).
+  utilization: 0.987
   # V2 takvim (§13.4): takvim yüklüyse oyuncunun haftalık maç sayısı takımının fantasy
   # haftalarındaki ortalamasıdır; playoff haftaları playoff_weight ile ağırlıklanır.
   playoff_weight: 1.0
