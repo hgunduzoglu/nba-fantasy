@@ -18,6 +18,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
+nba = ["nba_api>=1.4"]          # scripts/fetch_gamelogs_nba_api.py (opsiyonel)
 
 [tool.setuptools.packages.find]
 where = ["src"]

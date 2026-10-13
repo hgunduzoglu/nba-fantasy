@@ -404,17 +404,28 @@ def _load_table(path: str | Path, kind: str, column_map: dict | None, report: Va
 
 
 def load_table(path: str | Path, kind: str, *, column_map: dict | None = None,
-               manifest_dir: str | Path | None = None, players: pd.DataFrame | None = None
-               ) -> tuple[pd.DataFrame | None, dict | None, ValidationReport]:
+               manifest_dir: str | Path | None = None, players: pd.DataFrame | None = None,
+               drop_unmatched: bool = False) -> tuple[pd.DataFrame | None, dict | None, ValidationReport]:
     """Yardımcı tablo (``schedule``, ``gamelogs``, ``variance``) yükler: manifest zorunlu (§5.2),
-    şema tipleri uygulanır; ``players`` verilirse ``player_id`` ad/alias ile çözülür."""
+    şema tipleri uygulanır; ``players`` verilirse ``player_id`` ad/alias ile çözülür.
+
+    ``drop_unmatched``: eşleşmeyen/belirsiz oyuncu satırları hata yerine düşürülür ve uyarılır
+    (game log'larında oyuncu dosyasında olmayan yüzlerce oyuncu bulunur)."""
     report = ValidationReport()
     df, manifest = _load_table(path, kind, column_map, report, manifest_dir)
     if df is None:
         return None, manifest, report
     label = Path(path).name
     if players is not None and "player_id" in schema.column_names(kind):
-        df = resolve_player_ids(df, players, label, report)
+        sub = ValidationReport() if drop_unmatched else report
+        df = resolve_player_ids(df, players, label, sub)
+        if drop_unmatched:
+            keep = df["player_id"].isin(set(players["player_id"]))
+            if (~keep).any():
+                names = df.loc[~keep, "name"] if "name" in df else df.loc[~keep, "player_id"]
+                report.warn(f"{label}: oyuncu dosyasıyla eşleşmeyen {int((~keep).sum())} satır "
+                            f"({names.nunique()} oyuncu) düşürüldü")
+            df = df[keep]
     df = coerce_types(df, kind, report, label)
     if not report.ok:
         return None, manifest, report
