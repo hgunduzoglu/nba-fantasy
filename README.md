@@ -1029,7 +1029,7 @@ Tek uygulama ve çok sayfa (`st.navigation` veya `pages/`). Durum `st.session_st
 | **1. League & Data** | Lig config görüntüleme/düzenleme (kesin alanlar kilitli, doğrulanmamış alanlar uyarılı); CSV yükleme, kolon eşleme, validasyon raporu, manifest durumu; sentetik veri üret butonu; `adp_status` dağılımı; V2: takvim yükleme ve hafta özeti |
 | **2. Projection Explorer** | Oyuncu tablosu: Z/G seçimi, `per_game`/`total`, 9 kategori skoru, `V`, sıra, `adp_eff` ve `value_rank − ADP`, `adp_status`, pozisyonlar; ağırlık slider'ları ve presetler; havuz boyutu (180/208/240) duyarlılığı; filtre ve arama |
 | **3. Mock Draft** | 16×13 board; seed; bot karışımı; "sıradaki pick'i oynat", "kullanıcıya kadar oynat", "sona kadar oynat"; manuel seçim (arama); undo, "pick k'ye dön", replay; CSV/JSON export ve import; reach renkleri |
-| **4. Draft Assistant** | Kullanıcının sırası geldiğinde: aday çift tablosu (E[W], P10–P90, SE, kademe); seçili çift için **48/49 havuzu** (§6.7.4); iki çift karşılaştırması; bekleme maliyeti; hesap parametreleri ve süre; "hızlı / tam" mod; V2: tam ufuk derin analiz, sakatlık/rol belirsizliği kutusu |
+| **4. Draft Assistant** | Kullanıcının sırası geldiğinde: aday çift tablosu (E[W], P10–P90, SE, kademe); seçili çift için **48/49 havuzu** (§6.7.4); iki çift karşılaştırması; bekleme maliyeti; hesap parametreleri ve süre; "hızlı / tam" mod; V2: tam ufuk derin analiz, sakatlık/rol belirsizliği kutusu, rakip stratejisi tahmini, strateji ağırlıkları (kendi punt'unuz), punt planı karşılaştırması |
 | **5. Team Dashboard** | 16 takım × 9 kategori ortalama P(win); kullanıcı vs her rakip matrisi; kazanılabilir/sınırda/kaybedilmiş kategoriler; gerçek/doldurma oranı; FG%/FT% toplamdan hesaplanmış takım oranları; V2: takvim yüklüyse kadronun haftalık maç / sayılan maç tablosu |
 | **6. Realism Report** | §7 metrikleri: son mock ve batch raporu; histogramlar; uygunsuz reach listesi |
 | **7. Canlı Draft** | Gerçek draft'ı elle takip (§8.1): tek kutudan pick girişi, otomatik öneri, rakip stratejisi tablosu, otomatik kayıt |
@@ -1440,6 +1440,32 @@ pick'lerde ADP'den ±10–13 pick sapar; önceki σ₁ bu bölgede fazla dardı 
 Kullanıcı kararı (13 Ekim 2026): Yahoo Fantasy API uygulama onayı bireysel kullanım için alınamaz.
 Bir ara sürümde yazılan OAuth/draftresults istemcisi kaldırıldı; gerçek draft'ta pick'ler Mock Draft
 sayfasından elle girilir (ya da log CSV'si import edilir).
+
+### 13.9 Strateji araçları ve bot davranışı (13 Ekim 2026)
+
+**Strateji ağırlıkları.** Draft Assistant ve Canlı Draft'ta 9 kategori için 0–2 ağırlık (0 = punt; preset'ler
+`valuation.presets`'ten). Verilirse advisor adayları, çiftleri, rollout'u ve tam ufku `Σ_c w_c·P_c` ile
+sıralar — İlke 2'nin (yalnızca ECW) kullanıcı isteğiyle bilinçli istisnası. Her seçimin ağırlıksız ECW'si
+ayrıca gösterilir; stratejinin gerçek kategori galibiyetine maliyeti böylece görünür.
+
+**Punt planı karşılaştırması** (`compare_punt_plans`, Senaryolar sekmesi). Dengeli, 9 tek kategori punt'u,
+yaygın ikili punt'lar ve (varsa) kullanıcının ağırlıkları aynı draft senaryolarında (CRN) sona kadar
+oynanır; kullanıcının sonraki pick'leri plandaki ağırlıklarla seçilir, final kadro 9 kategoriyle
+değerlendirilir. Dengeli = advisor'ın kendi politikası; ECW kaybedilen kategorilere yatırımı zaten
+kendiliğinden bıraktığı için bir punt ancak kadro belirli bir yöne kaymışsa öne geçer. Gerçek veride
+16 plan × 60 simülasyon ~28 s.
+
+**Botların kadroya uyumu.** Tüm botlar zaten boş pozisyonel slot bonusu, pozisyon yığma cezası ve
+pozisyon kuralıyla kadroya bakar; PuntBuilder (3/15) en zayıf kategorisini punt eder. Ek olarak
+"güçlü kategorileri güçlendirme" kaydırması eklendi (`bots.team_fit_lambda`, saf kaydırma
+`q + λ·(R_fit − R_düz)`). 12 gerçek log'da isabeti artırmadı (λ 0.1: Brier 0.1049 → 0.1047, gürültü;
+0.3: 0.1089); projeksiyon değerine çeken versiyon belirgin kötüleştirdi (insanlar ADP'yi izliyor).
+Varsayılan kapalı.
+
+**ADP fallback denemeleri.** Düşük güvenli oyuncunun σ çarpanı 1.5 → 1.0 (Brier 0.1059 → 0.1048, iki
+yarıda da). Düşük güvenlide gerçek ADP ağırlığını artırmak ve kapsam dışı Â'ya ofset iyileştirmedi.
+İlk taramada görülen büyük "iyileşme" (0.090) ölçüm hatasıydı: değerlendirme kümesi A ile birlikte
+kayıyordu; sabit referans kümesinde (oyuncu kimliğiyle) ölçüm yapılır.
 
 ### 13.8 V3 adayları
 
