@@ -131,3 +131,13 @@ def test_team_fit_rank_favors_strong_categories(universe, config):
     assert np.allclose(flat[0, has].min(), 1.0)
     eng.run_until(eng.total + 1)                                      # λ > 0 ile tam draft çalışır
     assert (eng.pick_player >= 0).all()
+
+
+def test_bots_never_pick_unprojected_players(universe, config):
+    u = copy.copy(universe)
+    u.has_proj = universe.has_proj.copy()
+    early = np.argsort(u.adp, kind="stable")[:3]        # piyasanın en üstü projeksiyonsuz olsun
+    u.has_proj[early] = False
+    b = BatchDraft(u, config, 4, seed=11)
+    b.run_until(209)
+    assert not np.isin(b.pick_player, early).any()

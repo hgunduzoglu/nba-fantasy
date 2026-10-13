@@ -221,6 +221,10 @@ class BatchDraft:
             score = score + np.where(pp[None, :] >= 0, pen[:, np.maximum(pp, 0)], 0.0)
 
         ok = self.taken_at == 0
+        # projeksiyonsuz oyuncular (ör. %3 draft'tan gelen ADP'li Bronny James) botlarca seçilmez;
+        # yalnızca projeksiyonlu aday kalmazsa serbest kalır
+        proj_ok = ok & u.has_proj[None, :]
+        ok = np.where(proj_ok.any(axis=1)[:, None], proj_ok, ok)
         if self.enforce_feasibility:
             remaining_after = self.rounds - self.n_picked[:, seat_i].astype(np.int64) - 1
             feasible = (opens[:, None] - fill_mat) <= remaining_after[:, None]
