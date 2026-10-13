@@ -101,6 +101,15 @@ def current_turn(log: DraftLog, seat: int) -> tuple[int, ...]:
     raise AdvisorError(f"Pick {k} kullanıcının turn'ü değil")
 
 
+def upcoming_turn(log: DraftLog, seat: int) -> tuple[int, ...]:
+    """Koltuğun sıradaki turn'ü (pick ``k`` turn içindeyse kalan kısmı)."""
+    k = log.next_pick
+    for turn in turns_for_seat(seat, log.teams, log.rounds, log.third_round_reversal):
+        if turn[-1] >= k:
+            return tuple(n for n in turn if n >= k)
+    raise AdvisorError("Kullanıcının kalan pick'i yok")
+
+
 def category_weight_vector(config, weights: dict[str, float] | None) -> np.ndarray | None:
     """Strateji ağırlıkları → kategori sırasında dizi (None ya da hepsi 1 → None: saf ECW)."""
     if not weights:
@@ -115,16 +124,18 @@ def category_weight_vector(config, weights: dict[str, float] | None) -> np.ndarr
 
 
 def setup_problem(ctx: AdvisorContext, log: DraftLog, fill: FillTable,
-                  category_weights: dict[str, float] | None = None) -> Problem:
+                  category_weights: dict[str, float] | None = None, *, upcoming: bool = False) -> Problem:
+    """``upcoming``: sıra kullanıcıda değilse kullanıcının sıradaki turn'ü için kurulur (aradaki rakip
+    pick'leri doldurma profiliyle sayılır)."""
     cfg = ctx.config
     lg = cfg.league
     user = lg.my_seat
     if log.is_complete:
         raise AdvisorError("Draft tamamlandı")
-    if log.next_seat != user:
+    if log.next_seat != user and not upcoming:
         raise AdvisorError(f"Sıra kullanıcıda değil (pick {log.next_pick}, seat {log.next_seat})")
     k = log.next_pick
-    turn = current_turn(log, user)
+    turn = current_turn(log, user) if log.next_seat == user else upcoming_turn(log, user)
     nxt = next_turn_after(turn[-1], user, lg.teams, lg.rounds, lg.third_round_reversal)
     u = ctx.universe
 
