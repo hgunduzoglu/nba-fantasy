@@ -13,7 +13,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
-from scipy.special import ndtr
+from scipy.special import ndtr, ndtri
 
 from fdo.config import Config
 from fdo.matchup.player_week import COUNT_STATS, N_COUNT, RATIO_OFFSETS, ratio_mean_var
@@ -106,9 +106,32 @@ def opponent_category_mean(matrix: np.ndarray) -> np.ndarray:
     return np.nanmean(matrix, axis=1)
 
 
-def p_at_least(p: np.ndarray, k: int = 5) -> np.ndarray:
-    """``P(≥k kategori)`` — **bağımsızlık varsayar** (``assumes_independence``); optimizasyonda kullanılmaz."""
+def category_corr_matrix(config: Config) -> np.ndarray | None:
+    """``model.variance.category_corr`` → kategori sırasında pozitif yarı-tanımlı matris (yoksa None)."""
+    raw = config.model.variance.category_corr
+    if not raw:
+        return None
+    cats = list(config.categories)
+    m = np.array([[1.0 if a == b else float(raw.get(a, {}).get(b, raw.get(b, {}).get(a, 0.0)))
+                   for b in cats] for a in cats])
+    m = (m + m.T) / 2
+    w, v = np.linalg.eigh(m)
+    m = (v * np.clip(w, 1e-6, None)) @ v.T
+    d = np.sqrt(np.diag(m))
+    return m / np.outer(d, d)
+
+
+def p_at_least(p: np.ndarray, k: int = 5, corr: np.ndarray | None = None, *,
+               n_draws: int = 2000, seed: int = 0) -> np.ndarray:
+    """``P(≥k kategori)``. ``corr`` yoksa **bağımsızlık varsayar** (``assumes_independence``).
+
+    ``corr`` verilirse (V2, §13.2) Gauss kopulası: ``z ~ N(0, R)``, kategori ``c`` kazanılır
+    ⇔ ``z_c < Φ⁻¹(p_c)`` (marjinaller korunur); sabit seed'li ``n_draws`` çekilişle hesaplanır.
+    Her iki durumda da yalnızca ek göstergedir; optimizasyonda kullanılmaz.
+    """
     p = np.asarray(p, dtype=float)
+    if corr is not None:
+        return _p_at_least_copula(p, k, corr, n_draws, seed)
     n = p.shape[-1]
     dist = np.zeros(p.shape[:-1] + (n + 1,))
     dist[..., 0] = 1.0
@@ -117,6 +140,17 @@ def p_at_least(p: np.ndarray, k: int = 5) -> np.ndarray:
         shifted = np.concatenate([np.zeros(dist.shape[:-1] + (1,)), dist[..., :-1]], axis=-1)
         dist = dist * (1 - pc) + shifted * pc
     return dist[..., k:].sum(axis=-1)
+
+
+def _p_at_least_copula(p: np.ndarray, k: int, corr: np.ndarray, n_draws: int, seed: int) -> np.ndarray:
+    n = p.shape[-1]
+    z = np.random.default_rng(seed).standard_normal((n_draws, n)) @ np.linalg.cholesky(corr).T
+    t = ndtri(np.clip(p, 1e-12, 1 - 1e-12)).reshape(-1, n)
+    out = np.empty(len(t))
+    for lo in range(0, len(t), 256):
+        wins = (z[None, :, :] < t[lo:lo + 256, None, :]).sum(axis=-1)
+        out[lo:lo + 256] = (wins >= k).mean(axis=-1)
+    return out.reshape(p.shape[:-1])
 
 
 def classify(p: float, winnable: float = 0.6, lost: float = 0.4) -> str:

@@ -183,7 +183,9 @@ with tab_pool:
     st.dataframe(prof.style.format({c: "{:.2f}" for c in ["ortalama P(win)", "P10", "P90"]})
                  .map(common.prob_bg, subset=["ortalama P(win)"]), hide_index=True)
     p5 = pr.outcome.p_at_least_5
-    st.markdown(f"P(≥5 kategori) ≈ {p5.mean():.2f} " + common.INDEPENDENCE +
+    dep = (":green-badge[kategori korelasyonu kalibre]" if cfg.model.variance.category_corr
+           else common.INDEPENDENCE)
+    st.markdown(f"P(≥5 kategori) ≈ {p5.mean():.2f} " + dep +
                 " — yalnızca ek gösterge, optimizasyonda kullanılmaz.")
 
 with tab_cmp:

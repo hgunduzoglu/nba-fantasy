@@ -78,6 +78,9 @@ variance:
     stl: 1.0
     blk: 1.0
     tov: 1.0
+  # Kategori korelasyonu (V2, scripts/calibrate_variance.py çıktısı). null → P(≥5) bağımsızlık
+  # varsayar. Yalnızca P(≥5 kategori) göstergesinde kullanılır; ECW bundan etkilenmez.
+  category_corr: null
 
 matchup:
   games_per_week: 3.5          # ortalama; takvim V2. Varsayım.

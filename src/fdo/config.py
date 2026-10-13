@@ -150,6 +150,8 @@ class BotParams:
 @dataclass(frozen=True)
 class VarianceParams:
     phi: dict[str, float] = field(default_factory=dict)
+    #: kategori × kategori korelasyonu (V2, scripts/calibrate_variance.py); None → bağımsızlık
+    category_corr: dict[str, dict[str, float]] | None = None
 
 
 @dataclass(frozen=True)
@@ -385,6 +387,14 @@ def validate_config(cfg: Config) -> None:
         raise ConfigError("matchup.playoff_weight ≥ 0 olmalı")
     if cfg.unverified.lineup_lock not in (None, "daily_today", "daily_tomorrow", "weekly"):
         raise ConfigError("lineup_lock: daily_today | daily_tomorrow | weekly")
+
+    corr = cfg.model.variance.category_corr
+    if corr:
+        bad = (set(corr) | {b for row in corr.values() for b in row}) - set(sc.categories)
+        if bad:
+            raise ConfigError(f"variance.category_corr: bilinmeyen kategori {sorted(bad)}")
+        if any(abs(float(v)) > 1 for row in corr.values() for v in row.values()):
+            raise ConfigError("variance.category_corr değerleri [-1, 1] aralığında olmalı")
 
     val = cfg.model.valuation
     if val.basis not in ("total", "per_game"):
