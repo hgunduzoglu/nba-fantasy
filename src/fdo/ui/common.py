@@ -164,7 +164,8 @@ def state_key(log) -> str:
 ADVISE_CACHE_SIZE = 32
 
 
-def advise(log, *, mode: str, pins=(), pin_pairs=(), conditional: bool = True, progress=None):
+def advise(log, *, mode: str, pins=(), pin_pairs=(), conditional: bool = True, uncertainty: bool = False,
+           progress=None):
     """Advisor sonucu; ``(veri, config, state, seed, parametreler)`` anahtarıyla önbelleklenir (§8).
 
     Önbellek oturum durumundadır (``st.cache_resource`` değil): hesap sırasında ilerleme çubuğu
@@ -173,12 +174,13 @@ def advise(log, *, mode: str, pins=(), pin_pairs=(), conditional: bool = True, p
     from fdo.advisor.pairs import recommend
 
     key = (dataset().content_hash, config().config_hash, int(st.session_state.seed), state_key(log), mode,
-           tuple(pins), tuple(tuple(p) for p in pin_pairs), conditional)
+           tuple(pins), tuple(tuple(p) for p in pin_pairs), conditional, uncertainty)
     cache = st.session_state.setdefault("advise_cache", {})
     if key in cache:
         return cache[key]
     res = recommend(advisor_context(), log, mode=mode, pinned_players=list(pins),
-                    pinned_pairs=list(pin_pairs), conditional_fill=conditional, progress=progress)
+                    pinned_pairs=list(pin_pairs), conditional_fill=conditional, uncertainty=uncertainty,
+                    progress=progress)
     cache[key] = res
     while len(cache) > ADVISE_CACHE_SIZE:
         cache.pop(next(iter(cache)))

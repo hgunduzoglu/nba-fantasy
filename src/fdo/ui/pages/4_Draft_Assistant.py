@@ -55,6 +55,9 @@ with st.form("advisor"):
     pins = c[2].multiselect("Pinlenen oyuncular (aday kümesine eklenir)", avail, format_func=common.name_of)
     pp = st.multiselect("Pinlenen çift (2 oyuncu; rollout'a zorla girer)", avail, format_func=common.name_of,
                         max_selections=2)
+    unc = st.checkbox("Sakatlık/rol belirsizliği (V2)", value=False,
+                      help="Simülasyon başına oyuncu maç oranı (Beta) ve rol çarpanı (log-normal); "
+                           "rookie'lerde daha geniş. Beklenti aynı kalır, P10–P90 riski yansıtır.")
     go = st.form_submit_button("Öneri hesapla", type="primary")
 
 if go:
@@ -68,7 +71,7 @@ if go:
 
         try:
             res = common.advise(log, mode=mode, pins=pins, pin_pairs=[tuple(pp)] if len(pp) == 2 else (),
-                                conditional=cond, progress=progress)
+                                conditional=cond, uncertainty=unc, progress=progress)
             st.session_state.advisor_result = res
             status.update(label=f"Tamamlandı ({res.elapsed:.1f} s)", state="complete")
         except AdvisorError as e:
@@ -85,6 +88,7 @@ st.markdown(
     f"S = {res.params['S']} · seed {res.params['seed']} · {res.elapsed:.1f} s · "
     f"doldurma: {res.params['fill']} ({res.params['fill_sims']} sim) · "
     f"{res.params['pairs_rolled_out']}/{res.params['pairs_considered']} çift rollout"
+    + (" · sakatlık/rol belirsizliği açık" if res.params.get("uncertainty") else "")
 )
 st.caption("Kaynaklar: " + common.format_sources(res.sources))
 if timer and res.elapsed > timer:
