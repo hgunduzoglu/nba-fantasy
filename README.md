@@ -1026,6 +1026,7 @@ Tek uygulama ve çok sayfa (`st.navigation` veya `pages/`). Durum `st.session_st
 
 | Sayfa | İçerik |
 |---|---|
+| **Draft Analizi** | Yan sekmede açık tutulur (§13.10): arka planda hesaplanan öneri, önerilen çiftler, renkli oyuncu panosu, punt önerisi, rakip stratejileri |
 | **1. League & Data** | Lig config görüntüleme/düzenleme (kesin alanlar kilitli, doğrulanmamış alanlar uyarılı); CSV yükleme, kolon eşleme, validasyon raporu, manifest durumu; sentetik veri üret butonu; `adp_status` dağılımı; V2: takvim yükleme ve hafta özeti |
 | **2. Projection Explorer** | Oyuncu tablosu: Z/G seçimi, `per_game`/`total`, 9 kategori skoru, `V`, sıra, `adp_eff` ve `value_rank − ADP`, `adp_status`, pozisyonlar; ağırlık slider'ları ve presetler; havuz boyutu (180/208/240) duyarlılığı; filtre ve arama |
 | **3. Mock Draft** | 16×13 board; seed; bot karışımı; "sıradaki pick'i oynat", "kullanıcıya kadar oynat", "sona kadar oynat"; manuel seçim (arama); undo, "pick k'ye dön", replay; CSV/JSON export ve import; reach renkleri |
@@ -1048,9 +1049,10 @@ Yahoo API kullanılamadığı için (§13.7) gerçek draft simülatörde elle ta
   devre dışı). Sıradaki takım, tur ve sonraki 5 pick gösterilir; takım adları kenar çubuğundan girilir.
 - Pick girişi tek kutudur: oyuncu adını yazıp Enter → pick kaydedilir (ADP sıralı, Yahoo pozisyon
   kuralına aykırı oyuncular listede yoktur). Undo vardır.
-- Sıra kullanıcıya gelince öneri **kendiliğinden** hızlı modda hesaplanır (gerçek veride ~7 s),
-  rakip stratejisi tahmini açık; ilk 8 seçim ve ilk 3 için "Uygula" düğmesi. Ayrıntı (havuz, karşılaştırma,
-  tam ufuk) Draft Assistant'tadır; sonuç önbellekte paylaşılır.
+- Analiz yan sekmedeki **Draft Analizi** sayfasındadır (§13.10): her pick arka plan işçisine yayınlanır;
+  sıra kullanıcıya gelince önce hızlı, ardından tam mod öneri rakip stratejisi tahminiyle hesaplanır.
+  Draft sayfasında yalnızca tek satır öneri özeti görünür. Ayrıntı (havuz, karşılaştırma, tam ufuk)
+  Detaylı Advisor'dadır.
 - Log her pick'te `data/live/live_draft.json`'a yazılır (git dışı); sayfa yenilense ya da uygulama
   kapansa "Kayıtlı canlı draft'a devam et" ile sürer.
 
@@ -1466,6 +1468,34 @@ Varsayılan kapalı.
 yarıda da). Düşük güvenlide gerçek ADP ağırlığını artırmak ve kapsam dışı Â'ya ofset iyileştirmedi.
 İlk taramada görülen büyük "iyileşme" (0.090) ölçüm hatasıydı: değerlendirme kümesi A ile birlikte
 kayıyordu; sabit referans kümesinde (oyuncu kimliğiyle) ölçüm yapılır.
+
+### 13.10 Draft Analizi: arka plan advisor ve kategori panosu (13 Ekim 2026)
+
+Draft ekranı sade, analiz ayrı sekmede. Uygulama açılınca `data/real` diskten ve `config/league.yaml`
+(16 takım, koltuk 16) ile kendiliğinden yüklenir; menü gruplu (`st.navigation`: Draft / İnceleme / Ayarlar).
+
+- **Draft sayfaları** (Mock, Canlı): pick isimle aranıp Enter'la girilir; mock'ta botlar sıra kullanıcıya
+  gelene kadar otomatik oynar (Undo son kendi pick'inin öncesine döner). Her durum
+  `AnalysisWorker`'a yayınlanır (`common.publish_draft`); sayfada yalnızca tek satır öneri özeti kalır.
+- **Arka plan işçisi** (`fdo.advisor.background`, sunucu genelinde tek, `st.cache_resource`): yeni pick
+  gelince süren işi iptal edip (ilerleme geri çağrısında `Cancelled`) en son durumdan başlar. Sıra:
+  rakip strateji modeli (canlı draft) ve kategori panosu (<1 s) → sıra kullanıcıdaysa hızlı mod (~9 s)
+  ardından tam mod (~25 s), ikisi de rakip modeliyle → boşta punt planları (~30 s; kullanıcının kadrosu
+  ya da ağırlıklar değişince yenilenir, sıra beklerken de çalışır). Ayarlar `advisor.background_*`.
+- **Draft Analizi sayfası** (`/analiz`, yan sekmede açık tutulur): sonuçları işçiden okur, saniyede bir
+  yeni sonuç var mı bakıp yenilenir. Takımın kategori P(kazan) şeridi; solda oyuncu panosu, sağda
+  önerilen çiftler (ör. 16/17, E[W] ve kademe), punt önerisi ("ağırlıklara uygula" düğmesi) ve rakip
+  stratejileri. Strateji ağırlıkları kenar çubuğunda; değişince işçi yeniden hesaplar.
+- **Oyuncu panosu** (`fdo.advisor.board`, hashtagbasketball tarzı): maç başı istatistikler oyuncunun
+  z-skoru kademesine göre boyanır (Elite ≥1.5 · Great ≥1.0 · Good ≥0.5 · Avg · Below ≤−0.5 · Poor ≤−1.0);
+  "Takımına katkı" görünümünde aynı hücreler `ΔP_c = P_c(R ∪ {i} ∪ fill) − P_c(R ∪ F(t₁) ∪ fill)` (puan;
+  toplamı ΔECW). Sütunlar: Katkı (ağırlıklı ΔECW), Etkisi (en çok yükselttiği/düşürdüğü kategoriler),
+  Kalır (kullanıcının pick'ine — sıradaysa sonraki turn'e — kadar kalma olasılığı, 64 bot simülasyonu).
+  Sıralama "Öneri": advisor'ın önerdiği oyuncular önce, sonra katkı; beklerken kalma olasılığı < %10
+  olanlar sona. Kullanıcının pozisyon kuralı yüzünden alamayacağı oyuncular gizli. Kategori kıtlığı:
+  kalan oyuncularda kategori başına Elite/Great/Good sayısı.
+- **Projeksiyonsuz oyuncular** botlarca seçilmez (yalnızca projeksiyonlu aday kalmazsa serbest). Örnek:
+  Bronny James'in ADP'si (106.9) Yahoo draft'larının yalnızca %3'ünden geliyordu ve projeksiyonu yok.
 
 ### 13.8 V3 adayları
 
