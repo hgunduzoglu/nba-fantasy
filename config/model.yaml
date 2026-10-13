@@ -41,8 +41,12 @@ bots:
   mix: {MarketFollower: 5, ValueHunter: 4, PositionAware: 2, PuntBuilder: 3, RandomHuman: 1, AutoDrafter: 0}   # toplam 15
   seat_assignment: random_per_draft      # veya fixed
   user_auto_profile: MarketFollower      # "kullanıcıya/sona kadar oynat"ta kullanıcı koltuğu
+  # σ₀/σ₁: scripts/calibrate_bots.py, 11 Yahoo draft log'u (10 mock + 1 gerçek lig, 14 takım, 1313 insan
+  # pick'i; bot ve kullanıcı pick'leri dışlandı). Ölçüt sabit kümede survival Brier: σ₁ 0.12 → 0.18
+  # (0.113 → 0.106; iki yarıda da iyileşme). σ₀ ∈ {0.5, 1.5, 3} Brier'de gürültü içinde; 1.5 ilk 48
+  # pick'in yayılımına en yakın (3.0 ilk turu fazla genişletir). σ_cap 25 kaldı (40/60 belirgin kötü).
   sigma0: 1.5
-  sigma1: 0.12
+  sigma1: 0.18
   sigma_floor: 1.0
   sigma_cap: 25.0          # σ üst sınırı (pick), sınıf çarpanından sonra; tail oyuncuların absürt reach'ini önler
   # t_df 5→8, t_df_random_human 3→5, RandomHuman σ 1.5→1.25: ilk gerçekçilik raporunda

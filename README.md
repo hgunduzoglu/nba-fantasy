@@ -1210,7 +1210,7 @@ Hedef aşılırsa sırayla şunlar uygulanır: (1) ECW değerlendirmesi vektöri
 - **Utilization tek bir katsayıdır** (advisor'da). Günlük lineup çözücü Team Dashboard, utilization tahmini ve backtest'te kullanılır (§13.4).
 - **Doldurma profilleri nötrdür.** Rakip ve kullanıcı punt eğilimlerini modellemez.
 - **Sonraki çift politikası miyopiktir** (π). V1'de 49'dan sonrası doldurma profiliyle temsil edilir; V2 tam ufuk modu draft'ı sonuna kadar açgözlü ECW π ile oynar (§13.3).
-- **Bot parametreleri gerçek draft verisiyle kalibre edilmemiştir.** Olasılıklar `uncalibrated` olarak etiketlidir. Kalibrasyon aracı V2'de vardır (§13.6); draft log'u gerekir.
+- **Bot σ₁ 11 gerçek Yahoo draft log'uyla kalibre edildi** (§13.6, 14 takımlı mock/lig); profil karışımı ve geç tur konum kayması kalibre edilmedi, olasılıklar `uncalibrated` etiketini korur.
 - **Geç turlarda `pick − A` medyanında pozitif kayma.** Reach'ler `pick − A` dağılımına sol kuyruk ekler; medyan bu yüzden ortalamadan büyüktür. Gerçek Yahoo verisinde kalan kayma 8–13. turlarda +6.5…+16.3 (σ sınırı çarpandan sonraya alınmadan önce +17…+26). ADP'si 97–160 bandındaki oyuncular ortalamada ADP'lerinden birkaç pick geç gider; bu bölgede survival olasılıkları hafif iyimser olabilir. Oyuncu başına konum kalibrasyonu denendi ve yakınsamadı (§6.4.3); gerçek draft log'larıyla kalibrasyon V2'dedir.
 - **ADP büyük ölçüde 10/12 takımlı liglerden gelir.** 16 takımlı ligin geç turlarında belirsizlik yüksektir.
 - **Sezon boyu rastgele rakip varsayımı:** Gerçek H2H takvimi ve playoff haftaları yok sayılır.
@@ -1226,7 +1226,7 @@ Hedef aşılırsa sırayla şunlar uygulanır: (1) ECW değerlendirmesi vektöri
 8. ~~Fantasy playoff ve birleşik haftalar~~ — cevaplandı: playoff son 3 hafta; yalnızca All-Star haftası birleşir (§13.4).
 9. ~~NBA takvimi ve game log'ları~~ — kullanıcı kararı: kişisel kullanım (`personal_use_confirmed`).
 10. ~~Yahoo API~~ — kullanıcı kararı: bireysel kullanım için API onayı alınamaz; canlı senkronizasyon yok, gerçek draft'ta pick'ler elle girilir.
-11. Gerçek draft log'ları (bot kalibrasyonu, §13.6). **Açık** (kullanıcı bakacak).
+11. ~~Gerçek draft log'ları~~ — 10 mock + 1 gerçek lig draft'ı (14 takım) eklendi; σ₁ 0.12 → 0.18 (§13.6).
 
 ### 12.3 Doğrulanmamış teknik iddialar
 - G-score paydasındaki kesin katsayı (`κ`). Makaleden doğrulanacak.
@@ -1396,8 +1396,34 @@ seçtiği pick'ler (`auto` dolu) draft'ta kalır ama momentlere girmez — aksi 
 çıkar (bu ligde autodraft yok).
 
 ```bash
+python scripts/convert_draft_results.py --user Hüsamettin --json-user "New York Hav Havs"
 python scripts/calibrate_bots.py --logs "data/real/draft_logs/*.csv" --teams 14
 ```
+
+**Ölçüt.** Varsayılan ölçüt sabit kümede survival Brier'idir (`survival_brier`: her 6 pick'te ADP'si
+`n ± 40` olan tüm oyuncular için `P(uygun @ n)`); advisor'ın kullandığı büyüklük budur. Momentler
+(`--objective moments`) gerçek log'larda σ'yı fazla daraltıp survival'ı kötüleştirdi (Brier 0.130 → 0.166):
+geç turlardaki merkez kaymasını σ'yı küçülterek telafi etmeye çalışıyor. `survival_reliability`'nin Brier'i
+yalnızca 0.01–0.99 tahminleri sayar; küme σ ile değiştiği için σ'lar arası karşılaştırmada kullanılmaz.
+
+**Gerçek log'larla sonuç (13 Ekim 2026).** `data/real/draft_logs/`: 10 Yahoo mock + 1 gerçek lig draft'ı
+(14 takım × 13 tur; ham metin/JSON `raw/` altında). "Team N" adlı takımlar Yahoo botu, kullanıcının
+pick'leri strateji denemesi olduğu için dışlandı → 1 313 insan pick'i. Izgara σ₀ ∈ {0.5, 1.5, 3, 5},
+σ₁ ∈ {0.08, 0.12, 0.18, 0.25, 0.35}, σ_cap ∈ {25, 40, 60}:
+
+| | σ₀ | σ₁ | σ_cap | Survival Brier |
+|---|---|---|---|---|
+| Önceki varsayılan | 1.5 | 0.12 | 25 | 0.113 |
+| **Seçilen** | 1.5 | **0.18** | 25 | **0.106** |
+| Brier'de en iyi | 3.0 | 0.18 | 25 | 0.106 |
+| σ_cap 40 / 60 | — | — | 40 / 60 | 0.12–0.18 (kötü) |
+
+İyileşme log'ların iki yarısında da tutar (0.116 → 0.109, 0.107 → 0.102); tek gerçek lig draft'ında
+başa baş. σ₀ ∈ {0.5, 1.5, 3} Brier'de gürültü içindedir; 1.5, ADP'si ilk 48 olan oyuncuların gözlenen
+yayılımına en yakındır (gözlenen 1–16 bandı P10/P90 −2.7/+3.0; σ₀ = 3 ile −4.0/+5.0). İnsanlar 33–96.
+pick'lerde ADP'den ±10–13 pick sapar; önceki σ₁ bu bölgede fazla dardı ("%5 kalır" denen oyuncular
+%18 kalıyordu). Kalan sapma: geç turlarda (113–160) simülasyonun `pick − A` medyanı gözlenenden
++4…+8 pick yüksek (konum kayması, σ ile düzelmez).
 
 ### 13.7 Yahoo API senkronizasyonu — yapılmadı
 
