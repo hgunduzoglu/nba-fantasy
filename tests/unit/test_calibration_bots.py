@@ -80,3 +80,62 @@ def test_calibrate_bots_script(tmp_path, config):
                  "--sigma1", "0.1", "--sims", "10", "--out", str(tmp_path / "rep")]) == 0
     text = (tmp_path / "rep" / "bot_calibration.md").read_text(encoding="utf-8")
     assert "En iyi" in text and "Brier" in text
+
+
+def test_league_config_for_14_teams(config):
+    from fdo.calibration.bots import league_config
+
+    c14 = league_config(config, 14)
+    assert c14.league.teams == 14 and c14.league.rounds == 13 and c14.league.my_seat == 14
+    assert sum(c14.model.bots.mix.values()) == 13 and sum(c14.roster.slots.values()) == 13
+    assert league_config(config, 16) is config
+
+
+def test_names_import_and_auto_exclusion_14_teams(tmp_path, nostd, config):
+    import pandas as pd
+
+    from fdo.calibration.bots import auto_mask, league_config
+    from fdo.draft.io import import_names
+
+    ds, universe = nostd
+    c14 = league_config(config, 14)
+    mat = simulate_matrix(universe, c14, 4, seed=3)
+    logs = matrix_to_logs(mat, universe, c14)
+    names = ds.names()
+    rows = [{"Pick": p.overall_pick, "Player": names[p.player_id], "Auto": "x" if p.overall_pick % 10 == 0 else ""}
+            for p in logs[0].picks]
+    text = pd.DataFrame(rows).to_csv(index=False, sep="\t")
+    log, notes = import_names(text, ds.players, c14)
+    assert [p.player_id for p in log.picks] == [p.player_id for p in logs[0].picks]
+    assert log.teams == 14 and len(log) == 14 * 13
+    assert auto_mask([log]).sum() == 18 and "18 otomatik" in notes[0]
+
+    fit = fit_sigma([log, *logs[1:]], ds, universe, c14, sigma0_grid=(1.0,), sigma1_grid=(0.1,), n_sims=5, seed=1)
+    assert fit.auto_picks == 18
+    full = deviation_moments(logs_to_matrix([log], universe)[0], universe)["n"].sum()
+    kept = deviation_moments(logs_to_matrix([log], universe)[0], universe, exclude=auto_mask([log]))["n"].sum()
+    assert kept < full
+
+
+def test_calibrate_bots_script_with_14_team_name_logs(tmp_path, config):
+    import pandas as pd
+
+    from calibrate_bots import main
+
+    from fdo.bots.universe import build_universe
+    from fdo.calibration.bots import league_config
+    from fdo.ingest import load_dataset
+    from fdo.ingest.synthetic import write_synthetic
+
+    paths = write_synthetic(tmp_path, 300, 5, config, "2026-10-01")
+    ds, _ = load_dataset(paths["players"], paths["projections"], paths["adp"], config=config)
+    u = build_universe(ds, config)
+    c14 = league_config(config, 14)
+    (tmp_path / "logs").mkdir()
+    names = ds.names()
+    for i, log in enumerate(matrix_to_logs(simulate_matrix(u, c14, 2, seed=8), u, c14)):
+        pd.DataFrame([{"pick": p.overall_pick, "player": names[p.player_id]} for p in log.picks]).to_csv(
+            tmp_path / "logs" / f"mock_{i}.csv", index=False)
+    assert main(["--logs", str(tmp_path / "logs" / "*.csv"), "--data", str(tmp_path), "--teams", "14",
+                 "--sigma0", "1", "--sigma1", "0.1", "--sims", "5", "--out", str(tmp_path / "rep")]) == 0
+    assert "14 takım × 13 tur" in (tmp_path / "rep" / "bot_calibration.md").read_text(encoding="utf-8")

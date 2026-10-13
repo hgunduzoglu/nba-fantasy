@@ -1385,8 +1385,18 @@ Survival güvenilirliği: kullanıcının pick'lerinde tahmin edilen `P(uygun)` 
 frekans ve Brier skoru (mevcut ve uyumlu parametrelerle). Sentetik testte gerçek (σ₀ = 3, σ₁ = 0.1)
 3 × 3 ızgarada geri bulunur. Profil karışımı uydurulmaz.
 
+**Farklı lig büyüklüğü.** Yahoo'da 16 takımlı mock yok; 14 takımlı log'lar `--teams 14` ile
+kullanılır: simülasyon 14 takım × 13 tur, bot karışımı 13 rakibe orantılı ölçeklenir
+(`league_config`). `pick − A` pick sırasına (kaçıncı seçilen oyuncu) göre ölçüldüğü için σ₀/σ₁ 16
+takıma büyük ölçüde taşınır; 183–208. pick'ler gözlenmez.
+
+**İsimli log ve otomatik pick'ler.** Log `player_id`'siz olabilir: `pick`, `player` (Yahoo yazımı) ve
+opsiyonel `auto` kolonlu CSV/TSV, ad/alias ile eşlenir. Mock'tan ayrılan menajerlerin yerine Yahoo'nun
+seçtiği pick'ler (`auto` dolu) draft'ta kalır ama momentlere girmez — aksi hâlde sapma olduğundan küçük
+çıkar (bu ligde autodraft yok).
+
 ```bash
-python scripts/calibrate_bots.py --logs "data/real/draft_logs/*.csv" --data data/real/
+python scripts/calibrate_bots.py --logs "data/real/draft_logs/*.csv" --teams 14
 ```
 
 ### 13.7 Yahoo API senkronizasyonu — yapılmadı

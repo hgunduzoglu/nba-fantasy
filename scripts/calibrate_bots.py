@@ -1,9 +1,13 @@
 """Gerçek draft log'larından bot σ₀/σ₁ uyumu ve survival güvenilirliği (README §13.6).
 
-Log'lar ``draft_log`` şemasında CSV/JSON'dur (Mock Draft sayfasının export'u, Yahoo API
-senkronizasyonu ya da elle girilen mock/lig draft'ları). Oyuncu ID'leri veri setiyle aynı olmalıdır.
+Log biçimleri:
+* ``draft_log`` şeması (Mock Draft sayfasının export'u; ``player_id`` kolonlu CSV/JSON),
+* isimli sonuç: ``pick``, ``player`` (oyuncu adı, Yahoo yazımı) ve opsiyonel ``auto`` (Yahoo'nun
+  otomatik seçtiği pick; momentlerden dışlanır) kolonlu CSV/TSV.
 
-    python scripts/calibrate_bots.py --logs "data/real/draft_logs/*.csv" --data data/real/
+Log'lar farklı büyüklükte bir ligden olabilir (Yahoo'da 16 takımlı mock yok): ``--teams``/``--rounds``.
+
+    python scripts/calibrate_bots.py --logs "data/real/draft_logs/*.csv" --teams 14
 """
 
 from __future__ import annotations
@@ -18,6 +22,7 @@ import yaml
 from fdo.bots.universe import build_universe
 from fdo.calibration.bots import (
     fit_sigma,
+    league_config,
     logs_to_matrix,
     simulate_matrix,
     survival_reliability,
@@ -26,6 +31,7 @@ from fdo.calibration.bots import (
 )
 from fdo.config import load_config
 from fdo.draft import io as draft_io
+from fdo.draft.events import DraftError
 from fdo.ingest.load import load_data_dir
 from fdo.realism.report import md_table
 
@@ -42,6 +48,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--sigma1", default="0.04,0.08,0.12,0.18,0.25")
     ap.add_argument("--sims", type=int, default=60, help="ızgara noktası başına simülasyon")
     ap.add_argument("--seed", type=int, default=1)
+    ap.add_argument("--teams", type=int, default=None, help="log'ların takım sayısı (varsayılan: lig)")
+    ap.add_argument("--rounds", type=int, default=None, help="log'ların tur sayısı (varsayılan: lig)")
     ap.add_argument("--out", default="reports/")
     args = ap.parse_args(argv)
     sys.stdout.reconfigure(errors="replace")
@@ -55,8 +63,20 @@ def main(argv: list[str] | None = None) -> int:
     if not paths:
         print(f"Log bulunamadı: {args.logs}")
         return 1
-    logs = [draft_io.load(p, cfg)[0] for p in paths]
     universe = build_universe(ds, cfg)
+    cfg = league_config(cfg, args.teams or cfg.league.teams, args.rounds)
+    logs = []
+    for p in paths:
+        text = Path(p).read_text(encoding="utf-8-sig")
+        try:
+            if "player_id" in text.splitlines()[0] or text.lstrip().startswith(("{", "#")):
+                logs.append(draft_io.import_log(text, cfg)[0])
+            else:
+                logs.append(draft_io.import_names(text, ds.players, cfg)[0])
+        except DraftError as e:
+            print(f"{p}: {e}")
+            return 1
+    print(f"{len(logs)} log, {cfg.league.teams} takım × {cfg.league.rounds} tur")
 
     def progress(i, n):
         print(f"\rızgara {i}/{n}", end="", flush=True)
@@ -77,7 +97,8 @@ def main(argv: list[str] | None = None) -> int:
     out.mkdir(parents=True, exist_ok=True)
     lines = [
         "# Bot kalibrasyonu (README §13.6)", "",
-        f"- Log: {len(logs)} draft (`{args.logs}`), evrende olmayan pick: {fit.missing_picks}",
+        f"- Log: {len(logs)} draft (`{args.logs}`), {cfg.league.teams} takım × {cfg.league.rounds} tur; "
+        f"evrende olmayan pick: {fit.missing_picks}; otomatik (momentlerden dışlanan) pick: {fit.auto_picks}",
         f"- σ'sı σ₀ + σ₁·A ile belirlenen oyuncu payı: {fit.param_share:.0%}",
         f"- Izgara: σ₀ ∈ {args.sigma0}, σ₁ ∈ {args.sigma1}; nokta başına {args.sims} simülasyon (CRN)",
         f"- **En iyi: σ₀ = {fit.best['sigma0']}, σ₁ = {fit.best['sigma1']}**", "",
