@@ -10,7 +10,7 @@ import pandas as pd
 import streamlit as st
 import yaml
 
-from fdo.config import REPO_ROOT
+from fdo.config import REPO_ROOT, league_files, load_config
 from fdo.ingest import load_dataset
 from fdo.ingest.load import load_table
 from fdo.ingest.schema import LICENSE_STATUSES, MANIFEST_KINDS
@@ -24,6 +24,15 @@ DATA = REPO_ROOT / "data"
 
 # --------------------------------------------------------------------- lig
 st.header("Lig konfigürasyonu")
+leagues = {p: load_config(p) for p in league_files()}
+current = next((p for p, c in leagues.items() if c.league.name == cfg.league.name), None)
+choice = st.selectbox("Lig", list(leagues), index=list(leagues).index(current) if current else 0,
+                      format_func=lambda p: f"{leagues[p].league.name or p.stem} ({p.name})")
+if current is not None and choice != current:
+    common.set_config(leagues[choice])
+    common.set_dataset(None, None)
+    st.info("Lig değişti: veri seti, mock ve öneriler sıfırlandı — veriyi yeniden yükleyin.")
+    st.rerun()
 lg = cfg.league
 left, right = st.columns(2)
 with left:
