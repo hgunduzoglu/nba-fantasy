@@ -18,7 +18,7 @@ from fdo.ingest.synthetic import write_synthetic
 from fdo.schedule import build_calendar, player_games, week_summary
 from fdo.ui import common
 
-common.page("1 · League & Data", needs_data=False)
+common.page("Lig ve Veri", needs_data=False)
 cfg = common.config()
 DATA = REPO_ROOT / "data"
 
@@ -31,7 +31,7 @@ choice = st.selectbox("Lig", list(leagues), index=list(leagues).index(current) i
 if current is not None and choice != current:
     common.set_config(leagues[choice])
     common.set_dataset(None, None)
-    st.info("Lig değişti: veri seti, mock ve öneriler sıfırlandı — veriyi yeniden yükleyin.")
+    st.info("Lig değişti: mock ve öneriler sıfırlandı; veri yeni lig için yeniden yükleniyor.")
     st.rerun()
 lg = cfg.league
 left, right = st.columns(2)

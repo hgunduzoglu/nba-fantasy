@@ -12,11 +12,16 @@ import math
 import pandas as pd
 import streamlit as st
 
+from fdo.advisor.background import AnalysisWorker
 from fdo.advisor.simulate import AdvisorContext, prepare_context
 from fdo.bots.mock import MockDraft
 from fdo.bots.universe import BotUniverse, build_universe
-from fdo.config import Config, load_config
-from fdo.ingest.load import Dataset
+from fdo.config import REPO_ROOT, Config, load_config
+from fdo.ingest.load import Dataset, load_data_dir
+
+#: Uygulama açılınca otomatik yüklenen veri dizini (config/league.yaml ligiyle).
+DEFAULT_DATA = REPO_ROOT / "data" / "real"
+ANALYSIS_URL = "analiz"
 
 #: Reach sınıfı → (arka plan, rozet). Durum paleti: critical/warning; slide: mavi ton.
 REACH_STYLE = {
@@ -44,13 +49,15 @@ def init_state() -> None:
     ss.setdefault("realism", None)
 
 
-def page(title: str, *, needs_data: bool = True) -> None:
+def page(title: str, *, needs_data: bool = True, header: bool = True) -> None:
     st.set_page_config(page_title=f"FDO · {title}", layout="wide")
     init_state()
-    st.title(title)
+    autoload()
+    if header:
+        st.title(title)
     banners()
     if needs_data and st.session_state.dataset is None:
-        st.info("Önce **League & Data** sayfasından bir veri seti yükleyin ya da sentetik veri üretin.")
+        st.info("Önce **Lig ve Veri** sayfasından bir veri seti yükleyin ya da sentetik veri üretin.")
         st.stop()
 
 
@@ -65,6 +72,21 @@ def banners() -> None:
     if unknown:
         st.warning(f"Kullanım şartları doğrulanmamış kaynak(lar): {', '.join(map(str, unknown))} "
                    "(`license_status: unknown`).")
+
+
+def autoload() -> None:
+    """Veri seti yoksa ``data/real`` diskten yüklenir (lig başına bir kez denenir)."""
+    ss = st.session_state
+    if ss.dataset is not None or not DEFAULT_DATA.exists():
+        return
+    key = ss.config.config_hash
+    if ss.get("autoload_key") == key:
+        return
+    ss.autoload_key = key
+    with st.spinner(f"Varsayılan veri yükleniyor ({DEFAULT_DATA.relative_to(REPO_ROOT)})…"):
+        ds, rep = load_data_dir(DEFAULT_DATA, ss.config)
+    if ds is not None:
+        set_dataset(ds, rep)
 
 
 def config() -> Config:
@@ -118,6 +140,43 @@ def mock() -> MockDraft:
         m = MockDraft(dataset(), config(), int(st.session_state.seed), universe())
         st.session_state.mock = m
     return m
+
+
+@st.cache_resource
+def hub() -> AnalysisWorker:
+    """Sunucu genelinde tek analiz işçisi: draft sayfası yayınlar, Draft Analizi sayfası (ayrı sekme) okur."""
+    return AnalysisWorker()
+
+
+def publish_draft(*, seat_names: dict[int, str] | None = None) -> None:
+    """Oturumdaki draft'ın son durumunu arka plan analizine gönderir (değişmediyse iş yapılmaz)."""
+    m = st.session_state.get("mock")
+    if m is None:
+        return
+    live = bool(st.session_state.get("live"))
+    w = hub()
+    w.publish(advisor_context(), m.log, live=live, weights=w.weights, seat_names=seat_names,
+              source="Canlı draft" if live else "Mock draft")
+
+
+def advisor_line(log) -> None:
+    """Draft sayfası için tek satırlık öneri özeti (arka plan sonucu bu duruma aitse)."""
+    s = hub().snapshot()
+    lg = config().league
+    same = s.job is not None and s.job.log.picks == log.picks
+    c1, c2 = st.columns([4, 1])
+    if log.is_complete:
+        c1.caption("Draft tamamlandı.")
+    elif log.next_seat != lg.my_seat:
+        c1.caption("Advisor arka planda draft'ı izliyor; sıra sana gelince öneri hazırlanır.")
+    elif same and s.advice is not None and s.advice.pairs:
+        best = s.advice.pairs[0]
+        mode = "tam mod" if s.full is not None else "hızlı mod · tam mod hesaplanıyor"
+        c1.success(f"**Advisor:** {best.label} · E[W] {best.mean:.2f} ({mode})")
+    else:
+        c1.info("Advisor hesaplıyor… (Draft Analizi sekmesinde ilerlemeyi görebilirsin)")
+    c2.link_button("Draft Analizi ↗", f"/{ANALYSIS_URL}", width="stretch",
+                   help="Yan sekmede açık tut: bu draft'ı otomatik takip eder.")
 
 
 def name_of(pid: str) -> str:
