@@ -124,6 +124,10 @@ class AdpFallbackParams:
     low_confidence_default_w: float = 0.5
     extrapolation_tail_fraction: float = 0.2
     missing_adp_policy: str = "after_coverage"
+    #: düşük güvenli oyuncuda gerçek ADP'nin en az ağırlığı: w = max(w_min, pct/τ) (README §5.6)
+    low_confidence_w_min: float = 0.0
+    #: after_coverage: kapsam dışı Â = kenar + ofset + değer sırası (pick)
+    after_coverage_offset: float = 0.0
 
 
 @dataclass(frozen=True)

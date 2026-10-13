@@ -26,7 +26,7 @@ adp_fallback:
   coverage_limit: 150           # 12 takımlı lig ADP'sinin güvenilir kapsamı (varsayım)
   sigma_mult:
     ok: 1.0
-    low_confidence: 1.5
+    low_confidence: 1.0         # 1.5 → 1.0: 12 gerçek log'da survival Brier 0.1059 → 0.1048 (iki yarıda da)
     imputed: 2.0
     tail: 2.0
   low_confidence_default_w: 0.5
@@ -34,6 +34,10 @@ adp_fallback:
   # ADP'si olmayan oyuncu: after_coverage = kaynağın kapsamından sonra değer sırasıyla (varsayılan);
   # isotonic = ilk şartnamedeki değer→ADP izotonik eşlemesi (bkz. README §5.6)
   missing_adp_policy: after_coverage
+  # Gerçek log'larla denendi, iyileştirmedi (sabit kümede Brier): düşük güvenlide gerçek ADP ağırlığını
+  # artırmak (w_min 0.5–1.0) ve kapsam dışı Â'ya ofset (15–30) → varsayılan 0.
+  low_confidence_w_min: 0.0
+  after_coverage_offset: 0.0
 
 bots:
   # Ligde otomatik draft eden menajer yok (kullanıcı, 2026-10-12) → AutoDrafter 0; aktif menajerler

@@ -165,14 +165,15 @@ def apply_adp_fallback(draft_ids: list[str], adp: pd.DataFrame, value_rank: pd.S
         # Â: kaynağın kapsamı (gözlenen en büyük ADP) + ok olmayanlar arasındaki değer sırası
         edge = float(df.loc[has_adp, "adp"].max()) if has_adp.any() else 0.0
         not_ok = (low | missing) & df["value_rank"].notna()
-        df.loc[not_ok, "adp_hat"] = edge + df.loc[not_ok, "value_rank"].rank(method="first")
+        df.loc[not_ok, "adp_hat"] = (edge + float(params.after_coverage_offset)
+                                     + df.loc[not_ok, "value_rank"].rank(method="first"))
         df.loc[ok, "adp_hat"] = np.nan
 
     status = pd.Series("ok", index=df.index, dtype=object)
     eff = df["adp"].copy()
 
     status[low] = "low_confidence"
-    w = (pct / tau).clip(0, 1).fillna(params.low_confidence_default_w)
+    w = (pct / tau).clip(0, 1).fillna(params.low_confidence_default_w).clip(lower=params.low_confidence_w_min)
     blended = w * df["adp"] + (1 - w) * df["adp_hat"]
     eff[low] = blended[low].fillna(df["adp"][low])
 
