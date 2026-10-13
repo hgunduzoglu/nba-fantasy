@@ -80,7 +80,9 @@ class Snapshot:
 
 
 class AnalysisWorker:
-    def __init__(self, *, full: bool = True, punt_sims: int = 60, board_sims: int = 64):
+    """``full``/``punt_sims``/``board_sims`` verilmezse işin config'indeki ``advisor.background_*`` kullanılır."""
+
+    def __init__(self, *, full: bool | None = None, punt_sims: int | None = None, board_sims: int | None = None):
         self.full_mode = full
         self.punt_sims = punt_sims
         self.board_sims = board_sims
@@ -206,6 +208,10 @@ class AnalysisWorker:
         if log.is_complete:
             return
         snap = self._snap
+        adv = cfg.model.advisor
+        full_mode = adv.background_full if self.full_mode is None else self.full_mode
+        punt_sims = adv.background_punt_sims if self.punt_sims is None else self.punt_sims
+        board_sims = adv.background_board_sims if self.board_sims is None else self.board_sims
 
         opp_probs = None
         if job.live:
@@ -221,12 +227,12 @@ class AnalysisWorker:
 
         if snap.board is None:
             b = self._timed("Oyuncu panosu", lambda: category_board(
-                ctx, log, category_weights=job.weight_dict, n_sims=self.board_sims, opponent_probs=opp_probs))
+                ctx, log, category_weights=job.weight_dict, n_sims=board_sims, opponent_probs=opp_probs))
             self._set(board=b)
         self._check()
 
         if log.next_seat == user:
-            modes = ["fast", "full"] if self.full_mode else ["fast"]
+            modes = ["fast", "full"] if full_mode else ["fast"]
             for mode in modes:
                 if getattr(snap, mode) is not None:
                     continue
@@ -241,10 +247,10 @@ class AnalysisWorker:
                 self._set(**{mode: res})
                 self._check()
 
-        if self.punt_sims > 0 and self._punt_key != job.roster_key:
+        if punt_sims > 0 and self._punt_key != job.roster_key:
             try:
                 plans = self._timed("Punt planları", lambda: compare_punt_plans(
-                    ctx, log, n_sims=self.punt_sims, custom_weights=job.weight_dict,
+                    ctx, log, n_sims=punt_sims, custom_weights=job.weight_dict,
                     progress=self._progress("Punt planları")))
             except AdvisorError:
                 plans = None

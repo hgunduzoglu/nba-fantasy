@@ -211,6 +211,9 @@ class AdvisorParams:
     deep_pairs: int = 8                         # V2 tam ufuk: V1 sıralamasından alınan çift sayısı
     deep_rungs: tuple[int, ...] = (40, 40, 80)  # basamak başına yeni simülasyon (kademeli yarılama)
     deep_shortlist_k: int = 40                  # π'nin her pick'teki aday kısa listesi
+    background_full: bool = True                # arka plan işçisi hızlı moddan sonra tam modu da hesaplar
+    background_punt_sims: int = 60              # punt planı başına simülasyon (0 = kapalı)
+    background_board_sims: int = 64             # oyuncu panosu kalma olasılığı simülasyonu
 
 
 @dataclass(frozen=True)
