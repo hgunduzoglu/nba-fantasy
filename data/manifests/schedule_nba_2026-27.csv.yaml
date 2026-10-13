@@ -1,0 +1,10 @@
+file: data/real/schedule_nba_2026-27.csv
+kind: schedule
+source_name: NBA schedule JSON
+source_url: https://stats.nba.com/stats/scheduleleaguev2
+retrieved_at: '2026-10-13'
+retrieved_by: scripts/fetch_nba_schedule.py
+license_status: personal_use_confirmed
+license_notes: 'Kullanıcı kararı (2026-10-13): NBA takvimi kişisel kullanım için.'
+season: 2026-27
+is_synthetic: false
