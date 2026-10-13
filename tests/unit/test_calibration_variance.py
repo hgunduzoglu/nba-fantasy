@@ -53,6 +53,7 @@ def test_copula_matches_independence_and_shifts_with_correlation(config):
 
 
 def test_category_corr_config(config):
+    config = config.with_overrides({"model": {"variance": {"category_corr": None}}})
     cfg = config.with_overrides({"model": {"variance": {"category_corr": {"PTS": {"FG3M": 0.5}}}}})
     m = category_corr_matrix(cfg)
     i, j = config.categories.index("PTS"), config.categories.index("FG3M")
@@ -80,7 +81,7 @@ def test_calibrate_variance_script(tmp_path, config, logs):
         "license_status": "personal_use_confirmed", "is_synthetic": True}), encoding="utf-8")
     assert main(["--gamelogs", str(gl_path), "--data", str(tmp_path), "--min-games", "10",
                  "--report", str(tmp_path / "rep")]) == 0
-    var_csv = tmp_path / "variance_gamelogs_test.csv"
+    var_csv = tmp_path / "variance_test.csv"
     ds2, rep = load_dataset(paths["players"], paths["projections"], paths["adp"], var_csv, config=config)
     assert rep.ok and ds2.variance is not None and ds2.variance["player_id"].nunique() == 30
     assert "category_corr" in (tmp_path / "rep" / "variance_calibration.md").read_text(encoding="utf-8")

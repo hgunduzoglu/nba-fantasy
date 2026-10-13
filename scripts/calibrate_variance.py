@@ -16,6 +16,7 @@ import datetime as dt
 import sys
 from pathlib import Path
 
+import pandas as pd
 import yaml
 
 from fdo.calibration.variance import calibrate
@@ -33,7 +34,7 @@ def rel(path: Path) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--gamelogs", required=True)
+    ap.add_argument("--gamelogs", required=True, nargs="+", help="bir ya da daha fazla sezon (birleştirilir)")
     ap.add_argument("--data", default="data/real/", help="players/projections (ad eşleme ve ölçekleme)")
     ap.add_argument("--min-games", type=int, default=20)
     ap.add_argument("--min-minutes", type=float, default=5.0)
@@ -49,19 +50,28 @@ def main(argv: list[str] | None = None) -> int:
     if ds is None:
         print("Veri yüklenemedi:", *rep.errors, sep="\n  - ")
         return 1
-    logs, man, lrep = load_table(args.gamelogs, "gamelogs", players=ds.players, drop_unmatched=True)
-    for w in lrep.warnings:
-        print("uyarı:", w)
-    if logs is None:
-        print("Game log yüklenemedi:", *lrep.errors[:20], sep="\n  - ")
-        return 1
+    frames, mans = [], []
+    for g in args.gamelogs:
+        logs, man, lrep = load_table(g, "gamelogs", players=ds.players, drop_unmatched=True)
+        for w in lrep.warnings:
+            print("uyarı:", w)
+        if logs is None:
+            print(f"{g} yüklenemedi:", *lrep.errors[:20], sep="\n  - ")
+            return 1
+        frames.append(logs)
+        mans.append(man)
+    logs = pd.concat(frames, ignore_index=True)
+    statuses = {m.get("license_status", "unknown") for m in mans}
+    license_status = statuses.pop() if len(statuses) == 1 else "unknown"
+    seasons = ",".join(sorted({str(m.get("season")) for m in mans}))
     res = calibrate(logs, cfg, min_games=args.min_games, n0=args.n0, min_minutes=args.min_minutes,
                     projections=ds.projections)
     print(f"{res.n_players} oyuncu, {res.n_games} maç")
     print("φ:", {k: round(v, 3) for k, v in res.phi.items()})
 
     out = Path(args.out or args.data)
-    path = out / f"variance_{Path(args.gamelogs).stem}.csv"
+    stems = [Path(g).stem.removeprefix("gamelogs_") for g in args.gamelogs]
+    path = out / f"variance_{'_'.join(stems)}.csv"
     res.variance.to_csv(path, index=False)
     # loader'ın arama sırası: CSV'nin yanındaki manifests/, sonra bir üst dizindeki manifests/
     mdir = Path(args.manifests) if args.manifests else next(
@@ -70,11 +80,11 @@ def main(argv: list[str] | None = None) -> int:
     mdir.mkdir(parents=True, exist_ok=True)
     manifest = {
         "file": rel(path), "kind": "variance",
-        "source_name": f"calibrate_variance ← {man.get('source_name')}", "source_url": man.get("source_url"),
+        "source_name": f"calibrate_variance ← {mans[0].get('source_name')}", "source_url": mans[0].get("source_url"),
         "retrieved_at": dt.date.today().isoformat(), "retrieved_by": "scripts/calibrate_variance.py",
-        "license_status": man.get("license_status", "unknown"),
-        "license_notes": f"Türetilmiş veri; kaynak manifest: {man.get('_path')}",
-        "season": man.get("season"), "is_synthetic": bool(man.get("is_synthetic", False)),
+        "license_status": license_status,
+        "license_notes": "Türetilmiş veri; kaynak: " + ", ".join(rel(Path(g)) for g in args.gamelogs),
+        "season": seasons, "is_synthetic": any(bool(m.get("is_synthetic", False)) for m in mans),
     }
     (mdir / f"{path.name}.yaml").write_text(yaml.safe_dump(manifest, sort_keys=False, allow_unicode=True),
                                             encoding="utf-8")
@@ -87,7 +97,7 @@ def main(argv: list[str] | None = None) -> int:
     rdir = Path(args.report)
     rdir.mkdir(parents=True, exist_ok=True)
     text = (f"# Varyans kalibrasyonu (README §13.2)\n\n- Game log: `{args.gamelogs}` "
-            f"({res.n_players} oyuncu, {res.n_games} maç, min_games={args.min_games}, n0={args.n0})\n\n"
+            f" ({res.n_players} oyuncu, {res.n_games} maç, min_games={args.min_games}, n0={args.n0})\n\n"
             "## Kategori korelasyonu (kazanma yönünde)\n\n" + md_table(res.category_corr.round(3))
             + "\n\n## `config/model.yaml` için\n\n```yaml\n"
             + yaml.safe_dump(snippet, sort_keys=False, allow_unicode=True) + "```\n")
