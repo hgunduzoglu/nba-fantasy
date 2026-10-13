@@ -90,12 +90,9 @@ matchup:
   lost_threshold: 0.4
 
 availability:
-  # Yahoo durumu bu listedeyse (O = out) projected_gp bu katsayıyla çarpılır: değerleme (total
-  # tabanı) ve haftalık matchup vektörleri. Yahoo projeksiyonunun gp'si zaten düşük olabilir;
-  # katsayı dönüş tarihi / tekrar sakatlanma belirsizliği için ek indirimdir. Kalibre edilmemiş.
-  # Q (questionable), GTD, NA etkilenmez (IL+ yok; kullanıcı kararı 2026-10-13).
-  out_statuses: [O]
-  out_gp_factor: 0.85
+  # Kullanıcı kararı (2026-10-13): NA (aktif kadroda değil) draft edilmez. O/Q/GTD hiçbir
+  # hesabı değiştirmez; sakatlığın etkisi projeksiyonun beklenen maç sayısındadır.
+  undraftable_statuses: [NA]
 
 advisor:
   k1_top_ecw: 20

@@ -475,22 +475,19 @@ adp_fallback:
 
 UI'da sentetik veri yüklüyken her sayfada kırmızı bir **"SENTETİK VERİ — gerçek oyuncu değeri değildir"** bandı gösterilir. Sentetik ve gerçek dosyalar aynı oturumda birleştirilemez.
 
-### 5.8 Oyuncu durumu (out katsayısı)
+### 5.8 Oyuncu durumu
 
 Yahoo Draft Analysis'teki durum etiketi `players.csv`'de `injury_status` olarak saklanır (gerçek veride 21 `O`, 109 `Q`, 127 `NA`). Kullanıcı kararı (13 Ekim 2026):
 
-- **`O` (out):** `projected_gp × out_gp_factor` (varsayılan 0.85, kalibre edilmemiş). Yahoo projeksiyonunun `gp`'si bazı oyuncularda zaten düşüktür (örn. Jimmy Butler III: 35); katsayı dönüş tarihi ve tekrar sakatlanma belirsizliği için ek indirimdir.
-- **`Q`, `GTD`, `NA`:** hiçbir etki yok; oyuncu durumsuz gibi değerlendirilir (ligde IL+ yok).
+- **`NA` (aktif kadroda değil):** draft havuzuna alınmaz. Kullanıcıya önerilmez, botlar seçmez, log'da da kabul edilmez.
+- **`O`, `Q`, `GTD`:** hiçbir hesabı değiştirmez. Sakatlığın etkisi projeksiyonun beklenen maç sayısındadır (`projected_gp`, örn. Jimmy Butler III: 35). IL slotları draft'ta dolmadığı için (13 pick = 13 slot) ayrıca modellenmez.
 
 ```yaml
 availability:
-  out_statuses: [O]
-  out_gp_factor: 0.85
+  undraftable_statuses: [NA]
 ```
 
-Katsayı ham tabloyu değiştirmez; değerleme (`total` tabanı) ve haftalık matchup vektörleri projeksiyonu `fdo.availability.effective_projections` üzerinden okur. Bu yüzden config değişince veri setinin yeniden yüklenmesi gerekmez. `per_game` tabanında maç sayısı kullanılmadığından katsayı değerlemeyi etkilemez (matchup'ı etkiler). Botlar katsayıyı değerleme üzerinden görür (ValueHunter, PuntBuilder); piyasa (ADP) durumu zaten fiyatlar.
-
-Gerçek veride etkisi (dengeli Z sırası, katsayı 1.0 → 0.8 denemesi): Brandon Ingram 89 → 155, Isaiah Stewart 132 → 200, Jimmy Butler III 267 → 302. 0.8 sert bulunduğu için varsayılan 0.85 seçildi.
+CSV okunurken `injury_status` kolonundaki `NA` metni eksik değer sayılmaz (diğer kolonlarda pandas varsayılanları geçerlidir).
 
 ---
 
@@ -749,7 +746,7 @@ matchup:
 Oyuncu `i` için:
 
 ```
-a_i = min(projected_gp_i, 82) / 82               # müsaitlik (out ise gp × out_gp_factor, §5.8)
+a_i = min(projected_gp_i, 82) / 82               # müsaitlik
 k_i = utilization · games_per_week · a_i          # haftalık beklenen sayılan maç
 ```
 
@@ -1146,7 +1143,7 @@ Hedef aşılırsa sırayla şunlar uygulanır: (1) ECW değerlendirmesi vektöri
 1. ~~Kategori beraberlik kuralı~~ — cevaplandı: kategori beraberliği T yazılır (W-L-T), `tie_value: 0.5`.
 2. ~~Draft pick süresi~~ — cevaplandı: 45 s (yalnızca gerçek draft için advisor bütçesi; mock'ta süre yok).
 3. ~~Yahoo'nun draft sırasında pozisyon sınırı uygulayıp uygulamadığı~~ — cevaplandı: uygular (§6.3.2).
-4. Lineup kilit kuralı, IL/IL+ slotları. **Yanıtlandı (13 Ekim 2026):** daily_today → `utilization` 0.98 (§6.6.1); 3 IL, IL+ yok; Q etkisiz, O için maç sayısı katsayısı (§5.8).
+4. Lineup kilit kuralı, IL/IL+ slotları. **Yanıtlandı (13 Ekim 2026):** daily_today → `utilization` 0.98 (§6.6.1); 3 IL (draft'ta dolmaz), IL+ yok; NA draft edilmez, O/Q etkisiz (§5.8).
 5. ~~Projeksiyon kaynağının kullanım şartları~~ — kullanıcı kararı: Yahoo sayfaları public, kişisel kullanım (`personal_use_confirmed`).
 6. ~~ADP kaynağının kolonları~~ — Yahoo Draft Analysis: `% drafted`, preseason / all / last 7 days ADP var; std ve min/max yok. ADP en fazla ~123. pick'i kapsıyor (§5.6 `after_coverage`).
 7. ~~Otomatik draft eden menajer~~ — cevaplandı: yok, `AutoDrafter: 0`.
@@ -1207,7 +1204,8 @@ Gerçek veri: CSV'ler `data/real/` altına, manifest'ler `data/manifests/` altı
 
 ```bash
 python scripts/import_yahoo_json.py --players data/real/raw/yahoo_players_2026-10-12.json \
-    --adp data/real/raw/yahoo_adp_2026-10-12.json --license-status personal_use_confirmed     --license-notes "Kullanıcı kararı (2026-10-12): Yahoo sayfaları public; kişisel kullanım."
+    --adp data/real/raw/yahoo_adp_2026-10-12.json --license-status personal_use_confirmed \
+    --license-notes "Kullanıcı kararı (2026-10-12): Yahoo sayfaları public; kişisel kullanım."
 
 # utilization tahmini (§6.6.1)
 python scripts/estimate_utilization.py --data data/real/ --mocks 30

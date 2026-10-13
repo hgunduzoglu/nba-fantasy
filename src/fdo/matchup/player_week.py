@@ -22,7 +22,6 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from fdo.availability import effective_projections
 from fdo.config import Config, MatchupParams
 from fdo.types import STATS
 
@@ -73,8 +72,8 @@ def weekly_games(projected_gp, params: MatchupParams):
 
 
 def weekly_vectors(proj: pd.DataFrame, var_pg: pd.DataFrame, config: Config) -> pd.DataFrame:
-    """Oyuncu başına 24 boyutlu haftalık vektör (index ``player_id``); out katsayısı uygulanır."""
-    p = effective_projections(proj, config).set_index("player_id")
+    """Oyuncu başına 24 boyutlu haftalık vektör (index ``player_id``)."""
+    p = proj.set_index("player_id")
     v = var_pg.reindex(p.index)
     k = weekly_games(p["projected_gp"].to_numpy(), config.model.matchup)
     out = np.zeros((len(p), WEEK_DIM))

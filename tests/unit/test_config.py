@@ -34,9 +34,7 @@ def test_unverified_nulls_are_reported(config):
     assert nulls == ["lineup_lock"]
 
 
-def test_invalid_availability_and_lineup_lock_rejected(config):
-    with pytest.raises(ConfigError):
-        config.with_overrides({"model": {"availability": {"out_gp_factor": 0}}})
+def test_invalid_lineup_lock_rejected(config):
     with pytest.raises(ConfigError):
         config.with_overrides({"unverified": {"lineup_lock": "monthly"}})
 

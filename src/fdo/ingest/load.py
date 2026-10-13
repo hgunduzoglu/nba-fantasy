@@ -17,8 +17,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import yaml
+from pandas._libs.parsers import STR_NA_VALUES
 
-from fdo.availability import out_mask
+from fdo.availability import undraftable_ids
 from fdo.config import Config, load_config
 from fdo.ingest import schema
 from fdo.ingest.adp_fallback import apply_adp_fallback
@@ -155,8 +156,17 @@ def resolve_player_ids(df: pd.DataFrame, players: pd.DataFrame, label: str,
 # CSV okuma ve tip dönüşümü
 # --------------------------------------------------------------------------
 
+#: Metni olduğu gibi okunan kolonlar: Yahoo durumu ``NA`` (aktif kadroda değil) eksik değer değildir.
+LITERAL_COLUMNS = frozenset({"injury_status"})
+
+
 def read_csv_raw(path: str | Path) -> pd.DataFrame:
-    df = pd.read_csv(path, dtype=str, keep_default_na=True, skipinitialspace=True)
+    header = pd.read_csv(path, nrows=0).columns
+    na = {c: sorted(STR_NA_VALUES) for c in header if str(c).strip() not in LITERAL_COLUMNS}
+    df = pd.read_csv(path, dtype=str, keep_default_na=False, na_values=na, skipinitialspace=True)
+    for c in df.columns:
+        if str(c).strip() in LITERAL_COLUMNS:
+            df[c] = df[c].replace("", np.nan)
     df.columns = [str(c).strip() for c in df.columns]
     return df
 
@@ -331,15 +341,18 @@ def build_dataset(players: pd.DataFrame, projections: pd.DataFrame, adp: pd.Data
     players = players.copy()
     players["positions"] = [parse_position_string(v)[0] for v in players["yahoo_positions"]]
 
+    undraftable = undraftable_ids(players, config)   # §5.8: NA → draft havuzu dışı
+    for pid in undraftable:
+        report.exclude(pid, "durum: draft edilemez (NA)")
+    if undraftable:
+        report.note(f"Durumu NA olan {len(undraftable)} oyuncu draft havuzu dışında")
+
     excluded = set(report.excluded)
     proj = projections[~projections["player_id"].isin(excluded)].reset_index(drop=True)
-    if "injury_status" in players:   # §5.8: durum oyuncu dosyasından; katsayı okunurken uygulanır
+    adp = adp[~adp["player_id"].isin(undraftable)]
+    if "injury_status" in players:   # bilgi amaçlı (O/Q hesabı değiştirmez)
         status = players.set_index("player_id")["injury_status"].fillna("").astype(str)
         proj = proj.assign(injury_status=proj["player_id"].map(status).fillna(""))
-        n_out = int(out_mask(proj, config).sum())
-        if n_out:
-            report.note(f"Out durumundaki {n_out} oyuncunun maç sayısı ×"
-                        f"{config.model.availability.out_gp_factor:g} ile düzeltilir (Q/NA etkilenmez)")
     vrank = balanced_value_rank(proj, config) if len(proj) else pd.Series(dtype=float)
 
     known = set(players["player_id"])

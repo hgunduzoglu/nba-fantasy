@@ -154,9 +154,8 @@ class MatchupParams:
 
 @dataclass(frozen=True)
 class AvailabilityParams:
-    """Oyuncu durumuna göre maç sayısı düzeltmesi (README §5.8). Q/GTD/NA etkilenmez."""
-    out_statuses: tuple[str, ...] = ("O",)
-    out_gp_factor: float = 0.85
+    """Oyuncu durumu (README §5.8): bu etiketlerdeki oyuncu draft havuzuna alınmaz."""
+    undraftable_statuses: tuple[str, ...] = ("NA",)
 
 
 @dataclass(frozen=True)
@@ -367,8 +366,6 @@ def validate_config(cfg: Config) -> None:
 
     if cfg.model.adp_fallback.missing_adp_policy not in ("after_coverage", "isotonic"):
         raise ConfigError("adp_fallback.missing_adp_policy: after_coverage | isotonic")
-    if not 0.0 < cfg.model.availability.out_gp_factor <= 1.0:
-        raise ConfigError("availability.out_gp_factor (0, 1] aralığında olmalı")
     if cfg.unverified.lineup_lock not in (None, "daily_today", "daily_tomorrow", "weekly"):
         raise ConfigError("lineup_lock: daily_today | daily_tomorrow | weekly")
 

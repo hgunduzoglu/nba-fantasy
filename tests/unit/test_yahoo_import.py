@@ -72,19 +72,15 @@ def test_converted_tables_validate(jsons, config):
     assert "y_9" in rep.excluded          # projeksiyon ve ADP yok
 
 
-def test_out_factor_applies_only_to_out_players(jsons, config):
-    from fdo.availability import effective_projections
-    from fdo.matchup.player_week import per_game_variance, weekly_vectors
-
-    players, proj, adp, _ = convert(*jsons)
+def test_na_players_are_undraftable_and_out_unchanged(jsons, config):
+    P, A = jsons
+    A["players"][2].update(adp_preseason=50.0, adp_all=50.0, drafted_pct=30)   # NA ama ADP'li
+    P["season_totals"].append(_player("9", "Jonas Aidoo", "UTA", ["C"], 3))
+    players, proj, adp, _ = convert(P, A)
     ds, rep = build_dataset(players, proj, adp, config)
-    assert any("Out durumundaki 1 oyuncu" in n for n in rep.notes)
-    eff = effective_projections(ds.projections, config).set_index("player_id")["projected_gp"]
-    f = config.model.availability.out_gp_factor
-    assert eff["y_2"] == pytest.approx(35 * f)     # O
-    assert eff["y_1"] == 70 and eff["y_7"] == 70   # Q ve durumsuz etkilenmez
-    off = config.with_overrides({"model": {"availability": {"out_gp_factor": 1.0}}})
-    var, _ = per_game_variance(ds.projections, None, {})
-    on_w, off_w = weekly_vectors(ds.projections, var, config), weekly_vectors(ds.projections, var, off)
-    assert on_w.loc["y_2", 1] == pytest.approx(off_w.loc["y_2", 1] * f)
-    assert on_w.loc["y_1", 1] == pytest.approx(off_w.loc["y_1", 1])
+    assert "NA" in rep.excluded["y_9"]
+    assert "y_9" not in ds.adp.index and "y_9" not in set(ds.projections["player_id"])
+    # O (y_2) ve Q (y_1) projeksiyonu olduğu gibi kullanılır
+    gp = ds.projections.set_index("player_id")["projected_gp"]
+    assert gp["y_2"] == 35 and gp["y_1"] == 70
+    assert ds.projections.set_index("player_id").loc["y_2", "injury_status"] == "O"

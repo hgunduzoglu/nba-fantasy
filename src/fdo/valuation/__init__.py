@@ -10,7 +10,6 @@ from dataclasses import dataclass, field
 
 import pandas as pd
 
-from fdo.availability import effective_projections
 from fdo.config import Config
 from fdo.matchup.player_week import per_game_variance
 from fdo.valuation.gscore import g_scores, tau_squared, within_variance
@@ -39,7 +38,7 @@ def pool_statistics(proj: pd.DataFrame, config: Config, *, basis: str | None = N
                     pool_size: int | None = None) -> tuple[pd.DataFrame, PoolStats]:
     """Taban çerçevesi ve dengeli Z ile belirlenmiş havuz istatistikleri."""
     basis = basis or config.model.valuation.basis
-    x = basis_frame(effective_projections(proj, config), basis)
+    x = basis_frame(proj, basis)
     return x, iterate_pool(x, config, pool_size)
 
 
@@ -65,8 +64,7 @@ def value_players(proj: pd.DataFrame, config: Config, *, weights: dict[str, floa
     elif method == "g":
         kappa = vp.g_kappa if kappa is None else float(kappa)
         var_pg, _ = per_game_variance(proj, variance, config.model.variance.phi)
-        within = within_variance(effective_projections(proj, config), var_pg, x.index, stats, config,
-                                 basis)
+        within = within_variance(proj, var_pg, x.index, stats, config, basis)
         tau2 = tau_squared(within, stats)
         scores = g_scores(x, stats, tau2, config, kappa)
     else:

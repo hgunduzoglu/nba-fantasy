@@ -18,6 +18,10 @@ def test_slot_instances(config):
     inst = slot_instances(config)
     assert len(inst) == 13
     assert inst.count("C") == 2 and inst.count("UTIL") == 2 and inst.count("BN") == 3
+    # IL draft sırasında dolmaz: 13 pick = 13 slot; BN ve UTIL her pozisyonu kabul eder
+    assert "IL" not in inst and config.roster.size == config.league.rounds == 13
+    for slot in ("BN", "UTIL"):
+        assert config.roster.slot_eligibility[slot] == {"PG", "SG", "SF", "PF", "C"}
 
 
 def test_parse_positions():
