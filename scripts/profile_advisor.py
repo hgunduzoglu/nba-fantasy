@@ -21,6 +21,7 @@ from fdo.bots.mock import MockDraft
 from fdo.bots.universe import build_universe
 from fdo.config import load_config
 from fdo.ingest import make_synthetic
+from fdo.ingest.load import load_data_dir
 from fdo.realism.metrics import run_mock_batch
 from fdo.realism.report import md_table
 from fdo.valuation import value_players
@@ -63,12 +64,7 @@ def main(argv: list[str] | None = None) -> int:
     rows.append(("Valuation (600 oyuncu, ağırlık değişimi)", t))
 
     if args.data:
-        from run_mock_batch import find_files
-
-        from fdo.ingest import load_dataset
-
-        files = find_files(Path(args.data))
-        ds, report = load_dataset(files["players"], files["projections"], files["adp"], config=cfg)
+        ds, report = load_data_dir(args.data, cfg)
         if ds is None:
             print("Veri yüklenemedi:", *report.errors, sep="\n  - ")
             return 1

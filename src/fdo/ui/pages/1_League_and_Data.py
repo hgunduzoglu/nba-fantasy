@@ -115,7 +115,7 @@ with tab_disk:
             guess = next((i for i, l in enumerate(opts) if Path(l).name.startswith(kind)), 0)
             return st.selectbox(kind, opts, index=guess, key=f"disk_{kind}")
 
-        c = st.columns(4)
+        c = st.columns(5)
         with c[0]:
             f_players = pick("players")
         with c[1]:
@@ -124,11 +124,19 @@ with tab_disk:
             f_adp = pick("adp")
         with c[3]:
             f_var = pick("variance", optional=True)
+        with c[4]:
+            f_sched = pick("schedule", optional=True)
         cmap = st.text_area("Kolon eşleme (opsiyonel JSON, ör. `{\"3PTM\": \"fg3m\"}`)", "", key="cmap_disk")
         if st.button("Yükle ve doğrula", type="primary"):
             ds, rep = load_dataset(REPO_ROOT / f_players, REPO_ROOT / f_proj, REPO_ROOT / f_adp,
                                    None if f_var == "—" else REPO_ROOT / f_var,
                                    parse_column_map(cmap), config=cfg)
+            if ds is not None and f_sched != "—":
+                sched, man, srep = load_table(REPO_ROOT / f_sched, "schedule")
+                if sched is None:
+                    rep.warn(f"Takvim yüklenemedi: {'; '.join(srep.errors)}")
+                else:
+                    ds = ds.with_schedule(sched, man)
             common.set_dataset(ds, rep)
             st.rerun()
 

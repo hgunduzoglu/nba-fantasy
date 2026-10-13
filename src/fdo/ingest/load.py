@@ -476,3 +476,39 @@ def load_dataset(players_csv: str | Path, projections_csv: str | Path, adp_csv: 
     adp = adp[[c for c in keep["adp"] if c in adp.columns]]
     return build_dataset(players, proj, adp, config, variance=variance, manifests=manifests,
                          report=report, reference_date=reference_date)
+
+
+def find_data_files(data_dir: str | Path) -> dict[str, Path]:
+    """Dizindeki en güncel ``players/projections/adp*.csv`` ve varsa ``variance*/schedule*.csv``."""
+    data_dir = Path(data_dir)
+    out: dict[str, Path] = {}
+    for kind in ("players", "projections", "adp", "variance", "schedule"):
+        matches = sorted(data_dir.glob(f"{kind}*.csv"))
+        if matches:
+            out[kind] = matches[-1]
+    return out
+
+
+def load_data_dir(data_dir: str | Path, config: Config | None = None, *, variance: bool = True,
+                  schedule: bool = True) -> tuple[Dataset | None, ValidationReport]:
+    """Dizinden veri seti: zorunlu üç dosya + (varsa) varyans ve takvim (V2, §13.2, §13.4).
+
+    Takvim yüklenemezse veri seti takvimsiz döner ve uyarı eklenir.
+    """
+    config = config or load_config()
+    files = find_data_files(data_dir)
+    report = ValidationReport()
+    missing = [k for k in ("players", "projections", "adp") if k not in files]
+    if missing:
+        report.error(f"{data_dir} içinde {', '.join(f'{k}*.csv' for k in missing)} bulunamadı")
+        return None, report
+    ds, report = load_dataset(files["players"], files["projections"], files["adp"],
+                              files.get("variance") if variance else None, config=config)
+    if ds is not None and schedule and "schedule" in files:
+        sched, man, srep = load_table(files["schedule"], "schedule")
+        if sched is None:
+            report.warn(f"{files['schedule'].name}: takvim yüklenemedi ({'; '.join(srep.errors)})")
+        else:
+            ds = ds.with_schedule(sched, man)
+            report.note(f"Takvim: {files['schedule'].name} ({len(sched)} maç)")
+    return ds, report

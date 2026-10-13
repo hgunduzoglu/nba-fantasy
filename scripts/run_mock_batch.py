@@ -14,18 +14,17 @@ import pandas as pd
 
 from fdo.bots.universe import build_universe
 from fdo.config import load_config
-from fdo.ingest import load_dataset
+from fdo.ingest.load import find_data_files, load_data_dir
 from fdo.realism.metrics import compute_metrics, run_mock_batch
 from fdo.realism.report import build_report
 
 
 def find_files(data_dir: Path) -> dict[str, Path]:
-    out = {}
+    """Geriye dönük uyumluluk: ``fdo.ingest.load.find_data_files`` (zorunlu üç dosya yoksa çıkar)."""
+    out = find_data_files(data_dir)
     for kind in ("players", "projections", "adp"):
-        matches = sorted(data_dir.glob(f"{kind}*.csv"))
-        if not matches:
+        if kind not in out:
             raise SystemExit(f"{data_dir} içinde {kind}*.csv bulunamadı")
-        out[kind] = matches[-1]
     return out
 
 
@@ -40,8 +39,7 @@ def main(argv: list[str] | None = None) -> int:
     sys.stdout.reconfigure(errors="replace")
 
     config = load_config()
-    files = find_files(Path(args.data))
-    ds, report = load_dataset(files["players"], files["projections"], files["adp"], config=config)
+    ds, report = load_data_dir(args.data, config)
     if ds is None:
         print("Veri yüklenemedi:", *report.errors, sep="\n  - ")
         return 1

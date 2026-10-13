@@ -19,8 +19,7 @@ from fdo.bots.universe import build_universe
 from fdo.config import load_config
 from fdo.evaluation import GameLogEvaluator, ProjectionNoiseEvaluator
 from fdo.evaluation.backtest import build_strategies, run_backtest
-from fdo.ingest import load_dataset
-from fdo.ingest.load import load_table
+from fdo.ingest.load import load_data_dir, load_table
 from fdo.realism.report import md_table
 
 
@@ -37,11 +36,8 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
     sys.stdout.reconfigure(errors="replace")
 
-    from run_mock_batch import find_files
-
     cfg = load_config()
-    files = find_files(Path(args.data))
-    ds, rep = load_dataset(files["players"], files["projections"], files["adp"], config=cfg)
+    ds, rep = load_data_dir(args.data, cfg)
     if ds is None:
         print("Veri yüklenemedi:", *rep.errors, sep="\n  - ")
         return 1

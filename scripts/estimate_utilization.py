@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import argparse
 import sys
-from pathlib import Path
 
 import numpy as np
 from scipy.optimize import linear_sum_assignment
@@ -26,7 +25,7 @@ from scipy.optimize import linear_sum_assignment
 from fdo.bots.mock import MockDraft
 from fdo.bots.universe import build_universe
 from fdo.config import load_config
-from fdo.ingest import load_dataset
+from fdo.ingest.load import load_data_dir, load_table
 
 #: Varsayımsal NBA hafta profili: güne düşen maç sayısı (Pzt..Paz). Kalibre edilmemiş.
 DAY_GAMES = (8, 6, 9, 5, 8, 6, 7)
@@ -100,15 +99,13 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--weeks", type=int, default=20)
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--day-sd", type=float, default=3.0, help="gün yükü (maç sayısı) haftalık sapması")
-    ap.add_argument("--schedule", default=None, help="takvim CSV'si (manifest'li); verilirse gerçek haftalar")
+    ap.add_argument("--schedule", default=None, help="takvim CSV'si (manifest'li); varsayılan: --data'daki takvim")
+    ap.add_argument("--synthetic-weeks", action="store_true", help="takvim olsa da varsayımsal hafta profili")
     args = ap.parse_args(argv)
     sys.stdout.reconfigure(errors="replace")
 
-    from run_mock_batch import find_files
-
     cfg = load_config()
-    files = find_files(Path(args.data))
-    ds, report = load_dataset(files["players"], files["projections"], files["adp"], config=cfg)
+    ds, report = load_data_dir(args.data, cfg)
     if ds is None:
         print("Veri yüklenemedi:", *report.errors, sep="\n  - ")
         return 1
@@ -126,16 +123,18 @@ def main(argv: list[str] | None = None) -> int:
             ids = [p.player_id for p in m.log.picks if p.seat == seat]
             rosters.append((np.array([team[i] for i in ids]), [pos[i] for i in ids],
                             np.array([min(gp.get(i, 0.0), cap) / cap for i in ids])))
-    cal = None
+    sched = ds.schedule                      # --data dizinindeki takvim (varsa)
     if args.schedule:
-        from fdo.ingest.load import load_table
-        from fdo.schedule import build_calendar
-
         sched, _, srep = load_table(args.schedule, "schedule")
         if sched is None:
             print("Takvim yüklenemedi:", *srep.errors, sep="\n  - ")
             return 1
+    cal = None
+    if sched is not None and not args.synthetic_weeks:
+        from fdo.schedule import build_calendar
+
         cal = build_calendar(sched, cfg)
+        print(f"Takvim: {len(cal.weeks)} eşleşme haftası")
     res = simulate(rosters, cfg, args.weeks, np.random.default_rng(args.seed), args.day_sd, cal)
     print(f"{len(rosters)} kadro × {args.weeks} hafta, games_per_week={cfg.model.matchup.games_per_week}, "
           f"day_sd={args.day_sd}")
