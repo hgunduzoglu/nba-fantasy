@@ -58,7 +58,7 @@ with st.form("advisor"):
     pp = st.multiselect("Pinlenen çift (2 oyuncu; rollout'a zorla girer)", avail, format_func=common.name_of,
                         max_selections=2)
     opp = st.checkbox("Rakip stratejisi tahmini", value=bool(st.session_state.get("live")),
-                      help="Rakiplerin şimdiye kadarki seçimlerinden bot profili sonrası (§6.4.4); "
+                      help="Rakiplerin şimdiye kadarki seçimlerinden bot profili sonrası (§6.4.5); "
                            "simülasyonlarda karışım yerine kullanılır.")
     unc = st.checkbox("Sakatlık/rol belirsizliği (V2)", value=False,
                       help="Simülasyon başına oyuncu maç oranı (Beta) ve rol çarpanı (log-normal); "

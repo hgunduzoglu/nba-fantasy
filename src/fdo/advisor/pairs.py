@@ -257,7 +257,7 @@ def recommend(ctx: AdvisorContext, log: DraftLog, *, mode: str = "fast", n_sims:
     """Kullanıcının mevcut turn'ü için çift (ya da tek) önerisi.
 
     ``uncertainty``: V2 sakatlık/rol senaryoları (§13.5) — simülasyon başına oyuncu çarpanları.
-    ``opponent_probs``: rakip stratejisi tahmini ``(T, P)`` (§6.4.4); rakip koltuklarının profilleri
+    ``opponent_probs``: rakip stratejisi tahmini ``(T, P)`` (§6.4.5); rakip koltuklarının profilleri
     karışım yerine bu dağılımdan çekilir (koşullu doldurma ve rollout'ta).
     """
     t0 = time.perf_counter()

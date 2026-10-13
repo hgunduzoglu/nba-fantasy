@@ -58,7 +58,7 @@ class BatchDraft:
 
     def __init__(self, universe: BotUniverse, config: Config, n_sims: int, seed: int, *,
                  sim_offset: int = 0, cache_jitter: bool = False, seat_profile_probs: np.ndarray | None = None):
-        """``seat_profile_probs (T, P)``: rakip stratejisi tahmini (§6.4.4); verilen koltuklarda profil
+        """``seat_profile_probs (T, P)``: rakip stratejisi tahmini (§6.4.5); verilen koltuklarda profil
         karışım yerine bu dağılımdan çekilir (satırı sıfır olan koltuk karışımdan alır)."""
         self.u = universe
         self.cfg = config

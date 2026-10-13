@@ -747,6 +747,35 @@ class BotLeague:
 
 Vektörizasyon: `q` matrisi `(15, n_players)` boyutunda NumPy dizisidir. Uygun oyuncu maskesi ile `argmin` tek satırda hesaplanır.
 
+#### 6.4.5 Rakip stratejisi tahmini (`fdo.bots.inference`)
+
+Gerçek (ya da elle girilen) draft'ta her rakip pick'i `(k, koltuk b, oyuncu i)` için, o andaki gerçek
+durumda (kadrolar, pozisyon kuralı, punt durumu) her profil `p` ile `M = 200` bağımsız Thurstone
+çekilişi yapılır ve botun `i`'yi seçme frekansı `f_p` ölçülür. Olabilirlik `ε + (1−ε)·f_p`
+(`ε = 0.02`: modelin açıklayamadığı seçimlere tolerans); sonrası `∝ öncel · Π olabilirlik`, öncel lig
+bot karışımıdır. Hesap artımlıdır (yeni pick başına ~40 ms; undo'da baştan kurulur). Olası punt:
+koltuğun kadrosunun dengeli z toplamında en zayıf kategori ikinciden ≥ 1.5 gerideyse.
+
+Advisor'da açıkken (Canlı Draft'ta varsayılan) rakip koltuklarının profilleri simülasyonlarda karışım
+yerine bu sonradan çekilir: koşullu doldurma tablosu, rollout ve tam ufuk.
+
+Ölçüm (gerçek Yahoo verisi, botların oynadığı 6 draft = 90 rakip koltuğu, profiller biliniyor):
+
+| Tur | En olası profil doğru | Gerçek profilin olasılığı (öncel 0.24) |
+|---|---|---|
+| 4 | %58 | 0.51 |
+| 7 | %70 | 0.61 |
+| 13 | %68 | 0.64 |
+
+Survival etkisi (12 draft, 48→80, 80→112, 112→144 ufuklarında ADP'ce ilk 60 uygun oyuncu için Brier):
+karışım 0.094 / 0.124 / 0.155, tahmin 0.093 / 0.125 / 0.156 — **fark yok** (gürültü içinde). Botlar
+arasında kalma olasılığını profil kimliğinden çok her koltuğun kalıcı kişisel gürültüsü belirliyor ve o
+gözlemden çıkarılamıyor. Gerçek menajerler profiller arasında daha uç davranıyorsa (sert punt, pozisyon
+toplama) etki büyüyebilir; gerçek draft log'u olmadan doğrulanamaz. Tahmin zarar vermediği ve rakip
+kadrolarının (dolayısıyla ECW'nin) gelecekteki gelişimini stratejiye göre simüle ettiği için açık tutulur.
+LLM kullanılmaz: olabilirlik bot modelinden doğrudan hesaplanabiliyor; LLM 45 s'lik pick süresinde
+gecikme ve tekrarlanamazlık getirir.
+
 ### 6.5 Team composition ve position eligibility (`fdo.roster`)
 
 ```python
@@ -1003,12 +1032,27 @@ Tek uygulama ve çok sayfa (`st.navigation` veya `pages/`). Durum `st.session_st
 | **4. Draft Assistant** | Kullanıcının sırası geldiğinde: aday çift tablosu (E[W], P10–P90, SE, kademe); seçili çift için **48/49 havuzu** (§6.7.4); iki çift karşılaştırması; bekleme maliyeti; hesap parametreleri ve süre; "hızlı / tam" mod; V2: tam ufuk derin analiz, sakatlık/rol belirsizliği kutusu |
 | **5. Team Dashboard** | 16 takım × 9 kategori ortalama P(win); kullanıcı vs her rakip matrisi; kazanılabilir/sınırda/kaybedilmiş kategoriler; gerçek/doldurma oranı; FG%/FT% toplamdan hesaplanmış takım oranları; V2: takvim yüklüyse kadronun haftalık maç / sayılan maç tablosu |
 | **6. Realism Report** | §7 metrikleri: son mock ve batch raporu; histogramlar; uygunsuz reach listesi |
+| **7. Canlı Draft** | Gerçek draft'ı elle takip (§8.1): tek kutudan pick girişi, otomatik öneri, rakip stratejisi tablosu, otomatik kayıt |
 
 UI kuralları:
 - Sentetik veri bandı (§5.7) ve `uncalibrated` rozetleri (İlke 10) her zaman gösterilir.
 - Olasılıklar SE ile gösterilir, örneğin `%62 ± 2`. Kalibre edilmemiş modelden gelen değerlerde "≈" işareti kullanılır.
 - Advisor hesabı çalışırken `st.status` ile ilerleme gösterilir. Uzun hesaplar iptal edilebilir.
 - Mock'ta advisor, rakip pick'leri oynanırken **önceden** hesaplanabilir (opsiyonel). V1'de ÖNERİLİR olan, kullanıcının sırası gelince hesaplamaktır, hızlı mod varsayılandır.
+
+### 8.1 Canlı draft (Sayfa 7)
+
+Yahoo API kullanılamadığı için (§13.7) gerçek draft simülatörde elle takip edilir:
+
+- "Yeni canlı draft başlat" → bot oynatma kapanır (Mock Draft ve Draft Assistant'taki oynat düğmeleri
+  devre dışı). Sıradaki takım, tur ve sonraki 5 pick gösterilir; takım adları kenar çubuğundan girilir.
+- Pick girişi tek kutudur: oyuncu adını yazıp Enter → pick kaydedilir (ADP sıralı, Yahoo pozisyon
+  kuralına aykırı oyuncular listede yoktur). Undo vardır.
+- Sıra kullanıcıya gelince öneri **kendiliğinden** hızlı modda hesaplanır (gerçek veride ~7 s),
+  rakip stratejisi tahmini açık; ilk 8 seçim ve ilk 3 için "Uygula" düğmesi. Ayrıntı (havuz, karşılaştırma,
+  tam ufuk) Draft Assistant'tadır; sonuç önbellekte paylaşılır.
+- Log her pick'te `data/live/live_draft.json`'a yazılır (git dışı); sayfa yenilense ya da uygulama
+  kapansa "Kayıtlı canlı draft'a devam et" ile sürer.
 
 ---
 

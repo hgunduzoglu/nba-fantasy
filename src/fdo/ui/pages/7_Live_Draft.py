@@ -2,7 +2,7 @@
 
 Gerçek Yahoo draft'ı elle takip edilir: sıradaki takımın pick'i tek kutudan girilir, bot oynamaz.
 Kullanıcının sırası gelince advisor kendiliğinden (hızlı mod) çalışır; rakip stratejisi tahmini
-(§6.4.4) simülasyonlarda kullanılır. Log her pick'te ``data/live/live_draft.json``'a yazılır
+(§6.4.5) simülasyonlarda kullanılır. Log her pick'te ``data/live/live_draft.json``'a yazılır
 (sayfa yenilense de kaybolmaz; git'e girmez).
 """
 

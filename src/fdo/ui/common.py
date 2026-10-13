@@ -165,7 +165,7 @@ ADVISE_CACHE_SIZE = 32
 
 
 def opponent_model(log):
-    """Rakip stratejisi tahmini (§6.4.4); izleyici oturumda tutulur ve artımlı güncellenir."""
+    """Rakip stratejisi tahmini (§6.4.5); izleyici oturumda tutulur ve artımlı güncellenir."""
     from fdo.bots.inference import ProfileTracker
 
     key = (dataset().content_hash, config().config_hash)

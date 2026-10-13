@@ -1,4 +1,4 @@
-"""Rakip stratejisi tahmini: koltuk başına bot profili sonrası (posterior) (README §6.4.4).
+"""Rakip stratejisi tahmini: koltuk başına bot profili sonrası (posterior) (README §6.4.5).
 
 Gözlenen her rakip pick'i ``(k, koltuk b, oyuncu i)`` için, o andaki gerçek draft durumunda
 (kadrolar, pozisyon kuralı, punt durumu) her profil ``p`` ile ``M`` bağımsız Thurstone çekilişi
