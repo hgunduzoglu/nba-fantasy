@@ -16,8 +16,9 @@ UI = Path(__file__).resolve().parents[2] / "src" / "fdo" / "ui"
 @pytest.fixture(scope="module")
 def env(config):
     cfg = config.with_overrides({"model": {"advisor": {
-        "fill_sims_base": 20, "fill_sims_conditional": 20, "sims_per_pair_fast": 30,
-        "m_pairs_to_rollout": 8, "deep_pairs": 3, "deep_rungs": [4, 4]}}})
+        "fill_sims_base": 20, "fill_sims_conditional": 20, "sims_per_pair_fast": 30, "sims_per_pair": 40,
+        "m_pairs_to_rollout": 8, "deep_pairs": 3, "deep_rungs": [4, 4], "background_punt_sims": 4,
+        "background_board_sims": 8}}})
     ds = make_synthetic(300, np.random.default_rng(1), cfg, as_of="2026-10-01", seed=1)
     mock = MockDraft(ds, cfg, 3, build_universe(ds, cfg))
     mock.play_until_user()
@@ -25,7 +26,7 @@ def env(config):
 
 
 def compute(at):
-    return next(b for b in at.button if b.label == "Öneri hesapla")
+    return next(b for b in at.button if b.label == "Yeniden hesapla")
 
 
 def run_page(env, page, action=None):
@@ -43,7 +44,7 @@ def run_page(env, page, action=None):
 
 
 @pytest.mark.parametrize("page", [
-    "app.py", "pages/1_League_and_Data.py", "pages/2_Projection_Explorer.py", "pages/3_Mock_Draft.py",
+    "app.py", "pages/0_Home.py", "pages/1_League_and_Data.py", "pages/2_Projection_Explorer.py", "pages/3_Mock_Draft.py",
     "pages/5_Team_Dashboard.py",
 ])
 def test_page_renders(env, page):
@@ -107,8 +108,24 @@ def test_live_draft_flow(env, monkeypatch, tmp_path):
     m = at.session_state["mock"]
     assert len(m.log) == cfg.league.my_seat - 1 and all(p.source == "manual" for p in m.log.picks)
     assert (tmp_path / "live.json").exists()
-    assert at.session_state["advisor_result"] is not None                 # sıra kullanıcıda: öneri otomatik
-    assert any("en olası profil" in df.value.columns for df in at.dataframe)
+    # sıra kullanıcıda: arka plan işçisi tam mod öneri, pano, rakip modeli ve punt planlarını hesaplar
+    from fdo.ui import common
+
+    w = common.hub()
+    assert w.wait_idle(300)
+    s = w.snapshot()
+    assert s.job.live and s.job.log.picks == m.log.picks and not s.errors
+    assert s.full is not None and s.full.params["opponent_model"] and s.punt is not None
+    an = AppTest.from_file(str(UI / "pages/8_Draft_Analysis.py"), default_timeout=300)
+    an.session_state["config"] = cfg
+    an.session_state["dataset"] = ds
+    an.run()
+    assert not an.exception, [e.value for e in an.exception]
+    cols = [df.value.columns for df in an.dataframe]
+    assert any("Katkı" in c and "PTS" in c for c in cols)                  # oyuncu panosu
+    assert any("en olası profil" in c for c in cols)                       # rakip stratejileri
+    assert any("plan" in c for c in cols)                                  # punt önerisi
+    assert any("Önerilen" in md.value for md in an.markdown)
     # kayıttan devam
     at2 = AppTest.from_file(str(UI / "pages/7_Live_Draft.py"), default_timeout=300)
     at2.session_state["config"] = cfg

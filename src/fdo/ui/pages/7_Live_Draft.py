@@ -1,9 +1,9 @@
 """Sayfa 7 — Canlı draft (README §8.1).
 
 Gerçek Yahoo draft'ı elle takip edilir: sıradaki takımın pick'i tek kutudan girilir, bot oynamaz.
-Kullanıcının sırası gelince advisor kendiliğinden (hızlı mod) çalışır; rakip stratejisi tahmini
-(§6.4.5) simülasyonlarda kullanılır. Log her pick'te ``data/live/live_draft.json``'a yazılır
-(sayfa yenilense de kaybolmaz; git'e girmez).
+Her pick arka plan analizine yayınlanır (§13.10): yan sekmedeki **Draft Analizi** sayfası tam mod
+advisor'ı, rakip stratejisi tahminini (§6.4.5) ve punt önerisini beklemeden gösterir. Log her pick'te
+``data/live/live_draft.json``'a yazılır (sayfa yenilense de kaybolmaz; git'e girmez).
 """
 
 from __future__ import annotations
@@ -15,14 +15,13 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-from fdo.advisor.pairs import AdvisorError
 from fdo.bots.mock import MockDraft
 from fdo.config import REPO_ROOT
 from fdo.draft.events import DraftError
 from fdo.draft.io import export_json, import_log
 from fdo.ui import common
 
-common.page("7 · Canlı Draft")
+common.page("Canlı Draft")
 cfg = common.config()
 ds = common.dataset()
 u = common.universe()
@@ -94,7 +93,7 @@ with st.sidebar:
     st.caption(f"Log: `{LIVE.name}` (her pick'te kaydedilir)")
 
 if log.is_complete:
-    st.success("Draft tamamlandı. Team Dashboard'dan kadroları inceleyebilirsiniz.")
+    st.success("Draft tamamlandı. Takım Panosu'ndan kadroları inceleyebilirsiniz.")
 else:
     k, seat = log.next_pick, log.next_seat
     mine = seat == lg.my_seat
@@ -135,54 +134,8 @@ else:
     if err := st.session_state.pop("live_error", None):
         st.error(err)
     st.caption("Yahoo pozisyon kuralına aykırı oyuncular listede yok.")
+common.advisor_line(log)
 
-    # --------------------------------------------------------------- öneri
-    if mine:
-        with st.expander("Strateji ağırlıkları", expanded=False):
-            common.strategy_editor(key="live_sw")
-        c = st.columns(3)
-        use_opp = c[0].toggle("Rakip stratejisi tahmini", value=True)
-        unc = c[1].toggle("Sakatlık/rol belirsizliği", value=False)
-        with st.spinner("Öneri hesaplanıyor (hızlı mod)…"):
-            try:
-                res = common.advise(log, mode="fast", conditional=True, uncertainty=unc, opponents=use_opp)
-            except AdvisorError as e:
-                st.error(str(e))
-                res = None
-        if res is not None:
-            st.session_state.advisor_result = res
-            c[2].caption(f"{res.elapsed:.1f} s · S = {res.params['S']} · detay: Draft Assistant")
-            pt = res.pair_table().head(8)
-            st.dataframe(pd.DataFrame({
-                "kademe": pt["tier"], "seçim": pt["pair"], "E[W]": pt["E[W]"].round(3),
-                "SE": pt["SE"].round(4), "P10–P90": [f"{a:.2f} – {b:.2f}" for a, b in zip(pt["P10"], pt["P90"])],
-                **({"ECW (ağırlıksız)": pt["ECW"].round(3)} if res.params.get("category_weights") else {}),
-            }), hide_index=True)
-            bc = st.columns(3)
-            for j, pr in enumerate(res.pairs[:3]):
-                if bc[j].button(f"Uygula: {pr.label}", key=f"apply_{j}"):
-                    try:
-                        for pid in pr.players:
-                            m.pick(pid, "user")
-                    except DraftError as e:
-                        st.error(str(e))
-                    st.session_state.advisor_result = None
-                    save()
-                    st.rerun()
-
-# ------------------------------------------------------------------- rakipler
-st.subheader("Rakip stratejileri (tahmin)")
-model = common.opponent_model(log)
-tab = model.table(names)
-if tab.empty or tab["pick"].sum() == 0:
-    st.info("Rakip pick'i girildikçe tahmin oluşur.")
-else:
-    prof_cols = [c for c in tab.columns if c in model.names]
-    st.dataframe(tab.style.format({c: "{:.0%}" for c in [*prof_cols, "olasılık"]}), hide_index=True,
-                 height=36 * (len(tab) + 1) + 5)
-    st.caption("Profil olasılıkları: her rakip pick'inin o profildeki botça seçilme frekansından (Bayes, öncel = "
-               "lig bot karışımı). Olası punt: kadronun en zayıf kategorisi ikinciden belirgin gerideyse. "
-               + common.UNCALIBRATED)
 
 # ------------------------------------------------------------------- son pick'ler
 if len(log):
@@ -190,3 +143,5 @@ if len(log):
     st.dataframe(pd.DataFrame([{"pick": p.overall_pick, "tur": p.round, "takım": names[p.seat],
                                 "oyuncu": common.name_of(p.player_id), "kaynak": p.source}
                                for p in reversed(log.picks[-16:])]), hide_index=True)
+
+common.publish_draft(seat_names=names)
