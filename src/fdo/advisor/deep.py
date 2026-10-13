@@ -52,33 +52,42 @@ def user_vector(prob: Problem, engine: BatchDraft, upto: int) -> np.ndarray:
     return vec_or_fill(prob.ctx.vecs, picked, ks[None, :], prob.fill).sum(axis=1)
 
 
-def greedy_pick(prob: Problem, engine: BatchDraft, n: int, rest: list[int], shortlist_k: int) -> np.ndarray:
-    """Kullanıcının ``n`` numaralı pick'i için simülasyon başına açgözlü ECW seçimi ``(S,)``."""
+def greedy_pick(prob: Problem, engine: BatchDraft, n: int, rest: list[int], shortlist_k: int,
+                static_base: np.ndarray) -> np.ndarray:
+    """Kullanıcının ``n`` numaralı pick'i için simülasyon başına açgözlü ECW seçimi ``(S,)``.
+
+    Aday sırası simülasyondan bağımsız ``static_base``'e göre ΔECW'dir; her simülasyon bu sıradaki
+    uygun ve kadroyu tamamlanabilir bırakan ilk ``shortlist_k`` oyuncu arasından kendi kadrosuyla
+    ECW'yi en büyükleyeni seçer. Böylece bir simülasyonun sonucu aynı partideki diğer
+    simülasyonlara bağlı değildir (kademeli yarılamada parçalar arası CRN korunur).
+    """
     ctx = prob.ctx
     S = engine.S
-    cur = user_vector(prob, engine, n)
-    rest_vec = prob.fill_sum(rest)
-    avail = engine.taken_at == 0                                       # (S, n_players)
-    mean_base = cur.mean(axis=0) + rest_vec
-    cand = np.flatnonzero(avail.any(axis=0) & ctx.has_vec)
-    d = prob.ecw_static(mean_base[None, :] + ctx.vecs[cand])
-    short = cand[np.argsort(-d, kind="stable")[:shortlist_k]]
+    cand = np.flatnonzero(ctx.has_vec)
+    d = prob.ecw_static(static_base[None, :] + ctx.vecs[cand])
+    order = cand[np.argsort(-d, kind="stable")]
 
     seat_i = prob.user - 1
-    remaining_after = engine.rounds - engine.n_picked[:, seat_i].astype(np.int64) - 1
-    ok = avail[:, short].copy()
+    ok = engine.taken_at[:, order] == 0                                # (S, |order|)
     if engine.enforce_feasibility:
-        groups = engine.u.group[short]
+        remaining_after = engine.rounds - engine.n_picked[:, seat_i].astype(np.int64) - 1
+        groups = engine.u.group[order]
         for s in range(S):
             opens, fills, _ = engine.oracle.analyze(engine.counts[s, seat_i])
             ok[s] &= (opens - fills[groups]) <= remaining_after[s]
-    base = cur + rest_vec                                              # (S, 24)
-    vals = prob.ecw_static(base[:, None, :] + ctx.vecs[short][None, :, :])   # (S, K)
-    vals = np.where(ok, vals, NEG)
-    best = np.argmax(vals, axis=1)
-    choice = short[best]
-    bad = ~np.isfinite(vals[np.arange(S), best])
-    if bad.any():                                                      # kısa liste tükendi: bot skoru
+    in_k = ok & (np.cumsum(ok, axis=1) <= shortlist_k)
+    cols = np.flatnonzero(in_k.any(axis=0))
+    short = order[cols]
+    base = user_vector(prob, engine, n) + prob.fill_sum(rest)          # (S, 24)
+    vals = prob.ecw_static(base[:, None, :] + ctx.vecs[short][None, :, :])   # (S, |cols|)
+    vals = np.where(in_k[:, cols], vals, NEG)
+    choice = np.full(S, -1, dtype=np.int64)
+    if len(cols):
+        best = np.argmax(vals, axis=1)
+        good = np.isfinite(vals[np.arange(S), best])
+        choice = np.where(good, short[best], -1)
+    bad = choice < 0
+    if bad.any():                                                      # uygun aday yok: bot skoru
         score, bot_ok = engine.scores()
         fb = np.argmin(np.where(bot_ok, score, np.inf), axis=1)
         choice = np.where(bad, fb, choice)
@@ -97,9 +106,11 @@ def full_rollout(prob: Problem, log: DraftLog, pair: tuple[int, ...], n_sims: in
     for p in pair:
         eng.force(int(p))
     later = list(prob.after_turn)
+    pair_vec = ctx.vecs[list(pair)].sum(axis=0)
     for j, n in enumerate(later):
         eng.run_until(n)
-        eng.force(greedy_pick(prob, eng, n, later[j + 1:], shortlist_k))
+        static = prob.roster_vec + pair_vec + prob.fill_sum([k for k in later if k != n])
+        eng.force(greedy_pick(prob, eng, n, later[j + 1:], shortlist_k, static))
     eng.run_until(eng.total + 1)
     mult = None if uncertainty_seed is None else multipliers(ctx, eng.sim_ids, uncertainty_seed)
     teams = team_vectors(eng, ctx.vecs, prob.fill, eng.total + 1, mult)  # (S, T, 24)
