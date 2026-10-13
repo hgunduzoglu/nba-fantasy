@@ -1,5 +1,6 @@
 # Lig konfigürasyonu (README §3). Kesinleşmiş alanlar.
 league:
+  name: "16 takımlı ana lig"
   platform: yahoo
   season: "2026-27"
   teams: 16

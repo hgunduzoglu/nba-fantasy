@@ -40,6 +40,7 @@ class LeagueSettings:
     rounds: int
     draft_type: str
     third_round_reversal: bool
+    name: str = ""
 
     @property
     def total_picks(self) -> int:
@@ -307,6 +308,7 @@ def config_from_dict(raw: dict[str, Any]) -> Config:
         rounds=int(lg["rounds"]),
         draft_type=str(lg["draft_type"]),
         third_round_reversal=bool(lg.get("third_round_reversal", False)),
+        name=str(lg.get("name", "")),
     )
     scoring = ScoringSettings(
         format=str(sc["format"]),
@@ -346,8 +348,16 @@ def load_config(league_path: str | Path | None = None,
     with open(league_path, encoding="utf-8") as f:
         raw = yaml.safe_load(f) or {}
     with open(model_path, encoding="utf-8") as f:
-        raw["model"] = yaml.safe_load(f) or {}
+        model = yaml.safe_load(f) or {}
+    # Lig dosyası model parametrelerini ezebilir (ör. 14 takımlı ligde 13 rakiplik bot karışımı).
+    overrides = raw.pop("model_overrides", None)
+    raw["model"] = _deep_merge(model, overrides) if overrides else model
     return config_from_dict(raw)
+
+
+def league_files() -> list[Path]:
+    """``config/`` altındaki lig dosyaları (``league*.yaml``)."""
+    return sorted(DEFAULT_CONFIG_DIR.glob("league*.yaml"))
 
 
 def validate_config(cfg: Config) -> None:
