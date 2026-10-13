@@ -12,7 +12,7 @@ import streamlit as st
 
 from fdo.advisor.deep import deep_recommend
 from fdo.advisor.pairs import AdvisorError
-from fdo.advisor.scenarios import run_scenarios
+from fdo.advisor.scenarios import compare_punt_plans, run_scenarios
 from fdo.types import CATEGORY_LABELS
 from fdo.ui import common
 
@@ -271,3 +271,30 @@ with tab_scen:
         for a in r.archetypes:
             with st.expander(f"{a.label} — tipik kadro"):
                 st.write(", ".join(a.typical_roster))
+
+    st.divider()
+    st.markdown("**Punt planı karşılaştırması.** Her plan aynı draft senaryolarında sona kadar oynanır; sonraki "
+                "pick'leriniz plandaki punt dışı kategorilerin beklenen galibiyetini en büyükler. Final kadro "
+                "9 kategoriyle değerlendirilir. *Dengeli* = advisor'ın kendi politikası (ECW zaten kaybedilen "
+                "kategorilere yatırımı kendiliğinden bırakır); bir punt ancak bu politikayı geçerse önerilir.")
+    n_p = st.number_input("Plan başına simülasyon", 20, 400, 60, 20)
+    if st.button("Punt planlarını karşılaştır"):
+        bar = st.progress(0.0)
+        st.session_state.plan_result = (log.next_pick, compare_punt_plans(
+            common.advisor_context(), log, n_sims=int(n_p),
+            progress=lambda step, i, n: bar.progress(i / n, text=f"{step} {i}/{n}")))
+    pr_ = st.session_state.get("plan_result")
+    if pr_ and pr_[0] == log.next_pick:
+        res_p = pr_[1]
+        best = res_p.best
+        if best["plan"] == "dengeli":
+            st.success(f"En iyi plan: **dengeli** (E[W] {best['E[W]']:.2f}) — şu an bir punt'a gerek yok.")
+        else:
+            st.success(f"En iyi plan: **{best['plan']}** (E[W] {best['E[W]']:.2f}; dengeliye göre "
+                       f"{best['fark']:+.3f} ± {best['fark_SE']:.3f}).")
+        cat_cols = [CATEGORY_LABELS[c] for c in cfg.categories]
+        st.dataframe(res_p.table.drop(columns=["punt"]).style.format(
+            {**{c: "{:.2f}" for c in cat_cols}, "E[W]": "{:.3f}", "fark": "{:+.3f}", "fark_SE": "{:.3f}",
+             "P10": "{:.2f}", "P90": "{:.2f}"}).map(common.prob_bg, subset=cat_cols), hide_index=True)
+        st.caption(f"{res_p.n_sims} sim/plan · seed {res_p.seed} · {res_p.elapsed:.0f} s · fark CRN eşleşmeli. "
+                   + common.UNCALIBRATED)
