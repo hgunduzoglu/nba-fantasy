@@ -29,7 +29,9 @@ if log.is_complete:
     st.stop()
 if log.next_seat != lg.my_seat:
     st.info(f"Sıra sizde değil (pick {log.next_pick}, seat {log.next_seat}).")
-    if st.button("Kullanıcıya kadar oynat", type="primary"):
+    if st.session_state.get("live"):
+        st.caption("Canlı draft modu: rakip pick'lerini Sayfa 7'den girin.")
+    elif st.button("Kullanıcıya kadar oynat", type="primary"):
         m.play_until_user()
         st.session_state.advisor_result = None
         st.rerun()
@@ -55,6 +57,9 @@ with st.form("advisor"):
     pins = c[2].multiselect("Pinlenen oyuncular (aday kümesine eklenir)", avail, format_func=common.name_of)
     pp = st.multiselect("Pinlenen çift (2 oyuncu; rollout'a zorla girer)", avail, format_func=common.name_of,
                         max_selections=2)
+    opp = st.checkbox("Rakip stratejisi tahmini", value=bool(st.session_state.get("live")),
+                      help="Rakiplerin şimdiye kadarki seçimlerinden bot profili sonrası (§6.4.4); "
+                           "simülasyonlarda karışım yerine kullanılır.")
     unc = st.checkbox("Sakatlık/rol belirsizliği (V2)", value=False,
                       help="Simülasyon başına oyuncu maç oranı (Beta) ve rol çarpanı (log-normal); "
                            "rookie'lerde daha geniş. Beklenti aynı kalır, P10–P90 riski yansıtır.")
@@ -71,7 +76,7 @@ if go:
 
         try:
             res = common.advise(log, mode=mode, pins=pins, pin_pairs=[tuple(pp)] if len(pp) == 2 else (),
-                                conditional=cond, uncertainty=unc, progress=progress)
+                                conditional=cond, uncertainty=unc, opponents=opp, progress=progress)
             st.session_state.advisor_result = res
             status.update(label=f"Tamamlandı ({res.elapsed:.1f} s)", state="complete")
         except AdvisorError as e:
@@ -89,6 +94,7 @@ st.markdown(
     f"doldurma: {res.params['fill']} ({res.params['fill_sims']} sim) · "
     f"{res.params['pairs_rolled_out']}/{res.params['pairs_considered']} çift rollout"
     + (" · sakatlık/rol belirsizliği açık" if res.params.get("uncertainty") else "")
+    + (" · rakip stratejisi tahmini açık" if res.params.get("opponent_model") else "")
 )
 st.caption("Kaynaklar: " + common.format_sources(res.sources))
 if timer and res.elapsed > timer:
@@ -124,6 +130,7 @@ with st.expander(f"Derin analiz — tam ufuk rollout (V2, ilk {adv.deep_pairs} s
         bar = st.progress(0.0)
         st.session_state[deep_key] = deep_recommend(
             common.advisor_context(), log, res,
+            opponent_probs=common.opponent_model(log).seat_probs() if res.params.get("opponent_model") else None,
             progress=lambda i, n: bar.progress(i / n, text=f"rollout {i}/{n}"))
     deep = st.session_state.get(deep_key)
     if deep is not None:

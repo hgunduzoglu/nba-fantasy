@@ -83,3 +83,33 @@ def test_pages_with_schedule(env, page):
     at = run_page((cfg, ds.with_schedule(sched), mock), page)
     assert at.dataframe
 
+
+
+def test_live_draft_flow(env, monkeypatch, tmp_path):
+    cfg, ds, _ = env
+    monkeypatch.setenv("FDO_LIVE_PATH", str(tmp_path / "live.json"))
+    at = AppTest.from_file(str(UI / "pages/7_Live_Draft.py"), default_timeout=300)
+    at.session_state["config"] = cfg
+    at.session_state["dataset"] = ds
+    at.run()
+    next(b for b in at.button if b.label == "Yeni canlı draft başlat").click()
+    at.run()
+    for _ in range(cfg.league.my_seat - 1):            # rakip pick'lerini elle gir (ilk seçenek = en düşük ADP)
+        m = at.session_state["mock"]
+        first = next(str(i) for i in m.universe.ids[np.argsort(m.universe.adp, kind="stable")]
+                     if str(i) not in m.log.taken and m.is_allowed(str(i)))
+        at.selectbox[0].set_value(first).run()
+        assert not at.exception, [e.value for e in at.exception]
+    m = at.session_state["mock"]
+    assert len(m.log) == cfg.league.my_seat - 1 and all(p.source == "manual" for p in m.log.picks)
+    assert (tmp_path / "live.json").exists()
+    assert at.session_state["advisor_result"] is not None                 # sıra kullanıcıda: öneri otomatik
+    assert any("en olası profil" in df.value.columns for df in at.dataframe)
+    # kayıttan devam
+    at2 = AppTest.from_file(str(UI / "pages/7_Live_Draft.py"), default_timeout=300)
+    at2.session_state["config"] = cfg
+    at2.session_state["dataset"] = ds
+    at2.run()
+    next(b for b in at2.button if b.label.startswith("Kayıtlı canlı draft'a devam et")).click()
+    at2.run()
+    assert len(at2.session_state["mock"].log) == cfg.league.my_seat - 1

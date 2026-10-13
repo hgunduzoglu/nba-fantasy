@@ -26,3 +26,6 @@ reports/
 .idea/
 .DS_Store
 Thumbs.db
+
+# canlı draft log'u (kişisel, her pick'te yazılır)
+data/live/

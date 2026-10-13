@@ -164,8 +164,21 @@ def state_key(log) -> str:
 ADVISE_CACHE_SIZE = 32
 
 
+def opponent_model(log):
+    """Rakip stratejisi tahmini (§6.4.4); izleyici oturumda tutulur ve artımlı güncellenir."""
+    from fdo.bots.inference import ProfileTracker
+
+    key = (dataset().content_hash, config().config_hash)
+    tr = st.session_state.get("profile_tracker")
+    if tr is None or st.session_state.get("profile_tracker_key") != key:
+        tr = ProfileTracker(universe(), config(), n_draws=200, seed=int(st.session_state.seed))
+        st.session_state.profile_tracker = tr
+        st.session_state.profile_tracker_key = key
+    return tr.update(log)
+
+
 def advise(log, *, mode: str, pins=(), pin_pairs=(), conditional: bool = True, uncertainty: bool = False,
-           progress=None):
+           opponents: bool = False, progress=None):
     """Advisor sonucu; ``(veri, config, state, seed, parametreler)`` anahtarıyla önbelleklenir (§8).
 
     Önbellek oturum durumundadır (``st.cache_resource`` değil): hesap sırasında ilerleme çubuğu
@@ -174,13 +187,13 @@ def advise(log, *, mode: str, pins=(), pin_pairs=(), conditional: bool = True, u
     from fdo.advisor.pairs import recommend
 
     key = (dataset().content_hash, config().config_hash, int(st.session_state.seed), state_key(log), mode,
-           tuple(pins), tuple(tuple(p) for p in pin_pairs), conditional, uncertainty)
+           tuple(pins), tuple(tuple(p) for p in pin_pairs), conditional, uncertainty, opponents)
     cache = st.session_state.setdefault("advise_cache", {})
     if key in cache:
         return cache[key]
     res = recommend(advisor_context(), log, mode=mode, pinned_players=list(pins),
                     pinned_pairs=list(pin_pairs), conditional_fill=conditional, uncertainty=uncertainty,
-                    progress=progress)
+                    opponent_probs=opponent_model(log).seat_probs() if opponents else None, progress=progress)
     cache[key] = res
     while len(cache) > ADVISE_CACHE_SIZE:
         cache.pop(next(iter(cache)))

@@ -40,6 +40,7 @@ st.markdown(
 4. **Draft Assistant** — çift önerisi, 48/49 havuzu, karşılaştırma, senaryolar
 5. **Team Dashboard** — takım × kategori P(win), kazanılabilir/sınırda/kaybedilmiş
 6. **Realism Report** — bot gerçekçiliği ölçümleri
+7. **Canlı Draft** — gerçek draft'ı elle takip: hızlı pick girişi, otomatik öneri, rakip stratejisi tahmini
 
 ### Değişmez ilkeler (özet)
 - ADP yalnızca rakip davranışı ve kalma olasılığı içindir; oyuncu değeri projeksiyondan gelir.

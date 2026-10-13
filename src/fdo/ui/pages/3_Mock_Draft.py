@@ -34,6 +34,7 @@ with st.sidebar:
             st.warning(f"Toplam {total}; {lg.teams - 1} olmalı.")
         st.caption("Değişiklik 'Yeni mock başlat' ile uygulanır. " + common.UNCALIBRATED)
     if st.button("Yeni mock başlat", type="primary", disabled=total != lg.teams - 1):
+        st.session_state.live = False
         st.session_state.seed = int(new_seed)
         if mix != dict(bp.mix) or assignment != bp.seat_assignment:
             common.set_config(cfg.with_overrides({"model": {"bots": {"mix": mix, "seat_assignment": assignment}}}))
@@ -74,14 +75,17 @@ def act(fn, *args):
         st.error(str(e))
 
 
+live = bool(st.session_state.get("live"))
+if live:
+    st.warning("Canlı draft modu açık (Sayfa 7): bot oynatma kapalı; pick'leri Canlı Draft sayfasından girin.")
 c = st.columns(6)
-if c[0].button("Sıradaki pick'i oynat", disabled=log.is_complete):
+if c[0].button("Sıradaki pick'i oynat", disabled=log.is_complete or live):
     act(m.play_next)
     st.rerun()
-if c[1].button("Kullanıcıya kadar oynat", disabled=log.is_complete):
+if c[1].button("Kullanıcıya kadar oynat", disabled=log.is_complete or live):
     act(m.play_until_user)
     st.rerun()
-if c[2].button("Sona kadar oynat", disabled=log.is_complete):
+if c[2].button("Sona kadar oynat", disabled=log.is_complete or live):
     act(m.play_to_end)
     st.rerun()
 if c[3].button("Undo", disabled=not len(log)):
