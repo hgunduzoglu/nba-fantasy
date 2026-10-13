@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
+from fdo.advisor.deep import deep_recommend
 from fdo.advisor.pairs import AdvisorError
 from fdo.advisor.scenarios import run_scenarios
 from fdo.types import CATEGORY_LABELS
@@ -108,6 +109,26 @@ show = pd.DataFrame({
 st.dataframe(show, hide_index=True, height=min(600, 36 * (len(show) + 1)))
 st.caption("E[W]: sonraki turn sonrası (π + doldurma) 15 rakibe karşı beklenen kategori galibiyeti. "
            f"Kademe: en iyiye farkı < {adv.tier_se_mult}·SE_fark (CRN eşleşmeli) olan seçimler aynı kademede.")
+
+with st.expander(f"Derin analiz — tam ufuk rollout (V2, ilk {adv.deep_pairs} seçim)"):
+    st.caption("Her seçim için draft sonuna kadar simüle edilir: sonraki pick'lerinizde π her simülasyonda "
+               "kalan oyuncular arasından ECW'yi en çok artıranı seçer; E[W] 13'er gerçek oyuncuyla hesaplanır "
+               f"(doldurma yok). Kademeli yarılama: basamak başına {list(adv.deep_rungs)} yeni simülasyon, "
+               "her basamakta en iyi yarı devam eder.")
+    deep_key = f"deep:{common.state_key(log)}:{res.params['seed']}:{res.params['mode']}"
+    if st.button("Tam ufuk hesapla"):
+        bar = st.progress(0.0)
+        st.session_state[deep_key] = deep_recommend(
+            common.advisor_context(), log, res,
+            progress=lambda i, n: bar.progress(i / n, text=f"rollout {i}/{n}"))
+    deep = st.session_state.get(deep_key)
+    if deep is not None:
+        dt_ = deep.table()
+        st.dataframe(dt_.style.format({"E[W] tam ufuk": "{:.3f}", "SE": "{:.4f}", "E[W] V1": "{:.3f}"}),
+                     hide_index=True)
+        st.caption(f"{deep.elapsed:.1f} s. 'basamak' = ulaşılan son basamak; erken elenen seçimlerin E[W]'si "
+                   "daha az simülasyona dayanır. Tam ufuk E[W], V1 E[W]'den yüksek çıkar: sonraki pick'ler "
+                   "nötr doldurma yerine kadronuza göre seçilir.")
 
 labels = [p.label for p in res.pairs]
 if mine := st.selectbox("Bu turn'de uygula", ["—", *labels]):

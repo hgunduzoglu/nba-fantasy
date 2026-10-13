@@ -17,7 +17,7 @@ UI = Path(__file__).resolve().parents[2] / "src" / "fdo" / "ui"
 def env(config):
     cfg = config.with_overrides({"model": {"advisor": {
         "fill_sims_base": 20, "fill_sims_conditional": 20, "sims_per_pair_fast": 30,
-        "m_pairs_to_rollout": 8}}})
+        "m_pairs_to_rollout": 8, "deep_pairs": 3, "deep_rungs": [4, 4]}}})
     ds = make_synthetic(300, np.random.default_rng(1), cfg, as_of="2026-10-01", seed=1)
     mock = MockDraft(ds, cfg, 3, build_universe(ds, cfg))
     mock.play_until_user()
@@ -51,6 +51,16 @@ def test_draft_assistant_computes(env):
     at = run_page(env, "pages/4_Draft_Assistant.py", lambda at: at.button[0].click())
     res = at.session_state["advisor_result"]
     assert res is not None and res.turn == (16, 17)
+
+
+def test_draft_assistant_deep(env):
+    def act(at):
+        at.button[0].click()
+        at.run()
+        next(b for b in at.button if b.label == "Tam ufuk hesapla").click()
+    at = run_page(env, "pages/4_Draft_Assistant.py", act)
+    deep = [df.value for df in at.dataframe if "E[W] tam ufuk" in df.value.columns]
+    assert deep and len(deep[0]) == 3
 
 
 def test_realism_batch(env):
