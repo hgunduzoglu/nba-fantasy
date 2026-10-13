@@ -50,7 +50,21 @@ def week_profile(games_per_week: float, day_sd: float, rng: np.random.Generator)
     return np.minimum(day * games_per_week / day.sum(), 1.0)
 
 
-def simulate(rosters, cfg, weeks: int, rng: np.random.Generator, day_sd: float = 3.0) -> dict[str, float]:
+def schedule_weeks(teams: np.ndarray, cal) -> list[np.ndarray]:
+    """Gerçek takvimden hafta başına ``(gün, oyuncu)`` takım-oynuyor matrisleri."""
+    from fdo.schedule.calendar import normalize_team
+
+    teams = [normalize_team(t) for t in teams]
+    out = []
+    for week in cal.weeks.index:
+        days, plays = cal.playing(week)
+        out.append(np.array([[d in plays.get(t, ()) for t in teams] for d in days], dtype=bool))
+    return out
+
+
+def simulate(rosters, cfg, weeks: int, rng: np.random.Generator, day_sd: float = 3.0,
+             cal=None) -> dict[str, float]:
+    """``cal`` (``SeasonCalendar``) verilirse varsayımsal profil yerine gerçek takvim haftaları kullanılır."""
     mp = cfg.model.matchup
     slots = [s for s in cfg.roster.active_slots for _ in range(cfg.roster.slots[s])]
     counted = dict.fromkeys(LOCKS, 0.0)
@@ -59,15 +73,20 @@ def simulate(rosters, cfg, weeks: int, rng: np.random.Generator, day_sd: float =
         elig = np.array([[bool(pos & cfg.roster.slot_eligibility[s]) for pos in positions] for s in slots],
                         dtype=float)
         uniq, team_idx = np.unique(teams, return_inverse=True)
-        for _ in range(weeks):
-            day = week_profile(mp.games_per_week, day_sd, rng)
-            sched = rng.random((7, len(uniq))) < day[:, None]          # takım oynuyor mu
-            scheduled = sched[:, team_idx]                              # 7 × oyuncu
+        if cal is not None:
+            week_iter = schedule_weeks(teams, cal)
+        else:
+            week_iter = []
+            for _ in range(weeks):
+                day = week_profile(mp.games_per_week, day_sd, rng)
+                sched = rng.random((7, len(uniq))) < day[:, None]       # takım oynuyor mu
+                week_iter.append(sched[:, team_idx])                     # 7 × oyuncu
+        for scheduled in week_iter:
             on_court = scheduled & (rng.random(scheduled.shape) < avail[None, :])
             played += on_court.sum()
             weekly = best_assignment(elig, scheduled.sum(0) * avail + 1e-6 * avail)
             counted["weekly"] += on_court[:, weekly].sum()
-            for d in range(7):
+            for d in range(len(scheduled)):
                 counted["daily_today"] += best_assignment(elig, on_court[d].astype(float)).sum()
                 pre = best_assignment(elig, scheduled[d] * (avail + 1e-6))
                 counted["daily_tomorrow"] += (pre & on_court[d]).sum()
@@ -81,6 +100,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--weeks", type=int, default=20)
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--day-sd", type=float, default=3.0, help="gün yükü (maç sayısı) haftalık sapması")
+    ap.add_argument("--schedule", default=None, help="takvim CSV'si (manifest'li); verilirse gerçek haftalar")
     args = ap.parse_args(argv)
     sys.stdout.reconfigure(errors="replace")
 
@@ -106,7 +126,17 @@ def main(argv: list[str] | None = None) -> int:
             ids = [p.player_id for p in m.log.picks if p.seat == seat]
             rosters.append((np.array([team[i] for i in ids]), [pos[i] for i in ids],
                             np.array([min(gp.get(i, 0.0), cap) / cap for i in ids])))
-    res = simulate(rosters, cfg, args.weeks, np.random.default_rng(args.seed), args.day_sd)
+    cal = None
+    if args.schedule:
+        from fdo.ingest.load import load_table
+        from fdo.schedule import build_calendar
+
+        sched, _, srep = load_table(args.schedule, "schedule")
+        if sched is None:
+            print("Takvim yüklenemedi:", *srep.errors, sep="\n  - ")
+            return 1
+        cal = build_calendar(sched, cfg)
+    res = simulate(rosters, cfg, args.weeks, np.random.default_rng(args.seed), args.day_sd, cal)
     print(f"{len(rosters)} kadro × {args.weeks} hafta, games_per_week={cfg.model.matchup.games_per_week}, "
           f"day_sd={args.day_sd}")
     for k, v in res.items():
