@@ -27,7 +27,7 @@ fdo = ["py.typed"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["tests"]
+pythonpath = ["tests", "scripts"]
 addopts = "-q"
 markers = [
     "slow: uzun süren istatistiksel testler",
