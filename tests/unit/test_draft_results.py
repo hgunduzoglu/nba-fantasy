@@ -58,3 +58,18 @@ def test_user_picks_excluded_and_brier(synthetic_ds, universe, config):
     assert mask.sum() == int((df["auto"] | df["user"]).sum())
     mat, _ = logs_to_matrix([log], universe)
     assert survival_brier(mat, mat, universe) == 0.0       # kendisini mükemmel tahmin eder
+
+
+def test_infer_autopicks_runs():
+    import numpy as np
+
+    from fdo.calibration.bots import infer_autopicks
+
+    df = pd.DataFrame({"fantasy_team": ["A", "B"] * 6})
+    # A: T F T T T F  → 3'lü seri; B: T T F T T F → seri yok
+    m = np.array([True, True, False, True, True, False, True, True, True, True, False, False])
+    out = infer_autopicks(df, m, min_run=3)
+    a = out[df["fantasy_team"] == "A"]
+    b = out[df["fantasy_team"] == "B"]
+    assert list(a) == [False, False, True, True, True, False] and not b.any()
+    assert not infer_autopicks(df, m, min_run=4).any()

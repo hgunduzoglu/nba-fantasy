@@ -245,3 +245,54 @@ def matrix_to_logs(matrix: np.ndarray, universe: BotUniverse, config: Config, so
             log = log.make_pick(str(universe.ids[i]), source)
         out.append(log)
     return out
+
+
+def autopick_rule_matches(df: pd.DataFrame, log: DraftLog, universe: BotUniverse, positions,
+                          config: Config) -> np.ndarray:
+    """Her pick Yahoo'nun otomatik seçim kuralına birebir uyuyor mu: kadroyu tamamlanabilir bırakan
+    oyuncular arasında Yahoo ön sıralaması (``default_rank`` = xrank) en iyi olan.
+
+    Gerçek log'larda "Team N" (Yahoo botu) pick'lerinin %91.5'i bu kurala uyar; gerçek lig draft'ındaki
+    insanların %17'si. ``df`` satırları ``log.picks`` ile aynı sıradadır ve ``fantasy_team`` içerir.
+    """
+    from fdo.roster.assignment import RosterModel
+
+    model = RosterModel(config)
+    rounds = config.league.rounds
+    taken: set[str] = set()
+    rosters: dict[str, list] = {}
+    out = np.zeros(len(log.picks), dtype=bool)
+    order = np.lexsort((universe.adp, universe.default_rank))
+    for j, (p, team) in enumerate(zip(log.picks, df["fantasy_team"])):
+        roster = rosters.setdefault(team, [])
+        remaining = rounds - len(roster) - 1
+        for i in order:
+            pid = str(universe.ids[i])
+            if pid in taken:
+                continue
+            if model.can_complete([*roster, positions[pid]], remaining):
+                out[j] = pid == p.player_id
+                break
+        taken.add(p.player_id)
+        if p.player_id in positions:
+            roster.append(positions[p.player_id])
+    return out
+
+
+def infer_autopicks(df: pd.DataFrame, matches: np.ndarray, min_run: int = 3) -> np.ndarray:
+    """Adı olan (insan görünen) takımlarda Yahoo kuralına art arda ``min_run`` kez birebir uyan seriler
+    otomatik sayılır (mock'tan ayrılan ya da hiç gelmeyen menajer). Gerçek lig draft'ında insanların
+    kurala uyma oranı ~%17 olduğundan 3'lü serinin tesadüf olasılığı ~%0.5'tir."""
+    out = np.zeros(len(df), dtype=bool)
+    for _, idx in df.groupby("fantasy_team", sort=False).groups.items():
+        idx = np.sort(np.asarray(idx))
+        m = matches[idx]
+        start = None
+        for k in range(len(idx) + 1):
+            if k < len(idx) and m[k]:
+                start = k if start is None else start
+                continue
+            if start is not None and k - start >= min_run:
+                out[idx[start:k]] = True
+            start = None
+    return out
