@@ -57,7 +57,9 @@ class BatchDraft:
     """
 
     def __init__(self, universe: BotUniverse, config: Config, n_sims: int, seed: int, *,
-                 sim_offset: int = 0, cache_jitter: bool = False):
+                 sim_offset: int = 0, cache_jitter: bool = False, seat_profile_probs: np.ndarray | None = None):
+        """``seat_profile_probs (T, P)``: rakip stratejisi tahmini (§6.4.4); verilen koltuklarda profil
+        karışım yerine bu dağılımdan çekilir (satırı sıfır olan koltuk karışımdan alır)."""
         self.u = universe
         self.cfg = config
         lg = config.league
@@ -92,6 +94,9 @@ class BatchDraft:
             names = assign_profiles(config, rng)
             for seat in range(self.T):
                 p = self.ptab.index(names[seat])
+                if seat_profile_probs is not None and seat_profile_probs[seat].sum() > 0:
+                    w = seat_profile_probs[seat] / seat_profile_probs[seat].sum()
+                    p = int(rng.choice(len(w), p=w))
                 self.profile[row, seat] = p
                 base = universe.default_rank if self.ptab.uses_default_rank[p] else universe.adp
                 eps = scaled_t(rng, self.ptab.t_df[p], n)
