@@ -1,0 +1,2207 @@
+{
+  "source": "Yahoo Fantasy Draft Results",
+  "league_id": "220594",
+  "extracted_at": "2026-10-13T11:19:55.374Z",
+  "teams": 14,
+  "rounds": 13,
+  "total_picks": 182,
+  "picks": [
+    {
+      "overall_pick": 1,
+      "round": 1,
+      "pick_in_round": 1,
+      "player": "Nikola Jokić",
+      "nba_team": "DEN",
+      "positions": [
+        "C"
+      ],
+      "fantasy_team": "4-2-3-1 Gegen"
+    },
+    {
+      "overall_pick": 2,
+      "round": 1,
+      "pick_in_round": 2,
+      "player": "Victor Wembanyama",
+      "nba_team": "SAS",
+      "positions": [
+        "C"
+      ],
+      "fantasy_team": "Ömer Faruk's Swag Team"
+    },
+    {
+      "overall_pick": 3,
+      "round": 1,
+      "pick_in_round": 3,
+      "player": "Shai Gilgeous-Alexander",
+      "nba_team": "OKC",
+      "positions": [
+        "PG"
+      ],
+      "fantasy_team": "Manisa 69'rs"
+    },
+    {
+      "overall_pick": 4,
+      "round": 1,
+      "pick_in_round": 4,
+      "player": "Luka Dončić",
+      "nba_team": "LAL",
+      "positions": [
+        "PG",
+        "SG"
+      ],
+      "fantasy_team": "Emirhan's Super Team"
+    },
+    {
+      "overall_pick": 5,
+      "round": 1,
+      "pick_in_round": 5,
+      "player": "Giannis Antetokounmpo",
+      "nba_team": "MIA",
+      "positions": [
+        "PF",
+        "C"
+      ],
+      "fantasy_team": "Tarık Baran's Groovy Team"
+    },
+    {
+      "overall_pick": 6,
+      "round": 1,
+      "pick_in_round": 6,
+      "player": "Tyrese Maxey",
+      "nba_team": "PHI",
+      "positions": [
+        "PG"
+      ],
+      "fantasy_team": "Tekirdağ Yeni Rakıts"
+    },
+    {
+      "overall_pick": 7,
+      "round": 1,
+      "pick_in_round": 7,
+      "player": "Anthony Edwards",
+      "nba_team": "MIN",
+      "positions": [
+        "PG",
+        "SG"
+      ],
+      "fantasy_team": "Çatal State Warriors"
+    },
+    {
+      "overall_pick": 8,
+      "round": 1,
+      "pick_in_round": 8,
+      "player": "Donovan Mitchell",
+      "nba_team": "CLE",
+      "positions": [
+        "PG",
+        "SG"
+      ],
+      "fantasy_team": "Железный занавес"
+    },
+    {
+      "overall_pick": 9,
+      "round": 1,
+      "pick_in_round": 9,
+      "player": "Cade Cunningham",
+      "nba_team": "DET",
+      "positions": [
+        "PG",
+        "SG"
+      ],
+      "fantasy_team": "New York Hav Havs"
+    },
+    {
+      "overall_pick": 10,
+      "round": 1,
+      "pick_in_round": 10,
+      "player": "Scottie Barnes",
+      "nba_team": "TOR",
+      "positions": [
+        "SF",
+        "PF",
+        "C"
+      ],
+      "fantasy_team": "Arda's Optimal Team"
+    },
+    {
+      "overall_pick": 11,
+      "round": 1,
+      "pick_in_round": 11,
+      "player": "Cooper Flagg",
+      "nba_team": "DAL",
+      "positions": [
+        "SG",
+        "SF",
+        "PF"
+      ],
+      "fantasy_team": "ehrmantraut spor kulübü"
+    },
+    {
+      "overall_pick": 12,
+      "round": 1,
+      "pick_in_round": 12,
+      "player": "Karl-Anthony Towns",
+      "nba_team": "NYK",
+      "positions": [
+        "PF",
+        "C"
+      ],
+      "fantasy_team": "Ege's Expert Team"
+    },
+    {
+      "overall_pick": 13,
+      "round": 1,
+      "pick_in_round": 13,
+      "player": "Jayson Tatum",
+      "nba_team": "BOS",
+      "positions": [
+        "SF",
+        "PF"
+      ],
+      "fantasy_team": "Blacksea Hamsies"
+    },
+    {
+      "overall_pick": 14,
+      "round": 1,
+      "pick_in_round": 14,
+      "player": "Kevin Durant",
+      "nba_team": "HOU",
+      "positions": [
+        "SG",
+        "SF",
+        "PF"
+      ],
+      "fantasy_team": "Losadanas"
+    },
+    {
+      "overall_pick": 15,
+      "round": 2,
+      "pick_in_round": 1,
+      "player": "Austin Reaves",
+      "nba_team": "LAL",
+      "positions": [
+        "PG",
+        "SG",
+        "SF"
+      ],
+      "fantasy_team": "Losadanas"
+    },
+    {
+      "overall_pick": 16,
+      "round": 2,
+      "pick_in_round": 2,
+      "player": "Tyrese Haliburton",
+      "nba_team": "IND",
+      "positions": [
+        "PG",
+        "SG"
+      ],
+      "fantasy_team": "Blacksea Hamsies"
+    },
+    {
+      "overall_pick": 17,
+      "round": 2,
+      "pick_in_round": 3,
+      "player": "Amen Thompson",
+      "nba_team": "HOU",
+      "positions": [
+        "PG",
+        "SG"
+      ],
+      "fantasy_team": "Ege's Expert Team"
+    },
+    {
+      "overall_pick": 18,
+      "round": 2,
+      "pick_in_round": 4,
+      "player": "Alperen Şengün",
+      "nba_team": "HOU",
+      "positions": [
+        "PF",
+        "C"
+      ],
+      "fantasy_team": "ehrmantraut spor kulübü"
+    },
+    {
+      "overall_pick": 19,
+      "round": 2,
+      "pick_in_round": 5,
+      "player": "Bam Adebayo",
+      "nba_team": "MIA",
+      "positions": [
+        "PF",
+        "C"
+      ],
+      "fantasy_team": "Arda's Optimal Team"
+    },
+    {
+      "overall_pick": 20,
+      "round": 2,
+      "pick_in_round": 6,
+      "player": "Jalen Johnson",
+      "nba_team": "ATL",
+      "positions": [
+        "SF",
+        "PF"
+      ],
+      "fantasy_team": "New York Hav Havs"
+    },
+    {
+      "overall_pick": 21,
+      "round": 2,
+      "pick_in_round": 7,
+      "player": "Kawhi Leonard",
+      "nba_team": "TOR",
+      "positions": [
+        "SG",
+        "SF",
+        "PF"
+      ],
+      "fantasy_team": "Железный занавес"
+    },
+    {
+      "overall_pick": 22,
+      "round": 2,
+      "pick_in_round": 8,
+      "player": "Jamal Murray",
+      "nba_team": "DEN",
+      "positions": [
+        "PG"
+      ],
+      "fantasy_team": "Çatal State Warriors"
+    },
+    {
+      "overall_pick": 23,
+      "round": 2,
+      "pick_in_round": 9,
+      "player": "Josh Giddey",
+      "nba_team": "CHI",
+      "positions": [
+        "PG",
+        "SG"
+      ],
+      "fantasy_team": "Tekirdağ Yeni Rakıts"
+    },
+    {
+      "overall_pick": 24,
+      "round": 2,
+      "pick_in_round": 10,
+      "player": "Evan Mobley",
+      "nba_team": "CLE",
+      "positions": [
+        "PF",
+        "C"
+      ],
+      "fantasy_team": "Tarık Baran's Groovy Team"
+    },
+    {
+      "overall_pick": 25,
+      "round": 2,
+      "pick_in_round": 11,
+      "player": "Lauri Markkanen",
+      "nba_team": "UTA",
+      "positions": [
+        "SF",
+        "PF"
+      ],
+      "fantasy_team": "Emirhan's Super Team"
+    },
+    {
+      "overall_pick": 26,
+      "round": 2,
+      "pick_in_round": 12,
+      "player": "Jalen Duren",
+      "nba_team": "DET",
+      "positions": [
+        "C"
+      ],
+      "fantasy_team": "Manisa 69'rs"
+    },
+    {
+      "overall_pick": 27,
+      "round": 2,
+      "pick_in_round": 13,
+      "player": "Trae Young",
+      "nba_team": "WAS",
+      "positions": [
+        "PG"
+      ],
+      "fantasy_team": "Ömer Faruk's Swag Team"
+    },
+    {
+      "overall_pick": 28,
+      "round": 2,
+      "pick_in_round": 14,
+      "player": "Stephen Curry",
+      "nba_team": "GSW",
+      "positions": [
+        "PG"
+      ],
+      "fantasy_team": "4-2-3-1 Gegen"
+    },
+    {
+      "overall_pick": 29,
+      "round": 3,
+      "pick_in_round": 1,
+      "player": "Brandon Miller",
+      "nba_team": "CHA",
+      "positions": [
+        "SF",
+        "PF"
+      ],
+      "fantasy_team": "4-2-3-1 Gegen"
+    },
+    {
+      "overall_pick": 30,
+      "round": 3,
+      "pick_in_round": 2,
+      "player": "Trey Murphy III",
+      "nba_team": "NOP",
+      "positions": [
+        "SG",
+        "SF"
+      ],
+      "fantasy_team": "Ömer Faruk's Swag Team"
+    },
+    {
+      "overall_pick": 31,
+      "round": 3,
+      "pick_in_round": 3,
+      "player": "LaMelo Ball",
+      "nba_team": "MIN",
+      "positions": [
+        "PG"
+      ],
+      "fantasy_team": "Manisa 69'rs"
+    },
+    {
+      "overall_pick": 32,
+      "round": 3,
+      "pick_in_round": 4,
+      "player": "Domantas Sabonis",
+      "nba_team": "SAC",
+      "positions": [
+        "PF",
+        "C"
+      ],
+      "fantasy_team": "Emirhan's Super Team"
+    },
+    {
+      "overall_pick": 33,
+      "round": 3,
+      "pick_in_round": 5,
+      "player": "Jalen Brunson",
+      "nba_team": "NYK",
+      "positions": [
+        "PG"
+      ],
+      "fantasy_team": "Tarık Baran's Groovy Team"
+    },
+    {
+      "overall_pick": 34,
+      "round": 3,
+      "pick_in_round": 6,
+      "player": "Chet Holmgren",
+      "nba_team": "OKC",
+      "positions": [
+        "PF",
+        "C"
+      ],
+      "fantasy_team": "Tekirdağ Yeni Rakıts"
+    },
+    {
+      "overall_pick": 35,
+      "round": 3,
+      "pick_in_round": 7,
+      "player": "Walker Kessler",
+      "nba_team": "LAL",
+      "positions": [
+        "C"
+      ],
+      "fantasy_team": "Çatal State Warriors"
+    },
+    {
+      "overall_pick": 36,
+      "round": 3,
+      "pick_in_round": 8,
+      "player": "Jaren Jackson Jr.",
+      "nba_team": "UTA",
+      "positions": [
+        "PF",
+        "C"
+      ],
+      "fantasy_team": "Железный занавес"
+    },
+    {
+      "overall_pick": 37,
+      "round": 3,
+      "pick_in_round": 9,
+      "player": "Devin Booker",
+      "nba_team": "PHX",
+      "positions": [
+        "PG",
+        "SG"
+      ],
+      "fantasy_team": "New York Hav Havs"
+    },
+    {
+      "overall_pick": 38,
+      "round": 3,
+      "pick_in_round": 10,
+      "player": "James Harden",
+      "nba_team": "CLE",
+      "positions": [
+        "PG",
+        "SG"
+      ],
+      "fantasy_team": "Arda's Optimal Team"
+    },
+    {
+      "overall_pick": 39,
+      "round": 3,
+      "pick_in_round": 11,
+      "player": "Donovan Clingan",
+      "nba_team": "POR",
+      "positions": [
+        "C"
+      ],
+      "fantasy_team": "ehrmantraut spor kulübü"
+    },
+    {
+      "overall_pick": 40,
+      "round": 3,
+      "pick_in_round": 12,
+      "player": "Deni Avdija",
+      "nba_team": "POR",
+      "positions": [
+        "SG",
+        "SF",
+        "PF"
+      ],
+      "fantasy_team": "Ege's Expert Team"
+    },
+    {
+      "overall_pick": 41,
+      "round": 3,
+      "pick_in_round": 13,
+      "player": "Anthony Davis",
+      "nba_team": "WAS",
+      "positions": [
+        "PF",
+        "C"
+      ],
+      "fantasy_team": "Blacksea Hamsies"
+    },
+    {
+      "overall_pick": 42,
+      "round": 3,
+      "pick_in_round": 14,
+      "player": "Onyeka Okongwu",
+      "nba_team": "ATL",
+      "positions": [
+        "C"
+      ],
+      "fantasy_team": "Losadanas"
+    },
+    {
+      "overall_pick": 43,
+      "round": 4,
+      "pick_in_round": 1,
+      "player": "Franz Wagner",
+      "nba_team": "ORL",
+      "positions": [
+        "SF",
+        "PF"
+      ],
+      "fantasy_team": "Losadanas"
+    },
+    {
+      "overall_pick": 44,
+      "round": 4,
+      "pick_in_round": 2,
+      "player": "Jaylen Brown",
+      "nba_team": "PHI",
+      "positions": [
+        "SG",
+        "SF",
+        "PF"
+      ],
+      "fantasy_team": "Blacksea Hamsies"
+    },
+    {
+      "overall_pick": 45,
+      "round": 4,
+      "pick_in_round": 3,
+      "player": "Kon Knueppel",
+      "nba_team": "CHA",
+      "positions": [
+        "SG",
+        "SF"
+      ],
+      "fantasy_team": "Ege's Expert Team"
+    },
+    {
+      "overall_pick": 46,
+      "round": 4,
+      "pick_in_round": 4,
+      "player": "Keyonte George",
+      "nba_team": "UTA",
+      "positions": [
+        "PG",
+        "SG"
+      ],
+      "fantasy_team": "ehrmantraut spor kulübü"
+    },
+    {
+      "overall_pick": 47,
+      "round": 4,
+      "pick_in_round": 5,
+      "player": "Matas Buzelis",
+      "nba_team": "CHI",
+      "positions": [
+        "SF",
+        "PF"
+      ],
+      "fantasy_team": "Arda's Optimal Team"
+    },
+    {
+      "overall_pick": 48,
+      "round": 4,
+      "pick_in_round": 6,
+      "player": "Kyrie Irving",
+      "nba_team": "DAL",
+      "positions": [
+        "PG"
+      ],
+      "fantasy_team": "New York Hav Havs"
+    },
+    {
+      "overall_pick": 49,
+      "round": 4,
+      "pick_in_round": 7,
+      "player": "Desmond Bane",
+      "nba_team": "ORL",
+      "positions": [
+        "SG",
+        "SF"
+      ],
+      "fantasy_team": "Железный занавес"
+    },
+    {
+      "overall_pick": 50,
+      "round": 4,
+      "pick_in_round": 8,
+      "player": "Derrick White",
+      "nba_team": "BOS",
+      "positions": [
+        "PG",
+        "SG"
+      ],
+      "fantasy_team": "Çatal State Warriors"
+    },
+    {
+      "overall_pick": 51,
+      "round": 4,
+      "pick_in_round": 9,
+      "player": "Paolo Banchero",
+      "nba_team": "ORL",
+      "positions": [
+        "PF"
+      ],
+      "fantasy_team": "Tekirdağ Yeni Rakıts"
+    },
+    {
+      "overall_pick": 52,
+      "round": 4,
+      "pick_in_round": 10,
+      "player": "Jalen Williams",
+      "nba_team": "OKC",
+      "positions": [
+        "SF",
+        "PF"
+      ],
+      "fantasy_team": "Tarık Baran's Groovy Team"
+    },
+    {
+      "overall_pick": 53,
+      "round": 4,
+      "pick_in_round": 11,
+      "player": "LeBron James",
+      "nba_team": "PHI",
+      "positions": [
+        "SF",
+        "PF"
+      ],
+      "fantasy_team": "Emirhan's Super Team"
+    },
+    {
+      "overall_pick": 54,
+      "round": 4,
+      "pick_in_round": 12,
+      "player": "Dyson Daniels",
+      "nba_team": "ATL",
+      "positions": [
+        "SG",
+        "SF"
+      ],
+      "fantasy_team": "Manisa 69'rs"
+    },
+    {
+      "overall_pick": 55,
+      "round": 4,
+      "pick_in_round": 13,
+      "player": "Pascal Siakam",
+      "nba_team": "IND",
+      "positions": [
+        "PF",
+        "C"
+      ],
+      "fantasy_team": "Ömer Faruk's Swag Team"
+    },
+    {
+      "overall_pick": 56,
+      "round": 4,
+      "pick_in_round": 14,
+      "player": "OG Anunoby",
+      "nba_team": "NYK",
+      "positions": [
+        "SF",
+        "PF"
+      ],
+      "fantasy_team": "4-2-3-1 Gegen"
+    },
+    {
+      "overall_pick": 57,
+      "round": 5,
+      "pick_in_round": 1,
+      "player": "Alex Sarr",
+      "nba_team": "WAS",
+      "positions": [
+        "C"
+      ],
+      "fantasy_team": "4-2-3-1 Gegen"
+    },
+    {
+      "overall_pick": 58,
+      "round": 5,
+      "pick_in_round": 2,
+      "player": "Ivica Zubac",
+      "nba_team": "IND",
+      "positions": [
+        "C"
+      ],
+      "fantasy_team": "Ömer Faruk's Swag Team"
+    },
+    {
+      "overall_pick": 59,
+      "round": 5,
+      "pick_in_round": 3,
+      "player": "Nickeil Alexander-Walker",
+      "nba_team": "ATL",
+      "positions": [
+        "PG",
+        "SG"
+      ],
+      "fantasy_team": "Manisa 69'rs"
+    },
+    {
+      "overall_pick": 60,
+      "round": 5,
+      "pick_in_round": 4,
+      "player": "Damian Lillard",
+      "nba_team": "POR",
+      "positions": [
+        "PG"
+      ],
+      "fantasy_team": "Emirhan's Super Team"
+    },
+    {
+      "overall_pick": 61,
+      "round": 5,
+      "pick_in_round": 5,
+      "player": "Darius Garland",
+      "nba_team": "LAC",
+      "positions": [
+        "PG"
+      ],
+      "fantasy_team": "Tarık Baran's Groovy Team"
+    },
+    {
+      "overall_pick": 62,
+      "round": 5,
+      "pick_in_round": 6,
+      "player": "Dejounte Murray",
+      "nba_team": "NOP",
+      "positions": [
+        "PG"
+      ],
+      "fantasy_team": "Tekirdağ Yeni Rakıts"
+    },
+    {
+      "overall_pick": 63,
+      "round": 5,
+      "pick_in_round": 7,
+      "player": "Michael Porter Jr.",
+      "nba_team": "BKN",
+      "positions": [
+        "SF",
+        "PF"
+      ],
+      "fantasy_team": "Çatal State Warriors"
+    },
+    {
+      "overall_pick": 64,
+      "round": 5,
+      "pick_in_round": 8,
+      "player": "Naz Reid",
+      "nba_team": "CHA",
+      "positions": [
+        "PF",
+        "C"
+      ],
+      "fantasy_team": "Железный занавес"
+    },
+    {
+      "overall_pick": 65,
+      "round": 5,
+      "pick_in_round": 9,
+      "player": "Zach Edey",
+      "nba_team": "MEM",
+      "positions": [
+        "C"
+      ],
+      "fantasy_team": "New York Hav Havs"
+    },
+    {
+      "overall_pick": 66,
+      "round": 5,
+      "pick_in_round": 10,
+      "player": "Ausar Thompson",
+      "nba_team": "DET",
+      "positions": [
+        "SG",
+        "SF",
+        "PF"
+      ],
+      "fantasy_team": "Arda's Optimal Team"
+    },
+    {
+      "overall_pick": 67,
+      "round": 5,
+      "pick_in_round": 11,
+      "player": "Tyler Herro",
+      "nba_team": "MIL",
+      "positions": [
+        "PG",
+        "SG"
+      ],
+      "fantasy_team": "ehrmantraut spor kulübü"
+    },
+    {
+      "overall_pick": 68,
+      "round": 5,
+      "pick_in_round": 12,
+      "player": "Cameron Boozer",
+      "nba_team": "MEM",
+      "positions": [
+        "PF"
+      ],
+      "fantasy_team": "Ege's Expert Team"
+    },
+    {
+      "overall_pick": 69,
+      "round": 5,
+      "pick_in_round": 13,
+      "player": "Joel Embiid",
+      "nba_team": "PHI",
+      "positions": [
+        "C"
+      ],
+      "fantasy_team": "Blacksea Hamsies"
+    },
+    {
+      "overall_pick": 70,
+      "round": 5,
+      "pick_in_round": 14,
+      "player": "Ryan Rollins",
+      "nba_team": "MIL",
+      "positions": [
+        "PG",
+        "SG"
+      ],
+      "fantasy_team": "Losadanas"
+    },
+    {
+      "overall_pick": 71,
+      "round": 6,
+      "pick_in_round": 1,
+      "player": "Stephon Castle",
+      "nba_team": "SAS",
+      "positions": [
+        "PG",
+        "SG"
+      ],
+      "fantasy_team": "Losadanas"
+    },
+    {
+      "overall_pick": 72,
+      "round": 6,
+      "pick_in_round": 2,
+      "player": "De'Aaron Fox",
+      "nba_team": "SAS",
+      "positions": [
+        "PG"
+      ],
+      "fantasy_team": "Blacksea Hamsies"
+    },
+    {
+      "overall_pick": 73,
+      "round": 6,
+      "pick_in_round": 3,
+      "player": "Jarrett Allen",
+      "nba_team": "CLE",
+      "positions": [
+        "C"
+      ],
+      "fantasy_team": "Ege's Expert Team"
+    },
+    {
+      "overall_pick": 74,
+      "round": 6,
+      "pick_in_round": 4,
+      "player": "Mikal Bridges",
+      "nba_team": "NYK",
+      "positions": [
+        "SF",
+        "PF"
+      ],
+      "fantasy_team": "ehrmantraut spor kulübü"
+    },
+    {
+      "overall_pick": 75,
+      "round": 6,
+      "pick_in_round": 5,
+      "player": "VJ Edgecombe",
+      "nba_team": "PHI",
+      "positions": [
+        "PG",
+        "SG"
+      ],
+      "fantasy_team": "Arda's Optimal Team"
+    },
+    {
+      "overall_pick": 76,
+      "round": 6,
+      "pick_in_round": 6,
+      "player": "Julius Randle",
+      "nba_team": "BKN",
+      "positions": [
+        "PF"
+      ],
+      "fantasy_team": "New York Hav Havs"
+    },
+    {
+      "overall_pick": 77,
+      "round": 6,
+      "pick_in_round": 7,
+      "player": "Jaden McDaniels",
+      "nba_team": "MIN",
+      "positions": [
+        "SF"
+      ],
+      "fantasy_team": "Железный занавес"
+    },
+    {
+      "overall_pick": 78,
+      "round": 6,
+      "pick_in_round": 8,
+      "player": "Kel'el Ware",
+      "nba_team": "MIL",
+      "positions": [
+        "C"
+      ],
+      "fantasy_team": "Çatal State Warriors"
+    },
+    {
+      "overall_pick": 79,
+      "round": 6,
+      "pick_in_round": 9,
+      "player": "Rudy Gobert",
+      "nba_team": "MIN",
+      "positions": [
+        "C"
+      ],
+      "fantasy_team": "Tekirdağ Yeni Rakıts"
+    },
+    {
+      "overall_pick": 80,
+      "round": 6,
+      "pick_in_round": 10,
+      "player": "Dylan Harper",
+      "nba_team": "SAS",
+      "positions": [
+        "PG",
+        "SG"
+      ],
+      "fantasy_team": "Tarık Baran's Groovy Team"
+    },
+    {
+      "overall_pick": 81,
+      "round": 6,
+      "pick_in_round": 11,
+      "player": "Brandon Ingram",
+      "nba_team": "LAC",
+      "positions": [
+        "SG",
+        "SF",
+        "PF"
+      ],
+      "fantasy_team": "Emirhan's Super Team"
+    },
+    {
+      "overall_pick": 82,
+      "round": 6,
+      "pick_in_round": 12,
+      "player": "Payton Pritchard",
+      "nba_team": "BOS",
+      "positions": [
+        "PG"
+      ],
+      "fantasy_team": "Manisa 69'rs"
+    },
+    {
+      "overall_pick": 83,
+      "round": 6,
+      "pick_in_round": 13,
+      "player": "Cedric Coward",
+      "nba_team": "MEM",
+      "positions": [
+        "SG",
+        "SF"
+      ],
+      "fantasy_team": "Ömer Faruk's Swag Team"
+    },
+    {
+      "overall_pick": 84,
+      "round": 6,
+      "pick_in_round": 14,
+      "player": "Caleb Wilson",
+      "nba_team": "CHI",
+      "positions": [
+        "PF"
+      ],
+      "fantasy_team": "4-2-3-1 Gegen"
+    },
+    {
+      "overall_pick": 85,
+      "round": 7,
+      "pick_in_round": 1,
+      "player": "Andrew Wiggins",
+      "nba_team": "MIA",
+      "positions": [
+        "SG",
+        "SF",
+        "PF"
+      ],
+      "fantasy_team": "4-2-3-1 Gegen"
+    },
+    {
+      "overall_pick": 86,
+      "round": 7,
+      "pick_in_round": 2,
+      "player": "Paul George",
+      "nba_team": "BOS",
+      "positions": [
+        "SF",
+        "PF"
+      ],
+      "fantasy_team": "Ömer Faruk's Swag Team"
+    },
+    {
+      "overall_pick": 87,
+      "round": 7,
+      "pick_in_round": 3,
+      "player": "Derik Queen",
+      "nba_team": "NOP",
+      "positions": [
+        "PF",
+        "C"
+      ],
+      "fantasy_team": "Manisa 69'rs"
+    },
+    {
+      "overall_pick": 88,
+      "round": 7,
+      "pick_in_round": 4,
+      "player": "Jabari Smith Jr.",
+      "nba_team": "HOU",
+      "positions": [
+        "PF",
+        "C"
+      ],
+      "fantasy_team": "Emirhan's Super Team"
+    },
+    {
+      "overall_pick": 89,
+      "round": 7,
+      "pick_in_round": 5,
+      "player": "Day'Ron Sharpe",
+      "nba_team": "BKN",
+      "positions": [
+        "C"
+      ],
+      "fantasy_team": "Tarık Baran's Groovy Team"
+    },
+    {
+      "overall_pick": 90,
+      "round": 7,
+      "pick_in_round": 6,
+      "player": "Zion Williamson",
+      "nba_team": "NOP",
+      "positions": [
+        "PF",
+        "C"
+      ],
+      "fantasy_team": "Tekirdağ Yeni Rakıts"
+    },
+    {
+      "overall_pick": 91,
+      "round": 7,
+      "pick_in_round": 7,
+      "player": "Ty Jerome",
+      "nba_team": "MEM",
+      "positions": [
+        "PG",
+        "SG"
+      ],
+      "fantasy_team": "Çatal State Warriors"
+    },
+    {
+      "overall_pick": 92,
+      "round": 7,
+      "pick_in_round": 8,
+      "player": "Myles Turner",
+      "nba_team": "MIL",
+      "positions": [
+        "C"
+      ],
+      "fantasy_team": "Железный занавес"
+    },
+    {
+      "overall_pick": 93,
+      "round": 7,
+      "pick_in_round": 9,
+      "player": "AJ Dybantsa",
+      "nba_team": "WAS",
+      "positions": [
+        "SF"
+      ],
+      "fantasy_team": "New York Hav Havs"
+    },
+    {
+      "overall_pick": 94,
+      "round": 7,
+      "pick_in_round": 10,
+      "player": "Wendell Carter Jr.",
+      "nba_team": "ORL",
+      "positions": [
+        "C"
+      ],
+      "fantasy_team": "Arda's Optimal Team"
+    },
+    {
+      "overall_pick": 95,
+      "round": 7,
+      "pick_in_round": 11,
+      "player": "Immanuel Quickley",
+      "nba_team": "TOR",
+      "positions": [
+        "PG",
+        "SG"
+      ],
+      "fantasy_team": "ehrmantraut spor kulübü"
+    },
+    {
+      "overall_pick": 96,
+      "round": 7,
+      "pick_in_round": 12,
+      "player": "Josh Hart",
+      "nba_team": "NYK",
+      "positions": [
+        "SG",
+        "SF"
+      ],
+      "fantasy_team": "Ege's Expert Team"
+    },
+    {
+      "overall_pick": 97,
+      "round": 7,
+      "pick_in_round": 13,
+      "player": "Norman Powell",
+      "nba_team": "CHI",
+      "positions": [
+        "SG",
+        "SF"
+      ],
+      "fantasy_team": "Blacksea Hamsies"
+    },
+    {
+      "overall_pick": 98,
+      "round": 7,
+      "pick_in_round": 14,
+      "player": "Coby White",
+      "nba_team": "CHA",
+      "positions": [
+        "PG",
+        "SG"
+      ],
+      "fantasy_team": "Losadanas"
+    },
+    {
+      "overall_pick": 99,
+      "round": 8,
+      "pick_in_round": 1,
+      "player": "Darryn Peterson",
+      "nba_team": "UTA",
+      "positions": [
+        "SG"
+      ],
+      "fantasy_team": "Losadanas"
+    },
+    {
+      "overall_pick": 100,
+      "round": 8,
+      "pick_in_round": 2,
+      "player": "Nic Claxton",
+      "nba_team": "CHI",
+      "positions": [
+        "C"
+      ],
+      "fantasy_team": "Blacksea Hamsies"
+    },
+    {
+      "overall_pick": 101,
+      "round": 8,
+      "pick_in_round": 3,
+      "player": "Miles Bridges",
+      "nba_team": "PHX",
+      "positions": [
+        "PF"
+      ],
+      "fantasy_team": "Ege's Expert Team"
+    },
+    {
+      "overall_pick": 102,
+      "round": 8,
+      "pick_in_round": 4,
+      "player": "John Collins",
+      "nba_team": "DET",
+      "positions": [
+        "PF",
+        "C"
+      ],
+      "fantasy_team": "ehrmantraut spor kulübü"
+    },
+    {
+      "overall_pick": 103,
+      "round": 8,
+      "pick_in_round": 5,
+      "player": "Reed Sheppard",
+      "nba_team": "HOU",
+      "positions": [
+        "PG",
+        "SG"
+      ],
+      "fantasy_team": "Arda's Optimal Team"
+    },
+    {
+      "overall_pick": 104,
+      "round": 8,
+      "pick_in_round": 6,
+      "player": "Ja Morant",
+      "nba_team": "POR",
+      "positions": [
+        "PG"
+      ],
+      "fantasy_team": "New York Hav Havs"
+    },
+    {
+      "overall_pick": 105,
+      "round": 8,
+      "pick_in_round": 7,
+      "player": "Jalen Green",
+      "nba_team": "PHX",
+      "positions": [
+        "SG",
+        "SF"
+      ],
+      "fantasy_team": "Железный занавес"
+    },
+    {
+      "overall_pick": 106,
+      "round": 8,
+      "pick_in_round": 8,
+      "player": "Keegan Murray",
+      "nba_team": "SAC",
+      "positions": [
+        "SF",
+        "PF"
+      ],
+      "fantasy_team": "Çatal State Warriors"
+    },
+    {
+      "overall_pick": 107,
+      "round": 8,
+      "pick_in_round": 9,
+      "player": "Zach LaVine",
+      "nba_team": "SAC",
+      "positions": [
+        "PG",
+        "SG",
+        "SF"
+      ],
+      "fantasy_team": "Tekirdağ Yeni Rakıts"
+    },
+    {
+      "overall_pick": 108,
+      "round": 8,
+      "pick_in_round": 10,
+      "player": "Toumani Camara",
+      "nba_team": "POR",
+      "positions": [
+        "SF",
+        "PF"
+      ],
+      "fantasy_team": "Tarık Baran's Groovy Team"
+    },
+    {
+      "overall_pick": 109,
+      "round": 8,
+      "pick_in_round": 11,
+      "player": "CJ McCollum",
+      "nba_team": "ATL",
+      "positions": [
+        "PG",
+        "SG"
+      ],
+      "fantasy_team": "Emirhan's Super Team"
+    },
+    {
+      "overall_pick": 110,
+      "round": 8,
+      "pick_in_round": 12,
+      "player": "Collin Murray-Boyles",
+      "nba_team": "TOR",
+      "positions": [
+        "PF",
+        "C"
+      ],
+      "fantasy_team": "Manisa 69'rs"
+    },
+    {
+      "overall_pick": 111,
+      "round": 8,
+      "pick_in_round": 13,
+      "player": "Jalen Suggs",
+      "nba_team": "ORL",
+      "positions": [
+        "PG",
+        "SG"
+      ],
+      "fantasy_team": "Ömer Faruk's Swag Team"
+    },
+    {
+      "overall_pick": 112,
+      "round": 8,
+      "pick_in_round": 14,
+      "player": "Yaxel Lendeborg",
+      "nba_team": "GSW",
+      "positions": [
+        "PF"
+      ],
+      "fantasy_team": "4-2-3-1 Gegen"
+    },
+    {
+      "overall_pick": 113,
+      "round": 9,
+      "pick_in_round": 1,
+      "player": "Davion Mitchell",
+      "nba_team": "MIA",
+      "positions": [
+        "PG"
+      ],
+      "fantasy_team": "4-2-3-1 Gegen"
+    },
+    {
+      "overall_pick": 114,
+      "round": 9,
+      "pick_in_round": 2,
+      "player": "Isaiah Hartenstein",
+      "nba_team": "OKC",
+      "positions": [
+        "C"
+      ],
+      "fantasy_team": "Ömer Faruk's Swag Team"
+    },
+    {
+      "overall_pick": 115,
+      "round": 9,
+      "pick_in_round": 3,
+      "player": "Julian Champagnie",
+      "nba_team": "SAS",
+      "positions": [
+        "SF",
+        "PF"
+      ],
+      "fantasy_team": "Manisa 69'rs"
+    },
+    {
+      "overall_pick": 116,
+      "round": 9,
+      "pick_in_round": 4,
+      "player": "Cason Wallace",
+      "nba_team": "OKC",
+      "positions": [
+        "PG",
+        "SG",
+        "SF"
+      ],
+      "fantasy_team": "Emirhan's Super Team"
+    },
+    {
+      "overall_pick": 117,
+      "round": 9,
+      "pick_in_round": 5,
+      "player": "Scotty Pippen Jr.",
+      "nba_team": "MEM",
+      "positions": [
+        "PG"
+      ],
+      "fantasy_team": "Tarık Baran's Groovy Team"
+    },
+    {
+      "overall_pick": 118,
+      "round": 9,
+      "pick_in_round": 6,
+      "player": "Ayo Dosunmu",
+      "nba_team": "MIN",
+      "positions": [
+        "PG",
+        "SG"
+      ],
+      "fantasy_team": "Tekirdağ Yeni Rakıts"
+    },
+    {
+      "overall_pick": 119,
+      "round": 9,
+      "pick_in_round": 7,
+      "player": "Kevin Porter Jr.",
+      "nba_team": "MIL",
+      "positions": [
+        "PG",
+        "SG"
+      ],
+      "fantasy_team": "Çatal State Warriors"
+    },
+    {
+      "overall_pick": 120,
+      "round": 9,
+      "pick_in_round": 8,
+      "player": "Tari Eason",
+      "nba_team": "HOU",
+      "positions": [
+        "SG",
+        "SF",
+        "PF"
+      ],
+      "fantasy_team": "Железный занавес"
+    },
+    {
+      "overall_pick": 121,
+      "round": 9,
+      "pick_in_round": 9,
+      "player": "Sandro Mamukelashvili",
+      "nba_team": "LAL",
+      "positions": [
+        "PF",
+        "C"
+      ],
+      "fantasy_team": "New York Hav Havs"
+    },
+    {
+      "overall_pick": 122,
+      "round": 9,
+      "pick_in_round": 10,
+      "player": "Kyle Filipowski",
+      "nba_team": "UTA",
+      "positions": [
+        "PF",
+        "C"
+      ],
+      "fantasy_team": "Arda's Optimal Team"
+    },
+    {
+      "overall_pick": 123,
+      "round": 9,
+      "pick_in_round": 11,
+      "player": "Collin Gillespie",
+      "nba_team": "PHX",
+      "positions": [
+        "PG",
+        "SG"
+      ],
+      "fantasy_team": "ehrmantraut spor kulübü"
+    },
+    {
+      "overall_pick": 124,
+      "round": 9,
+      "pick_in_round": 12,
+      "player": "Kyshawn George",
+      "nba_team": "WAS",
+      "positions": [
+        "SG",
+        "SF",
+        "PF"
+      ],
+      "fantasy_team": "Ege's Expert Team"
+    },
+    {
+      "overall_pick": 125,
+      "round": 9,
+      "pick_in_round": 13,
+      "player": "Brandin Podziemski",
+      "nba_team": "GSW",
+      "positions": [
+        "PG",
+        "SG"
+      ],
+      "fantasy_team": "Blacksea Hamsies"
+    },
+    {
+      "overall_pick": 126,
+      "round": 9,
+      "pick_in_round": 14,
+      "player": "Jaime Jaquez Jr.",
+      "nba_team": "MIL",
+      "positions": [
+        "SG",
+        "SF",
+        "PF"
+      ],
+      "fantasy_team": "Losadanas"
+    },
+    {
+      "overall_pick": 127,
+      "round": 10,
+      "pick_in_round": 1,
+      "player": "Rui Hachimura",
+      "nba_team": "LAC",
+      "positions": [
+        "SF",
+        "PF"
+      ],
+      "fantasy_team": "Losadanas"
+    },
+    {
+      "overall_pick": 128,
+      "round": 10,
+      "pick_in_round": 2,
+      "player": "Peyton Watson",
+      "nba_team": "CLE",
+      "positions": [
+        "SF",
+        "PF"
+      ],
+      "fantasy_team": "Blacksea Hamsies"
+    },
+    {
+      "overall_pick": 129,
+      "round": 10,
+      "pick_in_round": 3,
+      "player": "RJ Barrett",
+      "nba_team": "TOR",
+      "positions": [
+        "SG",
+        "SF",
+        "PF"
+      ],
+      "fantasy_team": "Ege's Expert Team"
+    },
+    {
+      "overall_pick": 130,
+      "round": 10,
+      "pick_in_round": 4,
+      "player": "Aaron Gordon",
+      "nba_team": "DEN",
+      "positions": [
+        "PF",
+        "C"
+      ],
+      "fantasy_team": "ehrmantraut spor kulübü"
+    },
+    {
+      "overall_pick": 131,
+      "round": 10,
+      "pick_in_round": 5,
+      "player": "Anthony Black",
+      "nba_team": "ORL",
+      "positions": [
+        "PG",
+        "SG",
+        "SF"
+      ],
+      "fantasy_team": "Arda's Optimal Team"
+    },
+    {
+      "overall_pick": 132,
+      "round": 10,
+      "pick_in_round": 6,
+      "player": "Ajay Mitchell",
+      "nba_team": "OKC",
+      "positions": [
+        "PG",
+        "SG"
+      ],
+      "fantasy_team": "New York Hav Havs"
+    },
+    {
+      "overall_pick": 133,
+      "round": 10,
+      "pick_in_round": 7,
+      "player": "Grayson Allen",
+      "nba_team": "CHA",
+      "positions": [
+        "SG",
+        "SF"
+      ],
+      "fantasy_team": "Железный занавес"
+    },
+    {
+      "overall_pick": 134,
+      "round": 10,
+      "pick_in_round": 8,
+      "player": "Neemias Queta",
+      "nba_team": "BOS",
+      "positions": [
+        "C"
+      ],
+      "fantasy_team": "Çatal State Warriors"
+    },
+    {
+      "overall_pick": 135,
+      "round": 10,
+      "pick_in_round": 9,
+      "player": "Andrew Nembhard",
+      "nba_team": "IND",
+      "positions": [
+        "PG",
+        "SG"
+      ],
+      "fantasy_team": "Tekirdağ Yeni Rakıts"
+    },
+    {
+      "overall_pick": 136,
+      "round": 10,
+      "pick_in_round": 10,
+      "player": "Quentin Grimes",
+      "nba_team": "LAL",
+      "positions": [
+        "SG",
+        "SF"
+      ],
+      "fantasy_team": "Tarık Baran's Groovy Team"
+    },
+    {
+      "overall_pick": 137,
+      "round": 10,
+      "pick_in_round": 11,
+      "player": "DeMar DeRozan",
+      "nba_team": "DEN",
+      "positions": [
+        "SF",
+        "PF"
+      ],
+      "fantasy_team": "Emirhan's Super Team"
+    },
+    {
+      "overall_pick": 138,
+      "round": 10,
+      "pick_in_round": 12,
+      "player": "Saddiq Bey",
+      "nba_team": "NOP",
+      "positions": [
+        "SF",
+        "PF"
+      ],
+      "fantasy_team": "Manisa 69'rs"
+    },
+    {
+      "overall_pick": 139,
+      "round": 10,
+      "pick_in_round": 13,
+      "player": "Jonathan Kuminga",
+      "nba_team": "MIN",
+      "positions": [
+        "SF",
+        "PF"
+      ],
+      "fantasy_team": "Ömer Faruk's Swag Team"
+    },
+    {
+      "overall_pick": 140,
+      "round": 10,
+      "pick_in_round": 14,
+      "player": "Khaman Maluach",
+      "nba_team": "PHX",
+      "positions": [
+        "C"
+      ],
+      "fantasy_team": "4-2-3-1 Gegen"
+    },
+    {
+      "overall_pick": 141,
+      "round": 11,
+      "pick_in_round": 1,
+      "player": "Scoot Henderson",
+      "nba_team": "POR",
+      "positions": [
+        "PG"
+      ],
+      "fantasy_team": "4-2-3-1 Gegen"
+    },
+    {
+      "overall_pick": 142,
+      "round": 11,
+      "pick_in_round": 2,
+      "player": "Jrue Holiday",
+      "nba_team": "POR",
+      "positions": [
+        "PG",
+        "SG"
+      ],
+      "fantasy_team": "Ömer Faruk's Swag Team"
+    },
+    {
+      "overall_pick": 143,
+      "round": 11,
+      "pick_in_round": 3,
+      "player": "Ace Bailey",
+      "nba_team": "UTA",
+      "positions": [
+        "SF",
+        "PF"
+      ],
+      "fantasy_team": "Manisa 69'rs"
+    },
+    {
+      "overall_pick": 144,
+      "round": 11,
+      "pick_in_round": 4,
+      "player": "Tre Jones",
+      "nba_team": "CHI",
+      "positions": [
+        "PG",
+        "SG"
+      ],
+      "fantasy_team": "Emirhan's Super Team"
+    },
+    {
+      "overall_pick": 145,
+      "round": 11,
+      "pick_in_round": 5,
+      "player": "Herbert Jones",
+      "nba_team": "NOP",
+      "positions": [
+        "SG",
+        "SF"
+      ],
+      "fantasy_team": "Tarık Baran's Groovy Team"
+    },
+    {
+      "overall_pick": 146,
+      "round": 11,
+      "pick_in_round": 6,
+      "player": "Darius Acuff Jr.",
+      "nba_team": "SAC",
+      "positions": [
+        "PG"
+      ],
+      "fantasy_team": "Tekirdağ Yeni Rakıts"
+    },
+    {
+      "overall_pick": 147,
+      "round": 11,
+      "pick_in_round": 7,
+      "player": "Cameron Johnson",
+      "nba_team": "DEN",
+      "positions": [
+        "SF",
+        "PF"
+      ],
+      "fantasy_team": "Çatal State Warriors"
+    },
+    {
+      "overall_pick": 148,
+      "round": 11,
+      "pick_in_round": 8,
+      "player": "Jerami Grant",
+      "nba_team": "MEM",
+      "positions": [
+        "SF",
+        "PF"
+      ],
+      "fantasy_team": "Железный занавес"
+    },
+    {
+      "overall_pick": 149,
+      "round": 11,
+      "pick_in_round": 9,
+      "player": "Jaylen Wells",
+      "nba_team": "MEM",
+      "positions": [
+        "SG",
+        "SF"
+      ],
+      "fantasy_team": "New York Hav Havs"
+    },
+    {
+      "overall_pick": 150,
+      "round": 11,
+      "pick_in_round": 10,
+      "player": "Egor Dëmin",
+      "nba_team": "BKN",
+      "positions": [
+        "PG",
+        "SG"
+      ],
+      "fantasy_team": "Arda's Optimal Team"
+    },
+    {
+      "overall_pick": 151,
+      "round": 11,
+      "pick_in_round": 11,
+      "player": "Dillon Brooks",
+      "nba_team": "PHX",
+      "positions": [
+        "SF",
+        "PF"
+      ],
+      "fantasy_team": "ehrmantraut spor kulübü"
+    },
+    {
+      "overall_pick": 152,
+      "round": 11,
+      "pick_in_round": 12,
+      "player": "Moussa Diabaté",
+      "nba_team": "CHA",
+      "positions": [
+        "C"
+      ],
+      "fantasy_team": "Ege's Expert Team"
+    },
+    {
+      "overall_pick": 153,
+      "round": 11,
+      "pick_in_round": 13,
+      "player": "Fred VanVleet",
+      "nba_team": "HOU",
+      "positions": [
+        "PG"
+      ],
+      "fantasy_team": "Blacksea Hamsies"
+    },
+    {
+      "overall_pick": 154,
+      "round": 11,
+      "pick_in_round": 14,
+      "player": "Bobby Portis Jr.",
+      "nba_team": "MIA",
+      "positions": [
+        "PF",
+        "C"
+      ],
+      "fantasy_team": "Losadanas"
+    },
+    {
+      "overall_pick": 155,
+      "round": 12,
+      "pick_in_round": 1,
+      "player": "Christian Braun",
+      "nba_team": "DEN",
+      "positions": [
+        "SG",
+        "SF",
+        "PF"
+      ],
+      "fantasy_team": "Losadanas"
+    },
+    {
+      "overall_pick": 156,
+      "round": 12,
+      "pick_in_round": 2,
+      "player": "Yves Missi",
+      "nba_team": "NOP",
+      "positions": [
+        "C"
+      ],
+      "fantasy_team": "Blacksea Hamsies"
+    },
+    {
+      "overall_pick": 157,
+      "round": 12,
+      "pick_in_round": 3,
+      "player": "Devin Vassell",
+      "nba_team": "SAS",
+      "positions": [
+        "SG",
+        "SF"
+      ],
+      "fantasy_team": "Ege's Expert Team"
+    },
+    {
+      "overall_pick": 158,
+      "round": 12,
+      "pick_in_round": 4,
+      "player": "Tarik Biberovic",
+      "nba_team": "DAL",
+      "positions": [
+        "SF"
+      ],
+      "fantasy_team": "ehrmantraut spor kulübü"
+    },
+    {
+      "overall_pick": 159,
+      "round": 12,
+      "pick_in_round": 5,
+      "player": "Keldon Johnson",
+      "nba_team": "SAS",
+      "positions": [
+        "SF",
+        "PF"
+      ],
+      "fantasy_team": "Arda's Optimal Team"
+    },
+    {
+      "overall_pick": 160,
+      "round": 12,
+      "pick_in_round": 6,
+      "player": "De'Andre Hunter",
+      "nba_team": "SAC",
+      "positions": [
+        "SF",
+        "PF"
+      ],
+      "fantasy_team": "New York Hav Havs"
+    },
+    {
+      "overall_pick": 161,
+      "round": 12,
+      "pick_in_round": 7,
+      "player": "P.J. Washington",
+      "nba_team": "DAL",
+      "positions": [
+        "PF",
+        "C"
+      ],
+      "fantasy_team": "Железный занавес"
+    },
+    {
+      "overall_pick": 162,
+      "round": 12,
+      "pick_in_round": 8,
+      "player": "Tobias Harris",
+      "nba_team": "SAS",
+      "positions": [
+        "PF"
+      ],
+      "fantasy_team": "Çatal State Warriors"
+    },
+    {
+      "overall_pick": 163,
+      "round": 12,
+      "pick_in_round": 9,
+      "player": "Bennedict Mathurin",
+      "nba_team": "NOP",
+      "positions": [
+        "SG",
+        "SF"
+      ],
+      "fantasy_team": "Tekirdağ Yeni Rakıts"
+    },
+    {
+      "overall_pick": 164,
+      "round": 12,
+      "pick_in_round": 10,
+      "player": "Collin Sexton",
+      "nba_team": "LAL",
+      "positions": [
+        "PG",
+        "SG"
+      ],
+      "fantasy_team": "Tarık Baran's Groovy Team"
+    },
+    {
+      "overall_pick": 165,
+      "round": 12,
+      "pick_in_round": 11,
+      "player": "Nikola Vučević",
+      "nba_team": "ORL",
+      "positions": [
+        "C"
+      ],
+      "fantasy_team": "Emirhan's Super Team"
+    },
+    {
+      "overall_pick": 166,
+      "round": 12,
+      "pick_in_round": 12,
+      "player": "Jeremiah Fears",
+      "nba_team": "NOP",
+      "positions": [
+        "PG",
+        "SG"
+      ],
+      "fantasy_team": "Manisa 69'rs"
+    },
+    {
+      "overall_pick": 167,
+      "round": 12,
+      "pick_in_round": 13,
+      "player": "Jusuf Nurkić",
+      "nba_team": "UTA",
+      "positions": [
+        "C"
+      ],
+      "fantasy_team": "Ömer Faruk's Swag Team"
+    },
+    {
+      "overall_pick": 168,
+      "round": 12,
+      "pick_in_round": 14,
+      "player": "Jake LaRavia",
+      "nba_team": "LAL",
+      "positions": [
+        "SF",
+        "PF"
+      ],
+      "fantasy_team": "4-2-3-1 Gegen"
+    },
+    {
+      "overall_pick": 169,
+      "round": 13,
+      "pick_in_round": 1,
+      "player": "Brayden Burries",
+      "nba_team": "MIL",
+      "positions": [
+        "SG"
+      ],
+      "fantasy_team": "4-2-3-1 Gegen"
+    },
+    {
+      "overall_pick": 170,
+      "round": 13,
+      "pick_in_round": 2,
+      "player": "Aaron Nesmith",
+      "nba_team": "IND",
+      "positions": [
+        "SG",
+        "SF"
+      ],
+      "fantasy_team": "Ömer Faruk's Swag Team"
+    },
+    {
+      "overall_pick": 171,
+      "round": 13,
+      "pick_in_round": 3,
+      "player": "Cam Spencer",
+      "nba_team": "MEM",
+      "positions": [
+        "PG",
+        "SG"
+      ],
+      "fantasy_team": "Manisa 69'rs"
+    },
+    {
+      "overall_pick": 172,
+      "round": 13,
+      "pick_in_round": 4,
+      "player": "Pelle Larsson",
+      "nba_team": "MIA",
+      "positions": [
+        "SG",
+        "SF"
+      ],
+      "fantasy_team": "Emirhan's Super Team"
+    },
+    {
+      "overall_pick": 173,
+      "round": 13,
+      "pick_in_round": 5,
+      "player": "Paul Reed",
+      "nba_team": "DET",
+      "positions": [
+        "PF",
+        "C"
+      ],
+      "fantasy_team": "Tarık Baran's Groovy Team"
+    },
+    {
+      "overall_pick": 174,
+      "round": 13,
+      "pick_in_round": 6,
+      "player": "Kristaps Porziņģis",
+      "nba_team": "GSW",
+      "positions": [
+        "C"
+      ],
+      "fantasy_team": "Tekirdağ Yeni Rakıts"
+    },
+    {
+      "overall_pick": 175,
+      "round": 13,
+      "pick_in_round": 7,
+      "player": "Jimmy Butler III",
+      "nba_team": "GSW",
+      "positions": [
+        "SF",
+        "PF"
+      ],
+      "fantasy_team": "Çatal State Warriors"
+    },
+    {
+      "overall_pick": 176,
+      "round": 13,
+      "pick_in_round": 8,
+      "player": "Jakob Poeltl",
+      "nba_team": "TOR",
+      "positions": [
+        "C"
+      ],
+      "fantasy_team": "Железный занавес"
+    },
+    {
+      "overall_pick": 177,
+      "round": 13,
+      "pick_in_round": 9,
+      "player": "Isaiah Joe",
+      "nba_team": "DET",
+      "positions": [
+        "SG",
+        "SF"
+      ],
+      "fantasy_team": "New York Hav Havs"
+    },
+    {
+      "overall_pick": 178,
+      "round": 13,
+      "pick_in_round": 10,
+      "player": "Daniel Gafford",
+      "nba_team": "DAL",
+      "positions": [
+        "C"
+      ],
+      "fantasy_team": "Arda's Optimal Team"
+    },
+    {
+      "overall_pick": 179,
+      "round": 13,
+      "pick_in_round": 11,
+      "player": "Maxime Raynaud",
+      "nba_team": "SAC",
+      "positions": [
+        "C"
+      ],
+      "fantasy_team": "ehrmantraut spor kulübü"
+    },
+    {
+      "overall_pick": 180,
+      "round": 13,
+      "pick_in_round": 12,
+      "player": "Sam Hauser",
+      "nba_team": "BOS",
+      "positions": [
+        "SF",
+        "PF"
+      ],
+      "fantasy_team": "Ege's Expert Team"
+    },
+    {
+      "overall_pick": 181,
+      "round": 13,
+      "pick_in_round": 13,
+      "player": "Kyle Kuzma",
+      "nba_team": "MIL",
+      "positions": [
+        "SF",
+        "PF"
+      ],
+      "fantasy_team": "Blacksea Hamsies"
+    },
+    {
+      "overall_pick": 182,
+      "round": 13,
+      "pick_in_round": 14,
+      "player": "Kelly Oubre Jr.",
+      "nba_team": "IND",
+      "positions": [
+        "SF",
+        "PF"
+      ],
+      "fantasy_team": "Losadanas"
+    }
+  ],
+  "raw_rounds": [
+    {
+      "round": 1,
+      "text": "Round 1\n1.\tNikola Jokić\n(DEN - C)\n\t4-2-3-1 Gegen\n2.\tVictor Wembanyama\n(SAS - C)\n\tÖmer Faruk's Swag Team\n3.\tShai Gilgeous-Alexander\n(OKC - PG)\n\tManisa 69'rs\n4.\tLuka Dončić\n(LAL - PG,SG)\n\tEmirhan's Super Team\n5.\tGiannis Antetokounmpo\n(MIA - PF,C)\n\tTarık Baran's Groovy Team\n6.\tTyrese Maxey\n(PHI - PG)\n\tTekirdağ Yeni Rakıts\n7.\tAnthony Edwards\n(MIN - PG,SG)\n\tÇatal State Warriors\n8.\tDonovan Mitchell\n(CLE - PG,SG)\n\tЖелезный занавес\n9.\tCade Cunningham\n(DET - PG,SG)\n\tNew York Hav Havs\n10.\tScottie Barnes\n(TOR - SF,PF,C)\n\tArda's Optimal Team\n11.\tCooper Flagg\n(DAL - SG,SF,PF)\n\tehrmantraut spor kulübü\n12.\tKarl-Anthony Towns\n(NYK - PF,C)\n\tEge's Expert Team\n13.\tJayson Tatum\n(BOS - SF,PF)\n\tBlacksea Hamsies\n14.\tKevin Durant\n(HOU - SG,SF,PF)\n\tLosadanas"
+    },
+    {
+      "round": 2,
+      "text": "Round 2\n1.\tAustin Reaves\n(LAL - PG,SG,SF)\n\tLosadanas\n2.\tTyrese Haliburton\n(IND - PG,SG)\n\tBlacksea Hamsies\n3.\tAmen Thompson\n(HOU - PG,SG)\n\tEge's Expert Team\n4.\tAlperen Şengün\n(HOU - PF,C)\n\tehrmantraut spor kulübü\n5.\tBam Adebayo\n(MIA - PF,C)\n\tArda's Optimal Team\n6.\tJalen Johnson\n(ATL - SF,PF)\n\tNew York Hav Havs\n7.\tKawhi Leonard\n(TOR - SG,SF,PF)\n\tЖелезный занавес\n8.\tJamal Murray\n(DEN - PG)\n\tÇatal State Warriors\n9.\tJosh Giddey\n(CHI - PG,SG)\n\tTekirdağ Yeni Rakıts\n10.\tEvan Mobley\n(CLE - PF,C)\n\tTarık Baran's Groovy Team\n11.\tLauri Markkanen\n(UTA - SF,PF)\n\tEmirhan's Super Team\n12.\tJalen Duren\n(DET - C)\n\tManisa 69'rs\n13.\tTrae Young\n(WAS - PG)\n\tÖmer Faruk's Swag Team\n14.\tStephen Curry\n(GSW - PG)\n\t4-2-3-1 Gegen"
+    },
+    {
+      "round": 3,
+      "text": "Round 3\n1.\tBrandon Miller\n(CHA - SF,PF)\n\t4-2-3-1 Gegen\n2.\tTrey Murphy III\n(NOP - SG,SF)\n\tÖmer Faruk's Swag Team\n3.\tLaMelo Ball\n(MIN - PG)\n\tManisa 69'rs\n4.\tDomantas Sabonis\n(SAC - PF,C)\n\tEmirhan's Super Team\n5.\tJalen Brunson\n(NYK - PG)\n\tTarık Baran's Groovy Team\n6.\tChet Holmgren\n(OKC - PF,C)\n\tTekirdağ Yeni Rakıts\n7.\tWalker Kessler\n(LAL - C)\n\tÇatal State Warriors\n8.\tJaren Jackson Jr.\n(UTA - PF,C)\n\tЖелезный занавес\n9.\tDevin Booker\n(PHX - PG,SG)\n\tNew York Hav Havs\n10.\tJames Harden\n(CLE - PG,SG)\n\tArda's Optimal Team\n11.\tDonovan Clingan\n(POR - C)\n\tehrmantraut spor kulübü\n12.\tDeni Avdija\n(POR - SG,SF,PF)\n\tEge's Expert Team\n13.\tAnthony Davis\n(WAS - PF,C)\n\tBlacksea Hamsies\n14.\tOnyeka Okongwu\n(ATL - C)\n\tLosadanas"
+    },
+    {
+      "round": 4,
+      "text": "Round 4\n1.\tFranz Wagner\n(ORL - SF,PF)\n\tLosadanas\n2.\tJaylen Brown\n(PHI - SG,SF,PF)\n\tBlacksea Hamsies\n3.\tKon Knueppel\n(CHA - SG,SF)\n\tEge's Expert Team\n4.\tKeyonte George\n(UTA - PG,SG)\n\tehrmantraut spor kulübü\n5.\tMatas Buzelis\n(CHI - SF,PF)\n\tArda's Optimal Team\n6.\tKyrie Irving\n(DAL - PG)\n\tNew York Hav Havs\n7.\tDesmond Bane\n(ORL - SG,SF)\n\tЖелезный занавес\n8.\tDerrick White\n(BOS - PG,SG)\n\tÇatal State Warriors\n9.\tPaolo Banchero\n(ORL - PF)\n\tTekirdağ Yeni Rakıts\n10.\tJalen Williams\n(OKC - SF,PF)\n\tTarık Baran's Groovy Team\n11.\tLeBron James\n(PHI - SF,PF)\n\tEmirhan's Super Team\n12.\tDyson Daniels\n(ATL - SG,SF)\n\tManisa 69'rs\n13.\tPascal Siakam\n(IND - PF,C)\n\tÖmer Faruk's Swag Team\n14.\tOG Anunoby\n(NYK - SF,PF)\n\t4-2-3-1 Gegen"
+    },
+    {
+      "round": 5,
+      "text": "Round 5\n1.\tAlex Sarr\n(WAS - C)\n\t4-2-3-1 Gegen\n2.\tIvica Zubac\n(IND - C)\n\tÖmer Faruk's Swag Team\n3.\tNickeil Alexander-Walker\n(ATL - PG,SG)\n\tManisa 69'rs\n4.\tDamian Lillard\n(POR - PG)\n\tEmirhan's Super Team\n5.\tDarius Garland\n(LAC - PG)\n\tTarık Baran's Groovy Team\n6.\tDejounte Murray\n(NOP - PG)\n\tTekirdağ Yeni Rakıts\n7.\tMichael Porter Jr.\n(BKN - SF,PF)\n\tÇatal State Warriors\n8.\tNaz Reid\n(CHA - PF,C)\n\tЖелезный занавес\n9.\tZach Edey\n(MEM - C)\n\tNew York Hav Havs\n10.\tAusar Thompson\n(DET - SG,SF,PF)\n\tArda's Optimal Team\n11.\tTyler Herro\n(MIL - PG,SG)\n\tehrmantraut spor kulübü\n12.\tCameron Boozer\n(MEM - PF)\n\tEge's Expert Team\n13.\tJoel Embiid\n(PHI - C)\n\tBlacksea Hamsies\n14.\tRyan Rollins\n(MIL - PG,SG)\n\tLosadanas"
+    },
+    {
+      "round": 6,
+      "text": "Round 6\n1.\tStephon Castle\n(SAS - PG,SG)\n\tLosadanas\n2.\tDe'Aaron Fox\n(SAS - PG)\n\tBlacksea Hamsies\n3.\tJarrett Allen\n(CLE - C)\n\tEge's Expert Team\n4.\tMikal Bridges\n(NYK - SF,PF)\n\tehrmantraut spor kulübü\n5.\tVJ Edgecombe\n(PHI - PG,SG)\n\tArda's Optimal Team\n6.\tJulius Randle\n(BKN - PF)\n\tNew York Hav Havs\n7.\tJaden McDaniels\n(MIN - SF)\n\tЖелезный занавес\n8.\tKel'el Ware\n(MIL - C)\n\tÇatal State Warriors\n9.\tRudy Gobert\n(MIN - C)\n\tTekirdağ Yeni Rakıts\n10.\tDylan Harper\n(SAS - PG,SG)\n\tTarık Baran's Groovy Team\n11.\tBrandon Ingram\n(LAC - SG,SF,PF)\n\tEmirhan's Super Team\n12.\tPayton Pritchard\n(BOS - PG)\n\tManisa 69'rs\n13.\tCedric Coward\n(MEM - SG,SF)\n\tÖmer Faruk's Swag Team\n14.\tCaleb Wilson\n(CHI - PF)\n\t4-2-3-1 Gegen"
+    },
+    {
+      "round": 7,
+      "text": "Round 7\n1.\tAndrew Wiggins\n(MIA - SG,SF,PF)\n\t4-2-3-1 Gegen\n2.\tPaul George\n(BOS - SF,PF)\n\tÖmer Faruk's Swag Team\n3.\tDerik Queen\n(NOP - PF,C)\n\tManisa 69'rs\n4.\tJabari Smith Jr.\n(HOU - PF,C)\n\tEmirhan's Super Team\n5.\tDay'Ron Sharpe\n(BKN - C)\n\tTarık Baran's Groovy Team\n6.\tZion Williamson\n(NOP - PF,C)\n\tTekirdağ Yeni Rakıts\n7.\tTy Jerome\n(MEM - PG,SG)\n\tÇatal State Warriors\n8.\tMyles Turner\n(MIL - C)\n\tЖелезный занавес\n9.\tAJ Dybantsa\n(WAS - SF)\n\tNew York Hav Havs\n10.\tWendell Carter Jr.\n(ORL - C)\n\tArda's Optimal Team\n11.\tImmanuel Quickley\n(TOR - PG,SG)\n\tehrmantraut spor kulübü\n12.\tJosh Hart\n(NYK - SG,SF)\n\tEge's Expert Team\n13.\tNorman Powell\n(CHI - SG,SF)\n\tBlacksea Hamsies\n14.\tCoby White\n(CHA - PG,SG)\n\tLosadanas"
+    },
+    {
+      "round": 8,
+      "text": "Round 8\n1.\tDarryn Peterson\n(UTA - SG)\n\tLosadanas\n2.\tNic Claxton\n(CHI - C)\n\tBlacksea Hamsies\n3.\tMiles Bridges\n(PHX - PF)\n\tEge's Expert Team\n4.\tJohn Collins\n(DET - PF,C)\n\tehrmantraut spor kulübü\n5.\tReed Sheppard\n(HOU - PG,SG)\n\tArda's Optimal Team\n6.\tJa Morant\n(POR - PG)\n\tNew York Hav Havs\n7.\tJalen Green\n(PHX - SG,SF)\n\tЖелезный занавес\n8.\tKeegan Murray\n(SAC - SF,PF)\n\tÇatal State Warriors\n9.\tZach LaVine\n(SAC - PG,SG,SF)\n\tTekirdağ Yeni Rakıts\n10.\tToumani Camara\n(POR - SF,PF)\n\tTarık Baran's Groovy Team\n11.\tCJ McCollum\n(ATL - PG,SG)\n\tEmirhan's Super Team\n12.\tCollin Murray-Boyles\n(TOR - PF,C)\n\tManisa 69'rs\n13.\tJalen Suggs\n(ORL - PG,SG)\n\tÖmer Faruk's Swag Team\n14.\tYaxel Lendeborg\n(GSW - PF)\n\t4-2-3-1 Gegen"
+    },
+    {
+      "round": 9,
+      "text": "Round 9\n1.\tDavion Mitchell\n(MIA - PG)\n\t4-2-3-1 Gegen\n2.\tIsaiah Hartenstein\n(OKC - C)\n\tÖmer Faruk's Swag Team\n3.\tJulian Champagnie\n(SAS - SF,PF)\n\tManisa 69'rs\n4.\tCason Wallace\n(OKC - PG,SG,SF)\n\tEmirhan's Super Team\n5.\tScotty Pippen Jr.\n(MEM - PG)\n\tTarık Baran's Groovy Team\n6.\tAyo Dosunmu\n(MIN - PG,SG)\n\tTekirdağ Yeni Rakıts\n7.\tKevin Porter Jr.\n(MIL - PG,SG)\n\tÇatal State Warriors\n8.\tTari Eason\n(HOU - SG,SF,PF)\n\tЖелезный занавес\n9.\tSandro Mamukelashvili\n(LAL - PF,C)\n\tNew York Hav Havs\n10.\tKyle Filipowski\n(UTA - PF,C)\n\tArda's Optimal Team\n11.\tCollin Gillespie\n(PHX - PG,SG)\n\tehrmantraut spor kulübü\n12.\tKyshawn George\n(WAS - SG,SF,PF)\n\tEge's Expert Team\n13.\tBrandin Podziemski\n(GSW - PG,SG)\n\tBlacksea Hamsies\n14.\tJaime Jaquez Jr.\n(MIL - SG,SF,PF)\n\tLosadanas"
+    },
+    {
+      "round": 10,
+      "text": "Round 10\n1.\tRui Hachimura\n(LAC - SF,PF)\n\tLosadanas\n2.\tPeyton Watson\n(CLE - SF,PF)\n\tBlacksea Hamsies\n3.\tRJ Barrett\n(TOR - SG,SF,PF)\n\tEge's Expert Team\n4.\tAaron Gordon\n(DEN - PF,C)\n\tehrmantraut spor kulübü\n5.\tAnthony Black\n(ORL - PG,SG,SF)\n\tArda's Optimal Team\n6.\tAjay Mitchell\n(OKC - PG,SG)\n\tNew York Hav Havs\n7.\tGrayson Allen\n(CHA - SG,SF)\n\tЖелезный занавес\n8.\tNeemias Queta\n(BOS - C)\n\tÇatal State Warriors\n9.\tAndrew Nembhard\n(IND - PG,SG)\n\tTekirdağ Yeni Rakıts\n10.\tQuentin Grimes\n(LAL - SG,SF)\n\tTarık Baran's Groovy Team\n11.\tDeMar DeRozan\n(DEN - SF,PF)\n\tEmirhan's Super Team\n12.\tSaddiq Bey\n(NOP - SF,PF)\n\tManisa 69'rs\n13.\tJonathan Kuminga\n(MIN - SF,PF)\n\tÖmer Faruk's Swag Team\n14.\tKhaman Maluach\n(PHX - C)\n\t4-2-3-1 Gegen"
+    },
+    {
+      "round": 11,
+      "text": "Round 11\n1.\tScoot Henderson\n(POR - PG)\n\t4-2-3-1 Gegen\n2.\tJrue Holiday\n(POR - PG,SG)\n\tÖmer Faruk's Swag Team\n3.\tAce Bailey\n(UTA - SF,PF)\n\tManisa 69'rs\n4.\tTre Jones\n(CHI - PG,SG)\n\tEmirhan's Super Team\n5.\tHerbert Jones\n(NOP - SG,SF)\n\tTarık Baran's Groovy Team\n6.\tDarius Acuff Jr.\n(SAC - PG)\n\tTekirdağ Yeni Rakıts\n7.\tCameron Johnson\n(DEN - SF,PF)\n\tÇatal State Warriors\n8.\tJerami Grant\n(MEM - SF,PF)\n\tЖелезный занавес\n9.\tJaylen Wells\n(MEM - SG,SF)\n\tNew York Hav Havs\n10.\tEgor Dëmin\n(BKN - PG,SG)\n\tArda's Optimal Team\n11.\tDillon Brooks\n(PHX - SF,PF)\n\tehrmantraut spor kulübü\n12.\tMoussa Diabaté\n(CHA - C)\n\tEge's Expert Team\n13.\tFred VanVleet\n(HOU - PG)\n\tBlacksea Hamsies\n14.\tBobby Portis Jr.\n(MIA - PF,C)\n\tLosadanas"
+    },
+    {
+      "round": 12,
+      "text": "Round 12\n1.\tChristian Braun\n(DEN - SG,SF,PF)\n\tLosadanas\n2.\tYves Missi\n(NOP - C)\n\tBlacksea Hamsies\n3.\tDevin Vassell\n(SAS - SG,SF)\n\tEge's Expert Team\n4.\tTarik Biberovic\n(DAL - SF)\n\tehrmantraut spor kulübü\n5.\tKeldon Johnson\n(SAS - SF,PF)\n\tArda's Optimal Team\n6.\tDe'Andre Hunter\n(SAC - SF,PF)\n\tNew York Hav Havs\n7.\tP.J. Washington\n(DAL - PF,C)\n\tЖелезный занавес\n8.\tTobias Harris\n(SAS - PF)\n\tÇatal State Warriors\n9.\tBennedict Mathurin\n(NOP - SG,SF)\n\tTekirdağ Yeni Rakıts\n10.\tCollin Sexton\n(LAL - PG,SG)\n\tTarık Baran's Groovy Team\n11.\tNikola Vučević\n(ORL - C)\n\tEmirhan's Super Team\n12.\tJeremiah Fears\n(NOP - PG,SG)\n\tManisa 69'rs\n13.\tJusuf Nurkić\n(UTA - C)\n\tÖmer Faruk's Swag Team\n14.\tJake LaRavia\n(LAL - SF,PF)\n\t4-2-3-1 Gegen"
+    },
+    {
+      "round": 13,
+      "text": "Round 13\n1.\tBrayden Burries\n(MIL - SG)\n\t4-2-3-1 Gegen\n2.\tAaron Nesmith\n(IND - SG,SF)\n\tÖmer Faruk's Swag Team\n3.\tCam Spencer\n(MEM - PG,SG)\n\tManisa 69'rs\n4.\tPelle Larsson\n(MIA - SG,SF)\n\tEmirhan's Super Team\n5.\tPaul Reed\n(DET - PF,C)\n\tTarık Baran's Groovy Team\n6.\tKristaps Porziņģis\n(GSW - C)\n\tTekirdağ Yeni Rakıts\n7.\tJimmy Butler III\n(GSW - SF,PF)\n\tÇatal State Warriors\n8.\tJakob Poeltl\n(TOR - C)\n\tЖелезный занавес\n9.\tIsaiah Joe\n(DET - SG,SF)\n\tNew York Hav Havs\n10.\tDaniel Gafford\n(DAL - C)\n\tArda's Optimal Team\n11.\tMaxime Raynaud\n(SAC - C)\n\tehrmantraut spor kulübü\n12.\tSam Hauser\n(BOS - SF,PF)\n\tEge's Expert Team\n13.\tKyle Kuzma\n(MIL - SF,PF)\n\tBlacksea Hamsies\n14.\tKelly Oubre Jr.\n(IND - SF,PF)\n\tLosadanas"
+    }
+  ]
+}

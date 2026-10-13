@@ -1,0 +1,228 @@
+# Draft 05
+
+- Kaynak: Yahoo mock draft sonuç sayfası (kullanıcı yapıştırdı, 2026-10-13)
+- Takım: 14, tur: 13
+- Otomatik (Yahoo botu): adı "Team N" olan takımlar (bu draft'ta yok)
+- Kullanıcı: Hüsamettin (sıra 9); pick'leri kalibrasyondan dışlanır
+
+```
+Round 1
+(1) Yuki - Jokić, Nikola (DEN - C)
+(2) Berkin - Wembanyama, Victor (SAS - C)
+(3) Jordan - Dončić, Luka (LAL - PG,SG)
+(4) RJ - Gilgeous-Alexander, Shai (OKC - PG)
+(5) lalala - Cunningham, Cade (DET - PG,SG)
+(6) TMT💰 - Antetokounmpo, Giannis (MIA - PF,C)
+(7) carlo anton - Tatum, Jayson (BOS - SF,PF)
+(8) Nathanael - Edwards, Anthony (MIN - PG,SG)
+(9) Hüsamettin - Maxey, Tyrese (PHI - PG)
+(10) Francis - Flagg, Cooper (DAL - SG,SF,PF)
+(11) Cemal - Haliburton, Tyrese (IND - PG,SG)
+(12) mert - Johnson, Jalen (ATL - PF,SF)
+(13) Aloisius - Durant, Kevin (HOU - SF,PF,SG)
+(14) kevin g - Towns, Karl-Anthony (NYK - C,PF)
+
+
+Round 2
+(1) kevin g - Murray, Jamal (DEN - PG)
+(2) Aloisius - Reaves, Austin (LAL - SG,PG,SF)
+(3) mert - Mitchell, Donovan (CLE - SG,PG)
+(4) Cemal - Barnes, Scottie (TOR - SF,PF,C)
+(5) Francis - Mobley, Evan (CLE - C,PF)
+(6) Hüsamettin - Giddey, Josh (CHI - PG,SG)
+(7) Nathanael - Şengün, Alperen (HOU - C,PF)
+(8) carlo anton - Ball, LaMelo (MIN - PG)
+(9) TMT💰 - Young, Trae (WAS - PG)
+(10) lalala - Thompson, Amen (HOU - PG,SG)
+(11) RJ - Booker, Devin (PHX - SG,PG)
+(12) Jordan - Curry, Stephen (GSW - PG)
+(13) Berkin - Harden, James (CLE - SG,PG)
+(14) Yuki - Adebayo, Bam (MIA - C,PF)
+
+
+Round 3
+(1) Yuki - Sabonis, Domantas (SAC - C,PF)
+(2) Berkin - Markkanen, Lauri (UTA - PF,SF)
+(3) Jordan - Murphy III, Trey (NOP - SG,SF)
+(4) RJ - Brunson, Jalen (NYK - PG)
+(5) lalala - Holmgren, Chet (OKC - PF,C)
+(6) TMT💰 - Duren, Jalen (DET - C)
+(7) carlo anton - Leonard, Kawhi (TOR - SG,SF,PF)
+(8) Nathanael - Banchero, Paolo (ORL - PF)
+(9) Hüsamettin - Avdija, Deni (POR - SF,PF,SG)
+(10) Francis - Garland, Darius (LAC - PG)
+(11) Cemal - Irving, Kyrie (DAL - PG)
+(12) mert - Miller, Brandon (CHA - SF,PF)
+(13) Aloisius - Clingan, Donovan (POR - C)
+(14) kevin g - George, Keyonte (UTA - SG,PG)
+
+
+Round 4
+(1) kevin g - Williams, Jalen (OKC - SF,PF)
+(2) Aloisius - Brown, Jaylen (PHI - SG,SF,PF)
+(3) mert - Davis, Anthony (WAS - PF,C)
+(4) Cemal - Kessler, Walker (LAL - C)
+(5) Francis - Knueppel, Kon (CHA - SF,SG)
+(6) Hüsamettin - Jackson Jr., Jaren (UTA - C,PF)
+(7) Nathanael - Siakam, Pascal (IND - PF,C)
+(8) carlo anton - James, LeBron (PHI - SF,PF)
+(9) TMT💰 - White, Derrick (BOS - SG,PG)
+(10) lalala - Bane, Desmond (ORL - SF,SG)
+(11) RJ - Wagner, Franz (ORL - SF,PF)
+(12) Jordan - Okongwu, Onyeka (ATL - C)
+(13) Berkin - Murray, Dejounte (NOP - PG)
+(14) Yuki - Rollins, Ryan (MIL - PG,SG)
+
+
+Round 5
+(1) Yuki - Embiid, Joel (PHI - C)
+(2) Berkin - Daniels, Dyson (ATL - SG,SF)
+(3) Jordan - Zubac, Ivica (IND - C)
+(4) RJ - Fox, De'Aaron (SAS - PG)
+(5) lalala - Boozer, Cameron (MEM - PF)
+(6) TMT💰 - Sarr, Alex (WAS - C)
+(7) carlo anton - VanVleet, Fred (HOU - PG)
+(8) Nathanael - Buzelis, Matas (CHI - SF,PF)
+(9) Hüsamettin - Anunoby, OG (NYK - SF,PF)
+(10) Francis - Ware, Kel'el (MIL - C)
+(11) Cemal - Alexander-Walker, Nickeil (ATL - PG,SG)
+(12) mert - Porter Jr., Michael (BKN - SF,PF)
+(13) Aloisius - Lillard, Damian (POR - PG)
+(14) kevin g - Allen, Jarrett (CLE - C)
+
+
+Round 6
+(1) kevin g - Coward, Cedric (MEM - SG,SF)
+(2) Aloisius - Edey, Zach (MEM - C)
+(3) mert - Reid, Naz (CHA - C,PF)
+(4) Cemal - Herro, Tyler (MIL - SG,PG)
+(5) Francis - White, Coby (CHA - PG,SG)
+(6) Hüsamettin - Dybantsa, AJ (WAS - SF)
+(7) Nathanael - Gobert, Rudy (MIN - C)
+(8) carlo anton - Randle, Julius (BKN - PF)
+(9) TMT💰 - Thompson, Ausar (DET - SF,PF,SG)
+(10) lalala - George, Paul (BOS - SF,PF)
+(11) RJ - Castle, Stephon (SAS - PG,SG)
+(12) Jordan - Bridges, Mikal (NYK - SF,PF)
+(13) Berkin - Jerome, Ty (MEM - SG,PG)
+(14) Yuki - Pritchard, Payton (BOS - PG)
+
+
+Round 7
+(1) Yuki - Williamson, Zion (NOP - PF,C)
+(2) Berkin - McDaniels, Jaden (MIN - SF)
+(3) Jordan - Wilson, Caleb (CHI - PF)
+(4) RJ - Sharpe, Day'Ron (BKN - C)
+(5) lalala - Ingram, Brandon (LAC - SG,SF,PF)
+(6) TMT💰 - Edgecombe, VJ (PHI - SG,PG)
+(7) carlo anton - Harper, Dylan (SAS - SG,PG)
+(8) Nathanael - Morant, Ja (POR - PG)
+(9) Hüsamettin - Quickley, Immanuel (TOR - PG,SG)
+(10) Francis - Powell, Norman (CHI - SG,SF)
+(11) Cemal - Wiggins, Andrew (MIA - SG,SF,PF)
+(12) mert - Suggs, Jalen (ORL - PG,SG)
+(13) Aloisius - Smith Jr., Jabari (HOU - PF,C)
+(14) kevin g - Hart, Josh (NYK - SG,SF)
+
+
+Round 8
+(1) kevin g - Queen, Derik (NOP - C,PF)
+(2) Aloisius - Queta, Neemias (BOS - C)
+(3) mert - Collins, John (DET - PF,C)
+(4) Cemal - Murray, Keegan (SAC - SF,PF)
+(5) Francis - McCollum, CJ (ATL - SG,PG)
+(6) Hüsamettin - Peterson, Darryn (UTA - SG)
+(7) Nathanael - Green, Jalen (PHX - SG,SF)
+(8) carlo anton - Bridges, Miles (PHX - PF)
+(9) TMT💰 - Barrett, RJ (TOR - SF,PF,SG)
+(10) lalala - Murray-Boyles, Collin (TOR - PF,C)
+(11) RJ - Claxton, Nic (CHI - C)
+(12) Jordan - LaVine, Zach (SAC - PG,SG,SF)
+(13) Berkin - Hartenstein, Isaiah (OKC - C)
+(14) Yuki - Podziemski, Brandin (GSW - SG,PG)
+
+
+Round 9
+(1) Yuki - Dosunmu, Ayo (MIN - PG,SG)
+(2) Berkin - Lendeborg, Yaxel (GSW - PF)
+(3) Jordan - Camara, Toumani (POR - SF,PF)
+(4) RJ - DeRozan, DeMar (DEN - SF,PF)
+(5) lalala - Nembhard, Andrew (IND - SG,PG)
+(6) TMT💰 - Mitchell, Davion (MIA - PG)
+(7) carlo anton - Maluach, Khaman (PHX - C)
+(8) Nathanael - Poeltl, Jakob (TOR - C)
+(9) Hüsamettin - Bey, Saddiq (NOP - PF,SF)
+(10) Francis - Turner, Myles (MIL - C)
+(11) Cemal - Nurkić, Jusuf (UTA - C)
+(12) mert - Wallace, Cason (OKC - SG,PG,SF)
+(13) Aloisius - Nesmith, Aaron (IND - SF,SG)
+(14) kevin g - Gillespie, Collin (PHX - PG,SG)
+
+
+Round 10
+(1) kevin g - Gordon, Aaron (DEN - PF,C)
+(2) Aloisius - Johnson, Cameron (DEN - SF,PF)
+(3) mert - Mitchell, Ajay (OKC - PG,SG)
+(4) Cemal - Hachimura, Rui (LAC - PF,SF)
+(5) Francis - Jaquez Jr., Jaime (MIL - SF,SG,PF)
+(6) Hüsamettin - Carter Jr., Wendell (ORL - C)
+(7) Nathanael - Watson, Peyton (CLE - SF,PF)
+(8) carlo anton - Mamukelashvili, Sandro (LAL - PF,C)
+(9) TMT💰 - George, Kyshawn (WAS - SF,SG,PF)
+(10) lalala - Gafford, Daniel (DAL - C)
+(11) RJ - Acuff Jr., Darius (SAC - PG)
+(12) Jordan - Missi, Yves (NOP - C)
+(13) Berkin - Dëmin, Egor (BKN - PG,SG)
+(14) Yuki - Grimes, Quentin (LAL - SG,SF)
+
+
+Round 11
+(1) Yuki - Porter Jr., Kevin (MIL - PG,SG)
+(2) Berkin - Diabaté, Moussa (CHA - C)
+(3) Jordan - Kuminga, Jonathan (MIN - SF,PF)
+(4) RJ - Washington, P.J. (DAL - PF,C)
+(5) lalala - Jones, Tre (CHI - PG,SG)
+(6) TMT💰 - Holiday, Jrue (POR - PG,SG)
+(7) carlo anton - Brooks, Dillon (PHX - SF,PF)
+(8) Nathanael - Sheppard, Reed (HOU - PG,SG)
+(9) Hüsamettin - Black, Anthony (ORL - PG,SG,SF)
+(10) Francis - Jones, Herbert (NOP - SG,SF)
+(11) Cemal - Butler III, Jimmy (GSW - SF,PF)
+(12) mert - Bailey, Ace (UTA - SF,PF)
+(13) Aloisius - Braun, Christian (DEN - SG,SF,PF)
+(14) kevin g - Santos, Gui (GSW - PF,SF)
+
+
+Round 12
+(1) kevin g - Green, Draymond (GSW - PF,C)
+(2) Aloisius - Jackson, Isaiah (LAC - C)
+(3) mert - Larsson, Pelle (MIA - SG,SF)
+(4) Cemal - Porziņģis, Kristaps (GSW - C)
+(5) Francis - Vassell, Devin (SAS - SF,SG)
+(6) Hüsamettin - Raynaud, Maxime (SAC - C)
+(7) Nathanael - Brown Jr., Mikel (BKN - PG)
+(8) carlo anton - Harris, Tobias (SAS - PF)
+(9) TMT💰 - Eason, Tari (HOU - SF,PF,SG)
+(10) lalala - Mathurin, Bennedict (NOP - SG,SF)
+(11) RJ - Drummond, Andre (NYK - C)
+(12) Jordan - LaRavia, Jake (LAL - PF,SF)
+(13) Berkin - Beringer, Joan (MIN - PF,C)
+(14) Yuki - Smith, Jalen (CHI - C,PF)
+
+
+Round 13
+(1) Yuki - Pippen Jr., Scotty (MEM - PG)
+(2) Berkin - Fears, Jeremiah (NOP - PG,SG)
+(3) Jordan - Vučević, Nikola (ORL - C)
+(4) RJ - Robinson, Mitchell (BOS - C)
+(5) lalala - Grant, Jerami (MEM - PF,SF)
+(6) TMT💰 - McCain, Jared (OKC - PG,SG)
+(7) carlo anton - Lopez, Brook (LAC - C)
+(8) Nathanael - Portis Jr., Bobby (MIA - PF,C)
+(9) Hüsamettin - Wells, Jaylen (MEM - SG,SF)
+(10) Francis - Stewart, Isaiah (MEM - C,PF)
+(11) Cemal - Champagnie, Julian (SAS - SF,PF)
+(12) mert - Allen, Grayson (CHA - SG,SF)
+(13) Aloisius - Reed, Paul (DET - C,PF)
+(14) kevin g - Ighodaro, Oso (PHX - C)
+```

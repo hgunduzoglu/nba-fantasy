@@ -1,0 +1,228 @@
+# Draft 08
+
+- Kaynak: Yahoo mock draft sonuç sayfası (kullanıcı yapıştırdı, 2026-10-13)
+- Takım: 14, tur: 13
+- Otomatik (Yahoo botu): adı "Team N" olan takımlar (bu draft'ta yok)
+- Kullanıcı: Hüsamettin (sıra 9); pick'leri kalibrasyondan dışlanır
+
+```
+Round 1
+(1) Igor - Jokić, Nikola (DEN - C)
+(2) Borj - Wembanyama, Victor (SAS - C)
+(3) Alihan - Dončić, Luka (LAL - PG,SG)
+(4) Andre - Gilgeous-Alexander, Shai (OKC - PG)
+(5) Jace - Antetokounmpo, Giannis (MIA - PF,C)
+(6) Dr.Doom - Cunningham, Cade (DET - PG,SG)
+(7) Andrew - Edwards, Anthony (MIN - PG,SG)
+(8) Ege - Tatum, Jayson (BOS - SF,PF)
+(9) Hüsamettin - Maxey, Tyrese (PHI - PG)
+(10) Andy - Haliburton, Tyrese (IND - PG,SG)
+(11) Quiambie - Barnes, Scottie (TOR - SF,PF,C)
+(12) mak - Flagg, Cooper (DAL - SG,SF,PF)
+(13) Gunnar - Durant, Kevin (HOU - SF,PF,SG)
+(14) ricardo - Johnson, Jalen (ATL - PF,SF)
+
+
+Round 2
+(1) ricardo - Reaves, Austin (LAL - SG,PG,SF)
+(2) Gunnar - Towns, Karl-Anthony (NYK - C,PF)
+(3) mak - Şengün, Alperen (HOU - C,PF)
+(4) Quiambie - Murray, Jamal (DEN - PG)
+(5) Andy - Mitchell, Donovan (CLE - SG,PG)
+(6) Hüsamettin - Brunson, Jalen (NYK - PG)
+(7) Ege - Ball, LaMelo (MIN - PG)
+(8) Andrew - Sabonis, Domantas (SAC - C,PF)
+(9) Dr.Doom - Thompson, Amen (HOU - PG,SG)
+(10) Jace - Young, Trae (WAS - PG)
+(11) Andre - Giddey, Josh (CHI - PG,SG)
+(12) Alihan - Booker, Devin (PHX - SG,PG)
+(13) Borj - Murphy III, Trey (NOP - SG,SF)
+(14) Igor - Curry, Stephen (GSW - PG)
+
+
+Round 3
+(1) Igor - Adebayo, Bam (MIA - C,PF)
+(2) Borj - White, Derrick (BOS - SG,PG)
+(3) Alihan - Mobley, Evan (CLE - C,PF)
+(4) Andre - Markkanen, Lauri (UTA - PF,SF)
+(5) Jace - Holmgren, Chet (OKC - PF,C)
+(6) Dr.Doom - Leonard, Kawhi (TOR - SG,SF,PF)
+(7) Andrew - Brown, Jaylen (PHI - SG,SF,PF)
+(8) Ege - Duren, Jalen (DET - C)
+(9) Hüsamettin - Kessler, Walker (LAL - C)
+(10) Andy - Harden, James (CLE - SG,PG)
+(11) Quiambie - Knueppel, Kon (CHA - SF,SG)
+(12) mak - Williams, Jalen (OKC - SF,PF)
+(13) Gunnar - Davis, Anthony (WAS - PF,C)
+(14) ricardo - Miller, Brandon (CHA - SF,PF)
+
+
+Round 4
+(1) ricardo - Jackson Jr., Jaren (UTA - C,PF)
+(2) Gunnar - Irving, Kyrie (DAL - PG)
+(3) mak - Banchero, Paolo (ORL - PF)
+(4) Quiambie - Okongwu, Onyeka (ATL - C)
+(5) Andy - Avdija, Deni (POR - SF,PF,SG)
+(6) Hüsamettin - Bane, Desmond (ORL - SF,SG)
+(7) Ege - Siakam, Pascal (IND - PF,C)
+(8) Andrew - Wagner, Franz (ORL - SF,PF)
+(9) Dr.Doom - Murray, Dejounte (NOP - PG)
+(10) Jace - James, LeBron (PHI - SF,PF)
+(11) Andre - Garland, Darius (LAC - PG)
+(12) Alihan - Clingan, Donovan (POR - C)
+(13) Borj - Alexander-Walker, Nickeil (ATL - PG,SG)
+(14) Igor - Buzelis, Matas (CHI - SF,PF)
+
+
+Round 5
+(1) Igor - Rollins, Ryan (MIL - PG,SG)
+(2) Borj - Daniels, Dyson (ATL - SG,SF)
+(3) Alihan - Castle, Stephon (SAS - PG,SG)
+(4) Andre - Boozer, Cameron (MEM - PF)
+(5) Jace - George, Keyonte (UTA - SG,PG)
+(6) Dr.Doom - Reid, Naz (CHA - C,PF)
+(7) Andrew - Zubac, Ivica (IND - C)
+(8) Ege - Anunoby, OG (NYK - SF,PF)
+(9) Hüsamettin - Williamson, Zion (NOP - PF,C)
+(10) Andy - Embiid, Joel (PHI - C)
+(11) Quiambie - Herro, Tyler (MIL - SG,PG)
+(12) mak - Sarr, Alex (WAS - C)
+(13) Gunnar - Porter Jr., Michael (BKN - SF,PF)
+(14) ricardo - Ware, Kel'el (MIL - C)
+
+
+Round 6
+(1) ricardo - Thompson, Ausar (DET - SF,PF,SG)
+(2) Gunnar - Edey, Zach (MEM - C)
+(3) mak - Lillard, Damian (POR - PG)
+(4) Quiambie - George, Paul (BOS - SF,PF)
+(5) Andy - Fox, De'Aaron (SAS - PG)
+(6) Hüsamettin - Harper, Dylan (SAS - SG,PG)
+(7) Ege - Randle, Julius (BKN - PF)
+(8) Andrew - Dybantsa, AJ (WAS - SF)
+(9) Dr.Doom - Jerome, Ty (MEM - SG,PG)
+(10) Jace - Allen, Jarrett (CLE - C)
+(11) Andre - Coward, Cedric (MEM - SG,SF)
+(12) Alihan - McDaniels, Jaden (MIN - SF)
+(13) Borj - Bridges, Mikal (NYK - SF,PF)
+(14) Igor - Pritchard, Payton (BOS - PG)
+
+
+Round 7
+(1) Igor - Wilson, Caleb (CHI - PF)
+(2) Borj - Edgecombe, VJ (PHI - SG,PG)
+(3) Alihan - Gobert, Rudy (MIN - C)
+(4) Andre - Hart, Josh (NYK - SG,SF)
+(5) Jace - Ingram, Brandon (LAC - SG,SF,PF)
+(6) Dr.Doom - Murray-Boyles, Collin (TOR - PF,C)
+(7) Andrew - White, Coby (CHA - PG,SG)
+(8) Ege - Hartenstein, Isaiah (OKC - C)
+(9) Hüsamettin - Smith Jr., Jabari (HOU - PF,C)
+(10) Andy - Quickley, Immanuel (TOR - PG,SG)
+(11) Quiambie - Queen, Derik (NOP - C,PF)
+(12) mak - Powell, Norman (CHI - SG,SF)
+(13) Gunnar - Sharpe, Day'Ron (BKN - C)
+(14) ricardo - Wiggins, Andrew (MIA - SG,SF,PF)
+
+
+Round 8
+(1) ricardo - Morant, Ja (POR - PG)
+(2) Gunnar - Suggs, Jalen (ORL - PG,SG)
+(3) mak - Collins, John (DET - PF,C)
+(4) Quiambie - Queta, Neemias (BOS - C)
+(5) Andy - Murray, Keegan (SAC - SF,PF)
+(6) Hüsamettin - DeRozan, DeMar (DEN - SF,PF)
+(7) Ege - Claxton, Nic (CHI - C)
+(8) Andrew - LaVine, Zach (SAC - PG,SG,SF)
+(9) Dr.Doom - McCollum, CJ (ATL - SG,PG)
+(10) Jace - Bridges, Miles (PHX - PF)
+(11) Andre - Nurkić, Jusuf (UTA - C)
+(12) Alihan - Podziemski, Brandin (GSW - SG,PG)
+(13) Borj - Nembhard, Andrew (IND - SG,PG)
+(14) Igor - Mitchell, Davion (MIA - PG)
+
+
+Round 9
+(1) Igor - Peterson, Darryn (UTA - SG)
+(2) Borj - Camara, Toumani (POR - SF,PF)
+(3) Alihan - Hachimura, Rui (LAC - PF,SF)
+(4) Andre - Turner, Myles (MIL - C)
+(5) Jace - Dosunmu, Ayo (MIN - PG,SG)
+(6) Dr.Doom - Watson, Peyton (CLE - SF,PF)
+(7) Andrew - George, Kyshawn (WAS - SF,SG,PF)
+(8) Ege - Poeltl, Jakob (TOR - C)
+(9) Hüsamettin - Sheppard, Reed (HOU - PG,SG)
+(10) Andy - Maluach, Khaman (PHX - C)
+(11) Quiambie - Green, Jalen (PHX - SG,SF)
+(12) mak - Gillespie, Collin (PHX - PG,SG)
+(13) Gunnar - Wallace, Cason (OKC - SG,PG,SF)
+(14) ricardo - Acuff Jr., Darius (SAC - PG)
+
+
+Round 10
+(1) ricardo - Gordon, Aaron (DEN - PF,C)
+(2) Gunnar - Carter Jr., Wendell (ORL - C)
+(3) mak - Mitchell, Ajay (OKC - PG,SG)
+(4) Quiambie - Barrett, RJ (TOR - SF,PF,SG)
+(5) Andy - Mamukelashvili, Sandro (LAL - PF,C)
+(6) Hüsamettin - Washington, P.J. (DAL - PF,C)
+(7) Ege - Jaquez Jr., Jaime (MIL - SF,SG,PF)
+(8) Andrew - Diabaté, Moussa (CHA - C)
+(9) Dr.Doom - Reed, Paul (DET - C,PF)
+(10) Jace - Gafford, Daniel (DAL - C)
+(11) Andre - Porter Jr., Kevin (MIL - PG,SG)
+(12) Alihan - Lendeborg, Yaxel (GSW - PF)
+(13) Borj - Grimes, Quentin (LAL - SG,SF)
+(14) Igor - Missi, Yves (NOP - C)
+
+
+Round 11
+(1) Igor - Kuminga, Jonathan (MIN - SF,PF)
+(2) Borj - Brooks, Dillon (PHX - SF,PF)
+(3) Alihan - Jones, Tre (CHI - PG,SG)
+(4) Andre - VanVleet, Fred (HOU - PG)
+(5) Jace - Holiday, Jrue (POR - PG,SG)
+(6) Dr.Doom - Johnson, Cameron (DEN - SF,PF)
+(7) Andrew - Bailey, Ace (UTA - SF,PF)
+(8) Ege - Dëmin, Egor (BKN - PG,SG)
+(9) Hüsamettin - Black, Anthony (ORL - PG,SG,SF)
+(10) Andy - Butler III, Jimmy (GSW - SF,PF)
+(11) Quiambie - Hauser, Sam (BOS - PF,SF)
+(12) mak - Santos, Gui (GSW - PF,SF)
+(13) Gunnar - Bey, Saddiq (NOP - PF,SF)
+(14) ricardo - Green, Draymond (GSW - PF,C)
+
+
+Round 12
+(1) ricardo - Larsson, Pelle (MIA - SG,SF)
+(2) Gunnar - Porziņģis, Kristaps (GSW - C)
+(3) mak - Braun, Christian (DEN - SG,SF,PF)
+(4) Quiambie - Robinson, Mitchell (BOS - C)
+(5) Andy - Nesmith, Aaron (IND - SF,SG)
+(6) Hüsamettin - Raynaud, Maxime (SAC - C)
+(7) Ege - Brown Jr., Mikel (BKN - PG)
+(8) Andrew - Mathurin, Bennedict (NOP - SG,SF)
+(9) Dr.Doom - Smith, Jalen (CHI - C,PF)
+(10) Jace - Harris, Tobias (SAS - PF)
+(11) Andre - Eason, Tari (HOU - SF,PF,SG)
+(12) Alihan - Jones, Herbert (NOP - SG,SF)
+(13) Borj - Vučević, Nikola (ORL - C)
+(14) Igor - Vassell, Devin (SAS - SF,SG)
+
+
+Round 13
+(1) Igor - LaRavia, Jake (LAL - PF,SF)
+(2) Borj - Pippen Jr., Scotty (MEM - PG)
+(3) Alihan - Grant, Jerami (MEM - PF,SF)
+(4) Andre - Oubre Jr., Kelly (IND - SF,PF)
+(5) Jace - Jackson, Isaiah (LAC - C)
+(6) Dr.Doom - Johnson Jr., Morez (DAL - PF)
+(7) Andrew - McCain, Jared (OKC - PG,SG)
+(8) Ege - Lopez, Brook (LAC - C)
+(9) Hüsamettin - Wells, Jaylen (MEM - SG,SF)
+(10) Andy - Portis Jr., Bobby (MIA - PF,C)
+(11) Quiambie - Kuzma, Kyle (MIL - PF,SF)
+(12) mak - Champagnie, Julian (SAS - SF,PF)
+(13) Gunnar - Stewart, Isaiah (MEM - C,PF)
+(14) ricardo - Allen, Grayson (CHA - SG,SF)
+```

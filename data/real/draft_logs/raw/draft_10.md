@@ -1,0 +1,228 @@
+# Draft 10
+
+- Kaynak: Yahoo mock draft sonuç sayfası (kullanıcı yapıştırdı, 2026-10-13)
+- Takım: 14, tur: 13
+- Otomatik (Yahoo botu): adı "Team N" olan takımlar (bu draft'ta yok)
+- Kullanıcı: Hüsamettin (sıra 1); pick'leri kalibrasyondan dışlanır
+
+```
+Round 1
+(1) Hüsamettin - Jokić, Nikola (DEN - C)
+(2) Dennis - Wembanyama, Victor (SAS - C)
+(3) Matthew - Dončić, Luka (LAL - PG,SG)
+(4) caner - Cunningham, Cade (DET - PG,SG)
+(5) jatinder - Antetokounmpo, Giannis (MIA - PF,C)
+(6) Alpay Arda - Edwards, Anthony (MIN - PG,SG)
+(7) Jason - Maxey, Tyrese (PHI - PG)
+(8) Timothy - Tatum, Jayson (BOS - SF,PF)
+(9) Brandy - Gilgeous-Alexander, Shai (OKC - PG)
+(10) WN - Flagg, Cooper (DAL - SG,SF,PF)
+(11) Othis - Haliburton, Tyrese (IND - PG,SG)
+(12) Batuhan - Johnson, Jalen (ATL - PF,SF)
+(13) Marko - Mitchell, Donovan (CLE - SG,PG)
+(14) Warri - Durant, Kevin (HOU - SF,PF,SG)
+
+
+Round 2
+(1) Warri - Barnes, Scottie (TOR - SF,PF,C)
+(2) Marko - Giddey, Josh (CHI - PG,SG)
+(3) Batuhan - Towns, Karl-Anthony (NYK - C,PF)
+(4) Othis - Şengün, Alperen (HOU - C,PF)
+(5) WN - Reaves, Austin (LAL - SG,PG,SF)
+(6) Brandy - Murray, Jamal (DEN - PG)
+(7) Timothy - Ball, LaMelo (MIN - PG)
+(8) Jason - Curry, Stephen (GSW - PG)
+(9) Alpay Arda - Thompson, Amen (HOU - PG,SG)
+(10) jatinder - Adebayo, Bam (MIA - C,PF)
+(11) caner - Murphy III, Trey (NOP - SG,SF)
+(12) Matthew - Young, Trae (WAS - PG)
+(13) Dennis - Brunson, Jalen (NYK - PG)
+(14) Hüsamettin - Mobley, Evan (CLE - C,PF)
+
+
+Round 3
+(1) Hüsamettin - Booker, Devin (PHX - SG,PG)
+(2) Dennis - Holmgren, Chet (OKC - PF,C)
+(3) Matthew - Harden, James (CLE - SG,PG)
+(4) caner - Williams, Jalen (OKC - SF,PF)
+(5) jatinder - Sabonis, Domantas (SAC - C,PF)
+(6) Alpay Arda - Brown, Jaylen (PHI - SG,SF,PF)
+(7) Jason - Markkanen, Lauri (UTA - PF,SF)
+(8) Timothy - Clingan, Donovan (POR - C)
+(9) Brandy - Duren, Jalen (DET - C)
+(10) WN - Leonard, Kawhi (TOR - SG,SF,PF)
+(11) Othis - Banchero, Paolo (ORL - PF)
+(12) Batuhan - Miller, Brandon (CHA - SF,PF)
+(13) Marko - Kessler, Walker (LAL - C)
+(14) Warri - Jackson Jr., Jaren (UTA - C,PF)
+
+
+Round 4
+(1) Warri - Buzelis, Matas (CHI - SF,PF)
+(2) Marko - Davis, Anthony (WAS - PF,C)
+(3) Batuhan - Avdija, Deni (POR - SF,PF,SG)
+(4) Othis - Siakam, Pascal (IND - PF,C)
+(5) WN - James, LeBron (PHI - SF,PF)
+(6) Brandy - White, Derrick (BOS - SG,PG)
+(7) Timothy - Boozer, Cameron (MEM - PF)
+(8) Jason - George, Keyonte (UTA - SG,PG)
+(9) Alpay Arda - Wagner, Franz (ORL - SF,PF)
+(10) jatinder - Okongwu, Onyeka (ATL - C)
+(11) caner - Reid, Naz (CHA - C,PF)
+(12) Matthew - Irving, Kyrie (DAL - PG)
+(13) Dennis - Knueppel, Kon (CHA - SF,SG)
+(14) Hüsamettin - Bane, Desmond (ORL - SF,SG)
+
+
+Round 5
+(1) Hüsamettin - Embiid, Joel (PHI - C)
+(2) Dennis - Garland, Darius (LAC - PG)
+(3) Matthew - Murray, Dejounte (NOP - PG)
+(4) caner - Allen, Jarrett (CLE - C)
+(5) jatinder - Daniels, Dyson (ATL - SG,SF)
+(6) Alpay Arda - Sarr, Alex (WAS - C)
+(7) Jason - Alexander-Walker, Nickeil (ATL - PG,SG)
+(8) Timothy - Gobert, Rudy (MIN - C)
+(9) Brandy - Zubac, Ivica (IND - C)
+(10) WN - Porter Jr., Michael (BKN - SF,PF)
+(11) Othis - Ingram, Brandon (LAC - SG,SF,PF)
+(12) Batuhan - Lillard, Damian (POR - PG)
+(13) Marko - Herro, Tyler (MIL - SG,PG)
+(14) Warri - Edey, Zach (MEM - C)
+
+
+Round 6
+(1) Warri - Ware, Kel'el (MIL - C)
+(2) Marko - Anunoby, OG (NYK - SF,PF)
+(3) Batuhan - Randle, Julius (BKN - PF)
+(4) Othis - Rollins, Ryan (MIL - PG,SG)
+(5) WN - Castle, Stephon (SAS - PG,SG)
+(6) Brandy - Fox, De'Aaron (SAS - PG)
+(7) Timothy - Pritchard, Payton (BOS - PG)
+(8) Jason - Thompson, Ausar (DET - SF,PF,SG)
+(9) Alpay Arda - Harper, Dylan (SAS - SG,PG)
+(10) jatinder - Williamson, Zion (NOP - PF,C)
+(11) caner - Bridges, Mikal (NYK - SF,PF)
+(12) Matthew - George, Paul (BOS - SF,PF)
+(13) Dennis - White, Coby (CHA - PG,SG)
+(14) Hüsamettin - Quickley, Immanuel (TOR - PG,SG)
+
+
+Round 7
+(1) Hüsamettin - McDaniels, Jaden (MIN - SF)
+(2) Dennis - Coward, Cedric (MEM - SG,SF)
+(3) Matthew - Wilson, Caleb (CHI - PF)
+(4) caner - Suggs, Jalen (ORL - PG,SG)
+(5) jatinder - Dybantsa, AJ (WAS - SF)
+(6) Alpay Arda - Morant, Ja (POR - PG)
+(7) Jason - Powell, Norman (CHI - SG,SF)
+(8) Timothy - Edgecombe, VJ (PHI - SG,PG)
+(9) Brandy - Claxton, Nic (CHI - C)
+(10) WN - Queen, Derik (NOP - C,PF)
+(11) Othis - Peterson, Darryn (UTA - SG)
+(12) Batuhan - Sharpe, Day'Ron (BKN - C)
+(13) Marko - Hart, Josh (NYK - SG,SF)
+(14) Warri - Jerome, Ty (MEM - SG,PG)
+
+
+Round 8
+(1) Warri - Nembhard, Andrew (IND - SG,PG)
+(2) Marko - Turner, Myles (MIL - C)
+(3) Batuhan - Wiggins, Andrew (MIA - SG,SF,PF)
+(4) Othis - LaVine, Zach (SAC - PG,SG,SF)
+(5) WN - Smith Jr., Jabari (HOU - PF,C)
+(6) Brandy - Bridges, Miles (PHX - PF)
+(7) Timothy - Green, Jalen (PHX - SG,SF)
+(8) Jason - DeRozan, DeMar (DEN - SF,PF)
+(9) Alpay Arda - Collins, John (DET - PF,C)
+(10) jatinder - McCollum, CJ (ATL - SG,PG)
+(11) caner - Maluach, Khaman (PHX - C)
+(12) Matthew - Hartenstein, Isaiah (OKC - C)
+(13) Dennis - Queta, Neemias (BOS - C)
+(14) Hüsamettin - Camara, Toumani (POR - SF,PF)
+
+
+Round 9
+(1) Hüsamettin - Barrett, RJ (TOR - SF,PF,SG)
+(2) Dennis - Podziemski, Brandin (GSW - SG,PG)
+(3) Matthew - Nurkić, Jusuf (UTA - C)
+(4) caner - Acuff Jr., Darius (SAC - PG)
+(5) jatinder - George, Kyshawn (WAS - SF,SG,PF)
+(6) Alpay Arda - Dosunmu, Ayo (MIN - PG,SG)
+(7) Jason - Murray-Boyles, Collin (TOR - PF,C)
+(8) Timothy - Lendeborg, Yaxel (GSW - PF)
+(9) Brandy - Watson, Peyton (CLE - SF,PF)
+(10) WN - Hachimura, Rui (LAC - PF,SF)
+(11) Othis - Murray, Keegan (SAC - SF,PF)
+(12) Batuhan - Mitchell, Davion (MIA - PG)
+(13) Marko - Grimes, Quentin (LAL - SG,SF)
+(14) Warri - Black, Anthony (ORL - PG,SG,SF)
+
+
+Round 10
+(1) Warri - Dëmin, Egor (BKN - PG,SG)
+(2) Marko - Jaquez Jr., Jaime (MIL - SF,SG,PF)
+(3) Batuhan - Gafford, Daniel (DAL - C)
+(4) Othis - Porter Jr., Kevin (MIL - PG,SG)
+(5) WN - Carter Jr., Wendell (ORL - C)
+(6) Brandy - Gordon, Aaron (DEN - PF,C)
+(7) Timothy - Sheppard, Reed (HOU - PG,SG)
+(8) Jason - Poeltl, Jakob (TOR - C)
+(9) Alpay Arda - Mitchell, Ajay (OKC - PG,SG)
+(10) jatinder - Green, Draymond (GSW - PF,C)
+(11) caner - Gillespie, Collin (PHX - PG,SG)
+(12) Matthew - Wallace, Cason (OKC - SG,PG,SF)
+(13) Dennis - Mamukelashvili, Sandro (LAL - PF,C)
+(14) Hüsamettin - Bey, Saddiq (NOP - PF,SF)
+
+
+Round 11
+(1) Hüsamettin - Johnson, Cameron (DEN - SF,PF)
+(2) Dennis - VanVleet, Fred (HOU - PG)
+(3) Matthew - Kuminga, Jonathan (MIN - SF,PF)
+(4) caner - Brooks, Dillon (PHX - SF,PF)
+(5) jatinder - Washington, P.J. (DAL - PF,C)
+(6) Alpay Arda - Diabaté, Moussa (CHA - C)
+(7) Jason - Jones, Herbert (NOP - SG,SF)
+(8) Timothy - Allen, Grayson (CHA - SG,SF)
+(9) Brandy - Holiday, Jrue (POR - PG,SG)
+(10) WN - Jones, Tre (CHI - PG,SG)
+(11) Othis - Reed, Paul (DET - C,PF)
+(12) Batuhan - Portis Jr., Bobby (MIA - PF,C)
+(13) Marko - Larsson, Pelle (MIA - SG,SF)
+(14) Warri - Vassell, Devin (SAS - SF,SG)
+
+
+Round 12
+(1) Warri - Stewart, Isaiah (MEM - C,PF)
+(2) Marko - Robinson, Mitchell (BOS - C)
+(3) Batuhan - Santos, Gui (GSW - PF,SF)
+(4) Othis - Oubre Jr., Kelly (IND - SF,PF)
+(5) WN - Nesmith, Aaron (IND - SF,SG)
+(6) Brandy - Missi, Yves (NOP - C)
+(7) Timothy - Porziņģis, Kristaps (GSW - C)
+(8) Jason - Harris, Tobias (SAS - PF)
+(9) Alpay Arda - Butler III, Jimmy (GSW - SF,PF)
+(10) jatinder - Bailey, Ace (UTA - SF,PF)
+(11) caner - Kuzma, Kyle (MIL - PF,SF)
+(12) Matthew - Mathurin, Bennedict (NOP - SG,SF)
+(13) Dennis - Eason, Tari (HOU - SF,PF,SG)
+(14) Hüsamettin - Lopez, Brook (LAC - C)
+
+
+Round 13
+(1) Hüsamettin - Braun, Christian (DEN - SG,SF,PF)
+(2) Dennis - Raynaud, Maxime (SAC - C)
+(3) Matthew - Lively II, Dereck (DAL - C)
+(4) caner - Johnson, Keldon (SAS - SF,PF)
+(5) jatinder - Fears, Jeremiah (NOP - PG,SG)
+(6) Alpay Arda - Coulibaly, Bilal (WAS - SF,SG)
+(7) Jason - Jenkins, Daniss (DET - PG,SG)
+(8) Timothy - Ayton, Deandre (WAS - C)
+(9) Brandy - Ighodaro, Oso (PHX - C)
+(10) WN - Champagnie, Julian (SAS - SF,PF)
+(11) Othis - Filipowski, Kyle (UTA - PF,C)
+(12) Batuhan - Schröder, Dennis (CHA - PG,SG)
+(13) Marko - Robinson, Duncan (DET - SF,SG)
+(14) Warri - LaRavia, Jake (LAL - PF,SF)
+```

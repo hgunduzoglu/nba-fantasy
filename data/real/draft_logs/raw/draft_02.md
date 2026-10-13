@@ -1,0 +1,228 @@
+# Draft 02
+
+- Kaynak: Yahoo mock draft sonuç sayfası (kullanıcı yapıştırdı, 2026-10-13)
+- Takım: 14, tur: 13
+- Otomatik (Yahoo botu): adı "Team N" olan takımlar (bu draft'ta yok)
+- Kullanıcı: Hüsamettin (sıra 14); pick'leri kalibrasyondan dışlanır
+
+```
+Round 1
+(1) jaxson - Wembanyama, Victor (SAS - C)
+(2) Jason - Jokić, Nikola (DEN - C)
+(3) Sneakerhead - Gilgeous-Alexander, Shai (OKC - PG)
+(4) Jan - Antetokounmpo, Giannis (MIA - PF,C)
+(5) muhammet - Dončić, Luka (LAL - PG,SG)
+(6) Carlo - Cunningham, Cade (DET - PG,SG)
+(7) Burak - Tatum, Jayson (BOS - SF,PF)
+(8) せりお - Maxey, Tyrese (PHI - PG)
+(9) Manny - Durant, Kevin (HOU - SF,PF,SG)
+(10) Zorigoo - Edwards, Anthony (MIN - PG,SG)
+(11) Jp - Haliburton, Tyrese (IND - PG,SG)
+(12) M - Flagg, Cooper (DAL - SG,SF,PF)
+(13) Mj - Mitchell, Donovan (CLE - SG,PG)
+(14) Hüsamettin - Towns, Karl-Anthony (NYK - C,PF)
+
+
+Round 2
+(1) Hüsamettin - Giddey, Josh (CHI - PG,SG)
+(2) Mj - Barnes, Scottie (TOR - SF,PF,C)
+(3) M - Johnson, Jalen (ATL - PF,SF)
+(4) Jp - Murray, Jamal (DEN - PG)
+(5) Zorigoo - Şengün, Alperen (HOU - C,PF)
+(6) Manny - Brunson, Jalen (NYK - PG)
+(7) せりお - Young, Trae (WAS - PG)
+(8) Burak - Thompson, Amen (HOU - PG,SG)
+(9) Carlo - Reaves, Austin (LAL - SG,PG,SF)
+(10) muhammet - Ball, LaMelo (MIN - PG)
+(11) Jan - Booker, Devin (PHX - SG,PG)
+(12) Sneakerhead - Adebayo, Bam (MIA - C,PF)
+(13) Jason - Curry, Stephen (GSW - PG)
+(14) jaxson - Mobley, Evan (CLE - C,PF)
+
+
+Round 3
+(1) jaxson - Murphy III, Trey (NOP - SG,SF)
+(2) Jason - Markkanen, Lauri (UTA - PF,SF)
+(3) Sneakerhead - Holmgren, Chet (OKC - PF,C)
+(4) Jan - Duren, Jalen (DET - C)
+(5) muhammet - Sabonis, Domantas (SAC - C,PF)
+(6) Carlo - Harden, James (CLE - SG,PG)
+(7) Burak - Miller, Brandon (CHA - SF,PF)
+(8) せりお - Clingan, Donovan (POR - C)
+(9) Manny - Williams, Jalen (OKC - SF,PF)
+(10) Zorigoo - Jackson Jr., Jaren (UTA - C,PF)
+(11) Jp - Leonard, Kawhi (TOR - SG,SF,PF)
+(12) M - Kessler, Walker (LAL - C)
+(13) Mj - White, Derrick (BOS - SG,PG)
+(14) Hüsamettin - Knueppel, Kon (CHA - SF,SG)
+
+
+Round 4
+(1) Hüsamettin - Wagner, Franz (ORL - SF,PF)
+(2) Mj - Irving, Kyrie (DAL - PG)
+(3) M - Avdija, Deni (POR - SF,PF,SG)
+(4) Jp - James, LeBron (PHI - SF,PF)
+(5) Zorigoo - George, Keyonte (UTA - SG,PG)
+(6) Manny - Banchero, Paolo (ORL - PF)
+(7) せりお - Davis, Anthony (WAS - PF,C)
+(8) Burak - Brown, Jaylen (PHI - SG,SF,PF)
+(9) Carlo - Bane, Desmond (ORL - SF,SG)
+(10) muhammet - Garland, Darius (LAC - PG)
+(11) Jan - Okongwu, Onyeka (ATL - C)
+(12) Sneakerhead - Murray, Dejounte (NOP - PG)
+(13) Jason - Embiid, Joel (PHI - C)
+(14) jaxson - Zubac, Ivica (IND - C)
+
+
+Round 5
+(1) jaxson - Boozer, Cameron (MEM - PF)
+(2) Jason - Sarr, Alex (WAS - C)
+(3) Sneakerhead - Daniels, Dyson (ATL - SG,SF)
+(4) Jan - Alexander-Walker, Nickeil (ATL - PG,SG)
+(5) muhammet - Buzelis, Matas (CHI - SF,PF)
+(6) Carlo - Siakam, Pascal (IND - PF,C)
+(7) Burak - Rollins, Ryan (MIL - PG,SG)
+(8) せりお - Porter Jr., Michael (BKN - SF,PF)
+(9) Manny - Reid, Naz (CHA - C,PF)
+(10) Zorigoo - Gobert, Rudy (MIN - C)
+(11) Jp - Edey, Zach (MEM - C)
+(12) M - Lillard, Damian (POR - PG)
+(13) Mj - Herro, Tyler (MIL - SG,PG)
+(14) Hüsamettin - Bridges, Mikal (NYK - SF,PF)
+
+
+Round 6
+(1) Hüsamettin - Pritchard, Payton (BOS - PG)
+(2) Mj - Anunoby, OG (NYK - SF,PF)
+(3) M - Fox, De'Aaron (SAS - PG)
+(4) Jp - Randle, Julius (BKN - PF)
+(5) Zorigoo - Castle, Stephon (SAS - PG,SG)
+(6) Manny - Allen, Jarrett (CLE - C)
+(7) せりお - Thompson, Ausar (DET - SF,PF,SG)
+(8) Burak - Ware, Kel'el (MIL - C)
+(9) Carlo - Coward, Cedric (MEM - SG,SF)
+(10) muhammet - White, Coby (CHA - PG,SG)
+(11) Jan - George, Paul (BOS - SF,PF)
+(12) Sneakerhead - Williamson, Zion (NOP - PF,C)
+(13) Jason - Wilson, Caleb (CHI - PF)
+(14) jaxson - Ingram, Brandon (LAC - SG,SF,PF)
+
+
+Round 7
+(1) jaxson - Edgecombe, VJ (PHI - SG,PG)
+(2) Jason - Harper, Dylan (SAS - SG,PG)
+(3) Sneakerhead - Quickley, Immanuel (TOR - PG,SG)
+(4) Jan - Jerome, Ty (MEM - SG,PG)
+(5) muhammet - Sharpe, Day'Ron (BKN - C)
+(6) Carlo - Powell, Norman (CHI - SG,SF)
+(7) Burak - Wiggins, Andrew (MIA - SG,SF,PF)
+(8) せりお - McDaniels, Jaden (MIN - SF)
+(9) Manny - Dybantsa, AJ (WAS - SF)
+(10) Zorigoo - Hart, Josh (NYK - SG,SF)
+(11) Jp - Morant, Ja (POR - PG)
+(12) M - Suggs, Jalen (ORL - PG,SG)
+(13) Mj - Smith Jr., Jabari (HOU - PF,C)
+(14) Hüsamettin - LaVine, Zach (SAC - PG,SG,SF)
+
+
+Round 8
+(1) Hüsamettin - Bey, Saddiq (NOP - PF,SF)
+(2) Mj - Collins, John (DET - PF,C)
+(3) M - Murray, Keegan (SAC - SF,PF)
+(4) Jp - Queen, Derik (NOP - C,PF)
+(5) Zorigoo - Green, Jalen (PHX - SG,SF)
+(6) Manny - Larsson, Pelle (MIA - SG,SF)
+(7) せりお - Bridges, Miles (PHX - PF)
+(8) Burak - Murray-Boyles, Collin (TOR - PF,C)
+(9) Carlo - Hartenstein, Isaiah (OKC - C)
+(10) muhammet - McCollum, CJ (ATL - SG,PG)
+(11) Jan - Podziemski, Brandin (GSW - SG,PG)
+(12) Sneakerhead - Queta, Neemias (BOS - C)
+(13) Jason - Dosunmu, Ayo (MIN - PG,SG)
+(14) jaxson - Camara, Toumani (POR - SF,PF)
+
+
+Round 9
+(1) jaxson - Claxton, Nic (CHI - C)
+(2) Jason - Nembhard, Andrew (IND - SG,PG)
+(3) Sneakerhead - Mitchell, Davion (MIA - PG)
+(4) Jan - Hachimura, Rui (LAC - PF,SF)
+(5) muhammet - Maluach, Khaman (PHX - C)
+(6) Carlo - Peterson, Darryn (UTA - SG)
+(7) Burak - Nurkić, Jusuf (UTA - C)
+(8) せりお - Gillespie, Collin (PHX - PG,SG)
+(9) Manny - Robinson, Mitchell (BOS - C)
+(10) Zorigoo - Wallace, Cason (OKC - SG,PG,SF)
+(11) Jp - Poeltl, Jakob (TOR - C)
+(12) M - Turner, Myles (MIL - C)
+(13) Mj - Watson, Peyton (CLE - SF,PF)
+(14) Hüsamettin - Mamukelashvili, Sandro (LAL - PF,C)
+
+
+Round 10
+(1) Hüsamettin - Gordon, Aaron (DEN - PF,C)
+(2) Mj - Carter Jr., Wendell (ORL - C)
+(3) M - George, Kyshawn (WAS - SF,SG,PF)
+(4) Jp - Mitchell, Ajay (OKC - PG,SG)
+(5) Zorigoo - Dëmin, Egor (BKN - PG,SG)
+(6) Manny - Kuminga, Jonathan (MIN - SF,PF)
+(7) せりお - Gafford, Daniel (DAL - C)
+(8) Burak - Acuff Jr., Darius (SAC - PG)
+(9) Carlo - Barrett, RJ (TOR - SF,PF,SG)
+(10) muhammet - Lendeborg, Yaxel (GSW - PF)
+(11) Jan - Grimes, Quentin (LAL - SG,SF)
+(12) Sneakerhead - Missi, Yves (NOP - C)
+(13) Jason - Jaquez Jr., Jaime (MIL - SF,SG,PF)
+(14) jaxson - Porter Jr., Kevin (MIL - PG,SG)
+
+
+Round 11
+(1) jaxson - Washington, P.J. (DAL - PF,C)
+(2) Jason - Jones, Tre (CHI - PG,SG)
+(3) Sneakerhead - Holiday, Jrue (POR - PG,SG)
+(4) Jan - Brooks, Dillon (PHX - SF,PF)
+(5) muhammet - VanVleet, Fred (HOU - PG)
+(6) Carlo - Sheppard, Reed (HOU - PG,SG)
+(7) Burak - DeRozan, DeMar (DEN - SF,PF)
+(8) せりお - Diabaté, Moussa (CHA - C)
+(9) Manny - Vassell, Devin (SAS - SF,SG)
+(10) Zorigoo - Raynaud, Maxime (SAC - C)
+(11) Jp - Butler III, Jimmy (GSW - SF,PF)
+(12) M - Johnson, Cameron (DEN - SF,PF)
+(13) Mj - Bailey, Ace (UTA - SF,PF)
+(14) Hüsamettin - Braun, Christian (DEN - SG,SF,PF)
+
+
+Round 12
+(1) Hüsamettin - Nesmith, Aaron (IND - SF,SG)
+(2) Mj - Black, Anthony (ORL - PG,SG,SF)
+(3) M - Santos, Gui (GSW - PF,SF)
+(4) Jp - Green, Draymond (GSW - PF,C)
+(5) Zorigoo - Eason, Tari (HOU - SF,PF,SG)
+(6) Manny - LaRavia, Jake (LAL - PF,SF)
+(7) せりお - Porziņģis, Kristaps (GSW - C)
+(8) Burak - Brown Jr., Mikel (BKN - PG)
+(9) Carlo - Harris, Tobias (SAS - PF)
+(10) muhammet - Jackson, Isaiah (LAC - C)
+(11) Jan - Mathurin, Bennedict (NOP - SG,SF)
+(12) Sneakerhead - Jones, Herbert (NOP - SG,SF)
+(13) Jason - Smith, Jalen (CHI - C,PF)
+(14) jaxson - Pippen Jr., Scotty (MEM - PG)
+
+
+Round 13
+(1) jaxson - Vučević, Nikola (ORL - C)
+(2) Jason - Grant, Jerami (MEM - PF,SF)
+(3) Sneakerhead - McCain, Jared (OKC - PG,SG)
+(4) Jan - Lopez, Brook (LAC - C)
+(5) muhammet - Reed, Paul (DET - C,PF)
+(6) Carlo - Portis Jr., Bobby (MIA - PF,C)
+(7) Burak - Champagnie, Julian (SAS - SF,PF)
+(8) せりお - Stewart, Isaiah (MEM - C,PF)
+(9) Manny - Williams III, Robert (POR - C)
+(10) Zorigoo - Allen, Grayson (CHA - SG,SF)
+(11) Jp - Wells, Jaylen (MEM - SG,SF)
+(12) M - Ighodaro, Oso (PHX - C)
+(13) Mj - Oubre Jr., Kelly (IND - SF,PF)
+(14) Hüsamettin - Ayton, Deandre (WAS - C)
+```

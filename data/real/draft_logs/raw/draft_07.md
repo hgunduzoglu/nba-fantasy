@@ -1,0 +1,228 @@
+# Draft 07
+
+- Kaynak: Yahoo mock draft sonuç sayfası (kullanıcı yapıştırdı, 2026-10-13)
+- Takım: 14, tur: 13
+- Otomatik (Yahoo botu): adı "Team N" olan takımlar (bu draft'ta yok)
+- Kullanıcı: Hüsamettin (sıra 9); pick'leri kalibrasyondan dışlanır
+
+```
+Round 1
+(1) Hayden - Jokić, Nikola (DEN - C)
+(2) Mendbayar - Wembanyama, Victor (SAS - C)
+(3) Eman - Dončić, Luka (LAL - PG,SG)
+(4) rapfiel - Gilgeous-Alexander, Shai (OKC - PG)
+(5) Forming_Dies - Cunningham, Cade (DET - PG,SG)
+(6) utkan - Antetokounmpo, Giannis (MIA - PF,C)
+(7) Dan - Barnes, Scottie (TOR - SF,PF,C)
+(8) t u r G - Maxey, Tyrese (PHI - PG)
+(9) Hüsamettin - Haliburton, Tyrese (IND - PG,SG)
+(10) ssee - Edwards, Anthony (MIN - PG,SG)
+(11) John Joseph Lata - Flagg, Cooper (DAL - SG,SF,PF)
+(12) Jdrew_Mark-S7J4F - Tatum, Jayson (BOS - SF,PF)
+(13) XENOBOMBA - Johnson, Jalen (ATL - PF,SF)
+(14) 2SMOOTH - Durant, Kevin (HOU - SF,PF,SG)
+
+
+Round 2
+(1) 2SMOOTH - Harden, James (CLE - SG,PG)
+(2) XENOBOMBA - Towns, Karl-Anthony (NYK - C,PF)
+(3) Jdrew_Mark-S7J4F - Mitchell, Donovan (CLE - SG,PG)
+(4) John Joseph Lata - Şengün, Alperen (HOU - C,PF)
+(5) ssee - Reaves, Austin (LAL - SG,PG,SF)
+(6) Hüsamettin - Brunson, Jalen (NYK - PG)
+(7) t u r G - Murray, Jamal (DEN - PG)
+(8) Dan - Giddey, Josh (CHI - PG,SG)
+(9) utkan - Thompson, Amen (HOU - PG,SG)
+(10) Forming_Dies - Mobley, Evan (CLE - C,PF)
+(11) rapfiel - Curry, Stephen (GSW - PG)
+(12) Eman - Young, Trae (WAS - PG)
+(13) Mendbayar - Ball, LaMelo (MIN - PG)
+(14) Hayden - Booker, Devin (PHX - SG,PG)
+
+
+Round 3
+(1) Hayden - Sabonis, Domantas (SAC - C,PF)
+(2) Mendbayar - Adebayo, Bam (MIA - C,PF)
+(3) Eman - Holmgren, Chet (OKC - PF,C)
+(4) rapfiel - Davis, Anthony (WAS - PF,C)
+(5) Forming_Dies - Williams, Jalen (OKC - SF,PF)
+(6) utkan - Leonard, Kawhi (TOR - SG,SF,PF)
+(7) Dan - Murphy III, Trey (NOP - SG,SF)
+(8) t u r G - Markkanen, Lauri (UTA - PF,SF)
+(9) Hüsamettin - Avdija, Deni (POR - SF,PF,SG)
+(10) ssee - Kessler, Walker (LAL - C)
+(11) John Joseph Lata - George, Keyonte (UTA - SG,PG)
+(12) Jdrew_Mark-S7J4F - Clingan, Donovan (POR - C)
+(13) XENOBOMBA - Duren, Jalen (DET - C)
+(14) 2SMOOTH - Miller, Brandon (CHA - SF,PF)
+
+
+Round 4
+(1) 2SMOOTH - White, Derrick (BOS - SG,PG)
+(2) XENOBOMBA - Jackson Jr., Jaren (UTA - C,PF)
+(3) Jdrew_Mark-S7J4F - Irving, Kyrie (DAL - PG)
+(4) John Joseph Lata - Brown, Jaylen (PHI - SG,SF,PF)
+(5) ssee - Okongwu, Onyeka (ATL - C)
+(6) Hüsamettin - Wagner, Franz (ORL - SF,PF)
+(7) t u r G - James, LeBron (PHI - SF,PF)
+(8) Dan - Siakam, Pascal (IND - PF,C)
+(9) utkan - Banchero, Paolo (ORL - PF)
+(10) Forming_Dies - Zubac, Ivica (IND - C)
+(11) rapfiel - Embiid, Joel (PHI - C)
+(12) Eman - Murray, Dejounte (NOP - PG)
+(13) Mendbayar - Bane, Desmond (ORL - SF,SG)
+(14) Hayden - Garland, Darius (LAC - PG)
+
+
+Round 5
+(1) Hayden - Daniels, Dyson (ATL - SG,SF)
+(2) Mendbayar - Boozer, Cameron (MEM - PF)
+(3) Eman - Alexander-Walker, Nickeil (ATL - PG,SG)
+(4) rapfiel - Knueppel, Kon (CHA - SF,SG)
+(5) Forming_Dies - Lillard, Damian (POR - PG)
+(6) utkan - Buzelis, Matas (CHI - SF,PF)
+(7) Dan - Castle, Stephon (SAS - PG,SG)
+(8) t u r G - Sarr, Alex (WAS - C)
+(9) Hüsamettin - Randle, Julius (BKN - PF)
+(10) ssee - Ware, Kel'el (MIL - C)
+(11) John Joseph Lata - Porter Jr., Michael (BKN - SF,PF)
+(12) Jdrew_Mark-S7J4F - Anunoby, OG (NYK - SF,PF)
+(13) XENOBOMBA - Rollins, Ryan (MIL - PG,SG)
+(14) 2SMOOTH - Reid, Naz (CHA - C,PF)
+
+
+Round 6
+(1) 2SMOOTH - Edey, Zach (MEM - C)
+(2) XENOBOMBA - Herro, Tyler (MIL - SG,PG)
+(3) Jdrew_Mark-S7J4F - Gobert, Rudy (MIN - C)
+(4) John Joseph Lata - Allen, Jarrett (CLE - C)
+(5) ssee - Jerome, Ty (MEM - SG,PG)
+(6) Hüsamettin - Fox, De'Aaron (SAS - PG)
+(7) t u r G - Thompson, Ausar (DET - SF,PF,SG)
+(8) Dan - Bridges, Mikal (NYK - SF,PF)
+(9) utkan - Williamson, Zion (NOP - PF,C)
+(10) Forming_Dies - Coward, Cedric (MEM - SG,SF)
+(11) rapfiel - Ingram, Brandon (LAC - SG,SF,PF)
+(12) Eman - George, Paul (BOS - SF,PF)
+(13) Mendbayar - Pritchard, Payton (BOS - PG)
+(14) Hayden - Powell, Norman (CHI - SG,SF)
+
+
+Round 7
+(1) Hayden - Wilson, Caleb (CHI - PF)
+(2) Mendbayar - Edgecombe, VJ (PHI - SG,PG)
+(3) Eman - McDaniels, Jaden (MIN - SF)
+(4) rapfiel - Morant, Ja (POR - PG)
+(5) Forming_Dies - Harper, Dylan (SAS - SG,PG)
+(6) utkan - Hart, Josh (NYK - SG,SF)
+(7) Dan - Queen, Derik (NOP - C,PF)
+(8) t u r G - White, Coby (CHA - PG,SG)
+(9) Hüsamettin - Quickley, Immanuel (TOR - PG,SG)
+(10) ssee - Camara, Toumani (POR - SF,PF)
+(11) John Joseph Lata - Suggs, Jalen (ORL - PG,SG)
+(12) Jdrew_Mark-S7J4F - Sharpe, Day'Ron (BKN - C)
+(13) XENOBOMBA - Wiggins, Andrew (MIA - SG,SF,PF)
+(14) 2SMOOTH - Dybantsa, AJ (WAS - SF)
+
+
+Round 8
+(1) 2SMOOTH - Smith Jr., Jabari (HOU - PF,C)
+(2) XENOBOMBA - Collins, John (DET - PF,C)
+(3) Jdrew_Mark-S7J4F - Murray, Keegan (SAC - SF,PF)
+(4) John Joseph Lata - McCollum, CJ (ATL - SG,PG)
+(5) ssee - Bridges, Miles (PHX - PF)
+(6) Hüsamettin - Murray-Boyles, Collin (TOR - PF,C)
+(7) t u r G - LaVine, Zach (SAC - PG,SG,SF)
+(8) Dan - Queta, Neemias (BOS - C)
+(9) utkan - Hartenstein, Isaiah (OKC - C)
+(10) Forming_Dies - Claxton, Nic (CHI - C)
+(11) rapfiel - Green, Jalen (PHX - SG,SF)
+(12) Eman - Turner, Myles (MIL - C)
+(13) Mendbayar - Podziemski, Brandin (GSW - SG,PG)
+(14) Hayden - Nurkić, Jusuf (UTA - C)
+
+
+Round 9
+(1) Hayden - Gordon, Aaron (DEN - PF,C)
+(2) Mendbayar - Dosunmu, Ayo (MIN - PG,SG)
+(3) Eman - Porter Jr., Kevin (MIL - PG,SG)
+(4) rapfiel - Vučević, Nikola (ORL - C)
+(5) Forming_Dies - Hachimura, Rui (LAC - PF,SF)
+(6) utkan - Nembhard, Andrew (IND - SG,PG)
+(7) Dan - Watson, Peyton (CLE - SF,PF)
+(8) t u r G - Mitchell, Davion (MIA - PG)
+(9) Hüsamettin - Maluach, Khaman (PHX - C)
+(10) ssee - Peterson, Darryn (UTA - SG)
+(11) John Joseph Lata - Lendeborg, Yaxel (GSW - PF)
+(12) Jdrew_Mark-S7J4F - Gillespie, Collin (PHX - PG,SG)
+(13) XENOBOMBA - Poeltl, Jakob (TOR - C)
+(14) 2SMOOTH - George, Kyshawn (WAS - SF,SG,PF)
+
+
+Round 10
+(1) 2SMOOTH - Wallace, Cason (OKC - SG,PG,SF)
+(2) XENOBOMBA - Carter Jr., Wendell (ORL - C)
+(3) Jdrew_Mark-S7J4F - Mitchell, Ajay (OKC - PG,SG)
+(4) John Joseph Lata - Green, Draymond (GSW - PF,C)
+(5) ssee - Acuff Jr., Darius (SAC - PG)
+(6) Hüsamettin - Mamukelashvili, Sandro (LAL - PF,C)
+(7) t u r G - Gafford, Daniel (DAL - C)
+(8) Dan - Holiday, Jrue (POR - PG,SG)
+(9) utkan - Jaquez Jr., Jaime (MIL - SF,SG,PF)
+(10) Forming_Dies - Barrett, RJ (TOR - SF,PF,SG)
+(11) rapfiel - DeRozan, DeMar (DEN - SF,PF)
+(12) Eman - Washington, P.J. (DAL - PF,C)
+(13) Mendbayar - Missi, Yves (NOP - C)
+(14) Hayden - Grimes, Quentin (LAL - SG,SF)
+
+
+Round 11
+(1) Hayden - Kuminga, Jonathan (MIN - SF,PF)
+(2) Mendbayar - Jones, Tre (CHI - PG,SG)
+(3) Eman - Bailey, Ace (UTA - SF,PF)
+(4) rapfiel - VanVleet, Fred (HOU - PG)
+(5) Forming_Dies - Brooks, Dillon (PHX - SF,PF)
+(6) utkan - Braun, Christian (DEN - SG,SF,PF)
+(7) Dan - Sheppard, Reed (HOU - PG,SG)
+(8) t u r G - Dëmin, Egor (BKN - PG,SG)
+(9) Hüsamettin - Diabaté, Moussa (CHA - C)
+(10) ssee - Butler III, Jimmy (GSW - SF,PF)
+(11) John Joseph Lata - Johnson, Cameron (DEN - SF,PF)
+(12) Jdrew_Mark-S7J4F - Black, Anthony (ORL - PG,SG,SF)
+(13) XENOBOMBA - Santos, Gui (GSW - PF,SF)
+(14) 2SMOOTH - Bey, Saddiq (NOP - PF,SF)
+
+
+Round 12
+(1) 2SMOOTH - Larsson, Pelle (MIA - SG,SF)
+(2) XENOBOMBA - Porziņģis, Kristaps (GSW - C)
+(3) Jdrew_Mark-S7J4F - Nesmith, Aaron (IND - SF,SG)
+(4) John Joseph Lata - Brown Jr., Mikel (BKN - PG)
+(5) ssee - Harris, Tobias (SAS - PF)
+(6) Hüsamettin - Eason, Tari (HOU - SF,PF,SG)
+(7) t u r G - Mathurin, Bennedict (NOP - SG,SF)
+(8) Dan - McCain, Jared (OKC - PG,SG)
+(9) utkan - Allen, Grayson (CHA - SG,SF)
+(10) Forming_Dies - Raynaud, Maxime (SAC - C)
+(11) rapfiel - Vassell, Devin (SAS - SF,SG)
+(12) Eman - Oubre Jr., Kelly (IND - SF,PF)
+(13) Mendbayar - Jones, Herbert (NOP - SG,SF)
+(14) Hayden - LaRavia, Jake (LAL - PF,SF)
+
+
+Round 13
+(1) Hayden - Smith, Jalen (CHI - C,PF)
+(2) Mendbayar - Pippen Jr., Scotty (MEM - PG)
+(3) Eman - Ayton, Deandre (WAS - C)
+(4) rapfiel - Grant, Jerami (MEM - PF,SF)
+(5) Forming_Dies - Jackson, Isaiah (LAC - C)
+(6) utkan - Wells, Jaylen (MEM - SG,SF)
+(7) Dan - Champagnie, Julian (SAS - SF,PF)
+(8) t u r G - Lopez, Brook (LAC - C)
+(9) Hüsamettin - Portis Jr., Bobby (MIA - PF,C)
+(10) ssee - Stewart, Isaiah (MEM - C,PF)
+(11) John Joseph Lata - Robinson, Mitchell (BOS - C)
+(12) Jdrew_Mark-S7J4F - Ighodaro, Oso (PHX - C)
+(13) XENOBOMBA - Henderson, Scoot (POR - PG)
+(14) 2SMOOTH - Reed, Paul (DET - C,PF)
+```

@@ -1,0 +1,228 @@
+# Draft 04
+
+- Kaynak: Yahoo mock draft sonuç sayfası (kullanıcı yapıştırdı, 2026-10-13)
+- Takım: 14, tur: 13
+- Otomatik (Yahoo botu): adı "Team N" olan takımlar (bu draft'ta yok)
+- Kullanıcı: Hüsamettin (sıra 8); pick'leri kalibrasyondan dışlanır
+
+```
+Round 1
+(1) JayA - Jokić, Nikola (DEN - C)
+(2) Kurt Soliman - Wembanyama, Victor (SAS - C)
+(3) Damien - Dončić, Luka (LAL - PG,SG)
+(4) 느바10년차 - Maxey, Tyrese (PHI - PG)
+(5) Emir - Gilgeous-Alexander, Shai (OKC - PG)
+(6) ÓBITO UCHIHA - Antetokounmpo, Giannis (MIA - PF,C)
+(7) Marlon - Edwards, Anthony (MIN - PG,SG)
+(8) Hüsamettin - Haliburton, Tyrese (IND - PG,SG)
+(9) Max - Cunningham, Cade (DET - PG,SG)
+(10) Robert - Tatum, Jayson (BOS - SF,PF)
+(11) 小巢 - Flagg, Cooper (DAL - SG,SF,PF)
+(12) Mico - Young, Trae (WAS - PG)
+(13) Bora - Şengün, Alperen (HOU - C,PF)
+(14) Cha - Mitchell, Donovan (CLE - SG,PG)
+
+
+Round 2
+(1) Cha - Barnes, Scottie (TOR - SF,PF,C)
+(2) Bora - Brunson, Jalen (NYK - PG)
+(3) Mico - Holmgren, Chet (OKC - PF,C)
+(4) 小巢 - Johnson, Jalen (ATL - PF,SF)
+(5) Robert - Durant, Kevin (HOU - SF,PF,SG)
+(6) Max - Ball, LaMelo (MIN - PG)
+(7) Hüsamettin - Adebayo, Bam (MIA - C,PF)
+(8) Marlon - Towns, Karl-Anthony (NYK - C,PF)
+(9) ÓBITO UCHIHA - Booker, Devin (PHX - SG,PG)
+(10) Emir - Thompson, Amen (HOU - PG,SG)
+(11) 느바10년차 - Harden, James (CLE - SG,PG)
+(12) Damien - Mobley, Evan (CLE - C,PF)
+(13) Kurt Soliman - Curry, Stephen (GSW - PG)
+(14) JayA - Murray, Jamal (DEN - PG)
+
+
+Round 3
+(1) JayA - Giddey, Josh (CHI - PG,SG)
+(2) Kurt Soliman - Brown, Jaylen (PHI - SG,SF,PF)
+(3) Damien - Duren, Jalen (DET - C)
+(4) 느바10년차 - Sabonis, Domantas (SAC - C,PF)
+(5) Emir - Kessler, Walker (LAL - C)
+(6) ÓBITO UCHIHA - Banchero, Paolo (ORL - PF)
+(7) Marlon - White, Derrick (BOS - SG,PG)
+(8) Hüsamettin - Williams, Jalen (OKC - SF,PF)
+(9) Max - Davis, Anthony (WAS - PF,C)
+(10) Robert - Reaves, Austin (LAL - SG,PG,SF)
+(11) 小巢 - Miller, Brandon (CHA - SF,PF)
+(12) Mico - Bane, Desmond (ORL - SF,SG)
+(13) Bora - Jackson Jr., Jaren (UTA - C,PF)
+(14) Cha - Murphy III, Trey (NOP - SG,SF)
+
+
+Round 4
+(1) Cha - Avdija, Deni (POR - SF,PF,SG)
+(2) Bora - Zubac, Ivica (IND - C)
+(3) Mico - Clingan, Donovan (POR - C)
+(4) 小巢 - Rollins, Ryan (MIL - PG,SG)
+(5) Robert - Markkanen, Lauri (UTA - PF,SF)
+(6) Max - Irving, Kyrie (DAL - PG)
+(7) Hüsamettin - Boozer, Cameron (MEM - PF)
+(8) Marlon - James, LeBron (PHI - SF,PF)
+(9) ÓBITO UCHIHA - George, Keyonte (UTA - SG,PG)
+(10) Emir - Daniels, Dyson (ATL - SG,SF)
+(11) 느바10년차 - Knueppel, Kon (CHA - SF,SG)
+(12) Damien - Lillard, Damian (POR - PG)
+(13) Kurt Soliman - Gobert, Rudy (MIN - C)
+(14) JayA - Leonard, Kawhi (TOR - SG,SF,PF)
+
+
+Round 5
+(1) JayA - Okongwu, Onyeka (ATL - C)
+(2) Kurt Soliman - Sarr, Alex (WAS - C)
+(3) Damien - Bridges, Mikal (NYK - SF,PF)
+(4) 느바10년차 - Alexander-Walker, Nickeil (ATL - PG,SG)
+(5) Emir - Thompson, Ausar (DET - SF,PF,SG)
+(6) ÓBITO UCHIHA - Porter Jr., Michael (BKN - SF,PF)
+(7) Marlon - Murray, Dejounte (NOP - PG)
+(8) Hüsamettin - Randle, Julius (BKN - PF)
+(9) Max - Ware, Kel'el (MIL - C)
+(10) Robert - Wagner, Franz (ORL - SF,PF)
+(11) 小巢 - Castle, Stephon (SAS - PG,SG)
+(12) Mico - Garland, Darius (LAC - PG)
+(13) Bora - Siakam, Pascal (IND - PF,C)
+(14) Cha - Buzelis, Matas (CHI - SF,PF)
+
+
+Round 6
+(1) Cha - Edey, Zach (MEM - C)
+(2) Bora - White, Coby (CHA - PG,SG)
+(3) Mico - Herro, Tyler (MIL - SG,PG)
+(4) 小巢 - Dybantsa, AJ (WAS - SF)
+(5) Robert - Embiid, Joel (PHI - C)
+(6) Max - Reid, Naz (CHA - C,PF)
+(7) Hüsamettin - Harper, Dylan (SAS - SG,PG)
+(8) Marlon - Anunoby, OG (NYK - SF,PF)
+(9) ÓBITO UCHIHA - Allen, Jarrett (CLE - C)
+(10) Emir - Sharpe, Day'Ron (BKN - C)
+(11) 느바10년차 - Wilson, Caleb (CHI - PF)
+(12) Damien - Williamson, Zion (NOP - PF,C)
+(13) Kurt Soliman - Turner, Myles (MIL - C)
+(14) JayA - Fox, De'Aaron (SAS - PG)
+
+
+Round 7
+(1) JayA - Coward, Cedric (MEM - SG,SF)
+(2) Kurt Soliman - Acuff Jr., Darius (SAC - PG)
+(3) Damien - Morant, Ja (POR - PG)
+(4) 느바10년차 - Pritchard, Payton (BOS - PG)
+(5) Emir - Murray-Boyles, Collin (TOR - PF,C)
+(6) ÓBITO UCHIHA - Green, Jalen (PHX - SG,SF)
+(7) Marlon - McDaniels, Jaden (MIN - SF)
+(8) Hüsamettin - Queen, Derik (NOP - C,PF)
+(9) Max - George, Paul (BOS - SF,PF)
+(10) Robert - Ingram, Brandon (LAC - SG,SF,PF)
+(11) 小巢 - Jerome, Ty (MEM - SG,PG)
+(12) Mico - Collins, John (DET - PF,C)
+(13) Bora - Hart, Josh (NYK - SG,SF)
+(14) Cha - Edgecombe, VJ (PHI - SG,PG)
+
+
+Round 8
+(1) Cha - Quickley, Immanuel (TOR - PG,SG)
+(2) Bora - Powell, Norman (CHI - SG,SF)
+(3) Mico - McCollum, CJ (ATL - SG,PG)
+(4) 小巢 - Bridges, Miles (PHX - PF)
+(5) Robert - Wiggins, Andrew (MIA - SG,SF,PF)
+(6) Max - Mitchell, Ajay (OKC - PG,SG)
+(7) Hüsamettin - Peterson, Darryn (UTA - SG)
+(8) Marlon - Dosunmu, Ayo (MIN - PG,SG)
+(9) ÓBITO UCHIHA - Suggs, Jalen (ORL - PG,SG)
+(10) Emir - Claxton, Nic (CHI - C)
+(11) 느바10년차 - Queta, Neemias (BOS - C)
+(12) Damien - LaVine, Zach (SAC - PG,SG,SF)
+(13) Kurt Soliman - DeRozan, DeMar (DEN - SF,PF)
+(14) JayA - Smith Jr., Jabari (HOU - PF,C)
+
+
+Round 9
+(1) JayA - Murray, Keegan (SAC - SF,PF)
+(2) Kurt Soliman - Butler III, Jimmy (GSW - SF,PF)
+(3) Damien - Podziemski, Brandin (GSW - SG,PG)
+(4) 느바10년차 - Porter Jr., Kevin (MIL - PG,SG)
+(5) Emir - Wallace, Cason (OKC - SG,PG,SF)
+(6) ÓBITO UCHIHA - Hartenstein, Isaiah (OKC - C)
+(7) Marlon - Camara, Toumani (POR - SF,PF)
+(8) Hüsamettin - Barrett, RJ (TOR - SF,PF,SG)
+(9) Max - Lendeborg, Yaxel (GSW - PF)
+(10) Robert - Nembhard, Andrew (IND - SG,PG)
+(11) 小巢 - Poeltl, Jakob (TOR - C)
+(12) Mico - Hachimura, Rui (LAC - PF,SF)
+(13) Bora - VanVleet, Fred (HOU - PG)
+(14) Cha - Maluach, Khaman (PHX - C)
+
+
+Round 10
+(1) Cha - Watson, Peyton (CLE - SF,PF)
+(2) Bora - George, Kyshawn (WAS - SF,SG,PF)
+(3) Mico - Gordon, Aaron (DEN - PF,C)
+(4) 小巢 - Missi, Yves (NOP - C)
+(5) Robert - Nurkić, Jusuf (UTA - C)
+(6) Max - Reed, Paul (DET - C,PF)
+(7) Hüsamettin - Bailey, Ace (UTA - SF,PF)
+(8) Marlon - Carter Jr., Wendell (ORL - C)
+(9) ÓBITO UCHIHA - Mamukelashvili, Sandro (LAL - PF,C)
+(10) Emir - Pippen Jr., Scotty (MEM - PG)
+(11) 느바10년차 - Bey, Saddiq (NOP - PF,SF)
+(12) Damien - Mitchell, Davion (MIA - PG)
+(13) Kurt Soliman - Jaquez Jr., Jaime (MIL - SF,SG,PF)
+(14) JayA - Gafford, Daniel (DAL - C)
+
+
+Round 11
+(1) JayA - Gillespie, Collin (PHX - PG,SG)
+(2) Kurt Soliman - Vučević, Nikola (ORL - C)
+(3) Damien - Washington, P.J. (DAL - PF,C)
+(4) 느바10년차 - Jones, Tre (CHI - PG,SG)
+(5) Emir - Stewart, Isaiah (MEM - C,PF)
+(6) ÓBITO UCHIHA - Grimes, Quentin (LAL - SG,SF)
+(7) Marlon - Kuminga, Jonathan (MIN - SF,PF)
+(8) Hüsamettin - Raynaud, Maxime (SAC - C)
+(9) Max - Brooks, Dillon (PHX - SF,PF)
+(10) Robert - Holiday, Jrue (POR - PG,SG)
+(11) 小巢 - Sheppard, Reed (HOU - PG,SG)
+(12) Mico - Dëmin, Egor (BKN - PG,SG)
+(13) Bora - Eason, Tari (HOU - SF,PF,SG)
+(14) Cha - Black, Anthony (ORL - PG,SG,SF)
+
+
+Round 12
+(1) Cha - Santos, Gui (GSW - PF,SF)
+(2) Bora - Jones, Herbert (NOP - SG,SF)
+(3) Mico - Nesmith, Aaron (IND - SF,SG)
+(4) 小巢 - Diabaté, Moussa (CHA - C)
+(5) Robert - Johnson, Cameron (DEN - SF,PF)
+(6) Max - Tyson, Jaylon (CLE - SG,SF,PF)
+(7) Hüsamettin - Wells, Jaylen (MEM - SG,SF)
+(8) Marlon - Green, Draymond (GSW - PF,C)
+(9) ÓBITO UCHIHA - Larsson, Pelle (MIA - SG,SF)
+(10) Emir - Braun, Christian (DEN - SG,SF,PF)
+(11) 느바10년차 - Vassell, Devin (SAS - SF,SG)
+(12) Damien - Lopez, Brook (LAC - C)
+(13) Kurt Soliman - Mathurin, Bennedict (NOP - SG,SF)
+(14) JayA - Porziņģis, Kristaps (GSW - C)
+
+
+Round 13
+(1) JayA - Brown Jr., Mikel (BKN - PG)
+(2) Kurt Soliman - Lively II, Dereck (DAL - C)
+(3) Damien - Portis Jr., Bobby (MIA - PF,C)
+(4) 느바10년차 - Champagnie, Julian (SAS - SF,PF)
+(5) Emir - Robinson, Mitchell (BOS - C)
+(6) ÓBITO UCHIHA - Harris, Tobias (SAS - PF)
+(7) Marlon - LaRavia, Jake (LAL - PF,SF)
+(8) Hüsamettin - Hauser, Sam (BOS - PF,SF)
+(9) Max - Mara, Aday (OKC - C)
+(10) Robert - Smith, Jalen (CHI - C,PF)
+(11) 小巢 - Filipowski, Kyle (UTA - PF,C)
+(12) Mico - Grant, Jerami (MEM - PF,SF)
+(13) Bora - Jackson, Isaiah (LAC - C)
+(14) Cha - Wagler, Keaton (LAC - SG)
+```

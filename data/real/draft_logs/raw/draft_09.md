@@ -1,0 +1,228 @@
+# Draft 09
+
+- Kaynak: Yahoo mock draft sonuç sayfası (kullanıcı yapıştırdı, 2026-10-13)
+- Takım: 14, tur: 13
+- Otomatik (Yahoo botu): adı "Team N" olan takımlar (bu draft'ta yok)
+- Kullanıcı: Hüsamettin (sıra 9); pick'leri kalibrasyondan dışlanır
+
+```
+Round 1
+(1) Thiago Pinho - Jokić, Nikola (DEN - C)
+(2) Tom Cruise - Wembanyama, Victor (SAS - C)
+(3) Declan - Dončić, Luka (LAL - PG,SG)
+(4) Jacek - Gilgeous-Alexander, Shai (OKC - PG)
+(5) aleksandar - Cunningham, Cade (DET - PG,SG)
+(6) Harjai - Antetokounmpo, Giannis (MIA - PF,C)
+(7) umac - Tatum, Jayson (BOS - SF,PF)
+(8) Gary - Flagg, Cooper (DAL - SG,SF,PF)
+(9) Hüsamettin - Maxey, Tyrese (PHI - PG)
+(10) Padre D - Edwards, Anthony (MIN - PG,SG)
+(11) Quiambie - Barnes, Scottie (TOR - SF,PF,C)
+(12) Cláudio - Johnson, Jalen (ATL - PF,SF)
+(13) chow - Towns, Karl-Anthony (NYK - C,PF)
+(14) Davies - Reaves, Austin (LAL - SG,PG,SF)
+
+
+Round 2
+(1) Davies - Murray, Jamal (DEN - PG)
+(2) chow - Holmgren, Chet (OKC - PF,C)
+(3) Cláudio - Şengün, Alperen (HOU - C,PF)
+(4) Quiambie - Mitchell, Donovan (CLE - SG,PG)
+(5) Padre D - Haliburton, Tyrese (IND - PG,SG)
+(6) Hüsamettin - Giddey, Josh (CHI - PG,SG)
+(7) Gary - Durant, Kevin (HOU - SF,PF,SG)
+(8) umac - Young, Trae (WAS - PG)
+(9) Harjai - Thompson, Amen (HOU - PG,SG)
+(10) aleksandar - Adebayo, Bam (MIA - C,PF)
+(11) Jacek - Murphy III, Trey (NOP - SG,SF)
+(12) Declan - Ball, LaMelo (MIN - PG)
+(13) Tom Cruise - Curry, Stephen (GSW - PG)
+(14) Thiago Pinho - Brunson, Jalen (NYK - PG)
+
+
+Round 3
+(1) Thiago Pinho - Duren, Jalen (DET - C)
+(2) Tom Cruise - Booker, Devin (PHX - SG,PG)
+(3) Declan - Mobley, Evan (CLE - C,PF)
+(4) Jacek - Miller, Brandon (CHA - SF,PF)
+(5) aleksandar - Harden, James (CLE - SG,PG)
+(6) Harjai - Markkanen, Lauri (UTA - PF,SF)
+(7) umac - Sabonis, Domantas (SAC - C,PF)
+(8) Gary - Leonard, Kawhi (TOR - SG,SF,PF)
+(9) Hüsamettin - Jackson Jr., Jaren (UTA - C,PF)
+(10) Padre D - Williams, Jalen (OKC - SF,PF)
+(11) Quiambie - Brown, Jaylen (PHI - SG,SF,PF)
+(12) Cláudio - Banchero, Paolo (ORL - PF)
+(13) chow - Okongwu, Onyeka (ATL - C)
+(14) Davies - Kessler, Walker (LAL - C)
+
+
+Round 4
+(1) Davies - Buzelis, Matas (CHI - SF,PF)
+(2) chow - White, Derrick (BOS - SG,PG)
+(3) Cláudio - Alexander-Walker, Nickeil (ATL - PG,SG)
+(4) Quiambie - Zubac, Ivica (IND - C)
+(5) Padre D - Irving, Kyrie (DAL - PG)
+(6) Hüsamettin - Bane, Desmond (ORL - SF,SG)
+(7) Gary - Davis, Anthony (WAS - PF,C)
+(8) umac - Avdija, Deni (POR - SF,PF,SG)
+(9) Harjai - James, LeBron (PHI - SF,PF)
+(10) aleksandar - Clingan, Donovan (POR - C)
+(11) Jacek - George, Keyonte (UTA - SG,PG)
+(12) Declan - Boozer, Cameron (MEM - PF)
+(13) Tom Cruise - Wagner, Franz (ORL - SF,PF)
+(14) Thiago Pinho - Siakam, Pascal (IND - PF,C)
+
+
+Round 5
+(1) Thiago Pinho - Herro, Tyler (MIL - SG,PG)
+(2) Tom Cruise - Embiid, Joel (PHI - C)
+(3) Declan - Porter Jr., Michael (BKN - SF,PF)
+(4) Jacek - Anunoby, OG (NYK - SF,PF)
+(5) aleksandar - Murray, Dejounte (NOP - PG)
+(6) Harjai - Garland, Darius (LAC - PG)
+(7) umac - Sarr, Alex (WAS - C)
+(8) Gary - Edey, Zach (MEM - C)
+(9) Hüsamettin - Knueppel, Kon (CHA - SF,SG)
+(10) Padre D - Rollins, Ryan (MIL - PG,SG)
+(11) Quiambie - Ware, Kel'el (MIL - C)
+(12) Cláudio - Williamson, Zion (NOP - PF,C)
+(13) chow - Daniels, Dyson (ATL - SG,SF)
+(14) Davies - McDaniels, Jaden (MIN - SF)
+
+
+Round 6
+(1) Davies - Randle, Julius (BKN - PF)
+(2) chow - Reid, Naz (CHA - C,PF)
+(3) Cláudio - Lillard, Damian (POR - PG)
+(4) Quiambie - Castle, Stephon (SAS - PG,SG)
+(5) Padre D - Fox, De'Aaron (SAS - PG)
+(6) Hüsamettin - Bridges, Mikal (NYK - SF,PF)
+(7) Gary - George, Paul (BOS - SF,PF)
+(8) umac - Allen, Jarrett (CLE - C)
+(9) Harjai - Thompson, Ausar (DET - SF,PF,SG)
+(10) aleksandar - Coward, Cedric (MEM - SG,SF)
+(11) Jacek - Wilson, Caleb (CHI - PF)
+(12) Declan - Gobert, Rudy (MIN - C)
+(13) Tom Cruise - Pritchard, Payton (BOS - PG)
+(14) Thiago Pinho - Quickley, Immanuel (TOR - PG,SG)
+
+
+Round 7
+(1) Thiago Pinho - Bridges, Miles (PHX - PF)
+(2) Tom Cruise - Ingram, Brandon (LAC - SG,SF,PF)
+(3) Declan - Wiggins, Andrew (MIA - SG,SF,PF)
+(4) Jacek - Edgecombe, VJ (PHI - SG,PG)
+(5) aleksandar - Harper, Dylan (SAS - SG,PG)
+(6) Harjai - White, Coby (CHA - PG,SG)
+(7) umac - Jerome, Ty (MEM - SG,PG)
+(8) Gary - Suggs, Jalen (ORL - PG,SG)
+(9) Hüsamettin - Morant, Ja (POR - PG)
+(10) Padre D - Powell, Norman (CHI - SG,SF)
+(11) Quiambie - Smith Jr., Jabari (HOU - PF,C)
+(12) Cláudio - LaVine, Zach (SAC - PG,SG,SF)
+(13) chow - Sharpe, Day'Ron (BKN - C)
+(14) Davies - Murray, Keegan (SAC - SF,PF)
+
+
+Round 8
+(1) Davies - Turner, Myles (MIL - C)
+(2) chow - Dybantsa, AJ (WAS - SF)
+(3) Cláudio - George, Kyshawn (WAS - SF,SG,PF)
+(4) Quiambie - Queen, Derik (NOP - C,PF)
+(5) Padre D - Collins, John (DET - PF,C)
+(6) Hüsamettin - Queta, Neemias (BOS - C)
+(7) Gary - Porter Jr., Kevin (MIL - PG,SG)
+(8) umac - Hart, Josh (NYK - SG,SF)
+(9) Harjai - Murray-Boyles, Collin (TOR - PF,C)
+(10) aleksandar - Maluach, Khaman (PHX - C)
+(11) Jacek - Watson, Peyton (CLE - SF,PF)
+(12) Declan - McCollum, CJ (ATL - SG,PG)
+(13) Tom Cruise - Hartenstein, Isaiah (OKC - C)
+(14) Thiago Pinho - Dosunmu, Ayo (MIN - PG,SG)
+
+
+Round 9
+(1) Thiago Pinho - Grimes, Quentin (LAL - SG,SF)
+(2) Tom Cruise - Podziemski, Brandin (GSW - SG,PG)
+(3) Declan - Gordon, Aaron (DEN - PF,C)
+(4) Jacek - Claxton, Nic (CHI - C)
+(5) aleksandar - Acuff Jr., Darius (SAC - PG)
+(6) Harjai - Camara, Toumani (POR - SF,PF)
+(7) umac - Nembhard, Andrew (IND - SG,PG)
+(8) Gary - Sheppard, Reed (HOU - PG,SG)
+(9) Hüsamettin - Carter Jr., Wendell (ORL - C)
+(10) Padre D - Nurkić, Jusuf (UTA - C)
+(11) Quiambie - Green, Jalen (PHX - SG,SF)
+(12) Cláudio - Poeltl, Jakob (TOR - C)
+(13) chow - Mitchell, Davion (MIA - PG)
+(14) Davies - Wallace, Cason (OKC - SG,PG,SF)
+
+
+Round 10
+(1) Davies - Bailey, Ace (UTA - SF,PF)
+(2) chow - Peterson, Darryn (UTA - SG)
+(3) Cláudio - Barrett, RJ (TOR - SF,PF,SG)
+(4) Quiambie - Jaquez Jr., Jaime (MIL - SF,SG,PF)
+(5) Padre D - Hachimura, Rui (LAC - PF,SF)
+(6) Hüsamettin - Brooks, Dillon (PHX - SF,PF)
+(7) Gary - Johnson, Cameron (DEN - SF,PF)
+(8) umac - Mamukelashvili, Sandro (LAL - PF,C)
+(9) Harjai - Gafford, Daniel (DAL - C)
+(10) aleksandar - Mitchell, Ajay (OKC - PG,SG)
+(11) Jacek - Lendeborg, Yaxel (GSW - PF)
+(12) Declan - Washington, P.J. (DAL - PF,C)
+(13) Tom Cruise - Kuminga, Jonathan (MIN - SF,PF)
+(14) Thiago Pinho - Jones, Tre (CHI - PG,SG)
+
+
+Round 11
+(1) Thiago Pinho - Holiday, Jrue (POR - PG,SG)
+(2) Tom Cruise - Gillespie, Collin (PHX - PG,SG)
+(3) Declan - Dëmin, Egor (BKN - PG,SG)
+(4) Jacek - DeRozan, DeMar (DEN - SF,PF)
+(5) aleksandar - Diabaté, Moussa (CHA - C)
+(6) Harjai - Missi, Yves (NOP - C)
+(7) umac - Butler III, Jimmy (GSW - SF,PF)
+(8) Gary - Braun, Christian (DEN - SG,SF,PF)
+(9) Hüsamettin - Bey, Saddiq (NOP - PF,SF)
+(10) Padre D - Black, Anthony (ORL - PG,SG,SF)
+(11) Quiambie - VanVleet, Fred (HOU - PG)
+(12) Cláudio - Mathurin, Bennedict (NOP - SG,SF)
+(13) chow - Santos, Gui (GSW - PF,SF)
+(14) Davies - Filipowski, Kyle (UTA - PF,C)
+
+
+Round 12
+(1) Davies - Allen, Grayson (CHA - SG,SF)
+(2) chow - Green, Draymond (GSW - PF,C)
+(3) Cláudio - Vučević, Nikola (ORL - C)
+(4) Quiambie - Hauser, Sam (BOS - PF,SF)
+(5) Padre D - Larsson, Pelle (MIA - SG,SF)
+(6) Hüsamettin - Jones, Herbert (NOP - SG,SF)
+(7) Gary - Nesmith, Aaron (IND - SF,SG)
+(8) umac - Porziņģis, Kristaps (GSW - C)
+(9) Harjai - Brown Jr., Mikel (BKN - PG)
+(10) aleksandar - Jackson, Isaiah (LAC - C)
+(11) Jacek - Beringer, Joan (MIN - PF,C)
+(12) Declan - Eason, Tari (HOU - SF,PF,SG)
+(13) Tom Cruise - Harris, Tobias (SAS - PF)
+(14) Thiago Pinho - Marshall, Naji (DAL - SF,PF,SG)
+
+
+Round 13
+(1) Thiago Pinho - Clifford, Nique (SAC - SG,SF)
+(2) Tom Cruise - Raynaud, Maxime (SAC - C)
+(3) Declan - Vassell, Devin (SAS - SF,SG)
+(4) Jacek - Ighodaro, Oso (PHX - C)
+(5) aleksandar - LaRavia, Jake (LAL - PF,SF)
+(6) Harjai - Smith, Jalen (CHI - C,PF)
+(7) umac - Pippen Jr., Scotty (MEM - PG)
+(8) Gary - Fears, Jeremiah (NOP - PG,SG)
+(9) Hüsamettin - Wells, Jaylen (MEM - SG,SF)
+(10) Padre D - Grant, Jerami (MEM - PF,SF)
+(11) Quiambie - Kuzma, Kyle (MIL - PF,SF)
+(12) Cláudio - Portis Jr., Bobby (MIA - PF,C)
+(13) chow - McCain, Jared (OKC - PG,SG)
+(14) Davies - Lopez, Brook (LAC - C)
+```
