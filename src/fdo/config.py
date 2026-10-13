@@ -145,6 +145,11 @@ class BotParams:
     value_lambda: float = 0.3
     punt_lambda: float = 0.4
     punt_after_round: int = 3
+    #: kadroya uyum (tüm profiller, punt_after_round'dan sonra): q ← q + λ_fit·(R_fit − R_düz); R_fit, kategori
+    #: ağırlıkları w_c = clip(1 + κ·z̃_c, 0, 2) (z̃: kadronun standartlaştırılmış kategori z toplamı) ile değer
+    #: sırası, R_düz dengeli değer sırası — ADP merkezi korunur, yalnızca kadroya göre kaydırılır
+    team_fit_lambda: float = 0.0
+    team_fit_kappa: float = 1.0
     beta_need: float = 4.0
     position_aware_need_mult: float = 3.0
     beta_stack: float = 3.0

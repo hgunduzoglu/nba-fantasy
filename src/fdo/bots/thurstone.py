@@ -183,6 +183,11 @@ class BatchDraft:
         prof = self.profile[:, seat_i]
         q = self.q_raw[:, seat_i, :]
 
+        fit = bp.team_fit_lambda
+        if fit > 0 and rnd > bp.punt_after_round:
+            # saf kadro uyumu kaydırması: ADP merkezi korunur, projeksiyon değerine çekilmez
+            q = q + fit * (self.team_fit_rank(seat_i) - self.team_fit_rank(seat_i, kappa=0.0))
+
         lam = pt.lam[prof]
         if np.any(lam > 0):
             R = np.broadcast_to(u.value_rank, q.shape).copy()
@@ -223,6 +228,23 @@ class BatchDraft:
             has = cand.any(axis=1)
             ok = np.where(has[:, None], cand, ok)
         return score, ok
+
+    def team_fit_rank(self, seat_i: int, kappa: float | None = None) -> np.ndarray:
+        """``(S, n)``: koltuğun kadrosuna göre ağırlıklı değer sırası (güçlü kategoriler ağır, zayıflar hafif).
+
+        ``kappa = 0`` düz (dengeli) değer sırasıdır; fark ``R_fit − R_düz`` saf uyum kaydırmasıdır."""
+        z = self.z_sum[:, seat_i, :]                                        # (S, C)
+        sd = z.std(axis=1, keepdims=True)
+        zt = np.where(sd > 0, (z - z.mean(axis=1, keepdims=True)) / np.where(sd > 0, sd, 1.0), 0.0)
+        k = self.bp.team_fit_kappa if kappa is None else kappa
+        w = np.clip(1.0 + k * zt, 0.0, 2.0)                                 # (S, C)
+        v = w @ self.u.zcat.T                                               # (S, n)
+        v = np.where(self.u.has_proj[None, :], v, -np.inf)
+        order = np.argsort(-v, axis=1, kind="stable")
+        rank = np.empty_like(order, dtype=float)
+        np.put_along_axis(rank, order, np.arange(1, self.u.n + 1, dtype=float)[None, :].repeat(self.S, 0), axis=1)
+        # projeksiyonsuz oyuncular: piyasa sırası (A) korunur
+        return np.where(self.u.has_proj[None, :], rank, self.u.adp[None, :])
 
     def bot_step(self) -> np.ndarray:
         score, ok = self.scores()

@@ -61,6 +61,12 @@ bots:
   value_lambda: 0.3
   punt_lambda: 0.4
   punt_after_round: 3
+  # Kadroya uyum (tüm botlar, punt_after_round'dan sonra; güçlü kategorileri güçlendirme): saf kaydırma
+  # q ← q + λ·(R_fit − R_düz). 12 gerçek log'da etkisi yok/olumsuz (λ 0.1: Brier 0.1049 → 0.1047, gürültü
+  # içinde; 0.3: 0.1089) — mock insanları kategori dengesine göre seçmiyor. Varsayılan kapalı; açmak
+  # simülasyonu ~%35 yavaşlatır.
+  team_fit_lambda: 0.0
+  team_fit_kappa: 2.0
   beta_need: 4.0          # pick birimi
   position_aware_need_mult: 3.0
   beta_stack: 3.0

@@ -111,3 +111,23 @@ def test_bot_league_choose_matches_mock(synthetic_ds, universe, config):
     state = state_from_log(m.log, config, synthetic_ds.draft_ids)
     pid = league.choose(state.next_seat, state)
     assert pid == m.play_next()
+
+
+def test_team_fit_rank_favors_strong_categories(universe, config):
+    import numpy as np
+
+    from fdo.bots.thurstone import BatchDraft
+
+    cfg = config.with_overrides({"model": {"bots": {"team_fit_lambda": 0.2, "team_fit_kappa": 2.0}}})
+    eng = BatchDraft(universe, cfg, 2, 0)
+    reb = list(universe.categories).index("REB")
+    eng.z_sum[:, 0, :] = 0.0
+    eng.z_sum[:, 0, reb] = 10.0                       # koltuk 1 ribauntta çok güçlü
+    flat = eng.team_fit_rank(0, kappa=0.0)
+    fit = eng.team_fit_rank(0)
+    has = universe.has_proj
+    top_reb = np.argsort(-np.where(has, universe.zcat[:, reb], -np.inf))[:20]
+    assert (fit[0, top_reb] <= flat[0, top_reb]).mean() > 0.8      # ribaundcular öne geçer
+    assert np.allclose(flat[0, has].min(), 1.0)
+    eng.run_until(eng.total + 1)                                      # λ > 0 ile tam draft çalışır
+    assert (eng.pick_player >= 0).all()
