@@ -27,7 +27,8 @@ PLAYERS: tuple[Column, ...] = (
     Column("nba_person_id", "str"),
     Column("aliases", "str", False, "; ile ayrılmış alternatif yazımlar"),
     Column("is_synthetic", "bool", True),
-    Column("injury_status", "str", False, "Kaynağın durum etiketi (O, Q, NA…); yalnızca O etkiler (§5.8)"),
+    Column("injury_status", "str", False, "Kaynağın durum etiketi (O, Q, NA…); NA draft edilmez (§5.8)"),
+    Column("is_rookie", "bool", False, "V2 senaryoları: rookie belirsizliği daha geniş (§13.5)"),
 )
 
 PROJECTIONS: tuple[Column, ...] = (

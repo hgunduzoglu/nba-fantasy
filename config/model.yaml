@@ -101,6 +101,15 @@ availability:
   # hesabı değiştirmez; sakatlığın etkisi projeksiyonun beklenen maç sayısındadır.
   undraftable_statuses: [NA]
 
+scenarios:
+  # V2 sakatlık/rol belirsizliği (§13.5): advisor'da "belirsizlik" açıkken simülasyon başına
+  # oyuncu çarpanı m = (a/ā)·r; a ~ Beta(ā·κ, (1−ā)·κ), r log-normal (ortalama 1).
+  # Rookie (players.is_rookie) için κ küçük, σ_r büyük. Kalibre edilmemiş.
+  gp_kappa: 8.0
+  rookie_gp_kappa: 5.0
+  role_sd: 0.08
+  rookie_role_sd: 0.20
+
 advisor:
   k1_top_ecw: 20
   k2_urgency_pool: 35

@@ -166,6 +166,15 @@ class MatchupParams:
 
 
 @dataclass(frozen=True)
+class ScenarioParams:
+    """Sakatlık/rol belirsizliği (README §13.5, V2). Advisor'da isteğe bağlı açılır."""
+    gp_kappa: float = 8.0           # maç oranı a ~ Beta(ā·κ, (1−ā)·κ)
+    rookie_gp_kappa: float = 5.0
+    role_sd: float = 0.08           # rol çarpanı log-normal σ
+    rookie_role_sd: float = 0.20
+
+
+@dataclass(frozen=True)
 class AvailabilityParams:
     """Oyuncu durumu (README §5.8): bu etiketlerdeki oyuncu draft havuzuna alınmaz."""
     undraftable_statuses: tuple[str, ...] = ("NA",)
@@ -214,6 +223,7 @@ class ModelSettings:
     advisor: AdvisorParams
     realism: RealismParams
     availability: AvailabilityParams = field(default_factory=AvailabilityParams)
+    scenarios: ScenarioParams = field(default_factory=ScenarioParams)
 
 
 @dataclass(frozen=True)
@@ -321,6 +331,7 @@ def config_from_dict(raw: dict[str, Any]) -> Config:
         advisor=_build(AdvisorParams, m.get("advisor")),
         realism=_build(RealismParams, m.get("realism")),
         availability=_build(AvailabilityParams, m.get("availability")),
+        scenarios=_build(ScenarioParams, m.get("scenarios")),
     )
     cfg = Config(league=league, scoring=scoring, roster=roster, unverified=unverified,
                  model=model, schedule=_build(ScheduleSettings, raw.get("schedule")), raw=raw)
@@ -383,6 +394,9 @@ def validate_config(cfg: Config) -> None:
 
     if cfg.model.adp_fallback.missing_adp_policy not in ("after_coverage", "isotonic"):
         raise ConfigError("adp_fallback.missing_adp_policy: after_coverage | isotonic")
+    sp = cfg.model.scenarios
+    if min(sp.gp_kappa, sp.rookie_gp_kappa) <= 0 or min(sp.role_sd, sp.rookie_role_sd) < 0:
+        raise ConfigError("scenarios: κ > 0 ve σ_r ≥ 0 olmalı")
     days = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
     if cfg.schedule.week_start not in days:
         raise ConfigError(f"schedule.week_start: {' | '.join(days)}")
