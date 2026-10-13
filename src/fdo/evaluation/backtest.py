@@ -50,10 +50,15 @@ class RankStrategy:
 class AdvisorStrategy:
     def __init__(self, ctx):
         self.ctx = ctx
+        self.fallbacks = 0
 
     def choose(self, m: MockDraft) -> list[str]:
         res = recommend(self.ctx, m.log, mode="fast", conditional_fill=False)
-        return list(res.pairs[0].players)
+        if res.pairs:
+            return list(res.pairs[0].players)
+        self.fallbacks += 1                        # geçerli çift yok: ADP sırasıyla uygun ilk oyuncu
+        u = self.ctx.universe
+        return RankStrategy([str(u.ids[i]) for i in np.argsort(u.adp, kind="stable")]).choose(m)
 
 
 def value_order(dataset: Dataset, config: Config, universe: BotUniverse, method: str) -> list[str]:
