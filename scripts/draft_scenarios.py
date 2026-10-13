@@ -185,6 +185,16 @@ def resolve(names: pd.Series, text: str) -> str:
     return hits[0]
 
 
+def typical_roster(R: np.ndarray) -> np.ndarray:
+    """En temsili gerçek kadro: oyuncularının kendi pick'lerindeki sıklık toplamı en yüksek simülasyon
+    (sütun bazında mod aynı oyuncuyu iki pick'e koyabilir)."""
+    freq = np.zeros(R.shape, dtype=float)
+    for j in range(R.shape[1]):
+        vals, counts = np.unique(R[:, j], return_counts=True)
+        freq[:, j] = pd.Series(counts, index=vals).reindex(R[:, j]).to_numpy()
+    return R[int(np.argmax(freq.sum(axis=1)))]
+
+
 def summarize(results: list[dict], categories, names, pick_cols) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Senaryo özetleri ve kadro satırları."""
     labels = [CATEGORY_LABELS[c] for c in categories]
@@ -196,7 +206,7 @@ def summarize(results: list[dict], categories, names, pick_cols) -> tuple[pd.Dat
         w1 = [weights_label(w, categories) for w in res["w1"]] if res["w1"] is not None else [""] * S
         w2 = [weights_label(w, categories) for w in res["w2"]] if res["w2"] is not None else [""] * S
         R = res["roster_ids"]
-        modal = [pd.Series(R[:, j]).mode().iloc[0] for j in range(R.shape[1])]
+        modal = typical_roster(R)
         rows.append({"çift": pair_label, "16": names[res["pair_ids"][0]], "17": names[res["pair_ids"][1]],
                      "strateji": st.name, "E[W]": float(ew.mean()),
                      "SE": float(ew.std(ddof=1) / np.sqrt(S)) if S > 1 else 0.0,

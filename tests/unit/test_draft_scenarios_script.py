@@ -34,3 +34,11 @@ def test_mix_and_delayed_fixed():
     assert w[0, 0] == 0 and w[0, 8] == 1.5 and w[0, 7] == 1.5
     assert (pol(3, p[:, ::-1]) == w).all()                 # karar sabit kalır
     assert weights_label(w[0], CATS) == "FG%×0 BLK×1.5 TO×1.5"
+
+
+def test_typical_roster_is_a_real_roster():
+    from draft_scenarios import typical_roster
+
+    R = np.array([["a", "b", "c"], ["a", "c", "b"], ["d", "b", "e"], ["a", "c", "e"]])
+    t = typical_roster(R)
+    assert any((t == r).all() for r in R) and len(set(t)) == 3 and t[0] == "a"
