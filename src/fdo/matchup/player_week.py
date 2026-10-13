@@ -65,21 +65,40 @@ def ratio_game_variance(makes, attempts, att_var, r):
     return attempts * p * (1 - p) + (p - r) ** 2 * np.asarray(att_var, dtype=float)
 
 
-def weekly_games(projected_gp, params: MatchupParams):
-    """``k_i = utilization · games_per_week · min(gp, cap)/cap``."""
+def weekly_games(projected_gp, params: MatchupParams, games_per_week=None):
+    """``k_i = utilization · G_i · min(gp, cap)/cap``.
+
+    ``G_i`` takvim yoksa sabit ``games_per_week``; takvim varsa oyuncunun takımının eşleşme
+    başına ortalama maç sayısıdır (V2, §13.4).
+    """
     gp = np.minimum(np.asarray(projected_gp, dtype=float), params.games_cap)
-    return params.utilization * params.games_per_week * gp / params.games_cap
+    g = params.games_per_week if games_per_week is None else np.asarray(games_per_week, dtype=float)
+    return params.utilization * g * gp / params.games_cap
 
 
-def weekly_vectors(proj: pd.DataFrame, var_pg: pd.DataFrame, config: Config) -> pd.DataFrame:
-    """Oyuncu başına 24 boyutlu haftalık vektör (index ``player_id``)."""
+def weekly_vectors(proj: pd.DataFrame, var_pg: pd.DataFrame, config: Config,
+                   games: pd.Series | None = None, games_var: pd.Series | None = None) -> pd.DataFrame:
+    """Oyuncu başına 24 boyutlu haftalık vektör (index ``player_id``).
+
+    ``games`` / ``games_var``: oyuncu → takımın eşleşme başına maç sayısı ortalaması ve varyansı
+    (takvimden). ``matchup.games_variance`` açıksa sayılan maç ``N = c·g`` (``c = utilization·a``)
+    rastgele kabul edilir: ``Var(X) = E[N]·σ² + Var(N)·μ²``; oran bileşenlerine de aynı terim
+    eklenir. Oyuncular arası maç sayısı kovaryansı (aynı hafta) modellenmez.
+    """
+    mp = config.model.matchup
     p = proj.set_index("player_id")
     v = var_pg.reindex(p.index)
-    k = weekly_games(p["projected_gp"].to_numpy(), config.model.matchup)
+    g = None if games is None else games.reindex(p.index).fillna(mp.games_per_week).to_numpy(float)
+    k = weekly_games(p["projected_gp"].to_numpy(), mp, g)
+    kv = np.zeros(len(p))
+    if mp.games_variance and games_var is not None:
+        c = k / (g if g is not None else mp.games_per_week)
+        kv = c ** 2 * games_var.reindex(p.index).fillna(0.0).to_numpy(float)
     out = np.zeros((len(p), WEEK_DIM))
     for j, s in enumerate(COUNT_STATS):
-        out[:, j] = k * p[s].to_numpy(float)
-        out[:, N_COUNT + j] = k * v[s].to_numpy(float)
+        mu = p[s].to_numpy(float)
+        out[:, j] = k * mu
+        out[:, N_COUNT + j] = k * v[s].to_numpy(float) + kv * mu ** 2
     for key, (makes, att) in {"fg": ("fgm", "fga"), "ft": ("ftm", "fta")}.items():
         o = RATIO_OFFSETS[key]
         m = p[makes].to_numpy(float)
@@ -88,9 +107,9 @@ def weekly_vectors(proj: pd.DataFrame, var_pg: pd.DataFrame, config: Config) -> 
         pr = np.divide(m, a_, out=np.zeros_like(m), where=a_ > 0)
         out[:, o + 0] = k * m
         out[:, o + 1] = k * a_
-        out[:, o + 2] = k * (a_ * pr * (1 - pr) + pr ** 2 * va)
-        out[:, o + 3] = k * pr * va
-        out[:, o + 4] = k * va
+        out[:, o + 2] = k * (a_ * pr * (1 - pr) + pr ** 2 * va) + kv * m ** 2
+        out[:, o + 3] = k * pr * va + kv * m * a_
+        out[:, o + 4] = k * va + kv * a_ ** 2
     return pd.DataFrame(out, index=p.index)
 
 

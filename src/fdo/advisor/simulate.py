@@ -20,6 +20,7 @@ from fdo.draft.events import DraftLog
 from fdo.ingest.load import Dataset
 from fdo.matchup.fill import FillTable, fill_table_from_picks
 from fdo.matchup.player_week import WEEK_DIM, per_game_variance, weekly_vectors
+from fdo.schedule import build_calendar, player_games
 
 #: Ana seed'den türetilen alt akışlar (birbirine karışmasın diye).
 STREAM_ROLLOUT = 0
@@ -39,7 +40,11 @@ def player_vectors(dataset: Dataset, config: Config, universe: BotUniverse) -> t
     """
     var, calibrated = per_game_variance(dataset.projections, dataset.variance,
                                         config.model.variance.phi)
-    wv = weekly_vectors(dataset.projections, var, config)
+    games = games_var = None
+    if dataset.schedule is not None:     # V2 (§13.4): takımın eşleşme başına maç sayısı
+        cal = build_calendar(dataset.schedule, config)
+        games, games_var, _ = player_games(dataset.players, cal, config)
+    wv = weekly_vectors(dataset.projections, var, config, games, games_var)
     out = np.full((universe.n, WEEK_DIM), np.nan)
     rows = [universe.index[p] for p in wv.index if p in universe.index]
     out[rows] = wv.loc[[p for p in wv.index if p in universe.index]].to_numpy()
