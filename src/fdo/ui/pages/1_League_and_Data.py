@@ -12,8 +12,10 @@ import yaml
 
 from fdo.config import REPO_ROOT
 from fdo.ingest import load_dataset
+from fdo.ingest.load import load_table
 from fdo.ingest.schema import LICENSE_STATUSES, MANIFEST_KINDS
 from fdo.ingest.synthetic import write_synthetic
+from fdo.schedule import build_calendar, player_games, week_summary
 from fdo.ui import common
 
 common.page("1 · League & Data", needs_data=False)
@@ -51,6 +53,7 @@ with right:
                                                  "uygulamadığı doğrulanmadı → draft motorunda kısıt yok.",
             "lineup_lock": "Lineup kilit kuralı bilinmiyor → utilization tek katsayı (kalibre edilmemiş).",
             "il_slots": "IL/IL+ slotları draft kadrosuna dahil değil kabul edildi.",
+            "playoff_weeks": "Fantasy playoff hafta sayısı bilinmiyor → takvim yüklüyse tüm haftalar eşit ağırlık.",
         }.get(f, f"{f} = null")
         st.warning(msg)
     with st.expander("Doğrulanmamış ayarları bu oturum için düzenle"):
@@ -193,3 +196,35 @@ if ds is not None:
     st.bar_chart(counts.rename("oyuncu"), color="#2a78d6", horizontal=True)
     st.caption("Not: 16 takımlı ligin 145–208 arası seçimleri, çoğunlukla 12 takımlı ADP verisinin seyrek "
                "olduğu bölgeye düşer; geç turlarda ADP'den gelen olasılıklar daha belirsizdir.")
+
+# ------------------------------------------------------------------ takvim (V2)
+if ds is not None:
+    st.subheader("NBA takvimi (V2, §13.4)")
+    st.caption("Takvim yüklenirse oyuncunun haftalık maç sayısı sabit "
+               f"{cfg.model.matchup.games_per_week} yerine takımının fantasy haftalarındaki ortalamasıdır. "
+               "Takvim dosyası da manifest ister (`kind: schedule`).")
+    sched_files = sorted([*DATA.glob("real/schedule*.csv"), *DATA.glob("synthetic/schedule*.csv")])
+    if sched_files:
+        c1, c2 = st.columns([3, 1])
+        f_sched = c1.selectbox("Takvim dosyası", [str(p.relative_to(REPO_ROOT)) for p in sched_files])
+        if c2.button("Takvimi ekle"):
+            df, man, srep = load_table(REPO_ROOT / f_sched, "schedule")
+            if df is None:
+                for e in srep.errors:
+                    st.error(e)
+            else:
+                common.set_dataset(ds.with_schedule(df, man), st.session_state.report)
+                st.rerun()
+    else:
+        st.info("`data/real/schedule*.csv` yok. `scripts/fetch_nba_schedule.py` takvimi indirir "
+                "(kullanım şartları kullanıcının kararıdır, §5.1).")
+    if ds.schedule is not None:
+        cal = build_calendar(ds.schedule, cfg)
+        _, _, unknown = player_games(ds.players, cal, cfg)
+        if unknown:
+            st.warning(f"Takvimde olmayan takım kodları (sabit {cfg.model.matchup.games_per_week} maç): "
+                       f"{', '.join(unknown)}")
+        st.dataframe(week_summary(cal), height=300)
+        if st.button("Takvimi kaldır"):
+            common.set_dataset(ds.with_schedule(None), st.session_state.report)
+            st.rerun()

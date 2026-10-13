@@ -59,3 +59,16 @@ def test_realism_batch(env):
         at.button[0].click()
     at = run_page(env, "pages/6_Realism_Report.py", act)
     assert at.session_state["realism"] is not None
+
+
+@pytest.mark.parametrize("page", ["pages/1_League_and_Data.py", "pages/5_Team_Dashboard.py"])
+def test_pages_with_schedule(env, page):
+    import datetime as dt
+
+    from fdo.schedule import synthetic_schedule
+
+    cfg, ds, mock = env
+    sched = synthetic_schedule(["SYN", *[f"T{i:02d}" for i in range(29)]], dt.date(2026, 10, 20),
+                               np.random.default_rng(0))
+    at = run_page((cfg, ds.with_schedule(sched), mock), page)
+    assert at.dataframe

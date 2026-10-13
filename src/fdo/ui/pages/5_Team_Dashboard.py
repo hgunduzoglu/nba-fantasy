@@ -12,6 +12,7 @@ import streamlit as st
 from fdo.advisor.simulate import make_engine, team_vectors
 from fdo.matchup.ecw import classify, ecw_matrix, opponent_category_mean, team_ecw
 from fdo.matchup.team_totals import category_means
+from fdo.schedule import build_calendar, roster_week_table
 from fdo.types import CATEGORY_LABELS
 from fdo.ui import common
 
@@ -68,3 +69,19 @@ fmt = {c: "{:.3f}" for c in ("FG%", "FT%")}
 fmt.update({c: "{:.1f}" for c in vals.columns if c not in fmt})
 st.dataframe(vals.style.format(fmt), height=36 * (lg.teams + 1) + 5)
 st.caption("FG% = ΣFGM / ΣFGA ve FT% = ΣFTM / ΣFTA takım toplamlarından hesaplanır; yüzdelerin ortalaması alınmaz.")
+
+ds = common.dataset()
+if ds.schedule is not None:
+    st.subheader("Haftalık maç sayısı (takvim, günlük lineup)")
+    mine_ids = [p.player_id for p in log.picks if p.seat == lg.my_seat]
+    if not mine_ids:
+        st.info("Kadronuzda henüz oyuncu yok.")
+    else:
+        cal = build_calendar(ds.schedule, cfg)
+        players = ds.players.set_index("player_id")
+        table = roster_week_table(mine_ids, [players.loc[i, "positions"] for i in mine_ids],
+                                  list(players.loc[mine_ids, "nba_team"]), cal, cfg)
+        st.dataframe(table, height=300)
+        st.caption(f"`scheduled`: kadronuzdaki ({len(mine_ids)} oyuncu) takımların maçları; `counted`: her gün "
+                   "o gün oynayanlar aktif slotlara en iyi yerleştirildiğinde sayılan maçlar (lineup_lock = "
+                   f"{cfg.unverified.lineup_lock}). Sakatlık hesaba katılmaz.")
