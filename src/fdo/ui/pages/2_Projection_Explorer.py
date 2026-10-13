@@ -16,7 +16,7 @@ from fdo.ui import common
 from fdo.valuation import value_players
 from fdo.valuation.weights import WeightError, preset, validate_weights
 
-common.page("2 · Projection Explorer")
+common.page("Projeksiyonlar")
 cfg = common.config()
 ds = common.dataset()
 vp = cfg.model.valuation

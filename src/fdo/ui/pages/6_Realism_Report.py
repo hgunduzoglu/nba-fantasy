@@ -14,7 +14,7 @@ from fdo.realism.metrics import compute_metrics, pick_table, reach_class, run_mo
 from fdo.realism.report import build_report
 from fdo.ui import common
 
-common.page("6 · Realism Report")
+common.page("Bot Gerçekçiliği")
 cfg = common.config()
 ds = common.dataset()
 u = common.universe()
@@ -27,7 +27,7 @@ st.markdown(common.UNCALIBRATED + " Hedef değerler gerçek veriyle doğrulanmam
 st.header("Son mock")
 m = st.session_state.mock
 if m is None or not len(m.log):
-    st.info("Henüz mock yok (Sayfa 3).")
+    st.info("Henüz mock yok (Mock Draft).")
 else:
     rows = []
     for p in m.log.picks:

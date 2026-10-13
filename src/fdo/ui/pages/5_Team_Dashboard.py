@@ -16,7 +16,7 @@ from fdo.schedule import build_calendar, roster_week_table
 from fdo.types import CATEGORY_LABELS
 from fdo.ui import common
 
-common.page("5 · Team Dashboard")
+common.page("Takım Panosu")
 cfg = common.config()
 lg = cfg.league
 mp = cfg.model.matchup
