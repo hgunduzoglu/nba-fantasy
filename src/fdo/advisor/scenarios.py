@@ -64,15 +64,21 @@ def archetype_label(signature: tuple[str, ...]) -> str:
     return "punt " + "+".join(CATEGORY_LABELS.get(c, c) for c in signature) + " benzeri"
 
 
-def run_scenarios(ctx: AdvisorContext, log: DraftLog, *, n_sims: int | None = None,
-                  seed: int | None = None, top: int = 5, progress=None) -> ScenarioResult:
-    t0 = time.perf_counter()
+def rollout_to_end(ctx: AdvisorContext, log: DraftLog, S: int, seed: int, *, punt: tuple[str, ...] = (),
+                   progress=None):
+    """Draft sonuna kadar rollout: kullanıcı her turn'de ``punt`` dışındaki kategorilerin beklenen
+    galibiyetini en büyükleyen seçimi yapar (``punt = ()`` → miyopik ECW π). Dönüş: ``(P (S, T−1, C),
+    kullanıcı kadro matrisi, motor)``; P her zaman 9 kategorinin hepsiyle hesaplanır."""
     cfg = ctx.config
     adv = cfg.model.advisor
     lg = cfg.league
-    S = int(n_sims or adv.scenario_full_sims)
-    seed = ctx.seed if seed is None else int(seed)
     prob = setup_problem(ctx, log, ctx.base_fill)
+    keep = np.array([c not in punt for c in cfg.categories])
+
+    def policy_score(vecs_):
+        p = ecw_vs(vecs_, prob.opp_static, cfg)                       # (..., T−1, C)
+        return p[..., keep].sum(axis=-1).mean(axis=-1)
+
     user = prob.user
     eng = make_engine(ctx, log, S, sub_seed(seed, STREAM_SCENARIO), cache_jitter=False)
     vecs, fill = ctx.vecs, ctx.base_fill
@@ -106,14 +112,14 @@ def run_scenarios(ctx: AdvisorContext, log: DraftLog, *, n_sims: int | None = No
             idx = np.flatnonzero(avail)
             if len(idx) < len(turn):
                 continue
-            single = prob.ecw_static(base[None, :] + fill.sum(turn[1:]) + vecs[idx])
+            single = policy_score(base[None, :] + fill.sum(turn[1:]) + vecs[idx])
             short = idx[np.argsort(-single, kind="stable")[: adv.next_policy_top_l]]
             combos = list(itertools.combinations(short.tolist(), len(turn)))
             table = feasible(eng.counts[s, user - 1], len(turn), len(later))
             ok = [c for c in combos if table[tuple(uni.group[list(c)])]]
             combos = ok or combos
             V = np.stack([vecs[list(c)].sum(axis=0) for c in combos])
-            best = combos[int(np.argmax(prob.ecw_static(base[None, :] + V)))]
+            best = combos[int(np.argmax(policy_score(base[None, :] + V)))]
             choices[s, : len(best)] = best
         for j in range(len(turn)):
             eng.force(choices[:, j])
@@ -122,7 +128,16 @@ def run_scenarios(ctx: AdvisorContext, log: DraftLog, *, n_sims: int | None = No
     teams = team_vectors(eng, vecs, fill, eng.total + 1)
     user_vec = teams[:, user - 1, :]
     opp = teams[:, prob.opp_seats - 1, :]
-    P = ecw_vs(user_vec, opp, cfg)                      # (S, T−1, n_cat)
+    return ecw_vs(user_vec, opp, cfg), eng.roster_matrix(user), eng
+
+
+def run_scenarios(ctx: AdvisorContext, log: DraftLog, *, n_sims: int | None = None,
+                  seed: int | None = None, top: int = 5, progress=None) -> ScenarioResult:
+    t0 = time.perf_counter()
+    cfg = ctx.config
+    S = int(n_sims or cfg.model.advisor.scenario_full_sims)
+    seed = ctx.seed if seed is None else int(seed)
+    P, rosters, _ = rollout_to_end(ctx, log, S, seed, progress=progress)   # (S, T−1, n_cat)
     cat_p = P.mean(axis=1)
     ecw = P.sum(axis=-1).mean(axis=-1)
     cats = list(cfg.categories)
@@ -132,7 +147,6 @@ def run_scenarios(ctx: AdvisorContext, log: DraftLog, *, n_sims: int | None = No
         sig = tuple(c for c, p in zip(cats, cat_p[s]) if p < lost)
         groups[sig].append(s)
     names = ctx.dataset.names()
-    rosters = eng.roster_matrix(user)
     out = []
     for sig, members in sorted(groups.items(), key=lambda kv: -len(kv[1]))[:top]:
         m = np.array(members)
@@ -142,3 +156,52 @@ def run_scenarios(ctx: AdvisorContext, log: DraftLog, *, n_sims: int | None = No
                              mean_ecw=float(ecw[m].mean()), cat_p=cat_p[m].mean(axis=0),
                              typical_roster=[str(names.get(p, p)) for p in ids]))
     return ScenarioResult(archetypes=out, n_sims=S, seed=seed, elapsed=time.perf_counter() - t0)
+
+
+#: Karşılaştırılan planlar: dengeli, tek kategori punt'ları ve yaygın ikili punt'lar.
+COMMON_PAIRS = (("FT_PCT", "TOV"), ("FG_PCT", "FT_PCT"), ("FG3M", "FT_PCT"), ("AST", "TOV"), ("PTS", "FG3M"),
+                ("BLK", "REB"))
+
+
+@dataclass
+class PlanResult:
+    table: pd.DataFrame          # plan, E[W], fark (dengeliye göre, CRN) ± SE, P10, P90, kategori P'leri
+    n_sims: int
+    seed: int
+    elapsed: float
+
+    @property
+    def best(self) -> pd.Series:
+        return self.table.iloc[0]
+
+
+def compare_punt_plans(ctx: AdvisorContext, log: DraftLog, *, n_sims: int = 100, seed: int | None = None,
+                       plans=None, progress=None) -> PlanResult:
+    """Her plan aynı ``n_sims`` draft senaryosunda (CRN) sona kadar oynanır; kullanıcının sonraki pick'leri
+    plandaki punt dışı kategorilerin beklenen galibiyetini en büyükler. Final kadro 9 kategoriyle
+    değerlendirilir: E[W] (rakip başına beklenen kategori galibiyeti) ve dengeli plana göre eşleşmeli fark."""
+    t0 = time.perf_counter()
+    cfg = ctx.config
+    seed = ctx.seed if seed is None else int(seed)
+    cats = list(cfg.categories)
+    if plans is None:
+        plans = [(), *((c,) for c in cats), *(p for p in COMMON_PAIRS if set(p) <= set(cats))]
+    W = {}
+    rows = []
+    for i, plan in enumerate(plans):
+        if progress:
+            progress("Plan", i + 1, len(plans))
+        P, _, _ = rollout_to_end(ctx, log, n_sims, seed, punt=tuple(plan))
+        W[plan] = P.sum(axis=-1).mean(axis=-1)                      # (S,)
+        rows.append({"plan": archetype_label(tuple(plan)).replace(" benzeri", "") if plan else "dengeli",
+                     "punt": tuple(plan), "E[W]": float(W[plan].mean()),
+                     "P10": float(np.quantile(W[plan], 0.1)), "P90": float(np.quantile(W[plan], 0.9)),
+                     **{CATEGORY_LABELS.get(c, c): float(v) for c, v in zip(cats, P.mean(axis=(0, 1)))}})
+    base = W[()]
+    for r in rows:
+        d = W[r["punt"]] - base
+        r["fark"] = float(d.mean())
+        r["fark_SE"] = float(d.std(ddof=1) / np.sqrt(len(d))) if len(d) > 1 else 0.0
+    table = pd.DataFrame(rows).sort_values("E[W]", ascending=False).reset_index(drop=True)
+    cols = ["plan", "E[W]", "fark", "fark_SE", "P10", "P90", *[CATEGORY_LABELS.get(c, c) for c in cats], "punt"]
+    return PlanResult(table=table[cols], n_sims=n_sims, seed=seed, elapsed=time.perf_counter() - t0)
