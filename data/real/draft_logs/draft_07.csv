@@ -1,183 +1,183 @@
-pick,round,pick_in_round,fantasy_team,player,nba_team,positions,auto,user
-1,1,1,Hayden,Nikola Jokić,DEN,C,False,False
-2,1,2,Mendbayar,Victor Wembanyama,SAS,C,False,False
-3,1,3,Eman,Luka Dončić,LAL,"PG,SG",False,False
-4,1,4,rapfiel,Shai Gilgeous-Alexander,OKC,PG,False,False
-5,1,5,Forming_Dies,Cade Cunningham,DET,"PG,SG",False,False
-6,1,6,utkan,Giannis Antetokounmpo,MIA,"PF,C",False,False
-7,1,7,Dan,Scottie Barnes,TOR,"SF,PF,C",False,False
-8,1,8,t u r G,Tyrese Maxey,PHI,PG,False,False
-9,1,9,Hüsamettin,Tyrese Haliburton,IND,"PG,SG",False,True
-10,1,10,ssee,Anthony Edwards,MIN,"PG,SG",False,False
-11,1,11,John Joseph Lata,Cooper Flagg,DAL,"SG,SF,PF",False,False
-12,1,12,Jdrew_Mark-S7J4F,Jayson Tatum,BOS,"SF,PF",False,False
-13,1,13,XENOBOMBA,Jalen Johnson,ATL,"PF,SF",False,False
-14,1,14,2SMOOTH,Kevin Durant,HOU,"SF,PF,SG",False,False
-15,2,1,2SMOOTH,James Harden,CLE,"SG,PG",False,False
-16,2,2,XENOBOMBA,Karl-Anthony Towns,NYK,"C,PF",False,False
-17,2,3,Jdrew_Mark-S7J4F,Donovan Mitchell,CLE,"SG,PG",False,False
-18,2,4,John Joseph Lata,Alperen Şengün,HOU,"C,PF",False,False
-19,2,5,ssee,Austin Reaves,LAL,"SG,PG,SF",False,False
-20,2,6,Hüsamettin,Jalen Brunson,NYK,PG,False,True
-21,2,7,t u r G,Jamal Murray,DEN,PG,False,False
-22,2,8,Dan,Josh Giddey,CHI,"PG,SG",False,False
-23,2,9,utkan,Amen Thompson,HOU,"PG,SG",False,False
-24,2,10,Forming_Dies,Evan Mobley,CLE,"C,PF",False,False
-25,2,11,rapfiel,Stephen Curry,GSW,PG,False,False
-26,2,12,Eman,Trae Young,WAS,PG,False,False
-27,2,13,Mendbayar,LaMelo Ball,MIN,PG,False,False
-28,2,14,Hayden,Devin Booker,PHX,"SG,PG",False,False
-29,3,1,Hayden,Domantas Sabonis,SAC,"C,PF",False,False
-30,3,2,Mendbayar,Bam Adebayo,MIA,"C,PF",False,False
-31,3,3,Eman,Chet Holmgren,OKC,"PF,C",False,False
-32,3,4,rapfiel,Anthony Davis,WAS,"PF,C",False,False
-33,3,5,Forming_Dies,Jalen Williams,OKC,"SF,PF",False,False
-34,3,6,utkan,Kawhi Leonard,TOR,"SG,SF,PF",False,False
-35,3,7,Dan,Trey Murphy III,NOP,"SG,SF",False,False
-36,3,8,t u r G,Lauri Markkanen,UTA,"PF,SF",False,False
-37,3,9,Hüsamettin,Deni Avdija,POR,"SF,PF,SG",False,True
-38,3,10,ssee,Walker Kessler,LAL,C,False,False
-39,3,11,John Joseph Lata,Keyonte George,UTA,"SG,PG",False,False
-40,3,12,Jdrew_Mark-S7J4F,Donovan Clingan,POR,C,False,False
-41,3,13,XENOBOMBA,Jalen Duren,DET,C,False,False
-42,3,14,2SMOOTH,Brandon Miller,CHA,"SF,PF",False,False
-43,4,1,2SMOOTH,Derrick White,BOS,"SG,PG",False,False
-44,4,2,XENOBOMBA,Jaren Jackson Jr.,UTA,"C,PF",False,False
-45,4,3,Jdrew_Mark-S7J4F,Kyrie Irving,DAL,PG,False,False
-46,4,4,John Joseph Lata,Jaylen Brown,PHI,"SG,SF,PF",False,False
-47,4,5,ssee,Onyeka Okongwu,ATL,C,False,False
-48,4,6,Hüsamettin,Franz Wagner,ORL,"SF,PF",False,True
-49,4,7,t u r G,LeBron James,PHI,"SF,PF",False,False
-50,4,8,Dan,Pascal Siakam,IND,"PF,C",False,False
-51,4,9,utkan,Paolo Banchero,ORL,PF,False,False
-52,4,10,Forming_Dies,Ivica Zubac,IND,C,False,False
-53,4,11,rapfiel,Joel Embiid,PHI,C,False,False
-54,4,12,Eman,Dejounte Murray,NOP,PG,False,False
-55,4,13,Mendbayar,Desmond Bane,ORL,"SF,SG",False,False
-56,4,14,Hayden,Darius Garland,LAC,PG,False,False
-57,5,1,Hayden,Dyson Daniels,ATL,"SG,SF",False,False
-58,5,2,Mendbayar,Cameron Boozer,MEM,PF,False,False
-59,5,3,Eman,Nickeil Alexander-Walker,ATL,"PG,SG",False,False
-60,5,4,rapfiel,Kon Knueppel,CHA,"SF,SG",False,False
-61,5,5,Forming_Dies,Damian Lillard,POR,PG,False,False
-62,5,6,utkan,Matas Buzelis,CHI,"SF,PF",False,False
-63,5,7,Dan,Stephon Castle,SAS,"PG,SG",False,False
-64,5,8,t u r G,Alex Sarr,WAS,C,False,False
-65,5,9,Hüsamettin,Julius Randle,BKN,PF,False,True
-66,5,10,ssee,Kel'el Ware,MIL,C,False,False
-67,5,11,John Joseph Lata,Michael Porter Jr.,BKN,"SF,PF",False,False
-68,5,12,Jdrew_Mark-S7J4F,OG Anunoby,NYK,"SF,PF",False,False
-69,5,13,XENOBOMBA,Ryan Rollins,MIL,"PG,SG",False,False
-70,5,14,2SMOOTH,Naz Reid,CHA,"C,PF",False,False
-71,6,1,2SMOOTH,Zach Edey,MEM,C,False,False
-72,6,2,XENOBOMBA,Tyler Herro,MIL,"SG,PG",False,False
-73,6,3,Jdrew_Mark-S7J4F,Rudy Gobert,MIN,C,False,False
-74,6,4,John Joseph Lata,Jarrett Allen,CLE,C,False,False
-75,6,5,ssee,Ty Jerome,MEM,"SG,PG",False,False
-76,6,6,Hüsamettin,De'Aaron Fox,SAS,PG,False,True
-77,6,7,t u r G,Ausar Thompson,DET,"SF,PF,SG",False,False
-78,6,8,Dan,Mikal Bridges,NYK,"SF,PF",False,False
-79,6,9,utkan,Zion Williamson,NOP,"PF,C",False,False
-80,6,10,Forming_Dies,Cedric Coward,MEM,"SG,SF",False,False
-81,6,11,rapfiel,Brandon Ingram,LAC,"SG,SF,PF",False,False
-82,6,12,Eman,Paul George,BOS,"SF,PF",False,False
-83,6,13,Mendbayar,Payton Pritchard,BOS,PG,False,False
-84,6,14,Hayden,Norman Powell,CHI,"SG,SF",False,False
-85,7,1,Hayden,Caleb Wilson,CHI,PF,False,False
-86,7,2,Mendbayar,VJ Edgecombe,PHI,"SG,PG",False,False
-87,7,3,Eman,Jaden McDaniels,MIN,SF,False,False
-88,7,4,rapfiel,Ja Morant,POR,PG,False,False
-89,7,5,Forming_Dies,Dylan Harper,SAS,"SG,PG",False,False
-90,7,6,utkan,Josh Hart,NYK,"SG,SF",False,False
-91,7,7,Dan,Derik Queen,NOP,"C,PF",False,False
-92,7,8,t u r G,Coby White,CHA,"PG,SG",False,False
-93,7,9,Hüsamettin,Immanuel Quickley,TOR,"PG,SG",False,True
-94,7,10,ssee,Toumani Camara,POR,"SF,PF",False,False
-95,7,11,John Joseph Lata,Jalen Suggs,ORL,"PG,SG",False,False
-96,7,12,Jdrew_Mark-S7J4F,Day'Ron Sharpe,BKN,C,False,False
-97,7,13,XENOBOMBA,Andrew Wiggins,MIA,"SG,SF,PF",False,False
-98,7,14,2SMOOTH,AJ Dybantsa,WAS,SF,False,False
-99,8,1,2SMOOTH,Jabari Smith Jr.,HOU,"PF,C",False,False
-100,8,2,XENOBOMBA,John Collins,DET,"PF,C",False,False
-101,8,3,Jdrew_Mark-S7J4F,Keegan Murray,SAC,"SF,PF",False,False
-102,8,4,John Joseph Lata,CJ McCollum,ATL,"SG,PG",False,False
-103,8,5,ssee,Miles Bridges,PHX,PF,False,False
-104,8,6,Hüsamettin,Collin Murray-Boyles,TOR,"PF,C",False,True
-105,8,7,t u r G,Zach LaVine,SAC,"PG,SG,SF",False,False
-106,8,8,Dan,Neemias Queta,BOS,C,False,False
-107,8,9,utkan,Isaiah Hartenstein,OKC,C,False,False
-108,8,10,Forming_Dies,Nic Claxton,CHI,C,False,False
-109,8,11,rapfiel,Jalen Green,PHX,"SG,SF",False,False
-110,8,12,Eman,Myles Turner,MIL,C,False,False
-111,8,13,Mendbayar,Brandin Podziemski,GSW,"SG,PG",False,False
-112,8,14,Hayden,Jusuf Nurkić,UTA,C,False,False
-113,9,1,Hayden,Aaron Gordon,DEN,"PF,C",False,False
-114,9,2,Mendbayar,Ayo Dosunmu,MIN,"PG,SG",False,False
-115,9,3,Eman,Kevin Porter Jr.,MIL,"PG,SG",False,False
-116,9,4,rapfiel,Nikola Vučević,ORL,C,False,False
-117,9,5,Forming_Dies,Rui Hachimura,LAC,"PF,SF",False,False
-118,9,6,utkan,Andrew Nembhard,IND,"SG,PG",False,False
-119,9,7,Dan,Peyton Watson,CLE,"SF,PF",False,False
-120,9,8,t u r G,Davion Mitchell,MIA,PG,False,False
-121,9,9,Hüsamettin,Khaman Maluach,PHX,C,False,True
-122,9,10,ssee,Darryn Peterson,UTA,SG,False,False
-123,9,11,John Joseph Lata,Yaxel Lendeborg,GSW,PF,False,False
-124,9,12,Jdrew_Mark-S7J4F,Collin Gillespie,PHX,"PG,SG",False,False
-125,9,13,XENOBOMBA,Jakob Poeltl,TOR,C,False,False
-126,9,14,2SMOOTH,Kyshawn George,WAS,"SF,SG,PF",False,False
-127,10,1,2SMOOTH,Cason Wallace,OKC,"SG,PG,SF",False,False
-128,10,2,XENOBOMBA,Wendell Carter Jr.,ORL,C,False,False
-129,10,3,Jdrew_Mark-S7J4F,Ajay Mitchell,OKC,"PG,SG",False,False
-130,10,4,John Joseph Lata,Draymond Green,GSW,"PF,C",False,False
-131,10,5,ssee,Darius Acuff Jr.,SAC,PG,False,False
-132,10,6,Hüsamettin,Sandro Mamukelashvili,LAL,"PF,C",False,True
-133,10,7,t u r G,Daniel Gafford,DAL,C,False,False
-134,10,8,Dan,Jrue Holiday,POR,"PG,SG",False,False
-135,10,9,utkan,Jaime Jaquez Jr.,MIL,"SF,SG,PF",False,False
-136,10,10,Forming_Dies,RJ Barrett,TOR,"SF,PF,SG",False,False
-137,10,11,rapfiel,DeMar DeRozan,DEN,"SF,PF",False,False
-138,10,12,Eman,P.J. Washington,DAL,"PF,C",False,False
-139,10,13,Mendbayar,Yves Missi,NOP,C,False,False
-140,10,14,Hayden,Quentin Grimes,LAL,"SG,SF",False,False
-141,11,1,Hayden,Jonathan Kuminga,MIN,"SF,PF",False,False
-142,11,2,Mendbayar,Tre Jones,CHI,"PG,SG",False,False
-143,11,3,Eman,Ace Bailey,UTA,"SF,PF",False,False
-144,11,4,rapfiel,Fred VanVleet,HOU,PG,False,False
-145,11,5,Forming_Dies,Dillon Brooks,PHX,"SF,PF",False,False
-146,11,6,utkan,Christian Braun,DEN,"SG,SF,PF",False,False
-147,11,7,Dan,Reed Sheppard,HOU,"PG,SG",False,False
-148,11,8,t u r G,Egor Dëmin,BKN,"PG,SG",False,False
-149,11,9,Hüsamettin,Moussa Diabaté,CHA,C,False,True
-150,11,10,ssee,Jimmy Butler III,GSW,"SF,PF",False,False
-151,11,11,John Joseph Lata,Cameron Johnson,DEN,"SF,PF",False,False
-152,11,12,Jdrew_Mark-S7J4F,Anthony Black,ORL,"PG,SG,SF",False,False
-153,11,13,XENOBOMBA,Gui Santos,GSW,"PF,SF",False,False
-154,11,14,2SMOOTH,Saddiq Bey,NOP,"PF,SF",False,False
-155,12,1,2SMOOTH,Pelle Larsson,MIA,"SG,SF",False,False
-156,12,2,XENOBOMBA,Kristaps Porziņģis,GSW,C,False,False
-157,12,3,Jdrew_Mark-S7J4F,Aaron Nesmith,IND,"SF,SG",False,False
-158,12,4,John Joseph Lata,Mikel Brown Jr.,BKN,PG,False,False
-159,12,5,ssee,Tobias Harris,SAS,PF,False,False
-160,12,6,Hüsamettin,Tari Eason,HOU,"SF,PF,SG",False,True
-161,12,7,t u r G,Bennedict Mathurin,NOP,"SG,SF",False,False
-162,12,8,Dan,Jared McCain,OKC,"PG,SG",False,False
-163,12,9,utkan,Grayson Allen,CHA,"SG,SF",False,False
-164,12,10,Forming_Dies,Maxime Raynaud,SAC,C,False,False
-165,12,11,rapfiel,Devin Vassell,SAS,"SF,SG",False,False
-166,12,12,Eman,Kelly Oubre Jr.,IND,"SF,PF",False,False
-167,12,13,Mendbayar,Herbert Jones,NOP,"SG,SF",False,False
-168,12,14,Hayden,Jake LaRavia,LAL,"PF,SF",False,False
-169,13,1,Hayden,Jalen Smith,CHI,"C,PF",False,False
-170,13,2,Mendbayar,Scotty Pippen Jr.,MEM,PG,False,False
-171,13,3,Eman,Deandre Ayton,WAS,C,False,False
-172,13,4,rapfiel,Jerami Grant,MEM,"PF,SF",False,False
-173,13,5,Forming_Dies,Isaiah Jackson,LAC,C,False,False
-174,13,6,utkan,Jaylen Wells,MEM,"SG,SF",False,False
-175,13,7,Dan,Julian Champagnie,SAS,"SF,PF",False,False
-176,13,8,t u r G,Brook Lopez,LAC,C,False,False
-177,13,9,Hüsamettin,Bobby Portis Jr.,MIA,"PF,C",False,True
-178,13,10,ssee,Isaiah Stewart,MEM,"C,PF",False,False
-179,13,11,John Joseph Lata,Mitchell Robinson,BOS,C,False,False
-180,13,12,Jdrew_Mark-S7J4F,Oso Ighodaro,PHX,C,False,False
-181,13,13,XENOBOMBA,Scoot Henderson,POR,PG,False,False
-182,13,14,2SMOOTH,Paul Reed,DET,"C,PF",False,False
+pick,round,pick_in_round,fantasy_team,player,nba_team,positions,auto,user,rule_match,auto_inferred
+1,1,1,Hayden,Nikola Jokić,DEN,C,False,False,True,False
+2,1,2,Mendbayar,Victor Wembanyama,SAS,C,True,False,True,True
+3,1,3,Eman,Luka Dončić,LAL,"PG,SG",False,False,True,False
+4,1,4,rapfiel,Shai Gilgeous-Alexander,OKC,PG,False,False,True,False
+5,1,5,Forming_Dies,Cade Cunningham,DET,"PG,SG",False,False,True,False
+6,1,6,utkan,Giannis Antetokounmpo,MIA,"PF,C",False,False,True,False
+7,1,7,Dan,Scottie Barnes,TOR,"SF,PF,C",False,False,False,False
+8,1,8,t u r G,Tyrese Maxey,PHI,PG,False,False,False,False
+9,1,9,Hüsamettin,Tyrese Haliburton,IND,"PG,SG",False,True,False,False
+10,1,10,ssee,Anthony Edwards,MIN,"PG,SG",False,False,False,False
+11,1,11,John Joseph Lata,Cooper Flagg,DAL,"SG,SF,PF",False,False,False,False
+12,1,12,Jdrew_Mark-S7J4F,Jayson Tatum,BOS,"SF,PF",False,False,True,False
+13,1,13,XENOBOMBA,Jalen Johnson,ATL,"PF,SF",False,False,True,False
+14,1,14,2SMOOTH,Kevin Durant,HOU,"SF,PF,SG",False,False,False,False
+15,2,1,2SMOOTH,James Harden,CLE,"SG,PG",False,False,False,False
+16,2,2,XENOBOMBA,Karl-Anthony Towns,NYK,"C,PF",False,False,False,False
+17,2,3,Jdrew_Mark-S7J4F,Donovan Mitchell,CLE,"SG,PG",False,False,True,False
+18,2,4,John Joseph Lata,Alperen Şengün,HOU,"C,PF",False,False,False,False
+19,2,5,ssee,Austin Reaves,LAL,"SG,PG,SF",False,False,False,False
+20,2,6,Hüsamettin,Jalen Brunson,NYK,PG,False,True,False,False
+21,2,7,t u r G,Jamal Murray,DEN,PG,True,False,True,True
+22,2,8,Dan,Josh Giddey,CHI,"PG,SG",False,False,False,False
+23,2,9,utkan,Amen Thompson,HOU,"PG,SG",False,False,False,False
+24,2,10,Forming_Dies,Evan Mobley,CLE,"C,PF",False,False,False,False
+25,2,11,rapfiel,Stephen Curry,GSW,PG,False,False,False,False
+26,2,12,Eman,Trae Young,WAS,PG,False,False,True,False
+27,2,13,Mendbayar,LaMelo Ball,MIN,PG,True,False,True,True
+28,2,14,Hayden,Devin Booker,PHX,"SG,PG",False,False,True,False
+29,3,1,Hayden,Domantas Sabonis,SAC,"C,PF",False,False,False,False
+30,3,2,Mendbayar,Bam Adebayo,MIA,"C,PF",True,False,True,True
+31,3,3,Eman,Chet Holmgren,OKC,"PF,C",False,False,False,False
+32,3,4,rapfiel,Anthony Davis,WAS,"PF,C",False,False,False,False
+33,3,5,Forming_Dies,Jalen Williams,OKC,"SF,PF",False,False,False,False
+34,3,6,utkan,Kawhi Leonard,TOR,"SG,SF,PF",False,False,False,False
+35,3,7,Dan,Trey Murphy III,NOP,"SG,SF",False,False,True,False
+36,3,8,t u r G,Lauri Markkanen,UTA,"PF,SF",True,False,True,True
+37,3,9,Hüsamettin,Deni Avdija,POR,"SF,PF,SG",False,True,False,False
+38,3,10,ssee,Walker Kessler,LAL,C,False,False,False,False
+39,3,11,John Joseph Lata,Keyonte George,UTA,"SG,PG",False,False,False,False
+40,3,12,Jdrew_Mark-S7J4F,Donovan Clingan,POR,C,False,False,False,False
+41,3,13,XENOBOMBA,Jalen Duren,DET,C,True,False,True,True
+42,3,14,2SMOOTH,Brandon Miller,CHA,"SF,PF",True,False,True,True
+43,4,1,2SMOOTH,Derrick White,BOS,"SG,PG",True,False,True,True
+44,4,2,XENOBOMBA,Jaren Jackson Jr.,UTA,"C,PF",True,False,True,True
+45,4,3,Jdrew_Mark-S7J4F,Kyrie Irving,DAL,PG,False,False,True,False
+46,4,4,John Joseph Lata,Jaylen Brown,PHI,"SG,SF,PF",False,False,False,False
+47,4,5,ssee,Onyeka Okongwu,ATL,C,False,False,False,False
+48,4,6,Hüsamettin,Franz Wagner,ORL,"SF,PF",False,True,False,False
+49,4,7,t u r G,LeBron James,PHI,"SF,PF",True,False,True,True
+50,4,8,Dan,Pascal Siakam,IND,"PF,C",False,False,False,False
+51,4,9,utkan,Paolo Banchero,ORL,PF,False,False,False,False
+52,4,10,Forming_Dies,Ivica Zubac,IND,C,False,False,False,False
+53,4,11,rapfiel,Joel Embiid,PHI,C,False,False,False,False
+54,4,12,Eman,Dejounte Murray,NOP,PG,False,False,False,False
+55,4,13,Mendbayar,Desmond Bane,ORL,"SF,SG",True,False,True,True
+56,4,14,Hayden,Darius Garland,LAC,PG,False,False,True,False
+57,5,1,Hayden,Dyson Daniels,ATL,"SG,SF",False,False,False,False
+58,5,2,Mendbayar,Cameron Boozer,MEM,PF,True,False,True,True
+59,5,3,Eman,Nickeil Alexander-Walker,ATL,"PG,SG",False,False,False,False
+60,5,4,rapfiel,Kon Knueppel,CHA,"SF,SG",False,False,False,False
+61,5,5,Forming_Dies,Damian Lillard,POR,PG,False,False,False,False
+62,5,6,utkan,Matas Buzelis,CHI,"SF,PF",False,False,False,False
+63,5,7,Dan,Stephon Castle,SAS,"PG,SG",False,False,False,False
+64,5,8,t u r G,Alex Sarr,WAS,C,True,False,True,True
+65,5,9,Hüsamettin,Julius Randle,BKN,PF,False,True,False,False
+66,5,10,ssee,Kel'el Ware,MIL,C,False,False,False,False
+67,5,11,John Joseph Lata,Michael Porter Jr.,BKN,"SF,PF",False,False,False,False
+68,5,12,Jdrew_Mark-S7J4F,OG Anunoby,NYK,"SF,PF",False,False,False,False
+69,5,13,XENOBOMBA,Ryan Rollins,MIL,"PG,SG",True,False,True,True
+70,5,14,2SMOOTH,Naz Reid,CHA,"C,PF",True,False,True,True
+71,6,1,2SMOOTH,Zach Edey,MEM,C,True,False,True,True
+72,6,2,XENOBOMBA,Tyler Herro,MIL,"SG,PG",True,False,True,True
+73,6,3,Jdrew_Mark-S7J4F,Rudy Gobert,MIN,C,False,False,False,False
+74,6,4,John Joseph Lata,Jarrett Allen,CLE,C,False,False,False,False
+75,6,5,ssee,Ty Jerome,MEM,"SG,PG",False,False,False,False
+76,6,6,Hüsamettin,De'Aaron Fox,SAS,PG,False,True,True,False
+77,6,7,t u r G,Ausar Thompson,DET,"SF,PF,SG",True,False,True,True
+78,6,8,Dan,Mikal Bridges,NYK,"SF,PF",False,False,False,False
+79,6,9,utkan,Zion Williamson,NOP,"PF,C",False,False,False,False
+80,6,10,Forming_Dies,Cedric Coward,MEM,"SG,SF",False,False,True,False
+81,6,11,rapfiel,Brandon Ingram,LAC,"SG,SF,PF",False,False,False,False
+82,6,12,Eman,Paul George,BOS,"SF,PF",False,False,True,False
+83,6,13,Mendbayar,Payton Pritchard,BOS,PG,True,False,True,True
+84,6,14,Hayden,Norman Powell,CHI,"SG,SF",False,False,False,False
+85,7,1,Hayden,Caleb Wilson,CHI,PF,False,False,True,False
+86,7,2,Mendbayar,VJ Edgecombe,PHI,"SG,PG",True,False,True,True
+87,7,3,Eman,Jaden McDaniels,MIN,SF,False,False,False,False
+88,7,4,rapfiel,Ja Morant,POR,PG,False,False,False,False
+89,7,5,Forming_Dies,Dylan Harper,SAS,"SG,PG",False,False,True,False
+90,7,6,utkan,Josh Hart,NYK,"SG,SF",False,False,False,False
+91,7,7,Dan,Derik Queen,NOP,"C,PF",False,False,False,False
+92,7,8,t u r G,Coby White,CHA,"PG,SG",True,False,True,True
+93,7,9,Hüsamettin,Immanuel Quickley,TOR,"PG,SG",False,True,True,False
+94,7,10,ssee,Toumani Camara,POR,"SF,PF",False,False,False,False
+95,7,11,John Joseph Lata,Jalen Suggs,ORL,"PG,SG",False,False,False,False
+96,7,12,Jdrew_Mark-S7J4F,Day'Ron Sharpe,BKN,C,True,False,True,True
+97,7,13,XENOBOMBA,Andrew Wiggins,MIA,"SG,SF,PF",True,False,True,True
+98,7,14,2SMOOTH,AJ Dybantsa,WAS,SF,True,False,True,True
+99,8,1,2SMOOTH,Jabari Smith Jr.,HOU,"PF,C",True,False,True,True
+100,8,2,XENOBOMBA,John Collins,DET,"PF,C",True,False,True,True
+101,8,3,Jdrew_Mark-S7J4F,Keegan Murray,SAC,"SF,PF",True,False,True,True
+102,8,4,John Joseph Lata,CJ McCollum,ATL,"SG,PG",False,False,False,False
+103,8,5,ssee,Miles Bridges,PHX,PF,True,False,True,True
+104,8,6,Hüsamettin,Collin Murray-Boyles,TOR,"PF,C",False,True,True,False
+105,8,7,t u r G,Zach LaVine,SAC,"PG,SG,SF",True,False,True,True
+106,8,8,Dan,Neemias Queta,BOS,C,False,False,False,False
+107,8,9,utkan,Isaiah Hartenstein,OKC,C,False,False,True,False
+108,8,10,Forming_Dies,Nic Claxton,CHI,C,False,False,False,False
+109,8,11,rapfiel,Jalen Green,PHX,"SG,SF",False,False,False,False
+110,8,12,Eman,Myles Turner,MIL,C,False,False,False,False
+111,8,13,Mendbayar,Brandin Podziemski,GSW,"SG,PG",True,False,True,True
+112,8,14,Hayden,Jusuf Nurkić,UTA,C,False,False,False,False
+113,9,1,Hayden,Aaron Gordon,DEN,"PF,C",False,False,False,False
+114,9,2,Mendbayar,Ayo Dosunmu,MIN,"PG,SG",True,False,True,True
+115,9,3,Eman,Kevin Porter Jr.,MIL,"PG,SG",False,False,False,False
+116,9,4,rapfiel,Nikola Vučević,ORL,C,False,False,False,False
+117,9,5,Forming_Dies,Rui Hachimura,LAC,"PF,SF",False,False,False,False
+118,9,6,utkan,Andrew Nembhard,IND,"SG,PG",False,False,True,False
+119,9,7,Dan,Peyton Watson,CLE,"SF,PF",False,False,False,False
+120,9,8,t u r G,Davion Mitchell,MIA,PG,True,False,True,True
+121,9,9,Hüsamettin,Khaman Maluach,PHX,C,False,True,True,False
+122,9,10,ssee,Darryn Peterson,UTA,SG,True,False,True,True
+123,9,11,John Joseph Lata,Yaxel Lendeborg,GSW,PF,False,False,False,False
+124,9,12,Jdrew_Mark-S7J4F,Collin Gillespie,PHX,"PG,SG",True,False,True,True
+125,9,13,XENOBOMBA,Jakob Poeltl,TOR,C,True,False,True,True
+126,9,14,2SMOOTH,Kyshawn George,WAS,"SF,SG,PF",True,False,True,True
+127,10,1,2SMOOTH,Cason Wallace,OKC,"SG,PG,SF",True,False,True,True
+128,10,2,XENOBOMBA,Wendell Carter Jr.,ORL,C,True,False,True,True
+129,10,3,Jdrew_Mark-S7J4F,Ajay Mitchell,OKC,"PG,SG",True,False,True,True
+130,10,4,John Joseph Lata,Draymond Green,GSW,"PF,C",False,False,False,False
+131,10,5,ssee,Darius Acuff Jr.,SAC,PG,True,False,True,True
+132,10,6,Hüsamettin,Sandro Mamukelashvili,LAL,"PF,C",False,True,True,False
+133,10,7,t u r G,Daniel Gafford,DAL,C,True,False,True,True
+134,10,8,Dan,Jrue Holiday,POR,"PG,SG",False,False,False,False
+135,10,9,utkan,Jaime Jaquez Jr.,MIL,"SF,SG,PF",False,False,False,False
+136,10,10,Forming_Dies,RJ Barrett,TOR,"SF,PF,SG",False,False,False,False
+137,10,11,rapfiel,DeMar DeRozan,DEN,"SF,PF",False,False,False,False
+138,10,12,Eman,P.J. Washington,DAL,"PF,C",False,False,False,False
+139,10,13,Mendbayar,Yves Missi,NOP,C,True,False,True,True
+140,10,14,Hayden,Quentin Grimes,LAL,"SG,SF",True,False,True,True
+141,11,1,Hayden,Jonathan Kuminga,MIN,"SF,PF",True,False,True,True
+142,11,2,Mendbayar,Tre Jones,CHI,"PG,SG",True,False,True,True
+143,11,3,Eman,Ace Bailey,UTA,"SF,PF",False,False,False,False
+144,11,4,rapfiel,Fred VanVleet,HOU,PG,False,False,False,False
+145,11,5,Forming_Dies,Dillon Brooks,PHX,"SF,PF",True,False,True,True
+146,11,6,utkan,Christian Braun,DEN,"SG,SF,PF",False,False,False,False
+147,11,7,Dan,Reed Sheppard,HOU,"PG,SG",False,False,True,False
+148,11,8,t u r G,Egor Dëmin,BKN,"PG,SG",True,False,True,True
+149,11,9,Hüsamettin,Moussa Diabaté,CHA,C,False,True,True,False
+150,11,10,ssee,Jimmy Butler III,GSW,"SF,PF",True,False,True,True
+151,11,11,John Joseph Lata,Cameron Johnson,DEN,"SF,PF",True,False,True,True
+152,11,12,Jdrew_Mark-S7J4F,Anthony Black,ORL,"PG,SG,SF",True,False,True,True
+153,11,13,XENOBOMBA,Gui Santos,GSW,"PF,SF",True,False,True,True
+154,11,14,2SMOOTH,Saddiq Bey,NOP,"PF,SF",True,False,True,True
+155,12,1,2SMOOTH,Pelle Larsson,MIA,"SG,SF",True,False,True,True
+156,12,2,XENOBOMBA,Kristaps Porziņģis,GSW,C,True,False,True,True
+157,12,3,Jdrew_Mark-S7J4F,Aaron Nesmith,IND,"SF,SG",True,False,True,True
+158,12,4,John Joseph Lata,Mikel Brown Jr.,BKN,PG,True,False,True,True
+159,12,5,ssee,Tobias Harris,SAS,PF,True,False,True,True
+160,12,6,Hüsamettin,Tari Eason,HOU,"SF,PF,SG",False,True,True,False
+161,12,7,t u r G,Bennedict Mathurin,NOP,"SG,SF",True,False,True,True
+162,12,8,Dan,Jared McCain,OKC,"PG,SG",False,False,False,False
+163,12,9,utkan,Grayson Allen,CHA,"SG,SF",False,False,False,False
+164,12,10,Forming_Dies,Maxime Raynaud,SAC,C,True,False,True,True
+165,12,11,rapfiel,Devin Vassell,SAS,"SF,SG",False,False,False,False
+166,12,12,Eman,Kelly Oubre Jr.,IND,"SF,PF",False,False,False,False
+167,12,13,Mendbayar,Herbert Jones,NOP,"SG,SF",True,False,True,True
+168,12,14,Hayden,Jake LaRavia,LAL,"PF,SF",True,False,True,True
+169,13,1,Hayden,Jalen Smith,CHI,"C,PF",True,False,True,True
+170,13,2,Mendbayar,Scotty Pippen Jr.,MEM,PG,True,False,True,True
+171,13,3,Eman,Deandre Ayton,WAS,C,False,False,False,False
+172,13,4,rapfiel,Jerami Grant,MEM,"PF,SF",False,False,True,False
+173,13,5,Forming_Dies,Isaiah Jackson,LAC,C,True,False,True,True
+174,13,6,utkan,Jaylen Wells,MEM,"SG,SF",False,False,False,False
+175,13,7,Dan,Julian Champagnie,SAS,"SF,PF",False,False,False,False
+176,13,8,t u r G,Brook Lopez,LAC,C,True,False,True,True
+177,13,9,Hüsamettin,Bobby Portis Jr.,MIA,"PF,C",False,True,True,False
+178,13,10,ssee,Isaiah Stewart,MEM,"C,PF",True,False,True,True
+179,13,11,John Joseph Lata,Mitchell Robinson,BOS,C,True,False,True,True
+180,13,12,Jdrew_Mark-S7J4F,Oso Ighodaro,PHX,C,True,False,True,True
+181,13,13,XENOBOMBA,Scoot Henderson,POR,PG,True,False,True,True
+182,13,14,2SMOOTH,Paul Reed,DET,"C,PF",True,False,True,True

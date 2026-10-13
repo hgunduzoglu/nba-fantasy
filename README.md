@@ -1408,7 +1408,7 @@ yalnızca 0.01–0.99 tahminleri sayar; küme σ ile değiştiği için σ'lar a
 
 **Gerçek log'larla sonuç (13 Ekim 2026).** `data/real/draft_logs/`: 10 Yahoo mock + 1 gerçek lig draft'ı
 (14 takım × 13 tur; ham metin/JSON `raw/` altında). "Team N" adlı takımlar Yahoo botu, kullanıcının
-pick'leri strateji denemesi olduğu için dışlandı → 1 313 insan pick'i. Izgara σ₀ ∈ {0.5, 1.5, 3, 5},
+pick'leri strateji denemesi olduğu için dışlandı → 1 313 pick (gizli otomatik pick'ler ayıklanınca 1 007). Izgara σ₀ ∈ {0.5, 1.5, 3, 5},
 σ₁ ∈ {0.08, 0.12, 0.18, 0.25, 0.35}, σ_cap ∈ {25, 40, 60}:
 
 | | σ₀ | σ₁ | σ_cap | Survival Brier |
@@ -1417,6 +1417,16 @@ pick'leri strateji denemesi olduğu için dışlandı → 1 313 insan pick'i. Iz
 | **Seçilen** | 1.5 | **0.18** | 25 | **0.106** |
 | Brier'de en iyi | 3.0 | 0.18 | 25 | 0.106 |
 | σ_cap 40 / 60 | — | — | 40 / 60 | 0.12–0.18 (kötü) |
+
+**Mock'lardaki gizli otomatik pick'ler.** Mock'tan ayrılan menajerin adı kalır ama pick'lerini Yahoo yapar.
+Yahoo'nun kuralı "Team N" pick'lerinden çıkarıldı: kadroyu tamamlanabilir bırakan oyuncular arasında en iyi
+xrank (`autopick_rule_matches`; bot pick'lerinin %91.5'i birebir uyar). Gerçek lig draft'ındaki insanlar
+bu kurala %17 uyar; mock'lardaki "insan" takımlar %22–72 ve birçoğu draft'ın tamamını ya da son 3–13
+pick'ini birebir kuralla seçmiş. Adı olan takımda art arda ≥ 3 kural uyumu otomatik sayılır
+(`infer_autopicks`; tesadüf olasılığı ~%0.17³ ≈ %0.5) → 475 pick daha dışlandı, 1 007 insan pick'i kaldı.
+Kalanların kurala uyumu %16.9 — gerçek lig draft'ıyla aynı. Temizlikten sonra da seçim değişmedi
+(σ₁ = 0.18). Temizlenmiş veride 33–96. pick'lerde insanlar ADP'nin 2–4 pick **önünde** seçiyor
+(medyan −1…−4); simülasyon aynı bölgede +1…+4 — konum kayması, σ ile düzelmez.
 
 İyileşme log'ların iki yarısında da tutar (0.116 → 0.109, 0.107 → 0.102); tek gerçek lig draft'ında
 başa baş. σ₀ ∈ {0.5, 1.5, 3} Brier'de gürültü içindedir; 1.5, ADP'si ilk 48 olan oyuncuların gözlenen

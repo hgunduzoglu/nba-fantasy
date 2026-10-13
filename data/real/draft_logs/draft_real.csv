@@ -1,183 +1,183 @@
-pick,round,pick_in_round,fantasy_team,player,nba_team,positions,auto,user
-1,1,1,4-2-3-1 Gegen,Nikola Jokić,DEN,C,False,False
-2,1,2,Ömer Faruk's Swag Team,Victor Wembanyama,SAS,C,False,False
-3,1,3,Manisa 69'rs,Shai Gilgeous-Alexander,OKC,PG,False,False
-4,1,4,Emirhan's Super Team,Luka Dončić,LAL,"PG,SG",False,False
-5,1,5,Tarık Baran's Groovy Team,Giannis Antetokounmpo,MIA,"PF,C",False,False
-6,1,6,Tekirdağ Yeni Rakıts,Tyrese Maxey,PHI,PG,False,False
-7,1,7,Çatal State Warriors,Anthony Edwards,MIN,"PG,SG",False,False
-8,1,8,Железный занавес,Donovan Mitchell,CLE,"PG,SG",False,False
-9,1,9,New York Hav Havs,Cade Cunningham,DET,"PG,SG",False,True
-10,1,10,Arda's Optimal Team,Scottie Barnes,TOR,"SF,PF,C",False,False
-11,1,11,ehrmantraut spor kulübü,Cooper Flagg,DAL,"SG,SF,PF",False,False
-12,1,12,Ege's Expert Team,Karl-Anthony Towns,NYK,"PF,C",False,False
-13,1,13,Blacksea Hamsies,Jayson Tatum,BOS,"SF,PF",False,False
-14,1,14,Losadanas,Kevin Durant,HOU,"SG,SF,PF",False,False
-15,2,1,Losadanas,Austin Reaves,LAL,"PG,SG,SF",False,False
-16,2,2,Blacksea Hamsies,Tyrese Haliburton,IND,"PG,SG",False,False
-17,2,3,Ege's Expert Team,Amen Thompson,HOU,"PG,SG",False,False
-18,2,4,ehrmantraut spor kulübü,Alperen Şengün,HOU,"PF,C",False,False
-19,2,5,Arda's Optimal Team,Bam Adebayo,MIA,"PF,C",False,False
-20,2,6,New York Hav Havs,Jalen Johnson,ATL,"SF,PF",False,True
-21,2,7,Железный занавес,Kawhi Leonard,TOR,"SG,SF,PF",False,False
-22,2,8,Çatal State Warriors,Jamal Murray,DEN,PG,False,False
-23,2,9,Tekirdağ Yeni Rakıts,Josh Giddey,CHI,"PG,SG",False,False
-24,2,10,Tarık Baran's Groovy Team,Evan Mobley,CLE,"PF,C",False,False
-25,2,11,Emirhan's Super Team,Lauri Markkanen,UTA,"SF,PF",False,False
-26,2,12,Manisa 69'rs,Jalen Duren,DET,C,False,False
-27,2,13,Ömer Faruk's Swag Team,Trae Young,WAS,PG,False,False
-28,2,14,4-2-3-1 Gegen,Stephen Curry,GSW,PG,False,False
-29,3,1,4-2-3-1 Gegen,Brandon Miller,CHA,"SF,PF",False,False
-30,3,2,Ömer Faruk's Swag Team,Trey Murphy III,NOP,"SG,SF",False,False
-31,3,3,Manisa 69'rs,LaMelo Ball,MIN,PG,False,False
-32,3,4,Emirhan's Super Team,Domantas Sabonis,SAC,"PF,C",False,False
-33,3,5,Tarık Baran's Groovy Team,Jalen Brunson,NYK,PG,False,False
-34,3,6,Tekirdağ Yeni Rakıts,Chet Holmgren,OKC,"PF,C",False,False
-35,3,7,Çatal State Warriors,Walker Kessler,LAL,C,False,False
-36,3,8,Железный занавес,Jaren Jackson Jr.,UTA,"PF,C",False,False
-37,3,9,New York Hav Havs,Devin Booker,PHX,"PG,SG",False,True
-38,3,10,Arda's Optimal Team,James Harden,CLE,"PG,SG",False,False
-39,3,11,ehrmantraut spor kulübü,Donovan Clingan,POR,C,False,False
-40,3,12,Ege's Expert Team,Deni Avdija,POR,"SG,SF,PF",False,False
-41,3,13,Blacksea Hamsies,Anthony Davis,WAS,"PF,C",False,False
-42,3,14,Losadanas,Onyeka Okongwu,ATL,C,False,False
-43,4,1,Losadanas,Franz Wagner,ORL,"SF,PF",False,False
-44,4,2,Blacksea Hamsies,Jaylen Brown,PHI,"SG,SF,PF",False,False
-45,4,3,Ege's Expert Team,Kon Knueppel,CHA,"SG,SF",False,False
-46,4,4,ehrmantraut spor kulübü,Keyonte George,UTA,"PG,SG",False,False
-47,4,5,Arda's Optimal Team,Matas Buzelis,CHI,"SF,PF",False,False
-48,4,6,New York Hav Havs,Kyrie Irving,DAL,PG,False,True
-49,4,7,Железный занавес,Desmond Bane,ORL,"SG,SF",False,False
-50,4,8,Çatal State Warriors,Derrick White,BOS,"PG,SG",False,False
-51,4,9,Tekirdağ Yeni Rakıts,Paolo Banchero,ORL,PF,False,False
-52,4,10,Tarık Baran's Groovy Team,Jalen Williams,OKC,"SF,PF",False,False
-53,4,11,Emirhan's Super Team,LeBron James,PHI,"SF,PF",False,False
-54,4,12,Manisa 69'rs,Dyson Daniels,ATL,"SG,SF",False,False
-55,4,13,Ömer Faruk's Swag Team,Pascal Siakam,IND,"PF,C",False,False
-56,4,14,4-2-3-1 Gegen,OG Anunoby,NYK,"SF,PF",False,False
-57,5,1,4-2-3-1 Gegen,Alex Sarr,WAS,C,False,False
-58,5,2,Ömer Faruk's Swag Team,Ivica Zubac,IND,C,False,False
-59,5,3,Manisa 69'rs,Nickeil Alexander-Walker,ATL,"PG,SG",False,False
-60,5,4,Emirhan's Super Team,Damian Lillard,POR,PG,False,False
-61,5,5,Tarık Baran's Groovy Team,Darius Garland,LAC,PG,False,False
-62,5,6,Tekirdağ Yeni Rakıts,Dejounte Murray,NOP,PG,False,False
-63,5,7,Çatal State Warriors,Michael Porter Jr.,BKN,"SF,PF",False,False
-64,5,8,Железный занавес,Naz Reid,CHA,"PF,C",False,False
-65,5,9,New York Hav Havs,Zach Edey,MEM,C,False,True
-66,5,10,Arda's Optimal Team,Ausar Thompson,DET,"SG,SF,PF",False,False
-67,5,11,ehrmantraut spor kulübü,Tyler Herro,MIL,"PG,SG",False,False
-68,5,12,Ege's Expert Team,Cameron Boozer,MEM,PF,False,False
-69,5,13,Blacksea Hamsies,Joel Embiid,PHI,C,False,False
-70,5,14,Losadanas,Ryan Rollins,MIL,"PG,SG",False,False
-71,6,1,Losadanas,Stephon Castle,SAS,"PG,SG",False,False
-72,6,2,Blacksea Hamsies,De'Aaron Fox,SAS,PG,False,False
-73,6,3,Ege's Expert Team,Jarrett Allen,CLE,C,False,False
-74,6,4,ehrmantraut spor kulübü,Mikal Bridges,NYK,"SF,PF",False,False
-75,6,5,Arda's Optimal Team,VJ Edgecombe,PHI,"PG,SG",False,False
-76,6,6,New York Hav Havs,Julius Randle,BKN,PF,False,True
-77,6,7,Железный занавес,Jaden McDaniels,MIN,SF,False,False
-78,6,8,Çatal State Warriors,Kel'el Ware,MIL,C,False,False
-79,6,9,Tekirdağ Yeni Rakıts,Rudy Gobert,MIN,C,False,False
-80,6,10,Tarık Baran's Groovy Team,Dylan Harper,SAS,"PG,SG",False,False
-81,6,11,Emirhan's Super Team,Brandon Ingram,LAC,"SG,SF,PF",False,False
-82,6,12,Manisa 69'rs,Payton Pritchard,BOS,PG,False,False
-83,6,13,Ömer Faruk's Swag Team,Cedric Coward,MEM,"SG,SF",False,False
-84,6,14,4-2-3-1 Gegen,Caleb Wilson,CHI,PF,False,False
-85,7,1,4-2-3-1 Gegen,Andrew Wiggins,MIA,"SG,SF,PF",False,False
-86,7,2,Ömer Faruk's Swag Team,Paul George,BOS,"SF,PF",False,False
-87,7,3,Manisa 69'rs,Derik Queen,NOP,"PF,C",False,False
-88,7,4,Emirhan's Super Team,Jabari Smith Jr.,HOU,"PF,C",False,False
-89,7,5,Tarık Baran's Groovy Team,Day'Ron Sharpe,BKN,C,False,False
-90,7,6,Tekirdağ Yeni Rakıts,Zion Williamson,NOP,"PF,C",False,False
-91,7,7,Çatal State Warriors,Ty Jerome,MEM,"PG,SG",False,False
-92,7,8,Железный занавес,Myles Turner,MIL,C,False,False
-93,7,9,New York Hav Havs,AJ Dybantsa,WAS,SF,False,True
-94,7,10,Arda's Optimal Team,Wendell Carter Jr.,ORL,C,False,False
-95,7,11,ehrmantraut spor kulübü,Immanuel Quickley,TOR,"PG,SG",False,False
-96,7,12,Ege's Expert Team,Josh Hart,NYK,"SG,SF",False,False
-97,7,13,Blacksea Hamsies,Norman Powell,CHI,"SG,SF",False,False
-98,7,14,Losadanas,Coby White,CHA,"PG,SG",False,False
-99,8,1,Losadanas,Darryn Peterson,UTA,SG,False,False
-100,8,2,Blacksea Hamsies,Nic Claxton,CHI,C,False,False
-101,8,3,Ege's Expert Team,Miles Bridges,PHX,PF,False,False
-102,8,4,ehrmantraut spor kulübü,John Collins,DET,"PF,C",False,False
-103,8,5,Arda's Optimal Team,Reed Sheppard,HOU,"PG,SG",False,False
-104,8,6,New York Hav Havs,Ja Morant,POR,PG,False,True
-105,8,7,Железный занавес,Jalen Green,PHX,"SG,SF",False,False
-106,8,8,Çatal State Warriors,Keegan Murray,SAC,"SF,PF",False,False
-107,8,9,Tekirdağ Yeni Rakıts,Zach LaVine,SAC,"PG,SG,SF",False,False
-108,8,10,Tarık Baran's Groovy Team,Toumani Camara,POR,"SF,PF",False,False
-109,8,11,Emirhan's Super Team,CJ McCollum,ATL,"PG,SG",False,False
-110,8,12,Manisa 69'rs,Collin Murray-Boyles,TOR,"PF,C",False,False
-111,8,13,Ömer Faruk's Swag Team,Jalen Suggs,ORL,"PG,SG",False,False
-112,8,14,4-2-3-1 Gegen,Yaxel Lendeborg,GSW,PF,False,False
-113,9,1,4-2-3-1 Gegen,Davion Mitchell,MIA,PG,False,False
-114,9,2,Ömer Faruk's Swag Team,Isaiah Hartenstein,OKC,C,False,False
-115,9,3,Manisa 69'rs,Julian Champagnie,SAS,"SF,PF",False,False
-116,9,4,Emirhan's Super Team,Cason Wallace,OKC,"PG,SG,SF",False,False
-117,9,5,Tarık Baran's Groovy Team,Scotty Pippen Jr.,MEM,PG,False,False
-118,9,6,Tekirdağ Yeni Rakıts,Ayo Dosunmu,MIN,"PG,SG",False,False
-119,9,7,Çatal State Warriors,Kevin Porter Jr.,MIL,"PG,SG",False,False
-120,9,8,Железный занавес,Tari Eason,HOU,"SG,SF,PF",False,False
-121,9,9,New York Hav Havs,Sandro Mamukelashvili,LAL,"PF,C",False,True
-122,9,10,Arda's Optimal Team,Kyle Filipowski,UTA,"PF,C",False,False
-123,9,11,ehrmantraut spor kulübü,Collin Gillespie,PHX,"PG,SG",False,False
-124,9,12,Ege's Expert Team,Kyshawn George,WAS,"SG,SF,PF",False,False
-125,9,13,Blacksea Hamsies,Brandin Podziemski,GSW,"PG,SG",False,False
-126,9,14,Losadanas,Jaime Jaquez Jr.,MIL,"SG,SF,PF",False,False
-127,10,1,Losadanas,Rui Hachimura,LAC,"SF,PF",False,False
-128,10,2,Blacksea Hamsies,Peyton Watson,CLE,"SF,PF",False,False
-129,10,3,Ege's Expert Team,RJ Barrett,TOR,"SG,SF,PF",False,False
-130,10,4,ehrmantraut spor kulübü,Aaron Gordon,DEN,"PF,C",False,False
-131,10,5,Arda's Optimal Team,Anthony Black,ORL,"PG,SG,SF",False,False
-132,10,6,New York Hav Havs,Ajay Mitchell,OKC,"PG,SG",False,True
-133,10,7,Железный занавес,Grayson Allen,CHA,"SG,SF",False,False
-134,10,8,Çatal State Warriors,Neemias Queta,BOS,C,False,False
-135,10,9,Tekirdağ Yeni Rakıts,Andrew Nembhard,IND,"PG,SG",False,False
-136,10,10,Tarık Baran's Groovy Team,Quentin Grimes,LAL,"SG,SF",False,False
-137,10,11,Emirhan's Super Team,DeMar DeRozan,DEN,"SF,PF",False,False
-138,10,12,Manisa 69'rs,Saddiq Bey,NOP,"SF,PF",False,False
-139,10,13,Ömer Faruk's Swag Team,Jonathan Kuminga,MIN,"SF,PF",False,False
-140,10,14,4-2-3-1 Gegen,Khaman Maluach,PHX,C,False,False
-141,11,1,4-2-3-1 Gegen,Scoot Henderson,POR,PG,False,False
-142,11,2,Ömer Faruk's Swag Team,Jrue Holiday,POR,"PG,SG",False,False
-143,11,3,Manisa 69'rs,Ace Bailey,UTA,"SF,PF",False,False
-144,11,4,Emirhan's Super Team,Tre Jones,CHI,"PG,SG",False,False
-145,11,5,Tarık Baran's Groovy Team,Herbert Jones,NOP,"SG,SF",False,False
-146,11,6,Tekirdağ Yeni Rakıts,Darius Acuff Jr.,SAC,PG,False,False
-147,11,7,Çatal State Warriors,Cameron Johnson,DEN,"SF,PF",False,False
-148,11,8,Железный занавес,Jerami Grant,MEM,"SF,PF",False,False
-149,11,9,New York Hav Havs,Jaylen Wells,MEM,"SG,SF",False,True
-150,11,10,Arda's Optimal Team,Egor Dëmin,BKN,"PG,SG",False,False
-151,11,11,ehrmantraut spor kulübü,Dillon Brooks,PHX,"SF,PF",False,False
-152,11,12,Ege's Expert Team,Moussa Diabaté,CHA,C,False,False
-153,11,13,Blacksea Hamsies,Fred VanVleet,HOU,PG,False,False
-154,11,14,Losadanas,Bobby Portis Jr.,MIA,"PF,C",False,False
-155,12,1,Losadanas,Christian Braun,DEN,"SG,SF,PF",False,False
-156,12,2,Blacksea Hamsies,Yves Missi,NOP,C,False,False
-157,12,3,Ege's Expert Team,Devin Vassell,SAS,"SG,SF",False,False
-158,12,4,ehrmantraut spor kulübü,Tarik Biberovic,DAL,SF,False,False
-159,12,5,Arda's Optimal Team,Keldon Johnson,SAS,"SF,PF",False,False
-160,12,6,New York Hav Havs,De'Andre Hunter,SAC,"SF,PF",False,True
-161,12,7,Железный занавес,P.J. Washington,DAL,"PF,C",False,False
-162,12,8,Çatal State Warriors,Tobias Harris,SAS,PF,False,False
-163,12,9,Tekirdağ Yeni Rakıts,Bennedict Mathurin,NOP,"SG,SF",False,False
-164,12,10,Tarık Baran's Groovy Team,Collin Sexton,LAL,"PG,SG",False,False
-165,12,11,Emirhan's Super Team,Nikola Vučević,ORL,C,False,False
-166,12,12,Manisa 69'rs,Jeremiah Fears,NOP,"PG,SG",False,False
-167,12,13,Ömer Faruk's Swag Team,Jusuf Nurkić,UTA,C,False,False
-168,12,14,4-2-3-1 Gegen,Jake LaRavia,LAL,"SF,PF",False,False
-169,13,1,4-2-3-1 Gegen,Brayden Burries,MIL,SG,False,False
-170,13,2,Ömer Faruk's Swag Team,Aaron Nesmith,IND,"SG,SF",False,False
-171,13,3,Manisa 69'rs,Cam Spencer,MEM,"PG,SG",False,False
-172,13,4,Emirhan's Super Team,Pelle Larsson,MIA,"SG,SF",False,False
-173,13,5,Tarık Baran's Groovy Team,Paul Reed,DET,"PF,C",False,False
-174,13,6,Tekirdağ Yeni Rakıts,Kristaps Porziņģis,GSW,C,False,False
-175,13,7,Çatal State Warriors,Jimmy Butler III,GSW,"SF,PF",False,False
-176,13,8,Железный занавес,Jakob Poeltl,TOR,C,False,False
-177,13,9,New York Hav Havs,Isaiah Joe,DET,"SG,SF",False,True
-178,13,10,Arda's Optimal Team,Daniel Gafford,DAL,C,False,False
-179,13,11,ehrmantraut spor kulübü,Maxime Raynaud,SAC,C,False,False
-180,13,12,Ege's Expert Team,Sam Hauser,BOS,"SF,PF",False,False
-181,13,13,Blacksea Hamsies,Kyle Kuzma,MIL,"SF,PF",False,False
-182,13,14,Losadanas,Kelly Oubre Jr.,IND,"SF,PF",False,False
+pick,round,pick_in_round,fantasy_team,player,nba_team,positions,auto,user,rule_match,auto_inferred
+1,1,1,4-2-3-1 Gegen,Nikola Jokić,DEN,C,False,False,True,False
+2,1,2,Ömer Faruk's Swag Team,Victor Wembanyama,SAS,C,False,False,True,False
+3,1,3,Manisa 69'rs,Shai Gilgeous-Alexander,OKC,PG,False,False,False,False
+4,1,4,Emirhan's Super Team,Luka Dončić,LAL,"PG,SG",False,False,True,False
+5,1,5,Tarık Baran's Groovy Team,Giannis Antetokounmpo,MIA,"PF,C",False,False,False,False
+6,1,6,Tekirdağ Yeni Rakıts,Tyrese Maxey,PHI,PG,False,False,False,False
+7,1,7,Çatal State Warriors,Anthony Edwards,MIN,"PG,SG",False,False,False,False
+8,1,8,Железный занавес,Donovan Mitchell,CLE,"PG,SG",False,False,False,False
+9,1,9,New York Hav Havs,Cade Cunningham,DET,"PG,SG",False,True,True,False
+10,1,10,Arda's Optimal Team,Scottie Barnes,TOR,"SF,PF,C",False,False,False,False
+11,1,11,ehrmantraut spor kulübü,Cooper Flagg,DAL,"SG,SF,PF",False,False,False,False
+12,1,12,Ege's Expert Team,Karl-Anthony Towns,NYK,"PF,C",False,False,False,False
+13,1,13,Blacksea Hamsies,Jayson Tatum,BOS,"SF,PF",False,False,True,False
+14,1,14,Losadanas,Kevin Durant,HOU,"SG,SF,PF",False,False,False,False
+15,2,1,Losadanas,Austin Reaves,LAL,"PG,SG,SF",False,False,False,False
+16,2,2,Blacksea Hamsies,Tyrese Haliburton,IND,"PG,SG",False,False,True,False
+17,2,3,Ege's Expert Team,Amen Thompson,HOU,"PG,SG",False,False,False,False
+18,2,4,ehrmantraut spor kulübü,Alperen Şengün,HOU,"PF,C",False,False,False,False
+19,2,5,Arda's Optimal Team,Bam Adebayo,MIA,"PF,C",False,False,False,False
+20,2,6,New York Hav Havs,Jalen Johnson,ATL,"SF,PF",False,True,True,False
+21,2,7,Железный занавес,Kawhi Leonard,TOR,"SG,SF,PF",False,False,False,False
+22,2,8,Çatal State Warriors,Jamal Murray,DEN,PG,False,False,True,False
+23,2,9,Tekirdağ Yeni Rakıts,Josh Giddey,CHI,"PG,SG",False,False,False,False
+24,2,10,Tarık Baran's Groovy Team,Evan Mobley,CLE,"PF,C",False,False,False,False
+25,2,11,Emirhan's Super Team,Lauri Markkanen,UTA,"SF,PF",False,False,False,False
+26,2,12,Manisa 69'rs,Jalen Duren,DET,C,False,False,False,False
+27,2,13,Ömer Faruk's Swag Team,Trae Young,WAS,PG,False,False,True,False
+28,2,14,4-2-3-1 Gegen,Stephen Curry,GSW,PG,False,False,False,False
+29,3,1,4-2-3-1 Gegen,Brandon Miller,CHA,"SF,PF",False,False,False,False
+30,3,2,Ömer Faruk's Swag Team,Trey Murphy III,NOP,"SG,SF",False,False,False,False
+31,3,3,Manisa 69'rs,LaMelo Ball,MIN,PG,False,False,True,False
+32,3,4,Emirhan's Super Team,Domantas Sabonis,SAC,"PF,C",False,False,False,False
+33,3,5,Tarık Baran's Groovy Team,Jalen Brunson,NYK,PG,False,False,False,False
+34,3,6,Tekirdağ Yeni Rakıts,Chet Holmgren,OKC,"PF,C",False,False,False,False
+35,3,7,Çatal State Warriors,Walker Kessler,LAL,C,False,False,False,False
+36,3,8,Железный занавес,Jaren Jackson Jr.,UTA,"PF,C",False,False,False,False
+37,3,9,New York Hav Havs,Devin Booker,PHX,"PG,SG",False,True,True,False
+38,3,10,Arda's Optimal Team,James Harden,CLE,"PG,SG",False,False,True,False
+39,3,11,ehrmantraut spor kulübü,Donovan Clingan,POR,C,False,False,False,False
+40,3,12,Ege's Expert Team,Deni Avdija,POR,"SG,SF,PF",False,False,False,False
+41,3,13,Blacksea Hamsies,Anthony Davis,WAS,"PF,C",False,False,False,False
+42,3,14,Losadanas,Onyeka Okongwu,ATL,C,False,False,False,False
+43,4,1,Losadanas,Franz Wagner,ORL,"SF,PF",False,False,False,False
+44,4,2,Blacksea Hamsies,Jaylen Brown,PHI,"SG,SF,PF",False,False,False,False
+45,4,3,Ege's Expert Team,Kon Knueppel,CHA,"SG,SF",False,False,False,False
+46,4,4,ehrmantraut spor kulübü,Keyonte George,UTA,"PG,SG",False,False,False,False
+47,4,5,Arda's Optimal Team,Matas Buzelis,CHI,"SF,PF",False,False,False,False
+48,4,6,New York Hav Havs,Kyrie Irving,DAL,PG,False,True,False,False
+49,4,7,Железный занавес,Desmond Bane,ORL,"SG,SF",False,False,False,False
+50,4,8,Çatal State Warriors,Derrick White,BOS,"PG,SG",False,False,False,False
+51,4,9,Tekirdağ Yeni Rakıts,Paolo Banchero,ORL,PF,False,False,False,False
+52,4,10,Tarık Baran's Groovy Team,Jalen Williams,OKC,"SF,PF",False,False,True,False
+53,4,11,Emirhan's Super Team,LeBron James,PHI,"SF,PF",False,False,True,False
+54,4,12,Manisa 69'rs,Dyson Daniels,ATL,"SG,SF",False,False,False,False
+55,4,13,Ömer Faruk's Swag Team,Pascal Siakam,IND,"PF,C",False,False,False,False
+56,4,14,4-2-3-1 Gegen,OG Anunoby,NYK,"SF,PF",False,False,False,False
+57,5,1,4-2-3-1 Gegen,Alex Sarr,WAS,C,False,False,False,False
+58,5,2,Ömer Faruk's Swag Team,Ivica Zubac,IND,C,False,False,False,False
+59,5,3,Manisa 69'rs,Nickeil Alexander-Walker,ATL,"PG,SG",False,False,False,False
+60,5,4,Emirhan's Super Team,Damian Lillard,POR,PG,False,False,False,False
+61,5,5,Tarık Baran's Groovy Team,Darius Garland,LAC,PG,False,False,False,False
+62,5,6,Tekirdağ Yeni Rakıts,Dejounte Murray,NOP,PG,False,False,False,False
+63,5,7,Çatal State Warriors,Michael Porter Jr.,BKN,"SF,PF",False,False,False,False
+64,5,8,Железный занавес,Naz Reid,CHA,"PF,C",False,False,False,False
+65,5,9,New York Hav Havs,Zach Edey,MEM,C,False,True,False,False
+66,5,10,Arda's Optimal Team,Ausar Thompson,DET,"SG,SF,PF",False,False,False,False
+67,5,11,ehrmantraut spor kulübü,Tyler Herro,MIL,"PG,SG",False,False,False,False
+68,5,12,Ege's Expert Team,Cameron Boozer,MEM,PF,False,False,False,False
+69,5,13,Blacksea Hamsies,Joel Embiid,PHI,C,False,False,True,False
+70,5,14,Losadanas,Ryan Rollins,MIL,"PG,SG",False,False,True,False
+71,6,1,Losadanas,Stephon Castle,SAS,"PG,SG",False,False,False,False
+72,6,2,Blacksea Hamsies,De'Aaron Fox,SAS,PG,False,False,True,False
+73,6,3,Ege's Expert Team,Jarrett Allen,CLE,C,False,False,False,False
+74,6,4,ehrmantraut spor kulübü,Mikal Bridges,NYK,"SF,PF",False,False,False,False
+75,6,5,Arda's Optimal Team,VJ Edgecombe,PHI,"PG,SG",False,False,False,False
+76,6,6,New York Hav Havs,Julius Randle,BKN,PF,False,True,True,False
+77,6,7,Железный занавес,Jaden McDaniels,MIN,SF,False,False,False,False
+78,6,8,Çatal State Warriors,Kel'el Ware,MIL,C,False,False,True,False
+79,6,9,Tekirdağ Yeni Rakıts,Rudy Gobert,MIN,C,False,False,False,False
+80,6,10,Tarık Baran's Groovy Team,Dylan Harper,SAS,"PG,SG",False,False,False,False
+81,6,11,Emirhan's Super Team,Brandon Ingram,LAC,"SG,SF,PF",False,False,False,False
+82,6,12,Manisa 69'rs,Payton Pritchard,BOS,PG,False,False,False,False
+83,6,13,Ömer Faruk's Swag Team,Cedric Coward,MEM,"SG,SF",True,False,True,True
+84,6,14,4-2-3-1 Gegen,Caleb Wilson,CHI,PF,False,False,False,False
+85,7,1,4-2-3-1 Gegen,Andrew Wiggins,MIA,"SG,SF,PF",False,False,False,False
+86,7,2,Ömer Faruk's Swag Team,Paul George,BOS,"SF,PF",True,False,True,True
+87,7,3,Manisa 69'rs,Derik Queen,NOP,"PF,C",False,False,False,False
+88,7,4,Emirhan's Super Team,Jabari Smith Jr.,HOU,"PF,C",False,False,False,False
+89,7,5,Tarık Baran's Groovy Team,Day'Ron Sharpe,BKN,C,False,False,False,False
+90,7,6,Tekirdağ Yeni Rakıts,Zion Williamson,NOP,"PF,C",False,False,True,False
+91,7,7,Çatal State Warriors,Ty Jerome,MEM,"PG,SG",False,False,False,False
+92,7,8,Железный занавес,Myles Turner,MIL,C,False,False,False,False
+93,7,9,New York Hav Havs,AJ Dybantsa,WAS,SF,False,True,False,False
+94,7,10,Arda's Optimal Team,Wendell Carter Jr.,ORL,C,False,False,False,False
+95,7,11,ehrmantraut spor kulübü,Immanuel Quickley,TOR,"PG,SG",False,False,False,False
+96,7,12,Ege's Expert Team,Josh Hart,NYK,"SG,SF",False,False,False,False
+97,7,13,Blacksea Hamsies,Norman Powell,CHI,"SG,SF",False,False,False,False
+98,7,14,Losadanas,Coby White,CHA,"PG,SG",False,False,True,False
+99,8,1,Losadanas,Darryn Peterson,UTA,SG,False,False,False,False
+100,8,2,Blacksea Hamsies,Nic Claxton,CHI,C,False,False,False,False
+101,8,3,Ege's Expert Team,Miles Bridges,PHX,PF,False,False,False,False
+102,8,4,ehrmantraut spor kulübü,John Collins,DET,"PF,C",False,False,False,False
+103,8,5,Arda's Optimal Team,Reed Sheppard,HOU,"PG,SG",False,False,False,False
+104,8,6,New York Hav Havs,Ja Morant,POR,PG,False,True,True,False
+105,8,7,Железный занавес,Jalen Green,PHX,"SG,SF",False,False,False,False
+106,8,8,Çatal State Warriors,Keegan Murray,SAC,"SF,PF",False,False,False,False
+107,8,9,Tekirdağ Yeni Rakıts,Zach LaVine,SAC,"PG,SG,SF",False,False,False,False
+108,8,10,Tarık Baran's Groovy Team,Toumani Camara,POR,"SF,PF",False,False,False,False
+109,8,11,Emirhan's Super Team,CJ McCollum,ATL,"PG,SG",False,False,False,False
+110,8,12,Manisa 69'rs,Collin Murray-Boyles,TOR,"PF,C",False,False,False,False
+111,8,13,Ömer Faruk's Swag Team,Jalen Suggs,ORL,"PG,SG",True,False,True,True
+112,8,14,4-2-3-1 Gegen,Yaxel Lendeborg,GSW,PF,False,False,False,False
+113,9,1,4-2-3-1 Gegen,Davion Mitchell,MIA,PG,False,False,False,False
+114,9,2,Ömer Faruk's Swag Team,Isaiah Hartenstein,OKC,C,True,False,True,True
+115,9,3,Manisa 69'rs,Julian Champagnie,SAS,"SF,PF",False,False,False,False
+116,9,4,Emirhan's Super Team,Cason Wallace,OKC,"PG,SG,SF",False,False,False,False
+117,9,5,Tarık Baran's Groovy Team,Scotty Pippen Jr.,MEM,PG,False,False,False,False
+118,9,6,Tekirdağ Yeni Rakıts,Ayo Dosunmu,MIN,"PG,SG",False,False,False,False
+119,9,7,Çatal State Warriors,Kevin Porter Jr.,MIL,"PG,SG",False,False,False,False
+120,9,8,Железный занавес,Tari Eason,HOU,"SG,SF,PF",False,False,False,False
+121,9,9,New York Hav Havs,Sandro Mamukelashvili,LAL,"PF,C",False,True,False,False
+122,9,10,Arda's Optimal Team,Kyle Filipowski,UTA,"PF,C",False,False,False,False
+123,9,11,ehrmantraut spor kulübü,Collin Gillespie,PHX,"PG,SG",False,False,False,False
+124,9,12,Ege's Expert Team,Kyshawn George,WAS,"SG,SF,PF",False,False,False,False
+125,9,13,Blacksea Hamsies,Brandin Podziemski,GSW,"PG,SG",False,False,True,False
+126,9,14,Losadanas,Jaime Jaquez Jr.,MIL,"SG,SF,PF",False,False,False,False
+127,10,1,Losadanas,Rui Hachimura,LAC,"SF,PF",False,False,False,False
+128,10,2,Blacksea Hamsies,Peyton Watson,CLE,"SF,PF",False,False,False,False
+129,10,3,Ege's Expert Team,RJ Barrett,TOR,"SG,SF,PF",False,False,False,False
+130,10,4,ehrmantraut spor kulübü,Aaron Gordon,DEN,"PF,C",False,False,False,False
+131,10,5,Arda's Optimal Team,Anthony Black,ORL,"PG,SG,SF",False,False,False,False
+132,10,6,New York Hav Havs,Ajay Mitchell,OKC,"PG,SG",False,True,False,False
+133,10,7,Железный занавес,Grayson Allen,CHA,"SG,SF",False,False,False,False
+134,10,8,Çatal State Warriors,Neemias Queta,BOS,C,False,False,True,False
+135,10,9,Tekirdağ Yeni Rakıts,Andrew Nembhard,IND,"PG,SG",False,False,True,False
+136,10,10,Tarık Baran's Groovy Team,Quentin Grimes,LAL,"SG,SF",False,False,False,False
+137,10,11,Emirhan's Super Team,DeMar DeRozan,DEN,"SF,PF",False,False,False,False
+138,10,12,Manisa 69'rs,Saddiq Bey,NOP,"SF,PF",False,False,False,False
+139,10,13,Ömer Faruk's Swag Team,Jonathan Kuminga,MIN,"SF,PF",False,False,False,False
+140,10,14,4-2-3-1 Gegen,Khaman Maluach,PHX,C,False,False,True,False
+141,11,1,4-2-3-1 Gegen,Scoot Henderson,POR,PG,False,False,False,False
+142,11,2,Ömer Faruk's Swag Team,Jrue Holiday,POR,"PG,SG",False,False,False,False
+143,11,3,Manisa 69'rs,Ace Bailey,UTA,"SF,PF",False,False,False,False
+144,11,4,Emirhan's Super Team,Tre Jones,CHI,"PG,SG",False,False,False,False
+145,11,5,Tarık Baran's Groovy Team,Herbert Jones,NOP,"SG,SF",False,False,False,False
+146,11,6,Tekirdağ Yeni Rakıts,Darius Acuff Jr.,SAC,PG,False,False,False,False
+147,11,7,Çatal State Warriors,Cameron Johnson,DEN,"SF,PF",False,False,False,False
+148,11,8,Железный занавес,Jerami Grant,MEM,"SF,PF",False,False,False,False
+149,11,9,New York Hav Havs,Jaylen Wells,MEM,"SG,SF",False,True,False,False
+150,11,10,Arda's Optimal Team,Egor Dëmin,BKN,"PG,SG",False,False,False,False
+151,11,11,ehrmantraut spor kulübü,Dillon Brooks,PHX,"SF,PF",False,False,False,False
+152,11,12,Ege's Expert Team,Moussa Diabaté,CHA,C,False,False,False,False
+153,11,13,Blacksea Hamsies,Fred VanVleet,HOU,PG,False,False,False,False
+154,11,14,Losadanas,Bobby Portis Jr.,MIA,"PF,C",False,False,False,False
+155,12,1,Losadanas,Christian Braun,DEN,"SG,SF,PF",False,False,False,False
+156,12,2,Blacksea Hamsies,Yves Missi,NOP,C,False,False,False,False
+157,12,3,Ege's Expert Team,Devin Vassell,SAS,"SG,SF",False,False,False,False
+158,12,4,ehrmantraut spor kulübü,Tarik Biberovic,DAL,SF,False,False,False,False
+159,12,5,Arda's Optimal Team,Keldon Johnson,SAS,"SF,PF",False,False,False,False
+160,12,6,New York Hav Havs,De'Andre Hunter,SAC,"SF,PF",False,True,False,False
+161,12,7,Железный занавес,P.J. Washington,DAL,"PF,C",False,False,False,False
+162,12,8,Çatal State Warriors,Tobias Harris,SAS,PF,False,False,False,False
+163,12,9,Tekirdağ Yeni Rakıts,Bennedict Mathurin,NOP,"SG,SF",False,False,False,False
+164,12,10,Tarık Baran's Groovy Team,Collin Sexton,LAL,"PG,SG",False,False,False,False
+165,12,11,Emirhan's Super Team,Nikola Vučević,ORL,C,False,False,False,False
+166,12,12,Manisa 69'rs,Jeremiah Fears,NOP,"PG,SG",False,False,False,False
+167,12,13,Ömer Faruk's Swag Team,Jusuf Nurkić,UTA,C,False,False,True,False
+168,12,14,4-2-3-1 Gegen,Jake LaRavia,LAL,"SF,PF",False,False,False,False
+169,13,1,4-2-3-1 Gegen,Brayden Burries,MIL,SG,False,False,False,False
+170,13,2,Ömer Faruk's Swag Team,Aaron Nesmith,IND,"SG,SF",False,False,False,False
+171,13,3,Manisa 69'rs,Cam Spencer,MEM,"PG,SG",False,False,False,False
+172,13,4,Emirhan's Super Team,Pelle Larsson,MIA,"SG,SF",False,False,False,False
+173,13,5,Tarık Baran's Groovy Team,Paul Reed,DET,"PF,C",False,False,False,False
+174,13,6,Tekirdağ Yeni Rakıts,Kristaps Porziņģis,GSW,C,False,False,False,False
+175,13,7,Çatal State Warriors,Jimmy Butler III,GSW,"SF,PF",False,False,False,False
+176,13,8,Железный занавес,Jakob Poeltl,TOR,C,False,False,True,False
+177,13,9,New York Hav Havs,Isaiah Joe,DET,"SG,SF",False,True,False,False
+178,13,10,Arda's Optimal Team,Daniel Gafford,DAL,C,False,False,True,False
+179,13,11,ehrmantraut spor kulübü,Maxime Raynaud,SAC,C,False,False,False,False
+180,13,12,Ege's Expert Team,Sam Hauser,BOS,"SF,PF",False,False,False,False
+181,13,13,Blacksea Hamsies,Kyle Kuzma,MIL,"SF,PF",False,False,False,False
+182,13,14,Losadanas,Kelly Oubre Jr.,IND,"SF,PF",False,False,False,False
