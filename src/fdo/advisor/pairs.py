@@ -34,7 +34,7 @@ from fdo.advisor.uncertainty import multipliers
 from fdo.draft.events import DraftLog
 from fdo.draft.order import next_turn_after, picks_for_seat, turns_for_seat
 from fdo.matchup.fill import FillTable
-from fdo.roster.assignment import RosterModel
+from fdo.roster.assignment import RosterModel, feasible_group_table
 
 
 class AdvisorError(ValueError):
@@ -150,11 +150,26 @@ def setup_problem(ctx: AdvisorContext, log: DraftLog, fill: FillTable) -> Proble
 # adaylar ve çiftler
 # --------------------------------------------------------------------------
 
+def single_feasible(prob: Problem) -> np.ndarray:
+    """Oyuncu bu pick'te tek başına alınınca kadro hâlâ tamamlanabilir mi (grup düzeyinde, ``(n,)``)."""
+    u = prob.ctx.universe
+    model = prob.roster_model or RosterModel(prob.ctx.config)
+    base = position_sets(prob, prob.roster.tolist())
+    remaining = len(prob.turn) - 1 + len(prob.after_turn)
+    table = feasible_group_table(model, base, u.groups, 1, remaining)
+    return table[u.group]
+
+
 def candidate_set(prob: Problem, delta: np.ndarray, surv_next: np.ndarray | None,
                   pinned: list[int]) -> list[int]:
+    """Aday kümesi; kadroyu tek başına tamamlanamaz yapan oyuncular (Yahoo pozisyon kuralı) dışarıda.
+
+    Böylece geç turlarda aday kümesi kurala aykırı oyuncularla dolup hiç geçerli çift kalmaması önlenir.
+    """
     adv = prob.ctx.config.model.advisor
+    ok = single_feasible(prob)
     order = [int(i) for i in np.argsort(np.where(np.isnan(delta), np.inf, -delta), kind="stable")
-             if not np.isnan(delta[i])]
+             if not np.isnan(delta[i]) and ok[i]]
     top1 = order[: adv.k1_top_ecw]
     urgent = []
     if surv_next is not None:
@@ -178,6 +193,33 @@ def feasible_combo(prob: Problem, model: RosterModel, combo: tuple[int, ...]) ->
     remaining_after = len(prob.after_turn)
     pos = position_sets(prob, [*prob.roster.tolist(), *combo])
     return model.can_complete(pos, remaining_after)
+
+
+def feasible_combos(prob: Problem, cands: list[int], delta: np.ndarray, per_group: int = 3
+                    ) -> tuple[list[int], list[tuple[int, ...]]]:
+    """Adaylardan kadroyu tamamlanabilir bırakan kombinasyonlar.
+
+    Hiç yoksa (ör. iki C slotu açık ve adayların hiçbiri C değil) aday kümesi her pozisyon
+    grubunun ΔECW'ye göre en iyi ``per_group`` oyuncusuyla genişletilir.
+    """
+    model = prob.roster_model
+    size = len(prob.turn)
+
+    def build(cs):
+        combos = [tuple(sorted(c)) for c in itertools.combinations(cs, size)]
+        return [c for c in combos if feasible_combo(prob, model, c)]
+
+    feasible = build(cands)
+    if feasible:
+        return cands, feasible
+    u = prob.ctx.universe
+    ok = prob.available & ~np.isnan(delta)
+    extra = []
+    for g in range(len(u.groups)):
+        idx = np.flatnonzero(ok & (u.group == g))
+        extra += [int(i) for i in idx[np.argsort(-delta[idx], kind="stable")[:per_group]]]
+    cands = cands + [i for i in extra if i not in cands]
+    return cands, build(cands)
 
 
 def static_scores(prob: Problem, combos: list[tuple[int, ...]]) -> np.ndarray:
@@ -257,9 +299,8 @@ def recommend(ctx: AdvisorContext, log: DraftLog, *, mode: str = "fast", n_sims:
                  if all(p in u.index for p in pp)]
     cands = candidate_set(prob, delta, surv_next, pin_idx)
     size = len(prob.turn)
-    combos = [tuple(sorted(c)) for c in itertools.combinations(cands, size)]
     model = prob.roster_model
-    feasible = [c for c in combos if feasible_combo(prob, model, c)]
+    cands, feasible = feasible_combos(prob, cands, delta)
     q = static_scores(prob, feasible)
     order = np.argsort(-q, kind="stable")
     chosen = [feasible[i] for i in order[: adv.m_pairs_to_rollout]]

@@ -81,3 +81,32 @@ def test_bots_obey_rule_even_if_feasibility_flag_off(universe, config):
         for seat in range(1, 17):
             players = b.roster_matrix(seat)[s]
             assert model.open_active_count([universe.groups[universe.group[p]] for p in players]) == 0
+
+
+def test_advisor_augments_candidates_when_no_pair_is_feasible(synthetic_ds, universe, config):
+    """10 C-olmayan oyuncu + iki C slotu açık: yalnızca C-olmayan adaylarla hiçbir çift geçerli değil."""
+    import numpy as np
+
+    from fdo.advisor.pairs import feasible_combos, setup_problem
+    from fdo.advisor.rollout import delta_ecw
+    from fdo.advisor.simulate import prepare_context
+    from fdo.bots.mock import MockDraft
+
+    ctx = prepare_context(synthetic_ds, config, seed=1, universe=universe, fill_sims=20)
+    m = MockDraft(synthetic_ds, config, seed=3, universe=universe)
+    pos = synthetic_ds.positions()
+    order = [str(universe.ids[i]) for i in np.argsort(universe.adp)]
+    while True:
+        m.play_until_user()
+        if m.log.next_pick >= 176:
+            break
+        pid = next(p for p in order if p not in m.log.taken and "C" not in pos[p] and m.is_allowed(p))
+        m.pick(pid, "user")
+    assert m.log.next_pick == 176
+    prob = setup_problem(ctx, m.log, ctx.base_fill)
+    base = prob.roster_vec + prob.fill_sum([177, *prob.after_turn])
+    delta = delta_ecw(prob, base, 176, prob.available)
+    non_c = [universe.index[p] for p in order if p not in m.log.taken and "C" not in pos[p]][:4]
+    cands, feasible = feasible_combos(prob, non_c, delta)
+    assert feasible and len(cands) > 4
+    assert all(any("C" in universe.groups[universe.group[i]] for i in c) for c in feasible)
