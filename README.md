@@ -1497,6 +1497,17 @@ Draft ekranı sade, analiz ayrı sekmede. Uygulama açılınca `data/real` diskt
 - **Projeksiyonsuz oyuncular** botlarca seçilmez (yalnızca projeksiyonlu aday kalmazsa serbest). Örnek:
   Bronny James'in ADP'si (106.9) Yahoo draft'larının yalnızca %3'ünden geliyordu ve projeksiyonu yok.
 
+### 13.11 İlk çift × strateji senaryoları (`scripts/draft_scenarios.py`)
+
+Draft öncesi hazırlık: 16/17 çifti zorlanarak draft sonuna kadar simüle edilir (`play_draft`: zorlanan
+pick'ler, `BatchDraft.reserve` ile "çift 16'ya kalırsa" koşullaması, turn başına politika). Aday çiftler
+16'da kalma olasılığı ≥ %8 olan ve ΔECW'si yüksek oyunculardan + kullanıcının verdiği çiftlerden kurulur;
+dengeli ve uyarlanabilir stratejiyle elenir, en iyileri 44 stratejilik ızgarada (tek/ikili punt'lar,
+"48/49 dengeli → X" ve "baştan X", kadroya göre 1.25/1.5/0.5 ağırlıklı karışımlar) ölçülür, en iyi
+~100 senaryo yeni simülasyonlarla yeniden ölçülür. Çıktı `reports/draft_senaryolari.xlsx`: senaryolar,
+13'lü kadrolar (pick numarası sütunlarıyla Excel'de filtrelenebilir), çift özeti, ızgara, eleme ve 16'da
+uygunluk. `pip install -e ".[excel]"` (openpyxl) gerekir.
+
 ### 13.8 V3 adayları
 
 Beam search ve H-score ağırlık optimizasyonu; profil karışımı uyumu; oyuncular arası maç sayısı
