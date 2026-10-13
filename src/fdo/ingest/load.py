@@ -11,6 +11,7 @@ import difflib
 import hashlib
 import re
 import unicodedata
+import dataclasses
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -64,6 +65,17 @@ class Dataset:
     content_hash: str
     variance: pd.DataFrame | None = None
     excluded: dict[str, str] = field(default_factory=dict)
+    #: V2 (§13.4): NBA maç takvimi; yoksa matchup sabit ``games_per_week`` kullanır.
+    schedule: pd.DataFrame | None = None
+
+    def with_schedule(self, schedule: pd.DataFrame | None, manifest: dict | None = None) -> "Dataset":
+        """Takvimi eklenmiş kopya (içerik hash'i takvimi de kapsar)."""
+        manifests = dict(self.manifests)
+        if manifest is not None:
+            manifests["schedule"] = manifest
+        h = hashlib.sha256((self.content_hash + content_hash(schedule)).encode()).hexdigest()[:16]
+        return dataclasses.replace(self, schedule=schedule, manifests=manifests,
+                                   content_hash=h if schedule is not None else self.content_hash)
 
     @property
     def draft_ids(self) -> list[str]:
@@ -389,6 +401,24 @@ def _load_table(path: str | Path, kind: str, column_map: dict | None, report: Va
         return None, manifest
     df = apply_column_map(read_csv_raw(path), column_map, report, label)
     return df, manifest
+
+
+def load_table(path: str | Path, kind: str, *, column_map: dict | None = None,
+               manifest_dir: str | Path | None = None, players: pd.DataFrame | None = None
+               ) -> tuple[pd.DataFrame | None, dict | None, ValidationReport]:
+    """Yardımcı tablo (``schedule``, ``gamelogs``, ``variance``) yükler: manifest zorunlu (§5.2),
+    şema tipleri uygulanır; ``players`` verilirse ``player_id`` ad/alias ile çözülür."""
+    report = ValidationReport()
+    df, manifest = _load_table(path, kind, column_map, report, manifest_dir)
+    if df is None:
+        return None, manifest, report
+    label = Path(path).name
+    if players is not None and "player_id" in schema.column_names(kind):
+        df = resolve_player_ids(df, players, label, report)
+    df = coerce_types(df, kind, report, label)
+    if not report.ok:
+        return None, manifest, report
+    return df[[c for c in schema.column_names(kind) if c in df.columns]], manifest, report
 
 
 def load_dataset(players_csv: str | Path, projections_csv: str | Path, adp_csv: str | Path,

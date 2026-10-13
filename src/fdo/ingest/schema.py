@@ -72,18 +72,40 @@ DRAFT_LOG: tuple[Column, ...] = (
     Column("observed_at", "datetime"),
 )
 
+#: V2: NBA maç takvimi (§13.4). Takım kodları ``players.nba_team`` ile aynı olmalı
+#: (yaygın alternatif kodlar ``fdo.schedule.calendar.TEAM_ALIASES`` ile çevrilir).
+SCHEDULE: tuple[Column, ...] = (
+    Column("game_date", "date", True, "Yerel (ET) maç tarihi"),
+    Column("home_team", "str", True),
+    Column("away_team", "str", True),
+    Column("game_id", "str"),
+)
+
+#: V2: oyuncu maç kayıtları (§13.2 varyans kalibrasyonu, §13.1 backtest).
+GAMELOGS: tuple[Column, ...] = (
+    Column("player_id", "str", True),
+    Column("game_date", "date", True),
+    Column("season", "str", True, "Örn. 2025-26"),
+    Column("nba_team", "str"),
+    Column("minutes", "float"),
+    *(Column(s, "float", True, "maçtaki değer") for s in STATS),
+)
+
 SCHEMAS: dict[str, tuple[Column, ...]] = {
     "players": PLAYERS,
     "projections": PROJECTIONS,
     "adp": ADP,
     "variance": VARIANCE,
     "draft_log": DRAFT_LOG,
+    "schedule": SCHEDULE,
+    "gamelogs": GAMELOGS,
 }
 
 #: Projeksiyonda zorunlu sayısal stat kolonları (eksikse oyuncu havuz dışında kalır).
 REQUIRED_PROJECTION_STATS: tuple[str, ...] = ("projected_gp", *STATS)
 
-MANIFEST_KINDS: tuple[str, ...] = ("projections", "adp", "players", "variance", "draft_log")
+MANIFEST_KINDS: tuple[str, ...] = ("projections", "adp", "players", "variance", "draft_log", "schedule",
+                                   "gamelogs")
 LICENSE_STATUSES: tuple[str, ...] = ("personal_use_confirmed", "assumed", "unknown")
 MANIFEST_REQUIRED: tuple[str, ...] = (
     "kind", "source_name", "retrieved_at", "license_status", "is_synthetic",
