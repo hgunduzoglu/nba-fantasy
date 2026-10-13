@@ -103,3 +103,46 @@ def load(path: str | Path, config: Config) -> tuple[DraftLog, dict]:
     path = Path(path)
     return import_log(path.read_text(encoding="utf-8"), config,
                       "json" if path.suffix == ".json" else "csv")
+
+
+#: İsimli draft sonucu kolonları (küçük harf, eş anlamlılar).
+NAME_COLUMNS = {
+    "pick": ("pick", "overall", "overall_pick", "#", "no"),
+    "player": ("player", "name", "player_name", "oyuncu"),
+    "auto": ("auto", "autopick", "auto_pick", "otomatik"),
+}
+_TRUE = {"1", "true", "yes", "y", "evet", "x", "auto"}
+
+
+def import_names(text: str, players: pd.DataFrame, config: Config) -> tuple[DraftLog, list[str]]:
+    """İsimli draft sonucu (CSV/TSV: pick, oyuncu adı, opsiyonel auto) → ``DraftLog``.
+
+    Koltuk pick numarasından snake sırasıyla türetilir (``config.league``; farklı lig büyüklüğü için
+    ``fdo.calibration.bots.league_config``). Adlar ``players`` dosyasına ad/alias ile eşlenir; eşleşmeyen
+    ya da belirsiz ad hatadır (öneriler mesajda). Otomatik seçilen pick'ler ``import:auto`` kaynağı alır.
+    """
+    from fdo.ingest.load import resolve_player_ids
+    from fdo.ingest.validate import ValidationReport
+
+    sep = "\t" if text.count("\t") > text.count(",") else ","
+    df = pd.read_csv(io.StringIO(text), sep=sep, dtype=str, keep_default_na=False)
+    cols = {c.strip().lower(): c for c in df.columns}
+    found = {k: next((cols[a] for a in alias if a in cols), None) for k, alias in NAME_COLUMNS.items()}
+    if found["player"] is None:
+        raise DraftError(f"Oyuncu adı kolonu yok (beklenen: {NAME_COLUMNS['player']}); kolonlar: {list(df.columns)}")
+    if found["pick"] is not None:
+        df = df.assign(_pick=pd.to_numeric(df[found["pick"]], errors="coerce")).sort_values("_pick", kind="mergesort")
+    names = df[found["player"]].astype(str).str.strip()
+    rep = ValidationReport()
+    resolved = resolve_player_ids(pd.DataFrame({"name": names.to_numpy()}), players, "draft", rep)
+    if not rep.ok:
+        raise DraftError("; ".join(rep.errors[:10]))
+    auto = (df[found["auto"]].astype(str).str.strip().str.lower().isin(_TRUE).to_numpy()
+            if found["auto"] is not None else [False] * len(df))
+    lg = config.league
+    log = DraftLog.new(config)
+    for pid, a in zip(resolved["player_id"], auto):
+        log = log.make_pick(str(pid), "import:auto" if a else "import",
+                            observed_at=dt.datetime(1970, 1, 1))
+    notes = [f"{len(log)} pick ({lg.teams} takım, {lg.rounds} tur), {int(sum(auto))} otomatik"]
+    return log, notes
