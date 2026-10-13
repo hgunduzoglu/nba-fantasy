@@ -48,6 +48,9 @@ u = common.universe()
 avail = [str(u.ids[i]) for i in np.argsort(u.adp, kind="stable")
          if str(u.ids[i]) not in log.taken and not np.isnan(common.advisor_context().vecs[i]).any()]
 
+with st.expander("Strateji ağırlıkları (kendi punt stratejin)", expanded=bool(common.strategy_weights())):
+    common.strategy_editor()
+
 with st.form("advisor"):
     c = st.columns([1, 1, 3])
     mode = c[0].radio("Mod", ["fast", "full"], format_func=lambda x: {"fast": f"Hızlı (S={adv.sims_per_pair_fast})",
@@ -110,6 +113,7 @@ show = pd.DataFrame({
     "kademe": pt["tier"],
     "seçim": pt["pair"],
     "E[W]": [f"≈{v:.3f}" for v in pt["E[W]"]],
+    **({"ECW (ağırlıksız)": pt["ECW"].round(3)} if res.params.get("category_weights") else {}),
     "SE": pt["SE"].round(4),
     "P10–P90": [f"{a:.2f} – {b:.2f}" for a, b in zip(pt["P10"], pt["P90"])],
     "regret": [f"{r:.3f} ± {s:.3f}" for r, s in zip(pt["regret"], pt["regret_SE"])],
@@ -281,7 +285,7 @@ with tab_scen:
     if st.button("Punt planlarını karşılaştır"):
         bar = st.progress(0.0)
         st.session_state.plan_result = (log.next_pick, compare_punt_plans(
-            common.advisor_context(), log, n_sims=int(n_p),
+            common.advisor_context(), log, n_sims=int(n_p), custom_weights=common.strategy_weights(),
             progress=lambda step, i, n: bar.progress(i / n, text=f"{step} {i}/{n}")))
     pr_ = st.session_state.get("plan_result")
     if pr_ and pr_[0] == log.next_pick:

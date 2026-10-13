@@ -138,6 +138,8 @@ else:
 
     # --------------------------------------------------------------- öneri
     if mine:
+        with st.expander("Strateji ağırlıkları", expanded=False):
+            common.strategy_editor(key="live_sw")
         c = st.columns(3)
         use_opp = c[0].toggle("Rakip stratejisi tahmini", value=True)
         unc = c[1].toggle("Sakatlık/rol belirsizliği", value=False)
@@ -154,6 +156,7 @@ else:
             st.dataframe(pd.DataFrame({
                 "kademe": pt["tier"], "seçim": pt["pair"], "E[W]": pt["E[W]"].round(3),
                 "SE": pt["SE"].round(4), "P10–P90": [f"{a:.2f} – {b:.2f}" for a, b in zip(pt["P10"], pt["P90"])],
+                **({"ECW (ağırlıksız)": pt["ECW"].round(3)} if res.params.get("category_weights") else {}),
             }), hide_index=True)
             bc = st.columns(3)
             for j, pr in enumerate(res.pairs[:3]):

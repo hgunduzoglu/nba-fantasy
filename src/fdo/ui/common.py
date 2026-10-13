@@ -177,6 +177,39 @@ def opponent_model(log):
     return tr.update(log)
 
 
+def strategy_weights() -> dict[str, float] | None:
+    """Kullanıcının strateji ağırlıkları (Draft Assistant'ta ayarlanır; None = saf ECW)."""
+    w = st.session_state.get("strategy_weights")
+    return dict(w) if w and any(abs(v - 1.0) > 1e-9 for v in w.values()) else None
+
+
+def strategy_editor(key: str = "sw") -> None:
+    """Kategori ağırlıkları (0 = punt, 1 = normal, 2 = iki kat önem) — preset'ler ve kaydırıcılar."""
+    from fdo.types import CATEGORY_LABELS
+    from fdo.valuation.weights import preset
+
+    cfg = config()
+    cur = dict(st.session_state.get("strategy_weights") or {c: 1.0 for c in cfg.categories})
+    c1, c2 = st.columns([2, 1])
+    name = c1.selectbox("Preset", ["—", *cfg.model.valuation.presets], key=f"{key}_preset")
+    if c2.button("Preset'i uygula", key=f"{key}_apply", disabled=name == "—"):
+        cur = preset(cfg, name)
+        for c in cfg.categories:
+            st.session_state[f"{key}_{c}"] = float(cur[c])
+    cols = st.columns(len(cfg.categories))
+    new = {}
+    for col, c in zip(cols, cfg.categories):
+        new[c] = col.slider(CATEGORY_LABELS[c], 0.0, 2.0, float(cur.get(c, 1.0)), 0.25, key=f"{key}_{c}")
+    st.session_state.strategy_weights = new
+    active = strategy_weights()
+    if active:
+        punts = [CATEGORY_LABELS[c] for c, v in active.items() if v == 0]
+        st.caption("Advisor bu ağırlıklarla optimize ediyor" + (f" · punt: {', '.join(punts)}" if punts else "")
+                   + ". Tabloda ağırlıksız ECW de gösterilir.")
+    else:
+        st.caption("Ağırlıklar eşit: advisor saf ECW'yi (9 kategori eşit) optimize ediyor.")
+
+
 def advise(log, *, mode: str, pins=(), pin_pairs=(), conditional: bool = True, uncertainty: bool = False,
            opponents: bool = False, progress=None):
     """Advisor sonucu; ``(veri, config, state, seed, parametreler)`` anahtarıyla önbelleklenir (§8).
@@ -187,13 +220,15 @@ def advise(log, *, mode: str, pins=(), pin_pairs=(), conditional: bool = True, u
     from fdo.advisor.pairs import recommend
 
     key = (dataset().content_hash, config().config_hash, int(st.session_state.seed), state_key(log), mode,
-           tuple(pins), tuple(tuple(p) for p in pin_pairs), conditional, uncertainty, opponents)
+           tuple(pins), tuple(tuple(p) for p in pin_pairs), conditional, uncertainty, opponents,
+           tuple(sorted((strategy_weights() or {}).items())))
     cache = st.session_state.setdefault("advise_cache", {})
     if key in cache:
         return cache[key]
     res = recommend(advisor_context(), log, mode=mode, pinned_players=list(pins),
                     pinned_pairs=list(pin_pairs), conditional_fill=conditional, uncertainty=uncertainty,
-                    opponent_probs=opponent_model(log).seat_probs() if opponents else None, progress=progress)
+                    opponent_probs=opponent_model(log).seat_probs() if opponents else None,
+                    category_weights=strategy_weights(), progress=progress)
     cache[key] = res
     while len(cache) > ADVISE_CACHE_SIZE:
         cache.pop(next(iter(cache)))

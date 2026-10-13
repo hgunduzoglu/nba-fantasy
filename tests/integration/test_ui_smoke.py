@@ -24,6 +24,10 @@ def env(config):
     return cfg, ds, mock
 
 
+def compute(at):
+    return next(b for b in at.button if b.label == "Öneri hesapla")
+
+
 def run_page(env, page, action=None):
     cfg, ds, mock = env
     at = AppTest.from_file(str(UI / page), default_timeout=300)
@@ -48,14 +52,14 @@ def test_page_renders(env, page):
 
 
 def test_draft_assistant_computes(env):
-    at = run_page(env, "pages/4_Draft_Assistant.py", lambda at: at.button[0].click())
+    at = run_page(env, "pages/4_Draft_Assistant.py", lambda at: compute(at).click())
     res = at.session_state["advisor_result"]
     assert res is not None and res.turn == (16, 17)
 
 
 def test_draft_assistant_deep(env):
     def act(at):
-        at.button[0].click()
+        compute(at).click()
         at.run()
         next(b for b in at.button if b.label == "Tam ufuk hesapla").click()
     at = run_page(env, "pages/4_Draft_Assistant.py", act)
@@ -113,3 +117,14 @@ def test_live_draft_flow(env, monkeypatch, tmp_path):
     next(b for b in at2.button if b.label.startswith("Kayıtlı canlı draft'a devam et")).click()
     at2.run()
     assert len(at2.session_state["mock"].log) == cfg.league.my_seat - 1
+
+
+def test_draft_assistant_with_strategy_weights(env):
+    def act(at):
+        at.slider(key="sw_FT_PCT").set_value(0.0)
+        at.run()
+        compute(at).click()
+    at = run_page(env, "pages/4_Draft_Assistant.py", act)
+    res = at.session_state["advisor_result"]
+    assert res.params["category_weights"]["FT_PCT"] == 0.0
+    assert all(p.ecw == p.ecw for p in res.pairs)                     # ağırlıksız ECW raporlandı
