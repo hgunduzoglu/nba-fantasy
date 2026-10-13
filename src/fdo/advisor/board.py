@@ -9,6 +9,7 @@ Draft ekranında advisor'ın yanında, her durumda (sıra kullanıcıda olmasa d
   (takımın nerede güçlü/zayıf olduğu).
 * ``z_c``: oyuncunun dengeli z-skoru (takımdan bağımsız değer; hashtagbasketball tarzı görünüm);
   ``perf_level`` z'yi Elite … Poor kademelerine çevirir.
+* ``allowed``: kullanıcı bu oyuncuyu alırsa kadro hâlâ tamamlanabilir mi (Yahoo pozisyon kuralı).
 * ``p_avail``: oyuncunun kullanıcının ilgili pick'ine kadar kalma olasılığı (bot simülasyonu). Sıra
   kullanıcıdaysa sonraki turn'e, değilse sıradaki pick'e kadar.
 
@@ -23,7 +24,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from fdo.advisor.pairs import setup_problem
+from fdo.advisor.pairs import setup_problem, single_feasible
 from fdo.advisor.simulate import AdvisorContext, make_engine, sub_seed
 from fdo.advisor.survival import survival
 from fdo.draft.events import DraftLog
@@ -114,6 +115,7 @@ def category_board(ctx: AdvisorContext, log: DraftLog, *, fill: FillTable | None
         "z_total": u.zcat[idx].sum(axis=1),
         "delta_ecw": d.sum(axis=1),
         "p_avail": p_avail,
+        "allowed": single_feasible(prob)[idx],
     })
     w = prob.cat_weights
     table["score"] = (d * w).sum(axis=1) if w is not None else table["delta_ecw"]

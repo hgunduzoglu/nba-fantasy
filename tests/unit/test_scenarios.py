@@ -46,3 +46,14 @@ def test_compare_punt_plans(synthetic_ds, universe, config):
     assert t.loc["dengeli", "fark"] == 0.0
     assert t.loc["punt FT%", "FT%"] < t.loc["dengeli", "FT%"]          # punt edilen kategori düşer
     assert r.best["E[W]"] == t["E[W]"].max()
+
+
+def test_punt_plans_while_waiting(synthetic_ds, universe, config):
+    from fdo.advisor.scenarios import compare_punt_plans
+
+    ctx = prepare_context(synthetic_ds, config, seed=2, universe=universe, fill_sims=20)
+    m = MockDraft(synthetic_ds, config, seed=2, universe=universe)
+    for _ in range(4):
+        m.play_next()
+    r = compare_punt_plans(ctx, m.log, n_sims=4, plans=[(), ("FT_PCT",)])
+    assert len(r.table) == 2 and r.table["E[W]"].between(0, 9).all()

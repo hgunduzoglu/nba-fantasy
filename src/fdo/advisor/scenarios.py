@@ -68,11 +68,12 @@ def rollout_to_end(ctx: AdvisorContext, log: DraftLog, S: int, seed: int, *, pun
                    weights: dict[str, float] | None = None, progress=None):
     """Draft sonuna kadar rollout: kullanıcı her turn'de ``punt`` dışındaki kategorilerin beklenen
     galibiyetini en büyükleyen seçimi yapar (``punt = ()`` → miyopik ECW π). Dönüş: ``(P (S, T−1, C),
-    kullanıcı kadro matrisi, motor)``; P her zaman 9 kategorinin hepsiyle hesaplanır."""
+    kullanıcı kadro matrisi, motor)``; P her zaman 9 kategorinin hepsiyle hesaplanır. Sıra kullanıcıda
+    değilse aradaki rakip pick'lerini botlar oynar ve rollout kullanıcının sıradaki turn'ünden başlar."""
     cfg = ctx.config
     adv = cfg.model.advisor
     lg = cfg.league
-    prob = setup_problem(ctx, log, ctx.base_fill)
+    prob = setup_problem(ctx, log, ctx.base_fill, upcoming=True)
     keep = np.array([0.0 if c in punt else float((weights or {}).get(c, 1.0)) for c in cfg.categories])
 
     def policy_score(vecs_):
