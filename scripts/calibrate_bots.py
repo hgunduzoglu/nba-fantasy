@@ -23,6 +23,7 @@ from fdo.bots.universe import build_universe
 from fdo.calibration.bots import (
     fit_sigma,
     league_config,
+    survival_brier,
     logs_to_matrix,
     simulate_matrix,
     survival_reliability,
@@ -44,8 +45,10 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--logs", required=True, help="glob, örn. 'data/real/draft_logs/*.csv'")
     ap.add_argument("--data", default="data/real/")
-    ap.add_argument("--sigma0", default="0.5,1,1.5,2.5,4")
-    ap.add_argument("--sigma1", default="0.04,0.08,0.12,0.18,0.25")
+    ap.add_argument("--sigma0", default="0.5,1.5,3,5")
+    ap.add_argument("--sigma1", default="0.08,0.12,0.18,0.25,0.35")
+    ap.add_argument("--objective", choices=["brier", "moments"], default="brier",
+                    help="brier: sabit kümede survival Brier (varsayılan); moments: pick − A momentleri")
     ap.add_argument("--sims", type=int, default=60, help="ızgara noktası başına simülasyon")
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--teams", type=int, default=None, help="log'ların takım sayısı (varsayılan: lig)")
@@ -82,16 +85,17 @@ def main(argv: list[str] | None = None) -> int:
         print(f"\rızgara {i}/{n}", end="", flush=True)
 
     fit = fit_sigma(logs, ds, universe, cfg, sigma0_grid=floats(args.sigma0), sigma1_grid=floats(args.sigma1),
-                    n_sims=args.sims, seed=args.seed, progress=progress)
+                    n_sims=args.sims, seed=args.seed, objective=args.objective, progress=progress)
     print(f"\nEn iyi: {fit.best} (mevcut: σ₀={cfg.model.bots.sigma0}, σ₁={cfg.model.bots.sigma1})")
 
     obs, _ = logs_to_matrix(logs, universe)
     checkpoints = user_checkpoints(cfg)
     best_cfg = cfg.with_overrides({"model": {"bots": fit.best}})
-    rel = {}
+    rel, fixed = {}, {}
     for label, c, u in (("mevcut", cfg, universe), ("uyum", best_cfg, with_sigma(universe, ds, best_cfg))):
         sim = simulate_matrix(u, c, max(200, args.sims), args.seed + 1)
         rel[label] = survival_reliability(sim, obs, checkpoints, universe.n)
+        fixed[label] = survival_brier(sim, obs, universe)
 
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -101,11 +105,15 @@ def main(argv: list[str] | None = None) -> int:
         f"evrende olmayan pick: {fit.missing_picks}; otomatik (momentlerden dışlanan) pick: {fit.auto_picks}",
         f"- σ'sı σ₀ + σ₁·A ile belirlenen oyuncu payı: {fit.param_share:.0%}",
         f"- Izgara: σ₀ ∈ {args.sigma0}, σ₁ ∈ {args.sigma1}; nokta başına {args.sims} simülasyon (CRN)",
-        f"- **En iyi: σ₀ = {fit.best['sigma0']}, σ₁ = {fit.best['sigma1']}**", "",
+        f"- Ölçüt: {args.objective}",
+        f"- **En iyi: σ₀ = {fit.best['sigma0']}, σ₁ = {fit.best['sigma1']}**",
+        f"- Survival Brier (sabit küme, ayrı {max(200, args.sims)} simülasyon): mevcut {fixed['mevcut']:.4f}, "
+        f"uyum {fixed['uyum']:.4f}", "",
         "## Izgara (ilk 10)", "", md_table(fit.grid.head(10), index=False), "",
         "## `pick − A` momentleri", "", "### Gözlenen", "", md_table(fit.observed), "",
         "### Uyum", "", md_table(fit.fitted), "", "### Mevcut config", "", md_table(fit.current), "",
-        "## Survival güvenilirliği (kullanıcı pick'lerinde)", "",
+        "## Survival güvenilirliği (kullanıcı pick'lerinde; Brier yalnızca 0.01–0.99 tahminler, σ'lar arası "
+        "karşılaştırma için üstteki sabit küme Brier'i kullanılmalı)", "",
     ]
     for label, (table, brier) in rel.items():
         lines += [f"### {label} — Brier {brier:.4f}", "", md_table(table), ""]

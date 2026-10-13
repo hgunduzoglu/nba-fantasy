@@ -110,16 +110,18 @@ NAME_COLUMNS = {
     "pick": ("pick", "overall", "overall_pick", "#", "no"),
     "player": ("player", "name", "player_name", "oyuncu"),
     "auto": ("auto", "autopick", "auto_pick", "otomatik"),
+    "user": ("user", "kullanici", "kullanıcı", "me"),
 }
 _TRUE = {"1", "true", "yes", "y", "evet", "x", "auto"}
 
 
 def import_names(text: str, players: pd.DataFrame, config: Config) -> tuple[DraftLog, list[str]]:
-    """İsimli draft sonucu (CSV/TSV: pick, oyuncu adı, opsiyonel auto) → ``DraftLog``.
+    """İsimli draft sonucu (CSV/TSV: pick, oyuncu adı, opsiyonel auto/user) → ``DraftLog``.
 
     Koltuk pick numarasından snake sırasıyla türetilir (``config.league``; farklı lig büyüklüğü için
     ``fdo.calibration.bots.league_config``). Adlar ``players`` dosyasına ad/alias ile eşlenir; eşleşmeyen
-    ya da belirsiz ad hatadır (öneriler mesajda). Otomatik seçilen pick'ler ``import:auto`` kaynağı alır.
+    ya da belirsiz ad hatadır (öneriler mesajda). Otomatik seçilen pick'ler ``import:auto``, kullanıcının
+    kendi pick'leri ``import:user`` kaynağı alır (ikisi de kalibrasyon momentlerinden dışlanır).
     """
     from fdo.ingest.load import resolve_player_ids
     from fdo.ingest.validate import ValidationReport
@@ -137,12 +139,17 @@ def import_names(text: str, players: pd.DataFrame, config: Config) -> tuple[Draf
     resolved = resolve_player_ids(pd.DataFrame({"name": names.to_numpy()}), players, "draft", rep)
     if not rep.ok:
         raise DraftError("; ".join(rep.errors[:10]))
-    auto = (df[found["auto"]].astype(str).str.strip().str.lower().isin(_TRUE).to_numpy()
-            if found["auto"] is not None else [False] * len(df))
+    def flag(key):
+        if found[key] is None:
+            return [False] * len(df)
+        return list(df[found[key]].astype(str).str.strip().str.lower().isin(_TRUE))
+
+    auto, user = flag("auto"), flag("user")
     lg = config.league
     log = DraftLog.new(config)
-    for pid, a in zip(resolved["player_id"], auto):
-        log = log.make_pick(str(pid), "import:auto" if a else "import",
-                            observed_at=dt.datetime(1970, 1, 1))
-    notes = [f"{len(log)} pick ({lg.teams} takım, {lg.rounds} tur), {int(sum(auto))} otomatik"]
+    for pid, a, me in zip(resolved["player_id"], auto, user):
+        src = "import:user" if me else "import:auto" if a else "import"
+        log = log.make_pick(str(pid), src, observed_at=dt.datetime(1970, 1, 1))
+    notes = [f"{len(log)} pick ({lg.teams} takım, {lg.rounds} tur), {int(sum(auto))} otomatik, "
+             f"{int(sum(user))} kullanıcı"]
     return log, notes

@@ -63,12 +63,13 @@ def league_config(config: Config, teams: int, rounds: int | None = None) -> Conf
 
 
 def auto_mask(logs: list[DraftLog]) -> np.ndarray:
-    """``(L, total)``: Yahoo'nun otomatik seçtiği pick'ler (kaynak ``import:auto``) — momentlerden dışlanır."""
+    """``(L, total)``: momentlerden dışlanan pick'ler — Yahoo'nun otomatik seçtikleri (``import:auto``) ve
+    kullanıcının kendi pick'leri (``import:user``; strateji denemesi, rakip davranışı değil)."""
     total = logs[0].total_picks if logs else 0
     out = np.zeros((len(logs), total), dtype=bool)
     for row, log in enumerate(logs):
         for p in log.picks:
-            out[row, p.overall_pick - 1] = p.source.startswith("import:auto")
+            out[row, p.overall_pick - 1] = p.source.startswith(("import:auto", "import:user"))
     return out
 
 
@@ -136,7 +137,7 @@ def simulate_matrix(universe: BotUniverse, config: Config, n_sims: int, seed: in
 
 @dataclass
 class BotFit:
-    grid: pd.DataFrame              # sigma0, sigma1, loss
+    grid: pd.DataFrame              # sigma0, sigma1, brier, moment_loss
     best: dict[str, float]
     observed: pd.DataFrame          # gözlenen momentler
     fitted: pd.DataFrame            # en iyi parametrelerle simülasyon momentleri
@@ -148,9 +149,35 @@ class BotFit:
     auto_picks: int = 0
 
 
+def survival_brier(sim_matrix: np.ndarray, obs_matrix: np.ndarray, universe: BotUniverse, *,
+                   step: int = 6, window: float = 40.0, max_adp: float = 200.0) -> float:
+    """Sabit değerlendirme kümesinde ``P(uygun @ n)`` Brier skoru.
+
+    Kontrol pick'leri ``n = 10, 10+step, …``; her ``n``'de ADP'si ``n ± window`` içinde (ve ≤ ``max_adp``)
+    olan **tüm** oyuncular. Küme tahminden bağımsızdır, bu yüzden farklı σ'lar karşılaştırılabilir
+    (``survival_reliability``'deki 0.01–0.99 süzgeci σ ile değişir, karşılaştırmaya uygun değildir).
+    """
+    st = taken_pick(sim_matrix, universe.n)
+    ot = taken_pick(obs_matrix, universe.n)
+    players = np.flatnonzero(universe.adp <= max_adp)
+    out = []
+    for n in range(10, obs_matrix.shape[1] + 1, step):
+        sel = players[np.abs(universe.adp[players] - n) <= window]
+        p = ((st[:, sel] == 0) | (st[:, sel] >= n)).mean(axis=0)
+        o = ((ot[:, sel] == 0) | (ot[:, sel] >= n)).astype(float)
+        out.append(((p - o) ** 2).ravel())
+    return float(np.concatenate(out).mean()) if out else float("nan")
+
+
 def fit_sigma(logs: list[DraftLog], dataset: Dataset, universe: BotUniverse, config: Config, *,
-              sigma0_grid=(0.5, 1.0, 1.5, 2.5, 4.0), sigma1_grid=(0.04, 0.08, 0.12, 0.18, 0.25),
-              n_sims: int = 60, seed: int = 1, band_size: int = 16, progress=None) -> BotFit:
+              sigma0_grid=(0.5, 1.5, 3.0, 5.0), sigma1_grid=(0.08, 0.12, 0.18, 0.25, 0.35),
+              n_sims: int = 60, seed: int = 1, band_size: int = 16, objective: str = "brier",
+              progress=None) -> BotFit:
+    """``objective = "brier"`` (varsayılan): sabit kümede survival Brier'i en küçük nokta — advisor'ın
+    kullandığı büyüklük. ``"moments"``: ``pick − A`` momentleri; gerçek log'larda (11 draft, 14 takım)
+    σ'yı fazla daraltıp survival'ı kötüleştirdiği görüldü (README §13.6)."""
+    if objective not in ("brier", "moments"):
+        raise ValueError("objective: brier | moments")
     obs_mat, missing = logs_to_matrix(logs, universe)
     auto = auto_mask(logs)
     obs = deviation_moments(obs_mat, universe, band_size, exclude=auto)
@@ -161,11 +188,13 @@ def fit_sigma(logs: list[DraftLog], dataset: Dataset, universe: BotUniverse, con
         if progress:
             progress(i + 1, len(grid))
         cfg = config.with_overrides({"model": {"bots": {"sigma0": float(s0), "sigma1": float(s1)}}})
-        mom = deviation_moments(simulate_matrix(with_sigma(universe, dataset, cfg), cfg, n_sims, seed),
-                                universe, band_size)
+        mat = simulate_matrix(with_sigma(universe, dataset, cfg), cfg, n_sims, seed)
+        mom = deviation_moments(mat, universe, band_size)
         sims[(s0, s1)] = mom
-        rows.append({"sigma0": s0, "sigma1": s1, "loss": moment_loss(obs, mom)})
-    table = pd.DataFrame(rows).sort_values("loss", kind="mergesort").reset_index(drop=True)
+        rows.append({"sigma0": s0, "sigma1": s1, "brier": survival_brier(mat, obs_mat, universe),
+                     "moment_loss": moment_loss(obs, mom)})
+    key = "brier" if objective == "brier" else "moment_loss"
+    table = pd.DataFrame(rows).sort_values(key, kind="mergesort").reset_index(drop=True)
     b = table.iloc[0]
     current = deviation_moments(simulate_matrix(universe, config, n_sims, seed), universe, band_size)
     std = dataset.adp.reindex(universe.ids).get("adp_std")
