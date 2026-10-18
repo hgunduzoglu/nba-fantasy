@@ -48,6 +48,15 @@ class LeagueSettings:
 
 
 @dataclass(frozen=True)
+class AuctionSettings:
+    """Auction draft kuralları (README §13.12); ``draft_type: auction`` liglerde kullanılır."""
+
+    budget: int = 200            # takım başına bütçe ($)
+    min_bid: int = 1             # en düşük teklif; her boş slot için ayrılması zorunlu
+    nomination: str = "round_robin"   # aday gösterme sırası: koltuk 1..T döngüsü (dolu takım atlanır)
+
+
+@dataclass(frozen=True)
 class ScoringSettings:
     format: str
     categories: tuple[str, ...]
@@ -247,6 +256,7 @@ class Config:
     unverified: UnverifiedSettings
     model: ModelSettings
     schedule: ScheduleSettings = field(default_factory=ScheduleSettings)
+    auction: AuctionSettings = field(default_factory=AuctionSettings)
     raw: dict[str, Any] = field(repr=False, compare=False, default_factory=dict)
 
     # --- kısayollar ---------------------------------------------------------
@@ -348,7 +358,8 @@ def config_from_dict(raw: dict[str, Any]) -> Config:
         scenarios=_build(ScenarioParams, m.get("scenarios")),
     )
     cfg = Config(league=league, scoring=scoring, roster=roster, unverified=unverified,
-                 model=model, schedule=_build(ScheduleSettings, raw.get("schedule")), raw=raw)
+                 model=model, schedule=_build(ScheduleSettings, raw.get("schedule")),
+                 auction=_build(AuctionSettings, raw.get("auction")), raw=raw)
     validate_config(cfg)
     return cfg
 
@@ -374,8 +385,13 @@ def league_files() -> list[Path]:
 
 def validate_config(cfg: Config) -> None:
     lg, sc, ro = cfg.league, cfg.scoring, cfg.roster
-    if lg.draft_type != "snake":
-        raise ConfigError(f"Yalnızca snake draft destekleniyor (draft_type={lg.draft_type!r})")
+    if lg.draft_type not in ("snake", "auction"):
+        raise ConfigError(f"draft_type: snake | auction ({lg.draft_type!r})")
+    au = cfg.auction
+    if au.min_bid < 1 or au.budget < au.min_bid * lg.rounds:
+        raise ConfigError(f"auction: min_bid ≥ 1 ve budget ≥ min_bid × rounds olmalı ({au})")
+    if au.nomination != "round_robin":
+        raise ConfigError(f"auction.nomination: round_robin ({au.nomination!r})")
     if lg.teams < 2:
         raise ConfigError("teams ≥ 2 olmalı")
     if not 1 <= lg.my_seat <= lg.teams:

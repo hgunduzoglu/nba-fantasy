@@ -65,3 +65,14 @@ def test_league_14_mock_draft(synthetic_ds):
     m = MockDraft(synthetic_ds, c, 3)
     m.play_to_end()
     assert len(m.log) == 182
+
+
+def test_auction_league_config():
+    from fdo.config import DEFAULT_CONFIG_DIR, ConfigError, load_config
+
+    cfg = load_config(DEFAULT_CONFIG_DIR / "league_14_auction.yaml")
+    assert cfg.league.draft_type == "auction" and cfg.league.teams == 14 and cfg.league.my_seat == 9
+    assert cfg.auction.budget == 200 and cfg.auction.min_bid == 1 and cfg.roster.slots["C"] == 2
+    import pytest
+    with pytest.raises(ConfigError):
+        cfg.with_overrides({"auction": {"budget": 10}})
