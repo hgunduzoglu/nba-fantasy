@@ -22,6 +22,7 @@ nav = st.navigation({
         st.Page(P / "7_Live_Draft.py", title="Canlı Draft", icon=":material/edit_note:", url_path="canli"),
         st.Page(P / "8_Draft_Analysis.py", title="Draft Analizi", icon=":material/insights:",
                 url_path=ANALYSIS_URL),
+        st.Page(P / "9_Auction.py", title="Auction Draft", icon=":material/gavel:", url_path="auction"),
     ],
     "İnceleme": [
         st.Page(P / "4_Draft_Assistant.py", title="Detaylı Advisor", icon=":material/psychology:",

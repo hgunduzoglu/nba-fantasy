@@ -145,3 +145,33 @@ def test_draft_assistant_with_strategy_weights(env):
     res = at.session_state["advisor_result"]
     assert res.params["category_weights"]["FT_PCT"] == 0.0
     assert all(p.ecw == p.ecw for p in res.pairs)                     # ağırlıksız ECW raporlandı
+
+
+def test_auction_flow(env, monkeypatch, tmp_path):
+    from fdo.calibration.bots import league_config
+
+    cfg, ds, _ = env
+    acfg = league_config(cfg, 14).with_overrides({"league": {"my_seat": 9, "draft_type": "auction"}})
+    monkeypatch.setenv("FDO_AUCTION_PATH", str(tmp_path / "auction.json"))
+    monkeypatch.setenv("FDO_AAV_PATH", str(tmp_path / "aav.csv"))
+    at = AppTest.from_file(str(UI / "pages/9_Auction.py"), default_timeout=300)
+    at.session_state["config"] = acfg
+    at.session_state["dataset"] = ds
+    at.run()
+    next(b for b in at.button if b.label == "Yeni auction başlat").click()
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    log = at.session_state["auction_log"]
+    first = at.selectbox(key="au_focus_0").options[0]
+    pid = next(p for p in ds.players["player_id"] if first.startswith(str(ds.names()[p]) + " ·"))
+    at.selectbox(key="au_focus_0").set_value(pid).run()
+    assert not at.exception, [e.value for e in at.exception]
+    assert any(m.label == "Teklif tavanın" for m in at.metric)
+    next(b for b in at.button if b.label == "Satışı kaydet").click()
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    log = at.session_state["auction_log"]
+    assert len(log.purchases) == 1 and log.purchases[0].seat == 9
+    assert (tmp_path / "auction.json").exists()
+    cols = [df.value.columns for df in at.dataframe]
+    assert any("Tavan $" in c for c in cols)
