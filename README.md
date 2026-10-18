@@ -1508,6 +1508,27 @@ dengeli ve uyarlanabilir stratejiyle elenir, en iyileri 44 stratejilik ızgarada
 13'lü kadrolar (pick numarası sütunlarıyla Excel'de filtrelenebilir), çift özeti, ızgara, eleme ve 16'da
 uygunluk. `pip install -e ".[excel]"` (openpyxl) gerekir.
 
+### 13.12 Auction draft (`fdo.auction`, Auction Draft sayfası)
+
+`config/league_14_auction.yaml`: 14 takım, koltuk 9, 2 C (FC yok), 13 oyuncu, `draft_type: auction`,
+`auction: {budget: 200, min_bid: 1, nomination: round_robin}` (bütçe ve en düşük teklif doğrulanmadı;
+sayfadan oturum için değiştirilebilir). Auction sayfası seçili lig snake ise auction ligini yükleme düğmesi gösterir.
+
+- **Değerler** (`values.py`): model değeri = dengeli z toplamının yedek seviyesine (N+1., N = T·rounds) göre
+  fazlası lig parasına (`T·bütçe − N·min_bid`) dağıtılır. Piyasa fiyatı = Yahoo ortalama auction fiyatı (AAV;
+  `fdo.ingest.auction.parse_costs` JSON/CSV/yapıştırılmış satırları okur, `data/real/auction_aav_yahoo.csv`
+  olarak saklanır) aynı toplam paraya ölçeklenir. Taban fiyat: AAV varsa o, yoksa model değeri.
+- **Canlı durum** (`state.py`): satışlar (oyuncu, takım, fiyat), kalan bütçe, boş slot, max teklif
+  `kalan − min_bid·(boş − 1)`, tahmini aday gösteren (koltuk döngüsü, dolu takım atlanır);
+  `data/live/auction.json`'a kaydedilir.
+- **Öneri** (`advice.py`): enflasyon = (kalan para − min_bid·kalan slot) / Σ(taban − min_bid) (kalan en iyi
+  `kalan slot` oyuncu); beklenen fiyat = min_bid + (taban − min_bid)·enflasyon. Senin için değeri: oyuncunun
+  kadrona ECW katkısı (yedek seviyesine göre, boş slotlar havuzun ortalama oyuncusuyla, strateji
+  ağırlıklarıyla) havuzun beklenen fiyat toplamına göre dolara çevrilir; ortalama bir takımda ≈ beklenen
+  fiyat. Teklif tavanı = min(değer, max teklif). Aday gösterme: pahalı ama senin için fiyatını hak etmeyenler
+  (rakipler harcasın) ve değeri fiyatından yüksek hedefler.
+- **Eksik**: rakip teklif davranışı modeli ve auction mock'u (gerçek auction draft verisi yok).
+
 ### 13.8 V3 adayları
 
 Beam search ve H-score ağırlık optimizasyonu; profil karışımı uyumu; oyuncular arası maç sayısı
