@@ -29,3 +29,24 @@ Thumbs.db
 
 # canlı draft log'u (kişisel, her pick'te yazılır)
 data/live/
+
+# Personal Yahoo league exports; raw files stay local (manager contact details).
+/data/real/LEAGUE_INFO_README.txt
+/data/real/ROSTERS_README.txt
+/data/real/league_*.json
+/data/real/league_settings*.csv
+/data/real/rosters*.json
+/data/real/rosters*.csv
+/data/real/roster_slots.csv
+/data/real/leagues.csv
+/data/real/teams.csv
+/data/real/managers.csv
+/data/real/managers.json
+/data/real/draft_results.csv
+/data/real/draft_results.json
+/data/real/fixtures_partial.csv
+/data/real/fixtures_partial.json
+/data/real/transactions.csv
+/data/real/transactions.json
+/data/real/player_stat_pages.json
+/data/real/yahoo_fantasy_snapshot.json

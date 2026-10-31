@@ -1,4 +1,64 @@
-# Fantasy Draft Optimizer (FDO)
+# Fantasy Trade Lab / Fantasy Draft Optimizer (FDO)
+
+Trade Lab'in kapsamı, veri denetimi, model formülleri, testleri ve açık sınırlamaları:
+[Claude / geliştirici devir raporu](docs/TRADE_LAB_HANDOFF.md).
+
+## Sezon içi Trade Lab
+
+`streamlit run src/fdo/ui/app.py` ile açılır. Varsayılan başlangıç artık Trade Lab'dir;
+önceki draft araçları arşiv menülerinden kullanılabilir.
+
+- **Üç ayrı lig sıralaması:** sezon öncesi projeksiyon, gerçekleşen sezon toplamı ve güncel
+  kalan sezon projeksiyonu. Her biri güncel kadroları kullanır. Gerçekleşen görünüm,
+  oyuncuların mevcut kadrolara uygulanmış sezon toplamıdır; Yahoo'da geçmişte aktif
+  slotlardan kazanılmış takım istatistikleri veya geçmiş puan tablosu değildir.
+- **Takas Analizi:** iki taraf için kategori değerleri ve lig sıralarındaki değişim,
+  kalan sezon ECW ve tipik haftada P(5+) değişimi, her rakibe karşı karşılaştırma.
+  Her iki takımın yeni kadrosu aynı anda değerlendirilir. Stratejiler ayrı seçilir.
+- **Takas Önerileri:** 1x1, 2x1, 1x2, 2x2 ve isteğe bağlı 3x2/2x3 paketleri. Her iki tarafın
+  stratejiye göre ECW ve P(5+) eşiklerini geçen paketler, ortak fayda ve paket dengesiyle
+  sıralanır. Çok oyunculu arama kısa liste/bütçeyle sınırlıdır; tüm olası paketlerin
+  tarandığı iddia edilmez. Kabul puanı ve komisyon riski sezgiseldir; insan kabulü veya
+  komisyon onayı için kalibre edilmiş olasılık değildir.
+- **Punt:** dengeli, tek/çift punt, özel 0–3 ağırlıklar veya zayıf kategoriye göre varsayımsal
+  rakip stratejisi. Fiziksel kazanma olasılıkları ve ligdeki dokuz kategori değiştirilmez.
+- **Kadro planı:** normal kapasite ve IL ayrı tutulur. Eşit olmayan paketlerde bırakılacak
+  ve eklenecek oyuncular açıkça gösterilir. Boşta havuzundan eklemeler waiver/alım hakkı
+  koşullarına bağlıdır. Önceden var olan boş slotlar takas faydası olarak doldurulmaz.
+- Analizler JSON, sıralamalar CSV olarak indirilebilir; senaryolar aynı oturumda karşılaştırılır.
+
+Veri `data/real/rosters.json`, `league_info.json`, `player_stat_pages.json`, eski
+`players_yahoo_*.csv` ve `projections_yahoo_*.csv` dosyalarından okunur. Yeni katman
+`fdo.trade` içindedir; Streamlit bağımlılığı yoktur. Draft koltuğu ile Yahoo takım ID'si
+ayrıdır. Varsayılan takım eldeki tek takım fikstüründen seçilir ve kenar çubuğundan
+değiştirilebilir. `Max Teams` yerine gerçekten kadrosu bulunan takım sayısı kullanılır.
+
+Yeni kişisel Yahoo lig export'ları Git dışında, yerelde tutulur. Yeni bir klonda
+Trade Lab için bu üç JSON dosyasını ayrıca sağlamak gerekir; dosya sözleşmesi
+[devir raporunda](docs/TRADE_LAB_HANDOFF.md#6-yerel-çalıştırma-ve-veri-sözleşmesi) açıklanır.
+
+FG% = toplam FGM / toplam FGA, FT% = toplam FTM / toplam FTA. Kaynaktaki yüzde
+sütunlarının ortalaması alınmaz. Sezon öncesi maç başına veri GP ile çarpılır; diğer
+iki kaynak zaten dönem toplamıdır. Hiçbir kaynak diğerinin eksik alanını doldurmaz.
+Ham hatalı/eksik veriler değiştirilmez; sıralamalar eldeki sayısal katkıları toplar ve
+kapsamı gösterir. ROS modeli yalnızca tam ve kullanılabilir katkıları içerir; eksik
+oyuncular kadrodan silinmez ve otomatik öneri paketlerine dahil edilmez.
+
+ROS olasılıkları toplamları **anlık görüntü tarihinden NBA sezon sonuna kadar kalan
+haftalara** yayar; kalan GP'yi 82'ye bölmez. Tarih seçimi yalnızca takas son tarihi
+kontrolündedir, eski projeksiyonları yeni tarihe tahmin etmez. Model Normal yaklaşım,
+oyuncular arası bağımsız varyans ve ayarlanabilir ortalama lineup kullanım oranı
+kullanır. P(5+) ayrıca kategori bağımsızlığı varsayar. Bunlar kalibre edilmemiş
+tipik hafta göstergeleridir; gerçek haftalık lineup, playoff veya sezon simülasyonu değildir.
+Eksik rakip H2H fikstürleri kullanılmaz; tüm rakiplerle eşit ağırlıklı karşılaştırılır.
+Kaynak dosyaları değiştiğinde önbellek dosya imzasıyla yenilenir.
+
+Doğrulama: `python -m pytest tests/unit/test_trade.py tests/integration/test_trade_ui.py`.
+CLI: `python scripts/analyze_trade.py --help` (oyuncu kimlikleri Yahoo ID'leridir).
+
+---
+
+## Draft araçlarının referans dokümanı
 
 Yahoo Fantasy Basketball 2026–27 için **16 takımlı, H2H 9-Cat Each Category** draft simülatörü ve karar destek sistemi.
 
