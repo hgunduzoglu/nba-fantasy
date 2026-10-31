@@ -61,3 +61,7 @@ data/live/
 /data/real/week*_results*.csv
 /data/real/week*_results*.json
 /data/real/injuries*.csv
+
+# React arayüzü: bağımlılıklar ve derleme çıktısı (python run_app.py gerekirse derler)
+frontend/node_modules/
+frontend/dist/
