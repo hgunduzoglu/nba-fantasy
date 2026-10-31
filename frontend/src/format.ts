@@ -63,3 +63,11 @@ export function returnText(p: Player): string | null {
   if (inj.kind === "day_to_day") return "Gün gün";
   return inj.text || null;
 }
+
+const WEEKDAYS = ["Paz", "Pzt", "Sal", "Çar", "Per", "Cum", "Cmt"];
+
+/** "2026-10-31" → "Cmt 31" (gün gün tablo başlığı). */
+export function fmtDay(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  return `${WEEKDAYS[new Date(y, m - 1, d).getDay()]} ${d}`;
+}

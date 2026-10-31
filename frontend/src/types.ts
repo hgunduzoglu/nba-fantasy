@@ -161,3 +161,203 @@ export interface SeasonOut {
   teams: { a: SeasonSide; b: SeasonSide };
   notes: string[];
 }
+
+export interface BriefPlayer {
+  id: string;
+  name: string;
+  nba_team: string;
+  positions: string[];
+  status: string;
+}
+
+export type SuggestMode = "mutual" | "sell_high" | "buy_low";
+export type Perceived = "season_total" | "preseason" | "blend";
+
+export interface SuggestIn {
+  team: string;
+  mode: SuggestMode;
+  opponents?: string[] | null;
+  opponent_assumption: "balanced" | "punt1" | "punt2";
+  perceived: Perceived;
+  min_balance: number;
+  min_edge: number;
+  packages: string[];
+  max_evaluations: number;
+  min_fairness: number;
+  min_gain: number;
+  auto_balance: boolean;
+  strategy?: StrategyIn | null;
+  injuries: boolean;
+}
+
+export interface Suggestion {
+  team_b: string;
+  team_b_name: string;
+  give_a: BriefPlayer[];
+  give_b: BriefPlayer[];
+  own_delta: number;
+  other_delta: number;
+  own_win: number;
+  other_win: number;
+  fairness: number;
+  perceived_balance: number | null;
+  score: number;
+  mode: SuggestMode;
+  key_players: string[];
+  other_strategy: string;
+  other_weights: number[];
+}
+
+export interface SuggestOut {
+  suggestions: Suggestion[];
+  examined: number;
+  eligible: number;
+  rejected_balance: number;
+  rejected_roster: number;
+  limit_reached: boolean;
+  message: string;
+}
+
+export interface MispricedRow {
+  player_id: string;
+  name: string;
+  team_id: string;
+  team: string;
+  gp_now: number | null;
+  perceived_rank: number;
+  ros_rank: number;
+  edge: number;
+}
+
+export interface GridRow extends BriefPlayer {
+  marks: string[];
+  counted: number;
+}
+
+export interface Outlook {
+  p: number[];
+  expected_wins: number;
+  p5: number;
+  strategy_score: number;
+  totals: { mine: Record<CategoryKey, number>; opp: Record<CategoryKey, number> };
+  counted: { mine: number; opp: number };
+  benched: { mine: number; opp: number };
+  day_labels: string[];
+  grid: { mine: GridRow[]; opp: GridRow[] };
+}
+
+export interface WeekInfo {
+  week: number;
+  start: string;
+  end: string;
+  playoff: boolean;
+  current: boolean;
+}
+
+export interface WeeklyOut {
+  weeks: WeekInfo[];
+  current_week: number;
+  week: number;
+  week_start: string;
+  days: string[];
+  opponent: string;
+  opponent_name: string;
+  fixture_opponent: string | null;
+  started: boolean;
+  acquisitions_limit: number;
+  active_roster: BriefPlayer[];
+  default_droppable: string[];
+  outlook: Outlook;
+  notes: string[];
+}
+
+export interface WeeklyIn {
+  team: string;
+  week?: number | null;
+  opponent?: string | null;
+  sit_out: boolean;
+  strategy?: StrategyIn | null;
+  acc_mine?: Record<string, number> | null;
+  acc_opp?: Record<string, number> | null;
+  injuries: boolean;
+}
+
+export interface StreamMove {
+  day: string;
+  add: BriefPlayer;
+  drop: BriefPlayer;
+  ros_delta: number;
+  games: number;
+}
+
+export interface StreamOut {
+  moves: StreamMove[];
+  left: number;
+  before: { p: number[]; expected_wins: number; p5: number };
+  after: Outlook;
+}
+
+export interface WaiverRow {
+  add: Player;
+  drop: BriefPlayer;
+  score: number;
+  delta_ecw: number;
+  dp: Record<CategoryKey, number>;
+  games_this_week: number;
+  games_next_week: number;
+}
+
+export interface WaiverOut {
+  rows: WaiverRow[];
+  drops: { drop: BriefPlayer; best_add: BriefPlayer; score: number }[];
+  days_this_week: number;
+  week: number | null;
+}
+
+export interface SeasonTeamRow {
+  team_id: string;
+  team: string;
+  record_now: string;
+  exp_w: number;
+  exp_l: number;
+  exp_t: number;
+  exp_pct: number;
+  mean_seed: number;
+  p_playoff: number;
+  p_bye: number | null;
+  p_first: number;
+  p_champion: number;
+}
+
+export interface SeasonPageOut {
+  n_sims: number;
+  strength_sd: number;
+  start_week: number;
+  playoff_size: number;
+  byes: number;
+  playoff_weeks: number[];
+  reseed: boolean;
+  standings_known: boolean;
+  notes: string[];
+  table: SeasonTeamRow[];
+  schedule: { week: number; start: string; opponent: string; opponent_name: string; exp_cats: number; p_win: number }[];
+  playoff_games: { week: number; start: string; end: string; mine: number; avg: number }[];
+}
+
+export interface RankTeam {
+  team_id: string;
+  team: string;
+  totals: Record<CategoryKey, number | null>;
+  ranks: Record<CategoryKey, number | null>;
+  avg_rank: number;
+  coverage: { roster: number; complete: number; modeled_ros: number };
+  ecw?: number;
+  p5?: number;
+  p?: Record<CategoryKey, number>;
+}
+
+export interface RankingsOut {
+  source: Source;
+  mode_label: string;
+  teams: RankTeam[];
+}

@@ -1,4 +1,7 @@
-import type { Meta, Roster, SeasonOut, Source, TradeIn, TradeOut, Player } from "./types";
+import type {
+  Meta, MispricedRow, Perceived, Player, RankingsOut, Roster, SeasonOut, SeasonPageOut, Source, StreamOut,
+  SuggestIn, SuggestOut, TradeIn, TradeOut, WaiverOut, WeeklyIn, WeeklyOut,
+} from "./types";
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -25,17 +28,29 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 const q = (injuries: boolean) => `injuries=${injuries ? "true" : "false"}`;
+const post = (body: unknown): RequestInit => ({ method: "POST", body: JSON.stringify(body) });
 
 export const api = {
   meta: (injuries: boolean) => request<Meta>(`/api/meta?${q(injuries)}`),
   roster: (league: string, team: string, source: Source, injuries: boolean) =>
     request<Roster>(`/api/leagues/${league}/roster/${team}?source=${source}&${q(injuries)}`),
   freeAgents: (league: string, source: Source, injuries: boolean) =>
-    request<{ source: Source; players: Player[] }>(
-      `/api/leagues/${league}/free-agents?source=${source}&${q(injuries)}`,
-    ),
-  analyze: (league: string, body: TradeIn) =>
-    request<TradeOut>(`/api/leagues/${league}/trade/analyze`, { method: "POST", body: JSON.stringify(body) }),
+    request<{ source: Source; players: Player[] }>(`/api/leagues/${league}/free-agents?source=${source}&${q(injuries)}`),
+  analyze: (league: string, body: TradeIn) => request<TradeOut>(`/api/leagues/${league}/trade/analyze`, post(body)),
   season: (league: string, body: TradeIn & { n_sims?: number; strength_sd?: number }) =>
-    request<SeasonOut>(`/api/leagues/${league}/trade/season`, { method: "POST", body: JSON.stringify(body) }),
+    request<SeasonOut>(`/api/leagues/${league}/trade/season`, post(body)),
+  suggest: (league: string, body: SuggestIn) => request<SuggestOut>(`/api/leagues/${league}/trade/suggest`, post(body)),
+  mispricing: (league: string, team: string, perceived: Perceived, injuries: boolean) =>
+    request<{ sell_high: MispricedRow[]; buy_low: MispricedRow[] }>(
+      `/api/leagues/${league}/trade/mispricing?team=${team}&perceived=${perceived}&${q(injuries)}`),
+  weekly: (league: string, body: WeeklyIn) => request<WeeklyOut>(`/api/leagues/${league}/weekly`, post(body)),
+  stream: (league: string, body: WeeklyIn & { used: number; droppable: string[] }) =>
+    request<StreamOut>(`/api/leagues/${league}/weekly/stream`, post(body)),
+  waiver: (league: string, team: string, preset: string, injuries: boolean) =>
+    request<WaiverOut>(
+      `/api/leagues/${league}/waiver?team=${team}${preset ? `&preset=${encodeURIComponent(preset)}` : ""}&${q(injuries)}`),
+  seasonPage: (league: string, team: string, n: number, sd: number, injuries: boolean) =>
+    request<SeasonPageOut>(`/api/leagues/${league}/season?team=${team}&n=${n}&sd=${sd}&${q(injuries)}`),
+  rankings: (league: string, source: Source, injuries: boolean) =>
+    request<RankingsOut>(`/api/leagues/${league}/rankings?source=${source}&${q(injuries)}`),
 };
