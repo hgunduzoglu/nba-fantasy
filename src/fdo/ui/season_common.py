@@ -15,6 +15,7 @@ from fdo.ui import trade_common as tc
 
 DEFAULT_SIMS = 2000
 SEED = 1
+DEFAULT_SD = 0.06          # takım gücü belirsizliği (sezonluk, lognormal sd); Sezon Simülasyonu'ndan değiştirilir
 
 
 @st.cache_resource(show_spinner="Sezon simülasyonu hazırlanıyor (haftalık kadrolar)…")
@@ -34,12 +35,13 @@ def season_sim(eng: TradeEngine) -> SeasonSim | None:
 
 def run(sim: SeasonSim, eng: TradeEngine, *, rosters=None, n_sims: int = DEFAULT_SIMS, team: str | None = None,
         tag: str = "base") -> SeasonResult:
-    """Oturumda önbellekli koşu (aynı seed: senaryolar arasında eşleşmeli fark)."""
-    key = (eng.data.fingerprint, eng.league.league_id, eng.utilization, int(n_sims), team, tag,
+    """Oturumda önbellekli koşu (aynı seed: senaryolar arasında eşleşmeli fark). Güç belirsizliği oturum ayarı."""
+    sd = float(st.session_state.get("season_sd", DEFAULT_SD))
+    key = (eng.data.fingerprint, eng.league.league_id, eng.utilization, int(n_sims), team, tag, sd,
            None if rosters is None else tuple(sorted((k, tuple(sorted(v))) for k, v in rosters.items())))
     cache = st.session_state.setdefault("season_runs", {})
     if key not in cache:
-        cache[key] = sim.run(rosters, n_sims=n_sims, seed=SEED, team=team)
+        cache[key] = sim.run(rosters, n_sims=n_sims, seed=SEED, team=team, strength_sd=sd)
         while len(cache) > 12:
             cache.pop(next(iter(cache)))
     return cache[key]
@@ -84,3 +86,24 @@ def style_effect(df: pd.DataFrame) -> None:
     st.dataframe(df.style.format({c: "{:+.1%}" if c.startswith("Δ") else "{:.1%}" for c in pct}
                                  | {"Ort. sıra önce": "{:.1f}", "Ort. sıra sonra": "{:.1f}"})
                  .map(lambda v: gain_css(v, .1), subset=["Δ playoff", "Δ şampiyon"]), hide_index=True, width="stretch")
+
+
+def suggestion_effects(eng: TradeEngine, suggestions, strategy, *, n_sims: int = 1000, progress=None) -> pd.DataFrame:
+    """Öneri başına iki takımın ΔP(playoff) ve ΔP(şampiyon) (takassız senaryoya göre, aynı çekilişler)."""
+    sim = season_sim(eng)
+    if sim is None or not suggestions:
+        return pd.DataFrame()
+    base = run(sim, eng, n_sims=n_sims)
+    rows = []
+    for i, s in enumerate(suggestions):
+        a, b = s.request.team_a, s.request.team_b
+        rosters, _, _ = eng.resolve(s.request, {a: strategy, b: s.other_strategy})
+        after = run(sim, eng, rosters=rosters, n_sims=n_sims, tag="suggestion")
+        rows.append({"i": i,
+                     "me_playoff": after.table.loc[a, "p_playoff"] - base.table.loc[a, "p_playoff"],
+                     "me_champion": after.table.loc[a, "p_champion"] - base.table.loc[a, "p_champion"],
+                     "opp_playoff": after.table.loc[b, "p_playoff"] - base.table.loc[b, "p_playoff"],
+                     "opp_champion": after.table.loc[b, "p_champion"] - base.table.loc[b, "p_champion"]})
+        if progress:
+            progress(i + 1, len(suggestions))
+    return pd.DataFrame(rows).set_index("i")

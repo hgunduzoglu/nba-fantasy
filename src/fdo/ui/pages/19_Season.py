@@ -17,7 +17,13 @@ if sim is None:
             "opponent_team_id) koy.")
     st.stop()
 
-n = st.select_slider("Simülasyon sayısı", [500, 1000, 2000, 5000], value=sc.DEFAULT_SIMS, key="season_n")
+c1, c2 = st.columns(2)
+n = c1.select_slider("Simülasyon sayısı", [500, 1000, 2000, 5000], value=sc.DEFAULT_SIMS, key="season_n")
+c2.select_slider("Takım gücü belirsizliği", [0.0, 0.03, 0.06, 0.10, 0.15], value=sc.DEFAULT_SD, key="season_sd",
+                 format_func=lambda v: f"±%{100 * v:.0f}",
+                 help="Kalan sezon projeksiyonunun hatası: her simülasyonda her takımın gücü sezon boyu bu kadar "
+                      "sapabilir. 0 = güçler kesin bilinir (aşırı kesin olasılıklar). Kalibre edilmedi; takas ve "
+                      "öneri etkileri de bu ayarla hesaplanır.")
 res = sc.run(sim, eng, n_sims=n, team=mine)
 t = res.table
 me = t.loc[mine]
