@@ -1661,6 +1661,22 @@ Takas Önerileri'nde üç ayrı tür (`SearchOptions.mode`), her biri kendi eşi
 - Uyarı: en üst oyuncularda değer merdiveni dik olduğu için (ör. SGA bu sezon 17.) büyük negatif edge
   çıkabilir; gerçek menajer isim değerine bakar — bu yüzden varsayılan algılanan değer ortalamadır.
 
+### 13.16 Sakatlık dönüş tarihleri (`fdo.inseason.injuries`, `scripts/fetch_injuries.py`)
+
+`python scripts/fetch_injuries.py` CBS Sports NBA injury report'unu indirir (ESPN otomatik isteği reddediyor)
+ve `data/real/injuries_cbs_<tarih>.csv` yazar (yerelde kalır). Durum metni yorumu: "Expected to be out
+until at least Nov 22" → dönüş 22 Kasım; "Out for the season" → kalan sezonda yok; Game Time Decision /
+Day-To-Day / Questionable / Probable → oynar. Eşleşme ad (normalize) + gerekirse takım; olmazsa aynı takım +
+soyad + ilk harf (CBS "Nicolas Claxton" = Yahoo "Nic Claxton"). 31 Ekim raporu: 88/88 eşleşti.
+
+- `apply_injuries`: dönüşten sonra takımın oynayacağı maç < ROS GP ise ROS toplamları orantılı kısılır
+  (31 Ekim'de Yahoo ROS'u dönüşlerle zaten uyumluydu; kısılan yok). Ham dosyalar değişmez; trade
+  ekranlarında kenar çubuğundaki "Sakatlık dönüş tarihlerini uygula" ile açılıp kapanır.
+- Haftalık model ve sezon simülasyonu: oyuncu dönüş gününe kadar oynamaz (gün gün tabloda ✕), sonrasında
+  uygunluk `ROS GP / dönüş sonrası takım maçı`. Önceden kaçırılan maçlar sezona eşit yayılıyordu; artık
+  zamanlama doğru, özellikle playoff haftaları için (ör. Banchero 22 Kasım'da dönüp playoff'ta tam oynar).
+- Trade motoru: kapasite aşılırsa önce kadrodaki O/INJ oyuncu boş IL yerine taşınır, bırakma ancak sonra.
+
 ### 13.8 V3 adayları
 
 Beam search ve H-score ağırlık optimizasyonu; profil karışımı uyumu; oyuncular arası maç sayısı
