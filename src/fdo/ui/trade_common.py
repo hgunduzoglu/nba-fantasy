@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime as dt
+from pathlib import Path
 import hashlib
 import json
 from dataclasses import asdict
@@ -25,6 +26,13 @@ DATA_DIR = REPO_ROOT / "data" / "real"
 @st.cache_resource(show_spinner="Ligler ve üç istatistik kaynağı okunuyor…")
 def _data(directory: str, signature: str) -> TradeData:
     return load_trade_data(directory)
+
+
+@st.cache_resource(show_spinner="Sakatlık dönüş tarihleri uygulanıyor…")
+def _injured(_data: TradeData, fingerprint: str, path: str) -> TradeData:
+    from fdo.inseason.injuries import with_injuries
+
+    return with_injuries(_data, Path(path).parent)
 
 
 @st.cache_resource(show_spinner="Kategori ve matchup modeli hazırlanıyor…")
@@ -58,11 +66,23 @@ def page(title: str) -> tuple[TradeData, TradeEngine, str, dt.date]:
                             format_func=lambda t: league.teams[t], key=f"_trade_team_widget_{lid}")
         ss[f"trade_team_{lid}"] = mine
         day = st.date_input("Takas değerlendirme tarihi", value=data.as_of, key="trade_analysis_date")
+        from fdo.inseason.injuries import latest_file
+
+        inj_file = latest_file(DATA_DIR)
+        use_inj = st.checkbox("Sakatlık dönüş tarihlerini uygula", value=True, key="trade_use_injuries",
+                              disabled=inj_file is None,
+                              help="CBS Sports sakatlık raporu (scripts/fetch_injuries.py): oyuncu tahmini dönüş "
+                                   "gününe kadar oynamaz, kalan maçları dönüş sonrasına yayılır."
+                                   + ("" if inj_file else " Dosya yok."))
+        if inj_file is not None:
+            st.caption(f"Sakatlık raporu: {inj_file.name}")
         with st.expander("Matchup varsayımları"):
             utilization = st.slider("Maçların aktif kadroda kullanılan oranı", .50, 1.0, .987, .001,
                                     key="trade_utilization", help="Tüm takımlara uygulanan ortalama lineup varsayımı.")
             st.caption("Kazanma ihtimali: kalan sezon projeksiyonu → tipik hafta. Normal yaklaşım; kalibre edilmemiş. P(5+) kategori bağımsızlığı varsayar.")
         st.caption(f"Kadro/veri tarihi: {data.as_of:%d.%m.%Y}. Değerlendirme tarihi yalnızca takas son tarihi kontrolünü değiştirir.")
+    if inj_file is not None and use_inj:
+        data = _injured(data, data.fingerprint, str(inj_file))
     engine = _engine(data, data.fingerprint, lid, utilization)
     st.caption(f"{league.name} · {len(league.teams)} takım · normal kadro {league.capacity} · "
                f"{league.config.unverified.il_slots} IL · {engine.horizon_weeks:.2f} haftalık kalan NBA dönemi")
