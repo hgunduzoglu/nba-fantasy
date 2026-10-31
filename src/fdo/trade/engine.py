@@ -208,23 +208,39 @@ class TradeEngine:
         for tid, sent, drops in ((a, request.give_a, request.drop_a), (b, request.give_b, request.drop_b)):
             if not set(sent) <= set(original[tid]) or not set(drops) <= set(original[tid]) - set(sent):
                 raise TradeError("Gönderilen/bırakılan oyuncu o takımın kadrosunda değil veya iki kez seçilmiş")
+        return self.resolve_moves(
+            {a: request.give_a, b: request.give_b},
+            {a: [(p, b) for p in request.give_b], b: [(p, a) for p in request.give_a]},
+            {a: request.drop_a, b: request.drop_b}, {a: request.add_a, b: request.add_b},
+            auto_drop=request.auto_drop, auto_fill=request.auto_fill, strategies=strategies)
+
+    def resolve_moves(self, sent: dict[str, tuple[str, ...]], received: dict[str, list[tuple[str, str]]],
+                      drops: dict[str, tuple[str, ...]], adds: dict[str, tuple[str, ...]], *, auto_drop: bool,
+                      auto_fill: bool, strategies: dict[str, Strategy] | None = None
+                      ) -> tuple[dict[str, tuple[str, ...]], dict, dict[str, frozenset[str]]]:
+        """Takım sayısından bağımsız kadro çözümü (2 takımlı ve çok takımlı takas).
+
+        ``sent[t]``: t'nin gönderdikleri; ``received[t]``: ``(oyuncu, kaynak takım)``; ``drops``/``adds``: elle
+        bırak/boştan al. Takımlar ``sent`` sırasıyla işlenir (otomatik eklemeler sıralı ayrılır).
+        """
+        original = self.league.rosters
         owned = {p for rr in original.values() for p in rr}
-        added = request.add_a + request.add_b
+        added = tuple(p for t in sent for p in adds.get(t, ()))
         if len(added) != len(set(added)) or any(p in owned for p in added):
             raise TradeError("Eklenecek oyuncu ligde boşta olmalı ve yalnızca bir takıma eklenebilir")
         rosters = dict(original)
         injuries = dict(self.league.injury_rosters)
         adjustments = {}
         strategies = strategies or {}
-        for tid, other, sent, received, drops, adds in (
-            (a, b, request.give_a, request.give_b, request.drop_a, request.add_a),
-            (b, a, request.give_b, request.give_a, request.drop_b, request.add_b),
-        ):
-            roster = [p for p in original[tid] if p not in set(sent + drops)] + list(received + adds)
-            il = set(injuries[tid]) - set(sent + drops)
+        for tid in sent:
+            out, drp, add = tuple(sent[tid]), tuple(drops.get(tid, ())), tuple(adds.get(tid, ()))
+            incoming = list(received.get(tid, []))
+            inc_ids = tuple(pid for pid, _ in incoming)
+            roster = [p for p in original[tid] if p not in set(out + drp)] + list(inc_ids + add)
+            il = set(injuries[tid]) - set(out + drp)
             moved_il = []
-            for pid in received:
-                if (pid in self.league.injury_rosters[other] and str(self.data.players.loc[pid, "injury_status"]) in ("O", "INJ", "INJ+")
+            for pid, origin in incoming:
+                if (pid in self.league.injury_rosters[origin] and str(self.data.players.loc[pid, "injury_status"]) in ("O", "INJ", "INJ+")
                         and len(il) < (self.config.unverified.il_slots or 0)):
                     il.add(pid)
                     moved_il.append(pid)
@@ -240,8 +256,8 @@ class TradeEngine:
                     il.add(pid)
                     moved_il.append(pid)
                 over = len(roster) - len(il) - self.league.capacity
-            if over > 0 and request.auto_drop:
-                candidates = [p for p in roster if p not in il and p not in received + adds
+            if over > 0 and auto_drop:
+                candidates = [p for p in roster if p not in il and p not in inc_ids + add
                               and self.modeled[self.index[p]]]
                 for pid in self._utility(candidates, strategy).sort_values(kind="stable").index[:over]:
                     roster.remove(pid)
@@ -250,7 +266,7 @@ class TradeEngine:
                 raise TradeError(f"{self.league.teams[tid]}: normal kadro kapasitesi aşılıyor; bırakılacak oyuncu seç")
             # Önceden var olan boşluklar takasın kazancıymış gibi otomatik doldurulmaz.
             target = min(self.league.capacity, len(original[tid]) - len(injuries[tid]))
-            if request.auto_fill:
+            if auto_fill:
                 count = max(0, target - (len(roster) - len(il)))
                 used = owned | set(added) | {p for adj in adjustments.values() for p in adj["add"]}
                 free = [p for p in self.ids if p not in used and self.modeled[self.index[p]]]
@@ -258,8 +274,8 @@ class TradeEngine:
                     roster.append(pid)
                     automatic_adds.append(pid)
             rosters[tid], injuries[tid] = tuple(roster), frozenset(il)
-            adjustments[tid] = {"drop": tuple(drops) + tuple(automatic_drops),
-                                "add": tuple(adds) + tuple(automatic_adds), "move_to_il": tuple(moved_il)}
+            adjustments[tid] = {"drop": drp + tuple(automatic_drops),
+                                "add": add + tuple(automatic_adds), "move_to_il": tuple(moved_il)}
         return rosters, adjustments, injuries
 
     def score(self, rosters: dict[str, tuple[str, ...]], team_a: str, team_b: str,
