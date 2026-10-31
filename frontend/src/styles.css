@@ -250,3 +250,18 @@ table.data { width: 100%; border-collapse: separate; border-spacing: 0; font-siz
 .hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
 .link-btn { border: 0; background: none; color: var(--accent); cursor: pointer; padding: 0; font-weight: 600; }
 .desc { color: var(--text-2); margin: -4px 0 14px; max-width: 980px; }
+.weights { display: grid; grid-template-columns: repeat(9, auto); gap: 4px 6px; margin-top: 6px; }
+.weights label { display: flex; flex-direction: column; align-items: center; font-size: 11px; color: var(--muted); }
+.weights .num-input { width: 52px; }
+.picker { position: relative; min-width: 240px; }
+.picker-input { width: 100%; padding: 6px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); }
+.picker-list { position: absolute; z-index: 30; left: 0; right: 0; top: calc(100% + 4px); margin: 0; padding: 4px; list-style: none;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow); max-height: 320px; overflow-y: auto; }
+.picker-list li { padding: 6px 8px; border-radius: 6px; cursor: pointer; }
+.picker-list li:hover { background: var(--surface-2); }
+.moves { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 6px; }
+@media (max-width: 900px) { .moves { grid-template-columns: 1fr; } }
+.move-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 6px 0; }
+.move-row > .lbl { width: 90px; color: var(--muted); font-size: 12px; }
+.chip.drop { background: rgba(214, 69, 69, 0.12); }
+.chip.add { background: rgba(31, 157, 85, 0.14); }
