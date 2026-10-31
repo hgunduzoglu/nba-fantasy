@@ -18,6 +18,8 @@ nav = st.navigation({
         st.Page(P / "10_Trade_Home.py", title="Ana sayfa", icon=":material/home:", url_path="home", default=True),
         st.Page(P / "14_Trade_Analyzer.py", title="Takas Analizi", icon=":material/swap_horiz:", url_path="trade"),
         st.Page(P / "15_Trade_Suggestor.py", title="Takas Önerileri", icon=":material/handshake:", url_path="trade-onerileri"),
+        st.Page(P / "17_Weekly.py", title="Bu Hafta", icon=":material/calendar_month:", url_path="bu-hafta"),
+        st.Page(P / "18_Free_Agents.py", title="Boştaki Oyuncular", icon=":material/person_add:", url_path="bostakiler"),
     ],
     "Lig Sıralamaları": [
         st.Page(P / "11_Preseason_Ranks.py", title="Sezon öncesi projeksiyon", url_path="rank-preseason"),
