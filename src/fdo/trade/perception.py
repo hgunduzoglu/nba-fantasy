@@ -38,8 +38,8 @@ def _per_game_rank(engine: TradeEngine, mode: str, ids: list[str], min_gp: float
     return v.rank(ascending=False, method="first").reindex(ids)
 
 
-def perceived_prices(engine: TradeEngine, basis: str = "season_total", *, min_gp: int = 3) -> pd.Series:
-    """Oyuncu → algılanan fiyat (ROS piyasa ölçeğinde); modellenemeyenler NaN."""
+def perceived_ranks(engine: TradeEngine, basis: str = "season_total", *, min_gp: int = 3) -> pd.Series:
+    """Modellenebilen oyuncu → algılanan sıra (1 = en iyi, boşluksuz)."""
     if basis not in PERCEPTIONS:
         raise ValueError(f"basis: {', '.join(PERCEPTIONS)} ({basis!r})")
     ids = [p for p in engine.ids if engine.modeled[engine.index[p]]]
@@ -50,7 +50,13 @@ def perceived_prices(engine: TradeEngine, basis: str = "season_total", *, min_gp
         cur = _per_game_rank(engine, "season_total", ids, min_gp)
         cur = cur.fillna(pre)
         rank = cur if basis == "season_total" else (cur + pre.fillna(cur)) / 2
-    rank = rank.rank(method="first")                                  # boşluksuz 1..n
+    return rank.rank(method="first")
+
+
+def perceived_prices(engine: TradeEngine, basis: str = "season_total", *, min_gp: int = 3) -> pd.Series:
+    """Oyuncu → algılanan fiyat (ROS piyasa ölçeğinde); modellenemeyenler NaN."""
+    rank = perceived_ranks(engine, basis, min_gp=min_gp)
+    ids = list(rank.index)
     ladder = np.sort(engine.market.loc[ids].to_numpy(float))[::-1]
     pos = (rank.fillna(len(ladder)).astype(int).clip(1, len(ladder)) - 1).to_numpy()
     return pd.Series(ladder[pos], index=ids).reindex(engine.ids)
@@ -77,4 +83,4 @@ def mispricing(engine: TradeEngine, perceived: pd.Series, team_ids=None) -> pd.D
     return df.sort_values("edge", ascending=False).reset_index(drop=True) if len(df) else df
 
 
-__all__ = ["PERCEPTIONS", "mispricing", "perceived_prices", "ROS"]
+__all__ = ["PERCEPTIONS", "mispricing", "perceived_prices", "perceived_ranks", "ROS"]

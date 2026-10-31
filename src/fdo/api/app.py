@@ -73,7 +73,8 @@ def create_app(data_dir: str | Path | None = None, frontend_dir: str | Path | No
         z = state.per_game_z(lid, source, injuries)
         ranks = value_ranks(eng)
         il = eng.league.injury_rosters[tid]
-        players = [player_row(eng, p, source, z, il=il, ranks=ranks) for p in eng.league.rosters[tid]]
+        perc = state.perceived(lid, source, injuries)
+        players = [player_row(eng, p, source, z, il=il, ranks=ranks, perceived=perc) for p in eng.league.rosters[tid]]
         players.sort(key=lambda r: (r["il"], -(r["value"] or 0)))
         return {"team_id": tid, "team": eng.league.teams[tid], "source": source, "players": players}
 
@@ -86,7 +87,8 @@ def create_app(data_dir: str | Path | None = None, frontend_dir: str | Path | No
         ranks = value_ranks(eng)
         fa = sorted((p for p in eng.ids if p not in owned and eng.modeled[eng.index[p]]),
                     key=lambda p: -float(eng.market[p]))[:limit]
-        return {"source": source, "players": [player_row(eng, p, source, z, ranks=ranks) for p in fa]}
+        perc = state.perceived(lid, source, injuries)
+        return {"source": source, "players": [player_row(eng, p, source, z, ranks=ranks, perceived=perc) for p in fa]}
 
     @app.post("/api/leagues/{lid}/trade/analyze")
     def analyze(lid: str, body: TradeIn):

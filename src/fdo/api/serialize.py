@@ -109,7 +109,8 @@ def injury_info(eng: TradeEngine, pid: str) -> dict | None:
 
 
 def player_row(eng: TradeEngine, pid: str, source: str, z: pd.DataFrame, *, il: frozenset = frozenset(),
-               ranks: pd.Series | None = None) -> dict:
+               ranks: pd.Series | None = None, perceived: pd.DataFrame | None = None) -> dict:
+    """``perceived``: ``AppState.perceived`` (bu sezon / sezon öncesi kaynağında algılanan değer ve sıra)."""
     P = eng.data.players
     f = eng.data.stats[SOURCES[source]]
     row = f.loc[pid] if pid in f.index else None
@@ -121,6 +122,7 @@ def player_row(eng: TradeEngine, pid: str, source: str, z: pd.DataFrame, *, il: 
     for c, (m, a) in {"FG_PCT": ("fgm", "fga"), "FT_PCT": ("ftm", "fta")}.items():
         stats[c] = per[m] / per[a] if per.get(m) is not None and per.get(a) else None
     zrow = z.loc[pid] if pid in z.index else None
+    pc = perceived.loc[pid] if perceived is not None and pid in perceived.index else None
     return clean({
         "id": pid, "name": P.loc[pid, "name"], "nba_team": P.loc[pid, "nba_team"],
         "positions": [p for p in str(P.loc[pid, "yahoo_positions"]).split(",") if p],
@@ -130,6 +132,9 @@ def player_row(eng: TradeEngine, pid: str, source: str, z: pd.DataFrame, *, il: 
         "z": {c: (float(zrow[c]) if zrow is not None and c in zrow else None) for c in CATEGORIES},
         "value": float(eng.market.get(pid, 0.0)),
         "rank": float(ranks[pid]) if ranks is not None and pid in ranks.index else None,
+        "perceived_value": float(pc["price"]) if pc is not None else None,
+        "perceived_rank": float(pc["rank"]) if pc is not None else None,
+        "perceived_fallback": bool(pc["fallback"]) if pc is not None else None,
     })
 
 

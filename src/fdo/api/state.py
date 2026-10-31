@@ -22,6 +22,7 @@ from fdo.inseason.weekly import WeekModel
 from fdo.inseason.weeks import LeagueWeeks, league_weeks
 from fdo.trade import TradeData, TradeEngine, load_trade_data
 from fdo.trade.data import file_signature
+from fdo.trade.perception import perceived_prices, perceived_ranks
 from fdo.trade.strategy import CATEGORIES, Strategy
 from fdo.types import STATS
 from fdo.valuation import value_players
@@ -117,6 +118,23 @@ class AppState:
             model = self.week_model(league_id, injuries)
             return {p: model.games_in(p, days) for p in eng.ids}
         return self._get(("playoff_games", eng.data.fingerprint, str(league_id)), build)
+
+    def perceived(self, league_id: str, source: str, injuries: bool = True, min_gp: int = 3) -> pd.DataFrame | None:
+        """Kaynağa göre algılanan değer (kalan sezon için None): ``price`` ROS piyasa ölçeğinde, ``rank`` algılanan
+        sıra, ``fallback`` bu sezon ``min_gp``'den az maç → sezon öncesi sırası kullanıldı."""
+        basis = {"season": "season_total", "preseason": "preseason"}.get(source)
+        if basis is None:
+            return None
+        eng = self.engine(league_id, injuries)
+
+        def build():
+            rank = perceived_ranks(eng, basis, min_gp=min_gp)
+            frame = pd.DataFrame({"price": perceived_prices(eng, basis, min_gp=min_gp).reindex(rank.index),
+                                  "rank": rank})
+            gp = eng.data.stats["season_total"]["gp"].reindex(rank.index).fillna(0)
+            frame["fallback"] = (gp < min_gp) if basis == "season_total" else False
+            return frame.dropna(subset=["rank"])
+        return self._get(("perceived", eng.data.fingerprint, str(league_id), basis, min_gp), build)
 
     def per_game_z(self, league_id: str, source: str, injuries: bool = True) -> pd.DataFrame:
         """Seçilen kaynağın maç başı dengeli z'si (renklendirme için), ``player_id`` × kategori."""

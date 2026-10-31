@@ -24,6 +24,13 @@ def test_meta_and_rosters(client):
     assert len(r["players"]) == 3 and set(r["players"][0]["stats"]) == {c["key"] for c in m["categories"]}
     p = r["players"][0]
     assert 0 < p["stats"]["FG_PCT"] < 1 and p["z"]["PTS"] is not None and p["modeled"]
+    # bu sezon / sezon öncesi kaynağında algılanan değer ve sıra; kalan sezonda yok
+    assert p["perceived_value"] > 0 and p["perceived_rank"] >= 1 and p["perceived_fallback"] is False
+    ranks = sorted(x["perceived_rank"] for x in r["players"])
+    assert len(set(ranks)) == len(ranks)
+    assert client.get("/api/leagues/L/roster/1?source=preseason").json()["players"][0]["perceived_rank"] >= 1
+    ros = client.get("/api/leagues/L/roster/1").json()["players"][0]
+    assert ros["perceived_value"] is None and ros["perceived_rank"] is None
     assert client.get("/api/leagues/L/roster/9").status_code == 404
     assert client.get("/api/leagues/X/roster/1").status_code == 404
     assert client.get("/api/leagues/L/roster/1?source=bad").status_code == 422
