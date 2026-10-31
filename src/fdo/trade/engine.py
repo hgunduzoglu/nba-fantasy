@@ -280,12 +280,17 @@ class TradeEngine:
 
     def score(self, rosters: dict[str, tuple[str, ...]], team_a: str, team_b: str,
               strategy_a: Strategy, strategy_b: Strategy) -> tuple[np.ndarray, dict]:
+        return self.score_many(rosters, {team_a: strategy_a, team_b: strategy_b})
+
+    def score_many(self, rosters: dict[str, tuple[str, ...]], strategies: dict[str, Strategy]
+                   ) -> tuple[np.ndarray, dict]:
+        """``strategies`` içindeki takımların kadroları değişmiş kabul edilir; diğerleri temel kadroda kalır."""
         vectors = self.baseline_vectors.copy()
-        for tid in (team_a, team_b):
+        for tid in strategies:
             vectors[self.team_index[tid]] = self.roster_vector(rosters[tid])
         p = ecw_matrix(vectors, self.config)
         metrics = {}
-        for tid, strategy in ((team_a, strategy_a), (team_b, strategy_b)):
+        for tid, strategy in strategies.items():
             i = self.team_index[tid]
             keep = np.arange(len(self.team_ids)) != i
             before, after = self.baseline_p[i, keep], p[i, keep]
@@ -298,6 +303,19 @@ class TradeEngine:
                             "strategy_after": float(ap @ strategy.normalized * 9),
                             "strategy_delta": float((ap - bp) @ strategy.normalized * 9)}
         return p, metrics
+
+    def category_profile(self, p: np.ndarray, team_id: str) -> np.ndarray:
+        """Takımın rakipler üzerinden ortalama kategori kazanma olasılığı (``p``: ``ecw_matrix`` çıktısı)."""
+        i = self.team_index[team_id]
+        return p[i, np.arange(len(self.team_ids)) != i].mean(axis=0)
+
+    def deadline(self, day: dt.date | None = None) -> tuple[dt.date | None, bool]:
+        """Lig takas son tarihi ve ``day`` (varsayılan veri tarihi) itibarıyla geçip geçmediği."""
+        try:
+            deadline = dt.datetime.strptime(self.league.settings.get("Trade End Date", ""), "%B %d, %Y").date()
+        except ValueError:
+            return None, False
+        return deadline, (day or self.data.as_of) > deadline
 
     def fairness(self, request: TradeRequest) -> float:
         a, b = float(self.market.loc[list(request.give_a)].sum()), float(self.market.loc[list(request.give_b)].sum())
@@ -315,12 +333,7 @@ class TradeEngine:
         np.fill_diagonal(win, np.nan)
         fair = self.fairness(request)
         day = analysis_date or self.data.as_of
-        deadline_text = self.league.settings.get("Trade End Date", "")
-        try:
-            deadline = dt.datetime.strptime(deadline_text, "%B %d, %Y").date()
-        except ValueError:
-            deadline = None
-        expired = deadline is not None and day > deadline
+        deadline, expired = self.deadline(day)
         gains = [metrics[t]["strategy_delta"] for t in strategies]
         wins = [metrics[t]["win_delta"] for t in strategies]
         mutual = min(gains) > 1e-8

@@ -107,15 +107,9 @@ def suggest_trades(engine: TradeEngine, team_id: str, *, strategy: Strategy | No
     if any(t not in engine.team_index for t in others):
         raise TradeError("Rakip bu ligde yok")
     result = SearchResult(opponent_counts=dict.fromkeys(others, 0))
-    deadline = engine.league.settings.get("Trade End Date", "")
-    if deadline:
-        try:
-            expired = (analysis_date or engine.data.as_of) > dt.datetime.strptime(deadline, "%B %d, %Y").date()
-        except ValueError:
-            expired = False
-        if expired:
-            result.message = "Lig takas son tarihi geçmiş; yeni takas önerisi üretilmedi."
-            return result
+    if engine.deadline(analysis_date)[1]:
+        result.message = "Lig takas son tarihi geçmiş; yeni takas önerisi üretilmedi."
+        return result
     strategies = opponent_strategies or {}
     mode = options.mode
     perceived = edge = None

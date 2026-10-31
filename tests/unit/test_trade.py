@@ -276,3 +276,12 @@ def test_injured_active_player_fills_free_il_before_any_drop(trade_data):
     trade_data.players.loc["1", "injury_status"] = ""
     with pytest.raises(TradeError):                                  # sakat yoksa bırakma seçilmeli
         TradeEngine(trade_data, "L", horizon_weeks=4).resolve(req)
+
+
+def test_revive_weights_only_the_weakest_categories(eng):
+    from fdo.trade.strategy import CATEGORIES
+    probs = eng.league_probabilities().loc["1", list(CATEGORIES)].to_numpy()
+    weak = set(np.argsort(probs, kind="stable")[:2])
+    s = Strategy.revive(probs, 2)
+    assert all(w == (3.0 if j in weak else 1.0) for j, w in enumerate(s.weights))
+    assert s.normalized[list(weak)].sum() == pytest.approx(6 / 13)

@@ -31,6 +31,12 @@ class Strategy:
         weak = np.argsort(category_probabilities, kind="stable")[:n_punts]
         return cls("Otomatik punt (varsayım)", tuple(0.0 if j in weak else 1.0 for j in range(9)))
 
+    @classmethod
+    def revive(cls, category_probabilities: np.ndarray, n: int = 1, weight: float = 3.0) -> "Strategy":
+        """Punt'un tersi: en zayıf kategori(ler) ``weight`` kat önemlidir (vazgeçilmiş görünen kategoriyi geri kazanma)."""
+        weak = np.argsort(category_probabilities, kind="stable")[:n]
+        return cls("Zayıfı canlandır (varsayım)", tuple(weight if j in weak else 1.0 for j in range(9)))
+
     @property
     def normalized(self) -> np.ndarray:
         w = np.asarray(self.weights, float)
