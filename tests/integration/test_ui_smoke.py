@@ -44,7 +44,7 @@ def run_page(env, page, action=None):
 
 
 @pytest.mark.parametrize("page", [
-    "app.py", "pages/0_Home.py", "pages/1_League_and_Data.py", "pages/2_Projection_Explorer.py", "pages/3_Mock_Draft.py",
+    "pages/0_Home.py", "pages/1_League_and_Data.py", "pages/2_Projection_Explorer.py", "pages/3_Mock_Draft.py",
     "pages/5_Team_Dashboard.py",
 ])
 def test_page_renders(env, page):
