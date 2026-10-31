@@ -1,6 +1,8 @@
 """Sezon simülasyonu: braket, sıralamadan başlama, olasılık toplamları ve CRN."""
 from __future__ import annotations
 
+import datetime as dt
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -78,3 +80,26 @@ def test_strength_uncertainty_softens_extremes(sim):
     share = 2 / 4
     assert soft["p_playoff"].sum() == pytest.approx(2) and soft["p_champion"].sum() == pytest.approx(1)
     assert (soft["p_playoff"] - share).abs().mean() <= (sharp["p_playoff"] - share).abs().mean() + 1e-9
+
+
+def test_fixture_outlook_matches_the_simulated_schedule(sim):
+    res = sim.run(n_sims=50, seed=3, team="1")
+    pd.testing.assert_frame_equal(res.schedule.reset_index(drop=True), sim.fixture_outlook("1"))
+    assert len(res.schedule) and res.schedule["p_win"].between(0, 1).all()
+
+
+def test_returning_il_player_pushes_the_weakest_active_off_the_roster(sim):
+    from fdo.inseason.weekly import Stint
+    from fdo.trade.strategy import Strategy
+    eng = sim.engine
+    roster, il = ("4", "5", "6", "7", "16"), frozenset({"7"})        # 4 aktif = kapasite, 7 IL'de
+    gone = sim.drop_schedule(roster, il)
+    u = eng._utility_array(Strategy())
+    worst = min(roster, key=lambda p: u[eng.index[p]])
+    assert gone == {worst: sim.as_of + dt.timedelta(days=7)}       # dönüş tarihi bilinmiyor → gelecek hafta
+    days = sim.weeks.days(3)                                         # dönüş haftası (2–8 Kasım)
+    last = sum(d < gone[worst] for d in days) - 1
+    stints = [Stint(p, last=last if p == worst else 10_000, slot=k) for k, p in enumerate(roster)
+              if not (p == worst and last < 0)]
+    expected = sim.model.team_week("2", stints, days, use_status=False).vector
+    np.testing.assert_allclose(sim.vector("2", roster, 3, il), expected)
