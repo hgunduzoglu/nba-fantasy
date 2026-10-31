@@ -50,3 +50,8 @@ data/live/
 /data/real/transactions.json
 /data/real/player_stat_pages.json
 /data/real/yahoo_fantasy_snapshot.json
+/data/real/FIXTURES_README.txt
+/data/real/fixtures*.csv
+/data/real/fixtures*.json
+/data/real/matchups.csv
+/data/real/matchups.json
