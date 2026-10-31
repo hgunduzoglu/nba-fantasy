@@ -142,3 +142,21 @@ def test_waiver_table_matches_swap_delta(eng):
                                                  zip(("FG_PCT", "FT_PCT", "FG3M", "PTS", "REB", "AST", "STL", "BLK",
                                                       "TOV"), s.normalized)))
     assert t["score"].is_monotonic_decreasing
+
+
+def test_real_default_team_is_user_flag():
+    import json
+
+    from fdo.config import REPO_ROOT
+    from fdo.trade import load_trade_data
+
+    info = REPO_ROOT / "data/real/league_info.json"
+    if not info.exists():
+        pytest.skip("Kişisel veri snapshot'ı yok")
+    flagged = {str(lg["league_id"]): [str(t["team_id"]) for t in lg.get("schedules", {}).get("teams", [])
+                                      if str(t.get("is_user_team")).lower() == "true"]
+               for lg in json.loads(info.read_text(encoding="utf-8-sig"))["leagues"]}
+    d = load_trade_data()
+    for lid, lg in d.leagues.items():
+        if flagged.get(lid):
+            assert lg.default_team_id == flagged[lid][0]

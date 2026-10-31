@@ -188,7 +188,10 @@ def load_trade_data(directory: str | Path | None = None) -> TradeData:
                                     ",".join(slot["eligible_positions"]), slot.get("status") or ""]
             rosters[tid], injury[tid] = tuple(ids), frozenset(il_ids)
         collected = meta[lid].get("schedules", {}).get("teams", [])
-        preferred = str(collected[0]["team_id"]) if len(collected) == 1 else next(iter(team_names))
+        # Kullanıcının takımı: is_user_team işareti (tam fikstür); yoksa tek fikstürü toplanan takım.
+        flagged = [str(t["team_id"]) for t in collected if str(t.get("is_user_team")).lower() == "true"]
+        preferred = (flagged[0] if flagged else str(collected[0]["team_id"]) if len(collected) == 1
+                     else next(iter(team_names)))
         leagues[lid] = TradeLeague(lid, lg["league_name"], team_names, rosters, injury, settings,
                                   _config(settings, len(rosters), root["season"], lg["league_name"]),
                                   preferred if preferred in team_names else next(iter(team_names)), as_of)
