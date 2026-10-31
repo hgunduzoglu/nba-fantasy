@@ -5,7 +5,8 @@ from __future__ import annotations
 from fastapi import FastAPI, HTTPException
 
 from fdo.api.schemas import MultiSeasonIn, MultiSuggestIn, MultiTradeIn, StrategyIn
-from fdo.api.serialize import assumed_strategies, brief, category_deltas, clean, games_delta, strategy_from
+from fdo.api.serialize import (assumed_strategies, brief, category_deltas, clean, fixture_changes, games_delta,
+                               strategy_from)
 from fdo.api.state import AppState
 from fdo.trade import Strategy, TradeError
 from fdo.trade.data import MODES
@@ -89,11 +90,11 @@ def register(app: FastAPI, state: AppState) -> None:
             raise HTTPException(409, "Bu lig için fikstür yok; sezon simülasyonu yapılamıyor.")
         n, sd = max(200, min(body.n_sims, 10_000)), max(0.0, min(body.strength_sd, 0.3))
         try:
-            rosters, _, _ = resolve_multi(eng, req, strategies)
+            rosters, _, il = resolve_multi(eng, req, strategies)
         except (TradeError, ValueError) as e:
             raise HTTPException(400, str(e)) from e
         base = state.season_base(lid, body.injuries, n, sd)
-        after = sim.run(rosters, n_sims=n, seed=1, strength_sd=sd)
+        after = sim.run(rosters, n_sims=n, seed=1, strength_sd=sd, injuries=il)
         out = []
         for t in req.teams:
             b, a = base.table.loc[t], after.table.loc[t]
@@ -101,6 +102,18 @@ def register(app: FastAPI, state: AppState) -> None:
                         "playoff_after": a.p_playoff, "champion_before": b.p_champion, "champion_after": a.p_champion,
                         "seed_before": b.mean_seed, "seed_after": a.mean_seed})
         return clean({"n_sims": n, "strength_sd": sd, "teams": out, "notes": after.notes})
+
+    @app.post("/api/leagues/{lid}/trade/multi/fixtures")
+    def fixtures(lid: str, body: MultiTradeIn):
+        eng, req, strategies = setup(lid, body)
+        sim = state.season_sim(lid, body.injuries)
+        if sim is None:
+            raise HTTPException(409, "Bu lig için fikstür yok.")
+        try:
+            rosters, _, il = resolve_multi(eng, req, strategies)
+        except (TradeError, ValueError) as e:
+            raise HTTPException(400, str(e)) from e
+        return clean({"teams": fixture_changes(sim, req.teams, rosters, il)})
 
     @app.post("/api/leagues/{lid}/trade/multi/suggest")
     def suggest(lid: str, body: MultiSuggestIn):
@@ -124,8 +137,8 @@ def register(app: FastAPI, state: AppState) -> None:
         rows = []
         for s in found.suggestions:
             req = s.request
-            rosters, adj, _ = resolve_multi(eng, req, s.strategies)
-            p, _ = eng.score_many(rosters, s.strategies)
+            rosters, adj, il = resolve_multi(eng, req, s.strategies)
+            p, _ = eng.score_many(rosters, s.strategies, il)
             flow = value_flow(eng, req)
             rows.append({
                 "shape": "-".join(map(str, s.shape)), "shape_label": SHAPES[s.shape], "score": s.score,
@@ -137,7 +150,7 @@ def register(app: FastAPI, state: AppState) -> None:
                            "win_delta": s.metrics[t]["win_delta"], "ecw_delta": s.metrics[t]["ecw_delta"],
                            "value_in": flow[t][0], "value_out": flow[t][1],
                            "playoff_games": games_delta(po, eng.league.rosters[t], rosters[t]),
-                           "categories": category_deltas(eng, p, t),
+                           "categories": category_deltas(eng, p, t, s.strategies[t]),
                            "adjustments": {k: [names[x] for x in v] for k, v in adj[t].items()}}
                           for t in req.teams],
             })

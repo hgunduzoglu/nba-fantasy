@@ -82,9 +82,10 @@ def brief(eng: TradeEngine, pid: str) -> dict:
             "status": P.loc[pid, "injury_status"] or ""}
 
 
-def category_deltas(eng: TradeEngine, p_after: np.ndarray, team_id: str) -> dict[str, float]:
+def category_deltas(eng: TradeEngine, p_after: np.ndarray, team_id: str,
+                    strategy: Strategy | None = None) -> dict[str, float]:
     """Takımın rakiplere karşı ortalama kategori kazanma olasılığı değişimi (takas sonrası − önce)."""
-    d = eng.category_profile(p_after, team_id) - eng.category_profile(eng.baseline_p, team_id)
+    d = eng.category_profile(p_after, team_id) - eng.before_row(team_id, strategy).mean(axis=0)
     return {c: float(x) for c, x in zip(CATEGORIES, d)}
 
 
@@ -93,6 +94,21 @@ def games_delta(games: dict[str, int], before, after) -> int | None:
     if not games:
         return None
     return sum(games.get(p, 0) for p in after) - sum(games.get(p, 0) for p in before)
+
+
+def fixture_changes(sim, teams, rosters: dict, injuries: dict) -> list[dict]:
+    """Takastaki her takım için kalan normal sezon haftaları: rakip ve haftayı kazanma olasılığı önce/sonra
+    (``SeasonSim.fixture_outlook``, nokta tahmini). ``partner``: rakip de takasta (onun kadrosu da değişti)."""
+    out = []
+    for t in teams:
+        before, after = sim.fixture_outlook(t), sim.fixture_outlook(t, rosters, injuries)
+        weeks = [{"week": int(b.week), "start": b.start, "opponent": b.opponent, "opponent_name": b.opponent_name,
+                  "p_before": b.p_win, "p_after": a.p_win, "exp_before": b.exp_cats, "exp_after": a.exp_cats,
+                  "partner": b.opponent in teams}
+                 for b, a in zip(before.itertuples(), after.itertuples())]
+        out.append({"team_id": t, "team": sim.league.teams[t], "weeks": weeks,
+                    "wins_before": float(before["p_win"].sum()), "wins_after": float(after["p_win"].sum())})
+    return out
 
 
 def presets() -> list[dict]:

@@ -94,3 +94,20 @@ def test_multi_team_analyze_season_and_suggest(client):
     for row in s["suggestions"]:
         assert all(t["strategy_delta"] >= 0 for t in row["teams"]) and len(row["moves"]) >= 3
     assert client.post("/api/leagues/L/trade/multi/suggest", json={"team": "1", "shapes": ["3-3-3"]}).status_code == 400
+
+
+def test_trade_fixture_changes_for_both_sides(client):
+    body = {"team_a": "1", "team_b": "2", "give_a": ["0"], "give_b": ["4"]}
+    r = client.post("/api/leagues/L/trade/fixtures", json=body).json()
+    assert [t["team_id"] for t in r["teams"]] == ["1", "2"]
+    me = r["teams"][0]
+    assert me["weeks"] and all(0 <= w["p_before"] <= 1 and 0 <= w["p_after"] <= 1 for w in me["weeks"])
+    assert me["wins_before"] == pytest.approx(sum(w["p_before"] for w in me["weeks"]))
+    assert all(w["partner"] == (w["opponent"] == "2") for w in me["weeks"])
+    season = client.get("/api/leagues/L/season?team=1&n=200").json()["schedule"]
+    assert [w["p_win"] for w in season] == pytest.approx([w["p_before"] for w in me["weeks"]])
+    multi = {"moves": [{"player": "0", "from_team": "1", "to_team": "2"}, {"player": "4", "from_team": "2", "to_team": "3"},
+                       {"player": "8", "from_team": "3", "to_team": "1"}]}
+    m = client.post("/api/leagues/L/trade/multi/fixtures", json=multi).json()
+    assert [t["team_id"] for t in m["teams"]] == ["1", "2", "3"]
+    assert client.post("/api/leagues/L/trade/fixtures", json={**body, "give_b": []}).status_code == 400

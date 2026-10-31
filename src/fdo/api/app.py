@@ -9,8 +9,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from fdo.api.serialize import (categories_meta, clean, player_row, presets, strategy_from, trade_result,
-                               value_ranks)
+from fdo.api.serialize import (categories_meta, clean, fixture_changes, player_row, presets, strategy_from,
+                               trade_result, value_ranks)
 from fdo.api.schemas import SeasonIn, TradeIn
 from fdo.api.state import SOURCES, AppState
 from fdo.config import REPO_ROOT
@@ -109,11 +109,11 @@ def create_app(data_dir: str | Path | None = None, frontend_dir: str | Path | No
         n, sd = max(200, min(body.n_sims, 10_000)), max(0.0, min(body.strength_sd, 0.3))
         try:
             sa, sb = _strategies(eng, body)
-            rosters, _, _ = eng.resolve(_request(body), {body.team_a: sa, body.team_b: sb})
+            rosters, _, il = eng.resolve(_request(body), {body.team_a: sa, body.team_b: sb})
         except (TradeError, ValueError) as e:
             raise HTTPException(400, str(e)) from e
         base = state.season_base(lid, body.injuries, n, sd)
-        after = sim.run(rosters, n_sims=n, seed=1, strength_sd=sd)
+        after = sim.run(rosters, n_sims=n, seed=1, strength_sd=sd, injuries=il)
         out = {}
         for side, tid in (("a", body.team_a), ("b", body.team_b)):
             b, a = base.table.loc[tid], after.table.loc[tid]
@@ -121,6 +121,20 @@ def create_app(data_dir: str | Path | None = None, frontend_dir: str | Path | No
                          "champion_before": b.p_champion, "champion_after": a.p_champion,
                          "seed_before": b.mean_seed, "seed_after": a.mean_seed}
         return clean({"n_sims": n, "strength_sd": sd, "teams": out, "notes": after.notes})
+
+    @app.post("/api/leagues/{lid}/trade/fixtures")
+    def trade_fixtures(lid: str, body: TradeIn):
+        """Fikstürdeki her hafta için kazanma olasılığı: takassız / takaslı (iki taraf)."""
+        eng = engine(lid, body.injuries)
+        sim = state.season_sim(lid, body.injuries)
+        if sim is None:
+            raise HTTPException(409, "Bu lig için fikstür yok.")
+        try:
+            sa, sb = _strategies(eng, body)
+            rosters, _, il = eng.resolve(_request(body), {body.team_a: sa, body.team_b: sb})
+        except (TradeError, ValueError) as e:
+            raise HTTPException(400, str(e)) from e
+        return clean({"teams": fixture_changes(sim, (body.team_a, body.team_b), rosters, il)})
 
     @app.get("/api/sources")
     def sources():
