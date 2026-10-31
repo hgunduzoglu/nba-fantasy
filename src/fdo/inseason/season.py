@@ -10,6 +10,10 @@
 * **Sıralama**: (W + T/2) / (W+L+T), eşitlikte rastgele. **Playoff**: ilk ``n`` takım; braket ``2^tur``
   boyutunda, boş koltuklar bay. ``Playoff Reseeding: Yes`` ise her turda en yüksek – en düşük eşleşir,
   değilse standart sabit braket. Playoff haftaları kendi takvimiyle (son tur iki takvim haftası olabilir).
+* **Güç belirsizliği**: kalan sezon projeksiyonunun hatası için her simülasyonda her takımın haftalık
+  vektörü (ortalama ve varyans) sezon boyu sabit bir ``λ ~ lognormal(0, strength_sd)`` ile ölçeklenir
+  (oranlar değişmez). Olmadan takım güçleri kesin bilinir sayılır ve olasılıklar aşırı kesinleşir.
+  ``strength_sd`` kalibre edilmedi (varsayılan 0.06).
 * Aynı ``seed`` ile iki senaryo aynı çekilişleri kullanır (CRN): takas etkisi eşleşmeli farktır.
 """
 
@@ -25,7 +29,7 @@ from scipy.special import ndtri
 
 from fdo.inseason.weekly import Stint, WeekModel
 from fdo.inseason.weeks import LeagueWeeks
-from fdo.matchup.ecw import ecw_vs, p_at_least
+from fdo.matchup.ecw import ecw_vs, p_at_least, p_win
 
 
 def bracket_order(size: int) -> list[int]:
@@ -105,19 +109,19 @@ class SeasonSim:
         return np.stack([self.vector(t, rosters[t], week) for t in self.teams])
 
     # ------------------------------------------------------------- simülasyon
-    def _wins(self, p: np.ndarray, rng: np.random.Generator, S: int) -> np.ndarray:
-        """``p (M, C)`` → ``(S, M)`` A tarafının kazandığı kategori sayısı (kopula)."""
+    def _wins(self, p: np.ndarray, rng: np.random.Generator) -> np.ndarray:
+        """``p (S, M, C)`` → ``(S, M)`` A tarafının kazandığı kategori sayısı (kopula)."""
         C = p.shape[-1]
         L = np.linalg.cholesky(self.corr) if self.corr is not None else np.eye(C)
-        z = rng.standard_normal((S, p.shape[0], C)) @ L.T
-        thr = ndtri(np.clip(p, 1e-12, 1 - 1e-12))
-        return (z < thr[None]).sum(axis=-1)
+        z = rng.standard_normal(p.shape) @ L.T
+        return (z < ndtri(np.clip(p, 1e-12, 1 - 1e-12))).sum(axis=-1)
 
     def run(self, rosters: dict[str, tuple[str, ...]] | None = None, *, n_sims: int = 2000, seed: int = 0,
-            team: str | None = None) -> SeasonResult:
+            team: str | None = None, strength_sd: float = 0.06) -> SeasonResult:
         rosters = dict(rosters or self.league.rosters)
         T, S = len(self.teams), int(n_sims)
         rng = np.random.default_rng(seed)
+        lam = np.exp(strength_sd * rng.standard_normal((S, T)))                         # (S, T) sezonluk güç çarpanı
         W = np.zeros((S, T))
         L_ = np.zeros((S, T))
         Tie = np.zeros((S, T))
@@ -136,8 +140,9 @@ class SeasonSim:
             V = self.week_vectors(rosters, w)
             a = np.array([x for x, _ in pairs])
             b = np.array([y for _, y in pairs])
-            p = ecw_vs(V[a], V[b][:, None, :], self.engine.config)[:, 0, :]              # (M, C)
-            k = self._wins(p, rng, S)                                                     # (S, M)
+            p = ecw_vs(V[a], V[b][:, None, :], self.engine.config)[:, 0, :]              # (M, C) nokta tahmini
+            ps = p_win(lam[:, a, None] * V[a][None], lam[:, b, None] * V[b][None], self.engine.config)  # (S, M, C)
+            k = self._wins(ps, rng)                                                       # (S, M)
             np.add.at(W, (slice(None), a), k)
             np.add.at(L_, (slice(None), a), 9 - k)
             np.add.at(W, (slice(None), b), 9 - k)
@@ -155,7 +160,7 @@ class SeasonSim:
         order = np.argsort(-(pct + 1e-9 * rng.random((S, T))), axis=1, kind="stable")    # eşitlikte rastgele
         seeds = np.empty((S, T), dtype=int)
         np.put_along_axis(seeds, order, np.arange(1, T + 1)[None, :].repeat(S, 0), axis=1)
-        champion = self._playoffs(rosters, seeds, rng, S)
+        champion = self._playoffs(rosters, seeds, rng, S, lam)
         n = self.playoff_size
         rounds = len(self.playoff_weeks)
         byes = max(0, 2 ** rounds - n) if rounds else 0
@@ -171,9 +176,10 @@ class SeasonSim:
         sched = pd.DataFrame(sched_rows)
         if len(sched):
             sched["opponent_name"] = [self.league.teams[t] for t in sched["opponent"]]
-        return SeasonResult(table, sched, seeds, champion, start, S, n, list(self.notes))
+        notes = list(self.notes) + [f"Takım gücü belirsizliği: sezonluk ±%{100 * strength_sd:.0f} (kalibre edilmedi)."]
+        return SeasonResult(table, sched, seeds, champion, start, S, n, notes)
 
-    def _playoffs(self, rosters, seeds: np.ndarray, rng: np.random.Generator, S: int) -> np.ndarray:
+    def _playoffs(self, rosters, seeds: np.ndarray, rng: np.random.Generator, S: int, lam: np.ndarray) -> np.ndarray:
         T = len(self.teams)
         champion = np.zeros((S, T), dtype=bool)
         n, rounds = self.playoff_size, len(self.playoff_weeks)
@@ -189,7 +195,6 @@ class SeasonSim:
         cur = np.array(current)[None, :].repeat(S, 0)                                     # (S, k) seed
         for r, week in enumerate(self.playoff_weeks):
             V = self.week_vectors(rosters, week)
-            P = ecw_vs(V, V[None, :, :].repeat(T, 0), self.engine.config)                 # (T, T, C)
             if self.reseed:
                 cur = np.sort(cur, axis=1)
                 k = cur.shape[1]
@@ -199,7 +204,9 @@ class SeasonSim:
             ta = np.take_along_axis(by_seed, hi - 1, axis=1)
             tb = np.take_along_axis(by_seed, lo - 1, axis=1)
             bye_a, bye_b = ta < 0, tb < 0
-            pa = P[np.maximum(ta, 0), np.maximum(tb, 0)]                                    # (S, g, C)
+            ia, ib = np.maximum(ta, 0), np.maximum(tb, 0)
+            sims = np.arange(S)[:, None]
+            pa = p_win(lam[sims, ia][..., None] * V[ia], lam[sims, ib][..., None] * V[ib], self.engine.config)  # (S, g, C)
             C = pa.shape[-1]
             Lc = np.linalg.cholesky(self.corr) if self.corr is not None else np.eye(C)
             z = rng.standard_normal(pa.shape) @ Lc.T

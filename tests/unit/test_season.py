@@ -70,3 +70,11 @@ def test_same_seed_is_reproducible_and_rosters_matter(sim, data):  # noqa: F811
     rosters["4"], rosters["1"] = rosters["1"], strong                          # kadroları değiştir
     c = sim.run(rosters, n_sims=300, seed=5)
     assert not np.array_equal(a.seeds, c.seeds)
+
+
+def test_strength_uncertainty_softens_extremes(sim):
+    sharp = sim.run(n_sims=600, seed=2, strength_sd=0.0).table
+    soft = sim.run(n_sims=600, seed=2, strength_sd=0.5).table
+    share = 2 / 4
+    assert soft["p_playoff"].sum() == pytest.approx(2) and soft["p_champion"].sum() == pytest.approx(1)
+    assert (soft["p_playoff"] - share).abs().mean() <= (sharp["p_playoff"] - share).abs().mean() + 1e-9
