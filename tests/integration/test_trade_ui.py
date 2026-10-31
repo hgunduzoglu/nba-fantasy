@@ -52,6 +52,9 @@ def test_suggestor_search_flow(ui_env):
     next(n for n in at.selectbox if n.label == "Analiz edeceğin takım").set_value("2").run()
     next(n for n in at.number_input if n.label == "En fazla taranacak paket").set_value(200)
     next(n for n in at.slider if n.label == "En düşük paket değer dengesi").set_value(.1)
+    # Sentetik ligdeki tek karşılıklı takasta karşı tarafın P(5+)'ı hafif düşüyor.
+    next(n for n in at.slider if n.label.startswith("İki taraf için en az P(5+)")).set_value(-5.0)
+    next(n for n in at.slider if n.label == "Sıralamada kategori beklentisinin ağırlığı").set_value(1.0)
     next(b for b in at.button if b.label == "Karşılıklı faydalı takasları bul").click().run()
     assert not at.exception, [e.value for e in at.exception]
     found = at.session_state["trade_search_result"][1]

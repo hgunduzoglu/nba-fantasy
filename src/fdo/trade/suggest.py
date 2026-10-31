@@ -3,7 +3,8 @@
 Üç öneri türü (``SearchOptions.mode``):
 
 * ``mutual`` — karşılıklı fayda: iki takımın da kalan sezon strateji kazancı eşikleri geçer, paket
-  piyasa (ROS) değeri dengelidir.
+  piyasa (ROS) değeri dengelidir; ``min_opponent_view > 0`` ise rakibin gözündeki denge (algılanan değer:
+  aldığı / verdiği) de eşiği geçmelidir — model kazanç görse de rakibin isimlere bakıp reddedeceği takaslar elenir.
 * ``sell_high`` — sat yüksek: verdiğin paketteki bir oyuncu olduğundan iyi görünür (algılanan fiyat −
   ROS değeri ≥ ``min_edge``); rakip, baktığı değere göre takası adil ya da kârlı görür (algılanan denge
   ≥ ``min_perceived_balance``); sen kalan sezonda kazanırsın. Rakibin ROS kazancı şart değildir.
@@ -44,10 +45,11 @@ class SearchOptions:
     perceived: str = "blend"
     min_perceived_balance: float = .9
     min_edge: float = 1.0
+    min_opponent_view: float = 0.0          # karşılıklı faydada rakibin gözünde en az denge (0 = kapalı)
 
     def __post_init__(self):
         if (self.mode not in MODES or self.perceived not in PERCEPTIONS or self.min_perceived_balance < 0
-                or self.min_edge < 0):
+                or self.min_edge < 0 or self.min_opponent_view < 0):
             raise ValueError("Geçersiz öneri türü ya da algılanan değer ayarı")
         if (not self.package_sizes or any(a not in (1, 2, 3) or b not in (1, 2, 3) for a, b in self.package_sizes)
                 or not 2 <= self.shortlist <= 20 or self.max_evaluations < 1 or self.max_results < 1
@@ -77,6 +79,7 @@ class SearchResult:
     examined: int = 0
     eligible: int = 0
     rejected_fairness: int = 0
+    rejected_view: int = 0                   # karşılıklı faydada rakibin gözünde dengesiz
     rejected_roster: int = 0
     limit_reached: bool = False
     opponent_counts: dict[str, int] = field(default_factory=dict)
@@ -93,6 +96,25 @@ def _shortlist(engine: TradeEngine, tid: str, strategy: Strategy, size: int, pri
     ordered = list(dict.fromkeys([*first, *fit.index[:size // 2], *market.index[:size // 2],
                                   *fit.index[-2:], *fit.index]))
     return ordered[:size]
+
+
+def _minimal(found: list[Suggestion]) -> list[Suggestion]:
+    """Puana göre sıralı; değer katmayan ek oyuncuyla şişirilmiş takaslar çıkarılır: aynı rakiple daha küçük bir
+    paketi zaten listede olan ya da aynı verdiğin paketle sonucu birebir aynı olan (yalnız eklenen değersiz oyuncu
+    farklı) takas. Eşit puanda küçük paket önce gelir."""
+    ordered = sorted(found, key=lambda x: (-round(x.score, 9), len(x.request.give_a) + len(x.request.give_b)))
+    kept: list[Suggestion] = []
+    seen: set[tuple] = set()
+    for s in ordered:
+        r = s.request
+        twin = (r.team_b, frozenset(r.give_a), round(s.own_strategy_delta, 6), round(s.other_strategy_delta, 6),
+                round(s.own_win_delta, 6), round(s.other_win_delta, 6))
+        if twin in seen or any(k.request.team_b == r.team_b and set(k.request.give_a) <= set(r.give_a)
+                               and set(k.request.give_b) <= set(r.give_b) for k in kept):
+            continue
+        seen.add(twin)
+        kept.append(s)
+    return kept
 
 
 def suggest_trades(engine: TradeEngine, team_id: str, *, strategy: Strategy | None = None,
@@ -113,7 +135,7 @@ def suggest_trades(engine: TradeEngine, team_id: str, *, strategy: Strategy | No
     strategies = opponent_strategies or {}
     mode = options.mode
     perceived = edge = None
-    if mode != "mutual":
+    if mode != "mutual" or options.min_opponent_view > 0:
         perceived = perceived_prices(engine, options.perceived)
         edge = (perceived - engine.market).dropna()
     sell = list(edge[edge >= options.min_edge].sort_values(ascending=False).index) if mode == "sell_high" else []
@@ -151,6 +173,12 @@ def suggest_trades(engine: TradeEngine, team_id: str, *, strategy: Strategy | No
                 if fair < options.min_fairness:
                     result.rejected_fairness += 1
                     continue
+                if options.min_opponent_view > 0:
+                    taken = float(perceived.loc[list(give_b)].sum())
+                    balance = float(perceived.loc[list(give_a)].sum()) / taken if taken > 0 else 0.0
+                    if balance < options.min_opponent_view:
+                        result.rejected_view += 1
+                        continue
             else:
                 given = float(perceived.loc[list(give_a)].sum())
                 taken = float(perceived.loc[list(give_b)].sum())
@@ -189,18 +217,17 @@ def suggest_trades(engine: TradeEngine, team_id: str, *, strategy: Strategy | No
                 value = ga * min(1.0, balance)
             result.suggestions.append(Suggestion(req, value, m["strategy_delta"], o["strategy_delta"],
                                                   m["win_delta"], o["win_delta"], fair, os, mode, balance, keys))
-            if len(result.suggestions) > options.max_results * 3:
-                result.suggestions.sort(key=lambda x: x.score, reverse=True)
-                result.suggestions = result.suggestions[:options.max_results]
+            if len(result.suggestions) > options.max_results * 4:
+                result.suggestions = _minimal(result.suggestions)[:options.max_results * 2]
         active = remaining
         if progress:
             progress(result.examined, options.max_evaluations)
     result.limit_reached = bool(active) and result.examined >= options.max_evaluations
-    result.suggestions.sort(key=lambda x: x.score, reverse=True)
-    result.suggestions = result.suggestions[:options.max_results]
+    result.suggestions = _minimal(result.suggestions)[:options.max_results]
     if not result.suggestions:
-        result.message = ("Bu aralıkta iki tarafa da fayda sağlayan takas bulunamadı. Eşikler ve varsayılan rakip "
-                          "stratejisi sonuçları etkiler." if mode == "mutual" else
+        result.message = ("Bu aralıkta iki tarafa da fayda sağlayan ve rakibin gözünde de dengeli görünen takas "
+                          "bulunamadı. Eşikler (rakibin gözünde en az denge dahil) ve varsayılan rakip stratejisi "
+                          "sonuçları etkiler." if mode == "mutual" else
                           f"Bu aralıkta '{MODES[mode]}' koşullarını sağlayan takas bulunamadı. Yanlış fiyatlama "
                           "eşiğini ya da rakibin gözündeki denge eşiğini gevşetmeyi dene.")
     return result

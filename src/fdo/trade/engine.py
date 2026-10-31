@@ -80,6 +80,11 @@ class TradeEngine:
     IL dönüşü: IL'deki oyuncu döndüğünde aktif kadroda ona yer açılmalıdır. Boş aktif yer yoksa takım (kendi
     stratejisine göre) en düşük faydalı oyuncusunu bırakır; bu bedel takım vektöründen düşülür
     (``crunch_vector``). Diğer takımlar dengeli stratejiyle hesaplanır.
+
+    Bedava waiver: takasa giren takım hem önce hem sonra boştaki oyuncularla yapabileceği bedava iyileştirmeleri
+    yapmış kabul edilir (``waiver_best``: boş aktif yer en iyi boştakiyle dolar, boştakinden zayıf aktif oyuncu
+    değiştirilir). Böylece takasla açılan yer ancak boştan alınabilecek bir sonraki oyuncu kadar değer katar;
+    yedek seviyesinin altındaki oyuncuyu "vermek" kazanç sayılmaz. Lig tablosu ve diğer takımlar gerçek kadrodur.
     """
 
     def __init__(self, data: TradeData, league_id: str, *, utilization: float = .987,
@@ -118,6 +123,10 @@ class TradeEngine:
         self._share_cache: dict[str, float] = {}
         self._crunch_cache: dict[tuple, np.ndarray] = {}
         self._before_cache: dict[tuple[str, Strategy], np.ndarray] = {}
+        self._fa_cache: dict[Strategy, list[str]] = {}
+        self._waiver_cache: dict[tuple, tuple[tuple[str, ...], tuple[tuple[str, str], ...]]] = {}
+        owned = {p for r in self.league.rosters.values() for p in r}
+        self.free_agents = tuple(p for p in self.ids if p not in owned and self.modeled[self.index[p]])
         self._team_games = self._games_left()
         self.baseline_vectors = self.vectors(self.league.rosters)
         self.baseline_p = ecw_matrix(self.baseline_vectors, self.config)
@@ -269,18 +278,55 @@ class TradeEngine:
         base = self.roster_vector(tuple(roster))
         return base if crunch is _ZERO else base - crunch
 
+    def _fa_order(self, strategy: Strategy) -> list[str]:
+        """Boştaki modellenebilen oyuncular, stratejiye göre faydası azalan (ilk 40)."""
+        if strategy not in self._fa_cache:
+            u = self._utility_array(strategy)
+            self._fa_cache[strategy] = sorted(self.free_agents, key=lambda p: -u[self.index[p]])[:40]
+        return self._fa_cache[strategy]
+
+    def waiver_best(self, roster, il=frozenset(), strategy: Strategy | None = None
+                    ) -> tuple[tuple[str, ...], tuple[tuple[str | None, str], ...]]:
+        """Bedava waiver hamleleri uygulanmış kadro ve hamleler ``(bırakılan | None, alınan)``.
+
+        Boş aktif yerler en iyi boştakilerle dolar; sonra en zayıf aktif oyuncu, kalan en iyi boştakiden zayıfsa
+        değiştirilir (stratejiye göre fayda). Kadroda olan oyuncu (ör. takasta boştan eklenen) boştaki sayılmaz.
+        Pozisyon, waiver sırası ve haftalık alım hakkı yok sayılır."""
+        s = strategy or Strategy()
+        key = (tuple(sorted(roster)), tuple(sorted(il)), s)
+        if key in self._waiver_cache:
+            return self._waiver_cache[key]
+        u = self._utility_array(s)
+        members = set(roster)
+        fas = [p for p in self._fa_order(s) if p not in members]
+        active = [p for p in roster if p not in il]
+        moves: list[tuple[str | None, str]] = [(None, f) for f in fas[:max(0, self.league.capacity - len(active))]]
+        fas = fas[len(moves):]
+        weakest = sorted((p for p in active if self.modeled[self.index[p]]), key=lambda p: u[self.index[p]])
+        for d, f in zip(weakest, fas):
+            if u[self.index[f]] <= u[self.index[d]]:
+                break
+            moves.append((d, f))
+        out = (tuple(p for p in roster if p not in {d for d, _ in moves}) + tuple(f for _, f in moves), tuple(moves))
+        if len(self._waiver_cache) > 20_000:
+            self._waiver_cache.clear()
+        self._waiver_cache[key] = out
+        return out
+
+    def trade_vector(self, roster, il=frozenset(), strategy: Strategy | None = None) -> np.ndarray:
+        """Takas karşılaştırması için takım vektörü: bedava waiver hamleleri + IL dönüşü bedeli."""
+        return self.team_vector(self.waiver_best(roster, il, strategy)[0], il, strategy)
+
     def before_row(self, team_id: str, strategy: Strategy | None = None) -> np.ndarray:
-        """Takasa girmeden önce takımın rakiplere karşı kategori olasılıkları ``(K, C)``; IL dönüşü bedeli
-        takımın kendi stratejisine göre (dengeli değilse temel matristen farklı olabilir)."""
+        """Takasa girmeden önce takımın rakiplere karşı kategori olasılıkları ``(K, C)``: kendi stratejisiyle
+        bedava waiver hamleleri ve IL dönüşü bedeli (``trade_vector``) uygulanmış kadro."""
         i = self.team_index[team_id]
         keep = np.arange(len(self.team_ids)) != i
         s = strategy or Strategy()
-        if s == Strategy():
-            return self.baseline_p[i, keep]
         key = (team_id, s)
         if key not in self._before_cache:
             roster = self.league.rosters[team_id]
-            v = self.team_vector(roster, self._il(team_id, roster), s)
+            v = self.trade_vector(roster, self._il(team_id, roster), s)
             self._before_cache[key] = (self.baseline_p[i, keep] if np.array_equal(v, self.baseline_vectors[i])
                                        else p_win(v[None, :], self.baseline_vectors[keep], self.config))
         return self._before_cache[key]
@@ -425,7 +471,7 @@ class TradeEngine:
         ``injuries``: takastan sonraki IL kümeleri (``resolve`` çıktısı); yoksa eski IL ∩ kadro."""
         vectors = self.baseline_vectors.copy()
         for tid, s in strategies.items():
-            vectors[self.team_index[tid]] = self.team_vector(rosters[tid], self._il(tid, rosters[tid], injuries), s)
+            vectors[self.team_index[tid]] = self.trade_vector(rosters[tid], self._il(tid, rosters[tid], injuries), s)
         p = ecw_matrix(vectors, self.config)
         metrics = {}
         for tid, strategy in strategies.items():
@@ -503,6 +549,13 @@ class TradeEngine:
             notes.append("Eksik ROS oyuncuları kadroda korunur. Olasılıklar yalnızca modellenebilen katkıları içerir; sonuç kısmi olabilir.")
         if any(adj["add"] for adj in adjustments.values()):
             notes.append("Boşta oyuncu eklemeleri koşulludur: waiver durumu, haftalık kalan alım hakkı ve Can't Cut listesi bu kayıtta doğrulanamaz.")
+        names = self.data.players["name"]
+        for tid, s in strategies.items():
+            free = self.waiver_best(self.league.rosters[tid], self._il(tid, self.league.rosters[tid]), s)[1]
+            if free:
+                moves = ", ".join(f"{names[d]} yerine {names[f]}" if d else f"boş yere {names[f]}" for d, f in free)
+                notes.append(f"{self.league.teams[tid]}: takas önce ve sonra bedava waiver hamleleri yapılmış sayılır "
+                             f"(takas öncesi: {moves}); takas yalnız bunun üstündeki farkla değerlendirilir.")
         for tid in strategies:
             active = [pid for pid in rosters[tid] if pid not in injuries[tid]]
             n = best_assignment(self.positions(active), self.config).n_open_active

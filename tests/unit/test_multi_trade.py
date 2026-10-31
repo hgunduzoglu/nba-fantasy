@@ -69,7 +69,7 @@ def test_uneven_cycle_is_balanced_by_drops_and_fills(eng):
 def test_local_table_matches_exact_single_team_score(eng):
     strategies = {t: Strategy() for t in eng.team_ids}
     short = {t: _shortlist(eng, t, strategies[t], 3) for t in eng.team_ids}
-    tab = _Local(eng, strategies, short, .65).table("1", "2", 1, 1)
+    tab = _Local(eng, strategies, short, .65, np.zeros(len(eng.ids))).table("1", "2", 1, 1)
     for a, (out,) in enumerate(tab.outs):
         for b, (inc,) in enumerate(tab.ins):
             rosters = dict(eng.league.rosters)
@@ -101,3 +101,12 @@ def test_suggested_cycles_help_every_team_under_the_full_model(eng):
 def test_multi_suggestions_stop_after_deadline(eng):
     res = suggest_multi(eng, "1", analysis_date=dt.date(2027, 3, 5))
     assert not res.suggestions and "son tarihi" in res.message
+
+
+def test_multi_suggestions_respect_every_other_teams_view(eng):
+    only = {t: Strategy(f"yalnız {j}", tuple(1.0 if i == j else 0.0 for i in range(9)))
+            for t, j in zip(("1", "2", "3", "4"), (3, 4, 5, 7))}
+    opts = MultiSearchOptions(shortlist=3, shortlist4=3, min_fairness=0, min_strategy_gain=0, min_win_gain=-1,
+                              min_opponent_view=50)
+    res = suggest_multi(eng, "1", strategy=only["1"], opponent_strategies=only, options=opts)
+    assert not res.suggestions

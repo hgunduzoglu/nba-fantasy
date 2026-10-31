@@ -31,6 +31,7 @@ from fdo.matchup.player_week import WEEK_DIM
 from fdo.roster.assignment import best_assignment
 from fdo.trade.data import MODES
 from fdo.trade.engine import LeagueView, TradeEngine, TradeError
+from fdo.trade.perception import perceived_prices
 from fdo.trade.strategy import Strategy
 from fdo.trade.suggest import _shortlist
 
@@ -205,9 +206,10 @@ class MultiSearchOptions:
     min_strategy_gain: float = .005
     min_win_gain: float = 0.0
     ecw_weight: float = .65
+    min_opponent_view: float = 0.0       # diğer takımların gözünde (algılanan değer) aldığı / verdiği; 0 = kapalı
 
     def __post_init__(self):
-        if (not self.shapes or any(tuple(s) not in SHAPES for s in self.shapes) or not 2 <= self.shortlist <= 10
+        if (self.min_opponent_view < 0 or not self.shapes or any(tuple(s) not in SHAPES for s in self.shapes) or not 2 <= self.shortlist <= 10
                 or not 2 <= self.shortlist4 <= self.shortlist or self.candidates < 1 or self.max_results < 1
                 or self.per_group < 1 or self.per_package < 1 or not 0 <= self.min_fairness <= 1 or not 0 <= self.ecw_weight <= 1
                 or self.min_strategy_gain < 0 or not -1 <= self.min_win_gain <= 1):
@@ -232,6 +234,7 @@ class MultiSearchResult:
     evaluated: int = 0                   # tam modelle değerlendirilen
     eligible: int = 0                    # tüm eşikleri geçen
     rejected_roster: int = 0
+    rejected_view: int = 0               # diğer bir takımın gözünde dengesiz
     message: str = ""
 
 
@@ -244,6 +247,7 @@ class _Table:
     gain: np.ndarray                     # birleşik kazanç
     ok: np.ndarray                       # kadro çözülebilir mi
     value_out: np.ndarray                # verilen paketin ROS piyasa değeri (len(outs))
+    seen_out: np.ndarray                 # verilen paketin algılanan değeri (bu sezon + isim)
 
 
 class _Local:
@@ -251,8 +255,8 @@ class _Local:
     hızlı kopyası. Tablolar ``(takım, kaynak, verilen sayı, alınan sayı)`` başına önbelleklenir."""
 
     def __init__(self, engine: TradeEngine, strategies: dict[str, Strategy], short: dict[str, list[str]],
-                 ecw_weight: float):
-        self.e, self.s, self.short, self.w = engine, strategies, short, ecw_weight
+                 ecw_weight: float, perceived: np.ndarray):
+        self.e, self.s, self.short, self.w, self.perceived = engine, strategies, short, ecw_weight, perceived
         lg = engine.league
         self.cap, self.il_slots = lg.capacity, engine.config.unverified.il_slots or 0
         status = engine.data.players["injury_status"].astype(str)
@@ -306,7 +310,7 @@ class _Local:
                     ok[a, b] = False
                     continue
                 roster, il = res
-                vecs[a, b] = e.team_vector(roster, il, self.s[t])          # IL dönüşü bedeli dahil
+                vecs[a, b] = e.trade_vector(roster, il, self.s[t])         # bedava waiver + IL dönüşü dahil
         keep = np.arange(len(e.team_ids)) != i
         flat = vecs.reshape(-1, WEEK_DIM)
         p = p_win(flat[:, None, :], e.baseline_vectors[keep][None, :, :], e.config)        # (n, K, 9)
@@ -316,7 +320,8 @@ class _Local:
         wd = (p_at_least(p).mean(axis=1) - float(p_at_least(bp).mean())).reshape(ok.shape)
         market = e.market.to_numpy(float)
         value = np.array([market[[e.index[p] for p in o]].sum() for o in outs])
-        out = _Table(outs, ins, sd, wd, self.w * sd / 9 + (1 - self.w) * wd, ok, value)
+        seen = np.array([self.perceived[[e.index[p] for p in o]].sum() for o in outs])
+        out = _Table(outs, ins, sd, wd, self.w * sd / 9 + (1 - self.w) * wd, ok, value, seen)
         self.tables[key] = out
         return out
 
@@ -372,7 +377,8 @@ def suggest_multi(engine: TradeEngine, team_id: str, *, strategy: Strategy | Non
     strategies = {t: (opponent_strategies or {}).get(t) or Strategy() for t in engine.team_ids}
     strategies[team_id] = strategy
     short = {t: _shortlist(engine, t, strategies[t], options.shortlist) for t in (team_id, *others)}
-    local = _Local(engine, strategies, short, options.ecw_weight)
+    seen = perceived_prices(engine, "blend").reindex(list(engine.ids)).fillna(0.0)
+    local = _Local(engine, strategies, short, options.ecw_weight, seen.to_numpy(float))
     slack_s, slack_w = .02, .01                      # yerel yaklaşım payı; kesin eşikler sonra
     pool: list[tuple[float, tuple[int, ...], tuple[str, ...], tuple[int, ...]]] = []
     jobs = []
@@ -399,6 +405,11 @@ def suggest_multi(engine: TradeEngine, team_id: str, *, strategy: Strategy | Non
             v_in = tabs[prev][2].value_out[tabs[prev][3][0]].reshape([-1 if a == prev else 1 for a in range(k)])
             ratio = np.minimum(v_in, v_out) / np.maximum(np.maximum(v_in, v_out), 1e-9)
             fair = np.minimum(fair, ratio)
+            if i and options.min_opponent_view > 0:
+                # diğer takım algılanan değere bakar: aldığı ≥ eşik × verdiği (yerel aşamada küçük pay)
+                s_out = tab.seen_out[sub[0]].reshape([-1 if a == i else 1 for a in range(k)])
+                s_in = tabs[prev][2].seen_out[tabs[prev][3][0]].reshape([-1 if a == prev else 1 for a in range(k)])
+                mask = mask & (s_in >= (options.min_opponent_view - .05) * s_out)
         g = np.broadcast_arrays(*gains)
         stacked = np.stack(g)
         mask = mask & (fair >= options.min_fairness)
@@ -438,6 +449,11 @@ def suggest_multi(engine: TradeEngine, team_id: str, *, strategy: Strategy | Non
             continue
         _, metrics = engine.score_many(rosters, {t: strategies[t] for t in teams}, il)
         fair = _fairness(value_flow(engine, req))
+        view = value_flow(engine, req, seen)
+        if options.min_opponent_view > 0 and any(i < options.min_opponent_view * o for t, (i, o) in view.items()
+                                                 if t != team_id):
+            result.rejected_view += 1
+            continue
         if (fair < options.min_fairness
                 or min(m["strategy_delta"] for m in metrics.values()) < options.min_strategy_gain
                 or min(m["win_delta"] for m in metrics.values()) < options.min_win_gain):

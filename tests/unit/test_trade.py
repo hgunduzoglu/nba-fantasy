@@ -42,6 +42,8 @@ def trade_data():
                           "reb": rng.uniform(15, 120, len(ids)), "ast": rng.uniform(10, 100, len(ids)),
                           "stl": rng.uniform(1, 20, len(ids)), "blk": rng.uniform(1, 20, len(ids)),
                           "tov": rng.uniform(5, 40, len(ids))}, index=ids)
+    # Boştakiler (12–19) gerçek liglerdeki gibi kadrodakilerden zayıf: toplamlar yarıya iner, yüzdeler aynı kalır.
+    frame.loc[ids[12:], [c for c in frame.columns if c != "gp"]] *= .5
     players = pd.DataFrame({"name": [f"P{i}" for i in ids], "nba_team": "SYN", "yahoo_positions": "PG,C",
                             "injury_status": ""}, index=ids)
     rosters = {str(t): tuple(ids[(t - 1) * 3:t * 3]) for t in range(1, 5)}
@@ -235,7 +237,9 @@ def test_deadline_stops_suggestions_and_flags_manual_analysis(eng):
 
 
 def test_suggestions_are_bilateral_bounded_and_reproducible(eng):
-    opts = SearchOptions(max_evaluations=250, min_fairness=.1, min_strategy_gain=.00001)
+    # Küçük sentetik ligde tek karşılıklı takas var ve karşı tarafın P(5+)'ı hafif düşüyor: sıralama yalnız
+    # kategori beklentisiyle, P(5+) eşiği gevşek.
+    opts = SearchOptions(max_evaluations=250, min_fairness=.1, min_strategy_gain=.00001, min_win_gain=-1, ecw_weight=1)
     one = suggest_trades(eng, "2", options=opts)
     two = suggest_trades(eng, "2", options=opts)
     assert one.examined <= 250
@@ -321,3 +325,48 @@ def test_trading_away_a_returning_il_player_removes_the_return_cost(trade_data):
     r = e.analyze(TradeRequest("1", "2", ("12",), ("3",), auto_drop=True, auto_fill=True))
     i, keep = e.team_index["1"], [j for j, t in enumerate(e.team_ids) if t != "1"]
     assert r.metrics.loc["1", "ecw_before"] == pytest.approx(np.nansum(e.baseline_p[i, keep], axis=1).mean())
+
+
+def test_free_waiver_moves_are_not_credited_to_the_trade(trade_data):
+    # 5 yedek seviyesinin çok altında: takım onu takassız da boştakiyle değiştirebilir.
+    for f in trade_data.stats.values():
+        f.loc["5", [c for c in f.columns if c != "gp"]] *= .05
+    e = TradeEngine(trade_data, "L", utilization=1, horizon_weeks=4)
+    assert e.waiver_best(e.league.rosters["2"])[1][0][0] == "5"
+    dump = e.analyze(TradeRequest("1", "2", ("0",), ("4", "5"), auto_drop=True, auto_fill=True))
+    plain = e.analyze(TradeRequest("1", "2", ("0",), ("4",), auto_drop=True, auto_fill=True))
+    # 2'ye 1'de açılan yere boştaki girer ama bu, 5'i bırakıp almakla aynı bedava hamle: 2. takımın gücü aynı.
+    # (1. takımın kadrosu iki takasta farklı; 2. takımın ona karşı olasılığı bu yüzden karşılaştırılmaz.)
+    np.testing.assert_allclose(e.trade_vector(dump.rosters_after["2"]), e.trade_vector(plain.rosters_after["2"]))
+    assert not np.allclose(e.team_vector(dump.rosters_after["2"]), e.team_vector(plain.rosters_after["2"]))
+    i = e.team_index["2"]
+    for j in (e.team_index["3"], e.team_index["4"]):
+        np.testing.assert_allclose(dump.probabilities_after[i, j], plain.probabilities_after[i, j])
+    assert any("bedava waiver" in n for n in dump.notes)
+
+
+def test_waiver_best_fills_open_spots_and_only_swaps_for_better_free_agents(eng):
+    roster = eng.league.rosters["1"][:2]                       # 3 kapasitede bir yer boş
+    best, moves = eng.waiver_best(roster)
+    assert moves[0][0] is None and moves[0][1] == eng._fa_order(Strategy())[0] and len(best) == 3
+    u = eng._utility_array(Strategy())
+    for d, f in moves[1:]:
+        assert u[eng.index[f]] > u[eng.index[d]]
+
+
+def test_mutual_suggestions_respect_the_opponents_view(eng):
+    base = dict(max_evaluations=250, min_fairness=.1, min_strategy_gain=.00001, min_win_gain=-1, ecw_weight=1)
+    strict = suggest_trades(eng, "2", options=SearchOptions(**base, min_opponent_view=5))
+    assert not strict.suggestions and strict.rejected_view > 0 and "rakibin gözünde" in strict.message
+    loose = suggest_trades(eng, "2", options=SearchOptions(**base, min_opponent_view=.3))
+    assert all(s.perceived_balance >= .3 for s in loose.suggestions)
+
+
+def test_suggestions_drop_packages_padded_with_worthless_extras(eng):
+    opts = SearchOptions(max_evaluations=2000, min_fairness=.1, min_strategy_gain=.00001, min_win_gain=-1, ecw_weight=1,
+                         package_sizes=((1, 1), (1, 2), (2, 1), (2, 2)))
+    found = suggest_trades(eng, "2", options=opts).suggestions
+    for a in found:
+        for b in found:
+            if a is not b and a.request.team_b == b.request.team_b:
+                assert not (set(a.request.give_a) <= set(b.request.give_a) and set(a.request.give_b) <= set(b.request.give_b))
