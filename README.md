@@ -1677,6 +1677,56 @@ soyad + ilk harf (CBS "Nicolas Claxton" = Yahoo "Nic Claxton"). 31 Ekim raporu: 
   zamanlama doğru, özellikle playoff haftaları için (ör. Banchero 22 Kasım'da dönüp playoff'ta tam oynar).
 - Trade motoru: kapasite aşılırsa önce kadrodaki O/INJ oyuncu boş IL yerine taşınır, bırakma ancak sonra.
 
+### 13.17 Öneri yönleri ve öneri ayrıntıları (31 Ekim 2026)
+
+Takas Önerileri'nde senin takımın birden çok **yön** (strateji) ile aranır; her yön ayrı bir taramadır ve sonuçlar
+sekmelerde, ayrıca birleşik "Tümü" görünümünde yan yana gelir:
+
+| Yön | Strateji | Ne arar |
+|---|---|---|
+| D Dengeli | 9 kategori ağırlık 1 | genel güç |
+| P / P2 Otomatik punt | en zayıf 1 / 2 kategori 0 (`auto_punt`) | zayıf kategoriyi verip kalanları güçlendiren takas |
+| C / C2 Zayıfı canlandır | en zayıf 1 / 2 kategori ×3 (`auto_revive`, `Strategy.revive`) | punt'lanmış gibi duran kategoriyi geri kazandıran takas |
+| G Haftalık galibiyet | dengeli, `ecw_weight = 0` | ECW yerine doğrudan P(5+); kıl payı kategorilere ağırlık |
+| Ö Seçtiğin strateji | hazır punt ya da özel ağırlıklar | kendi tercihin |
+
+- **Sağlamlık**: takasın senin kategori değişimin her yönün ağırlıklarıyla yeniden puanlanır (galibiyet yönünde
+  ΔP(5+)); "4/4" takas stratejin değişse de kazançlı demektir. Birleşik görünümde takasın bulunduğu yönler etiketlenir.
+- Her öneride: senin ve rakibin **kategori etkisi** (en çok değişen 3 kategori, kazanma olasılığı puanı), **PO maç**
+  (fantezi playoff haftalarında kadronun toplam NBA maçı farkı; otomatik bırak/ekle ve sakatlık dönüşü dahil),
+  **pozisyon uyarısı** (takastan sonra doldurulamayan aktif pozisyon), **rakibin gözünde** denge (algılanan değer, her
+  türde) ve ağırlıksız ΔECW. Sıralama: öneri puanı, sağlamlık, ΔECW ya da playoff + şampiyonluk etkisi.
+- Arama hızı: motorun sıcak yolu (otomatik bırak/ekle sırası, paket değeri, sakatlık durumu) numpy dizilerinden okunur;
+  yön başına 4000 paket ~5 saniye (önce ~15).
+
+### 13.18 Çok takımlı takas (`fdo.trade.multi`, Çok Takımlı Takas sekmesi)
+
+Yahoo 3–4 takımlı takası tek işlemde yapmaz; elle, aynı anda kabul edilen ikili takaslarla yapılır. Bu modül bunu
+tek bir senaryo olarak değerlendirir.
+
+- **İstek**: `MultiTradeRequest(moves=((oyuncu, veren, alan), ...), drops, adds, auto_balance)`; 2–4 takım, her takım
+  en az bir oyuncu verir ve alır. Kadro dengesi iki takımlı takasla aynı kuraldır: `TradeEngine.resolve` artık takım
+  sayısından bağımsız `resolve_moves` üzerinden çalışır (gelen sakat IL'e, kapasite aşımında kadrodaki O/INJ IL'e, sonra
+  en düşük değerli bırakılır, boşalan yer boştakiyle dolar). `score_many` değişen tüm takımlarla lig olasılıklarını
+  yeniden hesaplar. İki takımlı istek, iki takımlı motorla birebir aynı sonucu verir (test).
+- **Analiz** (`analyze_multi`): her takım için ECW, P(5+), strateji puanı (her takım kendi stratejisiyle), kategori
+  etkisi, alınan/verilen ROS değeri ve algılanan değer, PO maç, otomatik işlemler, üç kaynağa göre sıra değişimi;
+  "hepsi kazanıyor mu", **değer dengesi** = en dengesiz takımın aldığı/verdiği oranı, komisyon riski, sezon etkisi
+  (her takım için playoff/şampiyonluk, aynı çekilişler).
+- **Öneriler** (`suggest_multi`): döngüler sen → T1 → T2 (→ T3) → sen. Şekiller: 1-1-1, sen 2 verirsin (2-1-1),
+  ortadaki 2 verir (1-2-1), sen 2 alırsın (1-1-2), 4 takım 1-1-1-1. İki aşama: (1) yerel tarama — her takımın kazancı
+  yalnız kendi kadro değişikliğiyle, lig geri kalanı sabit kabul edilerek vektörel hesaplanır (13 takımlı ligde ~640
+  bin döngü ~2–3 saniye; bire bir değişimde kesin modelle aynı sonuç, test); (2) en iyi 200 aday tam modelle
+  (otomatik bırak/ekle + değişen tüm takımlar) yeniden puanlanır, her takımın strateji kazancı ≥ eşik ve değer dengesi
+  ≥ eşik şartı burada uygulanır. Puan `(en küçük kazanç + geometrik ortalama) × (0.5 + 0.5 × denge)` (iki takımlı
+  karşılıklı fayda ile aynı biçim). Çeşitlilik: her şekle eşit pay, aynı takım grubundan en fazla 3, senin aynı verdiğin
+  paketten en fazla 3 öneri.
+- API: `POST /api/leagues/{lig}/trade/multi/analyze`, `.../multi/season`, `.../multi/suggest`.
+- Sekme: **Analiz** — 3–4 takım seç, kadrolarda oyuncuya tıkla (varsayılan hedef döngüdeki sonraki takım), her
+  hareketin hedefini değiştir, her takımın stratejisini seç, isteğe bağlı bırak/boştan al. **Öneriler** — şekiller,
+  senin stratejin (yön), diğer takımların varsayımı, eşikler; "Analizde aç" öneriyi Analiz'e taşır. İki takımlı Takas
+  Analizi değişmedi.
+
 ### 13.8 V3 adayları
 
 Beam search ve H-score ağırlık optimizasyonu; profil karışımı uyumu; oyuncular arası maç sayısı
@@ -1734,6 +1784,7 @@ python scripts/backtest.py --data data/real/ --n 30 --strategies adp,z,g,ecw
 ### 14.1 Trade Lab web uygulaması (React + FastAPI)
 
 Sezon içi araçların yeni arayüzü (31 Ekim 2026). Draft ve auction sayfaları Streamlit'te kalır.
+Öneri yönleri §13.17, çok takımlı takas §13.18.
 
 ```powershell
 .venv\Scripts\python.exe -m pip install -e ".[dev,web]"   # bir kere
@@ -1741,7 +1792,8 @@ Sezon içi araçların yeni arayüzü (31 Ekim 2026). Draft ve auction sayfalar�
 ```
 
 `run_app.py` arayüz derlenmemişse ya da `frontend/src` değiştiyse önce `npm install` / `npm run build` çalıştırır
-(Node.js gerekir), sonra FastAPI'yi başlatıp tarayıcıyı açar. Sekmeler: Takas Analizi, Takas Önerileri, Bu Hafta,
+(Node.js gerekir), sonra FastAPI'yi başlatıp tarayıcıyı açar. Sekmeler: Takas Analizi, Takas Önerileri, Çok Takımlı
+Takas, Bu Hafta,
 Boştaki Oyuncular, Sezon Simülasyonu, Lig Sıralamaları. Lig, takım, sakatlık dönüş tarihleri, renk skalası
 (yeşil↔kırmızı ya da renk körlüğüne uygun mavi↔kırmızı) ve tema üst çubuktadır.
 
@@ -1752,16 +1804,19 @@ Boştaki Oyuncular, Sezon Simülasyonu, Lig Sıralamaları. Lig, takım, sakatl�
   sezon etkisi (playoff ve şampiyonluk), üç kaynağa göre lig sıra değişimi.
 - **Takas ekranı ekleri**: iki taraf için elle "bırak" ve aranabilir boştaki oyuncu "al" (otomatik dengeleme bunlardan
   sonra uygulanır); strateji seçici her sekmede: dengeli, hazır punt'lar, **otomatik punt** (takımın kategori profilinden
-  en zayıf 1 ya da 2 kategori, `StrategyIn.auto_punt`) ve özel ağırlıklar (0–3); **kayıtlı senaryolar** (tarayıcıda,
+  en zayıf 1 ya da 2 kategori, `StrategyIn.auto_punt`), **zayıfı canlandır** (en zayıf 1–2 kategori ×3,
+  `StrategyIn.auto_revive`) ve özel ağırlıklar (0–3); **kayıtlı senaryolar** (tarayıcıda,
   JSON dışa/içe aktarma): ΔECW, strateji Δ, ΔP(5+), değer ve algılanan denge, playoff/şampiyonluk etkisi yan yana;
   "Aç" senaryoyu bütün seçimleriyle geri yükler.
-- **Takas Önerileri**: karşılıklı fayda, sat yüksek, al düşük ayrı türler; yanlış fiyatlama tabloları; öneriler
-  için playoff etkisi; "Takas ekranında aç" öneriyi seçili olarak Takas Analizi'ne taşır.
+- **Takas Önerileri**: karşılıklı fayda, sat yüksek, al düşük ayrı türler; her biri birden çok yönde aranır (§13.17);
+  yanlış fiyatlama tabloları; öneriler için playoff etkisi; "Takas ekranında aç" öneriyi seçili olarak Takas
+  Analizi'ne taşır.
+- **Çok Takımlı Takas**: 3–4 takımlı elle analiz ve döngü önerileri (§13.18).
 - **Bu Hafta / Boştaki Oyuncular / Sezon Simülasyonu / Lig Sıralamaları**: §13.13–§13.16'daki modellerin arayüzü.
 
 Yapı: `src/fdo/api/` (FastAPI: `state.py` önbellekli veri/motorlar, `serialize.py` JSON dönüşümü, `app.py` kadro,
 takas analizi ve sezon etkisi, `inseason.py` öneriler, yanlış fiyatlama, haftalık + streaming, boştakiler, sezon,
-sıralamalar), `frontend/` (Vite + React + TypeScript, ek UI kütüphanesi yok; `src/pages/*`, `src/components/*`,
+sıralamalar, `multi.py` çok takımlı takas), `frontend/` (Vite + React + TypeScript, ek UI kütüphanesi yok; `src/pages/*`, `src/components/*`,
 `styles.css` tasarım belirteçleri, açık/koyu tema). Geliştirme: `uvicorn` ile API'yi (8000) ve `npm run dev` ile
 arayüzü (5173, `/api` 8000'e yönlendirilir) ayrı çalıştır. `frontend/node_modules` ve `frontend/dist` git'e girmez.
 CI arayüzü tip kontrolüyle derler; API testleri `tests/integration/test_api*.py`.
