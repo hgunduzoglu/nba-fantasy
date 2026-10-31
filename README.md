@@ -1615,6 +1615,27 @@ Trade Lab verisini (kadrolar, kalan sezon projeksiyonu, NBA takvimi) kullanır; 
 - **Sınırlar**: waiver'daki oyuncular, Can't Cut listesi ve maç saatleri doğrulanmaz; oyuncular arası
   bağımsızlık ve Normal yaklaşım (kalibre edilmedi). Plan açgözlüdür, global optimum değildir.
 
+### 13.14 Sezon simülasyonu (`fdo.inseason.season`, Sezon Simülasyonu sayfası)
+
+Tam H2H fikstürü (`fixtures*.csv`, dört lig 56 takım 519 eşleşme) ve mevcut sıralama (`standings.py`:
+`yahoo_fantasy_snapshot.json`, `league_<id>_standings_raw.json` ya da `standings*.csv`) ile.
+
+- Tam sıralaması olan ligde tamamlanan hafta `(W+L+T)/9` kabul edilir ve gerçek W-L-T'den başlanır;
+  sıralaması olmayan ligde (şu an 229303, 104375) 1. haftadan itibaren hepsi simüle edilir (uyarı gösterilir).
+- Her takımın her haftalık gücü o haftanın NBA takvimi ve günlük lineup'ıyla (`WeekModel.team_week`);
+  içinde bulunulan hafta güncel sakatlık ve IL ile, sonrakiler tam kadroyla (kayıp maçlar ROS GP'de).
+  Kadrolar sezon boyu sabit.
+- Eşleşme: kategori olasılıkları + Gauss kopulası; sıralama (W + T/2)/oynanan, eşitlikte rastgele.
+  Playoff: ilk n takım (`Playoffs` ayarı), `2^tur` braket, boş koltuk bay; `Playoff Reseeding` açıksa her
+  turda en yüksek–en düşük, değilse sabit braket. Playoff haftaları kendi takvimiyle (son tur 14 gün).
+- Çıktı: takım başına P(playoff), P(bay) ya da P(1.), P(şampiyon), ortalama sıra, beklenen W-L-T; seçili
+  takımın kalan fikstürü (hafta başına beklenen kategori ve P(kazan)); playoff haftalarında sayılan maç.
+- **Takas etkisi**: Takas Analizi'nde ve Sezon Simülasyonu'nda, takassız/takaslı kadrolar aynı çekilişlerle
+  (CRN, seed 1) — iki takımın ΔP(playoff), ΔP(şampiyon), ortalama sıra farkı.
+- Kullanıcının takımı fikstürdeki `is_user_team` işaretinden seçilir (tam fikstürle tek takım kuralı bozulmuştu).
+- Sınırlar: kategori beraberliği, kadro değişiklikleri, sakatlık dönüş zamanları ve oyuncular arası maç
+  kovaryansı modellenmez; olasılıklar kalibre edilmedi.
+
 ### 13.8 V3 adayları
 
 Beam search ve H-score ağırlık optimizasyonu; profil karışımı uyumu; oyuncular arası maç sayısı
