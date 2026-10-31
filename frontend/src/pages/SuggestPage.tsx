@@ -126,7 +126,9 @@ export function SuggestPage({ meta, league, team, injuries, onOpen }: Props) {
 
   const open = (s: Suggestion) => onOpen({
     opp: s.team_b, giveA: s.give_a.map((p) => p.id), giveB: s.give_b.map((p) => p.id), stratA: strategy,
-    stratB: s.other_weights.every((w) => w === 1) ? BALANCED : { kind: "custom", weights: s.other_weights },
+    stratB: s.other_weights.every((w) => w === 1) ? BALANCED
+      : s.other_strategy.startsWith("Otomatik") ? { kind: "auto", n: s.other_weights.filter((w) => w === 0).length === 2 ? 2 : 1 }
+      : { kind: "custom", weights: s.other_weights },
   });
 
   return (
