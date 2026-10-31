@@ -1750,6 +1750,11 @@ Boştaki Oyuncular, Sezon Simülasyonu, Lig Sıralamaları. Lig, takım, sakatl�
   pakete ekler; analiz seçim değiştikçe kendiliğinden çalışır: iki takımın beklenen kategori, P(5+), strateji
   puanı, ortak ölçekli kategori etki grafiği, kadro işlemleri (IL / bırak / ekle), değer ve algılanan denge,
   sezon etkisi (playoff ve şampiyonluk), üç kaynağa göre lig sıra değişimi.
+- **Takas ekranı ekleri**: iki taraf için elle "bırak" ve aranabilir boştaki oyuncu "al" (otomatik dengeleme bunlardan
+  sonra uygulanır); strateji seçici her sekmede: dengeli, hazır punt'lar, **otomatik punt** (takımın kategori profilinden
+  en zayıf 1 ya da 2 kategori, `StrategyIn.auto_punt`) ve özel ağırlıklar (0–3); **kayıtlı senaryolar** (tarayıcıda,
+  JSON dışa/içe aktarma): ΔECW, strateji Δ, ΔP(5+), değer ve algılanan denge, playoff/şampiyonluk etkisi yan yana;
+  "Aç" senaryoyu bütün seçimleriyle geri yükler.
 - **Takas Önerileri**: karşılıklı fayda, sat yüksek, al düşük ayrı türler; yanlış fiyatlama tabloları; öneriler
   için playoff etkisi; "Takas ekranında aç" öneriyi seçili olarak Takas Analizi'ne taşır.
 - **Bu Hafta / Boştaki Oyuncular / Sezon Simülasyonu / Lig Sıralamaları**: §13.13–§13.16'daki modellerin arayüzü.
