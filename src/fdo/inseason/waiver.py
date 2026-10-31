@@ -4,6 +4,8 @@ Kullanıcının kadrosunda ``d`` yerine boştaki ``f`` gelirse takımın kalan s
 vektörü ``R − v_d + v_f`` olur; ligdeki diğer takımlara karşı kategori olasılıkları yeniden hesaplanır.
 Strateji puanı ``9·Σ w_c·ΔP_c`` (normalize ağırlıklar), ağırlıksız ΔECW ayrıca verilir. IL'deki oyuncular
 bırakma adayı değildir. Pozisyon kontrolü: bırakma sonrası doldurulamayan aktif slot sayısı artmamalı.
+IL'den dönecek oyuncu varsa dönüşte yer açma bedeli (``TradeEngine.crunch_vector``) her iki kadroda da düşülür:
+eklenen oyuncu dönüşte bırakılacaksa yalnız dönüşe kadar katkı verir.
 """
 
 from __future__ import annotations
@@ -26,8 +28,10 @@ def swap_delta(engine: TradeEngine, team_id: str, drop: str, add: str, strategy:
     """``drop`` yerine ``add`` kalıcı olursa kalan sezon strateji ECW değişimi."""
     s = strategy or Strategy()
     opp = _opponents(engine, team_id)
-    base = engine.roster_vector(engine.league.rosters[team_id])
-    new = base - engine.vecs[engine.index[drop]] + engine.vecs[engine.index[add]]
+    roster = engine.league.rosters[team_id]
+    il = engine._il(team_id, roster)
+    base = engine.team_vector(roster, il, s)
+    new = engine.team_vector(tuple(p for p in roster if p != drop) + (add,), il, s)
     p0, p1 = ecw_vs(base, opp, engine.config).mean(axis=0), ecw_vs(new, opp, engine.config).mean(axis=0)
     return float(9 * (p1 - p0) @ s.normalized)
 
@@ -52,11 +56,19 @@ def waiver_table(engine: TradeEngine, team_id: str, strategy: Strategy | None = 
     if not fa or not drops:
         return pd.DataFrame()
     opp = _opponents(engine, team_id)
-    base = engine.roster_vector(engine.league.rosters[team_id])
+    roster = engine.league.rosters[team_id]
+    il = engine._il(team_id, roster)
+    raw = engine.roster_vector(roster)
+    base = engine.team_vector(roster, il, s)
     p0 = ecw_vs(base, opp, engine.config).mean(axis=0)                               # (C,)
     vf = engine.vecs[[engine.index[p] for p in fa]]                                    # (F, 24)
     vd = engine.vecs[[engine.index[p] for p in drops]]                                 # (D, 24)
-    new = base[None, None, :] - vd[None, :, :] + vf[:, None, :]                        # (F, D, 24)
+    new = raw[None, None, :] - vd[None, :, :] + vf[:, None, :]                        # (F, D, 24)
+    if any(engine.return_share(p) > 0 for p in il):
+        # IL dönüşü: her (ekle, bırak) çifti için dönüşte kimin bırakılacağı değişebilir
+        for i, f in enumerate(fa):
+            for j, d in enumerate(drops):
+                new[i, j] -= engine.crunch_vector(tuple(p for p in roster if p != d) + (f,), il, s)
     p1 = ecw_vs(new, opp[None, None], engine.config).mean(axis=-2)                     # (F, D, C)
     dp = p1 - p0
     score = 9 * dp @ w                                                                 # (F, D)

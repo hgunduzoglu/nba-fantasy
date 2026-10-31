@@ -149,10 +149,11 @@ def analyze_multi(engine: TradeEngine, request: MultiTradeRequest, strategies: d
     teams = request.teams
     strategies = {t: (strategies or {}).get(t) or Strategy() for t in teams}
     rosters, adjustments, injuries = resolve_multi(engine, request, strategies)
-    p, metrics = engine.score_many(rosters, strategies)
+    p, metrics = engine.score_many(rosters, strategies, injuries)
     flow = value_flow(engine, request)
     fair = _fairness(flow)
-    profiles = {t: (engine.category_profile(engine.baseline_p, t), engine.category_profile(p, t)) for t in teams}
+    p_before = engine.before_matrix(strategies)
+    profiles = {t: (engine.category_profile(p_before, t), engine.category_profile(p, t)) for t in teams}
     for t in teams:
         metrics[t]["value_in"], metrics[t]["value_out"] = flow[t]
     frame = pd.DataFrame.from_dict(metrics, orient="index")
@@ -285,7 +286,8 @@ class _Local:
                 return None
         target = min(self.cap, len(lg.rosters[t]) - len(lg.injury_rosters[t]))
         count = max(0, target - (len(roster) - len(drops) - len(il)))
-        return drops, self.fill[t][:count]
+        adds = self.fill[t][:count]
+        return tuple(p for p in roster if p not in drops) + tuple(adds), frozenset(il)
 
     def table(self, t: str, origin: str, n_out: int, n_in: int) -> _Table:
         key = (t, origin, n_out, n_in)
@@ -295,28 +297,20 @@ class _Local:
         outs = list(itertools.combinations(self.short[t], n_out))
         ins = list(itertools.combinations(self.short[origin], n_in))
         i = e.team_index[t]
-        base = e.baseline_vectors[i]
-        vecs = np.repeat(base[None, :], len(outs) * len(ins), axis=0).reshape(len(outs), len(ins), WEEK_DIM)
+        vecs = np.repeat(e.baseline_vectors[i][None, :], len(outs) * len(ins), axis=0).reshape(len(outs), len(ins), WEEK_DIM)
         ok = np.ones((len(outs), len(ins)), dtype=bool)
-        V = e.vecs
         for a, out in enumerate(outs):
-            v_out = V[[e.index[p] for p in out]].sum(axis=0)
             for b, inc in enumerate(ins):
                 res = self._balance(t, out, inc, origin)
                 if res is None:
                     ok[a, b] = False
                     continue
-                drops, adds = res
-                v = base - v_out + V[[e.index[p] for p in inc]].sum(axis=0)
-                if drops:
-                    v = v - V[[e.index[p] for p in drops]].sum(axis=0)
-                if adds:
-                    v = v + V[[e.index[p] for p in adds]].sum(axis=0)
-                vecs[a, b] = v
+                roster, il = res
+                vecs[a, b] = e.team_vector(roster, il, self.s[t])          # IL dönüşü bedeli dahil
         keep = np.arange(len(e.team_ids)) != i
         flat = vecs.reshape(-1, WEEK_DIM)
         p = p_win(flat[:, None, :], e.baseline_vectors[keep][None, :, :], e.config)        # (n, K, 9)
-        bp = e.baseline_p[i, keep]
+        bp = e.before_row(t, self.s[t])
         dp = p.mean(axis=1) - bp.mean(axis=0)
         sd = (dp @ self.s[t].normalized * 9).reshape(ok.shape)
         wd = (p_at_least(p).mean(axis=1) - float(p_at_least(bp).mean())).reshape(ok.shape)
@@ -438,11 +432,11 @@ def suggest_multi(engine: TradeEngine, team_id: str, *, strategy: Strategy | Non
         req = MultiTradeRequest(tuple(moves))
         result.evaluated += 1
         try:
-            rosters, _, _ = resolve_multi(engine, req, {t: strategies[t] for t in teams})
+            rosters, _, il = resolve_multi(engine, req, {t: strategies[t] for t in teams})
         except TradeError:
             result.rejected_roster += 1
             continue
-        _, metrics = engine.score_many(rosters, {t: strategies[t] for t in teams})
+        _, metrics = engine.score_many(rosters, {t: strategies[t] for t in teams}, il)
         fair = _fairness(value_flow(engine, req))
         if (fair < options.min_fairness
                 or min(m["strategy_delta"] for m in metrics.values()) < options.min_strategy_gain

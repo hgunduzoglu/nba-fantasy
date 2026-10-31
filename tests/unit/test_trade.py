@@ -285,3 +285,39 @@ def test_revive_weights_only_the_weakest_categories(eng):
     s = Strategy.revive(probs, 2)
     assert all(w == (3.0 if j in weak else 1.0) for j, w in enumerate(s.weights))
     assert s.normalized[list(weak)].sum() == pytest.approx(6 / 13)
+
+
+def _il_league(trade_data, roster=("0", "1", "2", "12"), il=("12",)):
+    lg = trade_data.leagues["L"]
+    trade_data.players.loc[list(il), "injury_status"] = "O"
+    trade_data.leagues["L"] = replace(lg, rosters={**lg.rosters, "1": roster},
+                                      injury_rosters={**lg.injury_rosters, "1": frozenset(il)})
+    return TradeEngine(trade_data, "L", utilization=1, horizon_weeks=4)
+
+
+def test_il_return_drops_the_weakest_active_player(trade_data):
+    e = _il_league(trade_data)
+    roster, il = e.league.rosters["1"], e.league.injury_rosters["1"]
+    assert e.return_share("12") == 1.0                       # tek kalan SYN maçı dönüşten sonra
+    u = e.zscores.loc[list(roster)].sum(axis=1) / 9
+    worst = u.idxmin()                                         # dönen daha zayıfsa kendisi bırakılır
+    np.testing.assert_allclose(e.crunch_vector(roster, il), e.vecs[e.index[worst]])
+    np.testing.assert_allclose(e.baseline_vectors[e.team_index["1"]],
+                               e.roster_vector(roster) - e.vecs[e.index[worst]])
+
+
+def test_il_return_is_free_with_an_open_spot_or_a_season_ending_injury(trade_data):
+    e = _il_league(trade_data, roster=("0", "1", "12"))
+    assert not e.crunch_vector(e.league.rosters["1"], e.league.injury_rosters["1"]).any()
+    inj = pd.DataFrame({"kind": ["season"], "return_date": [None]}, index=["12"])
+    e = _il_league(replace(trade_data, injuries=inj))
+    assert e.return_share("12") == 0 and not e.crunch_vector(e.league.rosters["1"], e.league.injury_rosters["1"]).any()
+
+
+def test_trading_away_a_returning_il_player_removes_the_return_cost(trade_data):
+    e = _il_league(trade_data)
+    rosters, _, il = e.resolve(TradeRequest("1", "2", ("12",), ("3",), auto_drop=True, auto_fill=True))
+    assert il["1"] == frozenset() and not e.crunch_vector(rosters["1"], il["1"]).any()
+    r = e.analyze(TradeRequest("1", "2", ("12",), ("3",), auto_drop=True, auto_fill=True))
+    i, keep = e.team_index["1"], [j for j, t in enumerate(e.team_ids) if t != "1"]
+    assert r.metrics.loc["1", "ecw_before"] == pytest.approx(np.nansum(e.baseline_p[i, keep], axis=1).mean())

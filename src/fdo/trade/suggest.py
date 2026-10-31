@@ -164,11 +164,11 @@ def suggest_trades(engine: TradeEngine, team_id: str, *, strategy: Strategy | No
                 if not keys:
                     continue
             try:
-                rosters, _, _ = engine.resolve(req, {team_id: strategy, tid: os})
+                rosters, _, il = engine.resolve(req, {team_id: strategy, tid: os})
             except TradeError:
                 result.rejected_roster += 1
                 continue
-            _, metrics = engine.score(rosters, team_id, tid, strategy, os)
+            _, metrics = engine.score(rosters, team_id, tid, strategy, os, il)
             m, o = metrics[team_id], metrics[tid]
             # sat-yüksek / al-düşük: rakibin kalan sezonda kazanması şart değil (kendi gözünde adil)
             sides = (m, o) if mode == "mutual" else (m,)
