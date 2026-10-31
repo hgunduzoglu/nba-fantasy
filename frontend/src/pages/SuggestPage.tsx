@@ -98,6 +98,7 @@ export function SuggestPage({ meta, league, team, injuries, onOpen }: Props) {
   const [packages, setPackages] = useState<string[]>(["1x1", "2x1", "1x2", "2x2"]);
   const [budget, setBudget] = useState(4000);
   const [minFair, setMinFair] = useState(0.55);
+  const [minView, setMinView] = useState(0.8);
   const [results, setResults] = useState<Partial<Record<DirId, SuggestOut>>>({});
   const [progress, setProgress] = useState<{ done: number; total: number; label: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -137,7 +138,7 @@ export function SuggestPage({ meta, league, team, injuries, onOpen }: Props) {
       try {
         out[d.id] = await api.suggest(league.id, {
           team, mode, opponent_assumption: assume, perceived, min_balance: minBalance, min_edge: minEdge, packages,
-          max_evaluations: budget, min_fairness: minFair, min_gain: 0.005, auto_balance: true,
+          max_evaluations: budget, min_fairness: minFair, min_gain: 0.005, min_view: minView, auto_balance: true,
           strategy: toStrategyIn(d.strategy), ecw_weight: d.ecw ?? 0.65, injuries,
         });
         setResults({ ...out });
@@ -219,6 +220,7 @@ export function SuggestPage({ meta, league, team, injuries, onOpen }: Props) {
   const anyResult = found.length > 0;
   const total = (d: DirId) => results[d]?.suggestions.length ?? 0;
   const examined = found.reduce((a, d) => a + results[d]!.examined, 0);
+  const rejectedView = found.reduce((a, d) => a + (results[d]!.rejected_view ?? 0), 0);
 
   return (
     <div className="stack">
@@ -278,6 +280,13 @@ export function SuggestPage({ meta, league, team, injuries, onOpen }: Props) {
                      onChange={(e) => setMinFair(Number(e.target.value))} />
             </label>
           )}
+          {mode === "mutual" && (
+            <label className="field" title="Rakip oyunculara bu sezonun rakamları ve isim değeriyle bakar: aldığı / verdiği algılanan değer bu oranın altındaysa öneri elenir (model rakibin kazandığını hesaplasa bile kabul etmez). 0 = kapalı.">
+              <span>Rakibin gözünde en az</span>
+              <input className="num-input" type="number" step={0.05} min={0} max={1.5} value={minView}
+                     onChange={(e) => setMinView(Number(e.target.value))} />
+            </label>
+          )}
           <div className="field"><span>Paketler (ver × al)</span>
             <div className="seg">
               {PACKAGES.map((p) => (
@@ -317,7 +326,7 @@ export function SuggestPage({ meta, league, team, injuries, onOpen }: Props) {
                 </button>
               ))}
             </div>
-            <span className="muted">{examined} paket tarandı</span>
+            <span className="muted">{examined} paket tarandı{rejectedView ? ` · ${rejectedView} rakibin gözünde dengesiz diye elendi` : ""}</span>
             <span style={{ flex: 1 }} />
             {rows.length > 0 && (
               <>

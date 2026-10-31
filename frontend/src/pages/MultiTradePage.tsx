@@ -479,6 +479,7 @@ function MultiSuggest({ meta, league, team, injuries, onOpen }: Props & { onOpen
   const [assume, setAssume] = useState<"balanced" | "punt1" | "punt2">("balanced");
   const [minFair, setMinFair] = useState(0.5);
   const [minGain, setMinGain] = useState(0.005);
+  const [minView, setMinView] = useState(0.8);
   const [shortlist, setShortlist] = useState(6);
   const [shortlist4, setShortlist4] = useState(4);
   const [result, setResult] = useState<MultiSuggestOut | null>(null);
@@ -495,7 +496,7 @@ function MultiSuggest({ meta, league, team, injuries, onOpen }: Props & { onOpen
     setEffects({});
     api.multiSuggest(league.id, {
       team, shapes, opponent_assumption: assume, shortlist, shortlist4: Math.min(shortlist4, shortlist),
-      min_fairness: minFair, min_gain: minGain, strategy: toStrategyIn(strategy), injuries,
+      min_fairness: minFair, min_gain: minGain, min_view: minView, strategy: toStrategyIn(strategy), injuries,
     }).then(setResult).catch((e: Error) => setError(e.message)).finally(() => setBusy(false));
   };
 
@@ -562,6 +563,10 @@ function MultiSuggest({ meta, league, team, injuries, onOpen }: Props & { onOpen
           <label className="field" title="Takastaki en dengesiz takımın aldığı / verdiği kalan sezon değeri"><span>En az değer dengesi</span>
             <input className="num-input" type="number" step={0.05} min={0} max={1} value={minFair} onChange={(e) => setMinFair(Number(e.target.value))} />
           </label>
+          <label className="field" title="Diğer takımlar oyunculara bu sezonun rakamları ve isim değeriyle bakar: her biri için aldığı / verdiği algılanan değer bu oranın altındaysa öneri elenir. 0 = kapalı.">
+            <span>Diğerlerinin gözünde en az</span>
+            <input className="num-input" type="number" step={0.05} min={0} max={1.5} value={minView} onChange={(e) => setMinView(Number(e.target.value))} />
+          </label>
           <label className="field" title="Her takımın en az strateji kazancı (rakip başına haftalık kategori)"><span>En az kazanç (her takım)</span>
             <input className="num-input" type="number" step={0.005} min={0} max={0.5} value={minGain} onChange={(e) => setMinGain(Number(e.target.value))} />
           </label>
@@ -583,7 +588,7 @@ function MultiSuggest({ meta, league, team, injuries, onOpen }: Props & { onOpen
         <div className="card">
           <div className="card-h">
             <h2>{result.suggestions.length} öneri</h2>
-            <span className="muted">{result.scanned.toLocaleString("tr-TR")} döngü tarandı · {result.evaluated} tam modelle değerlendirildi · {result.eligible} eşikleri geçti · senin stratejin: {result.strategy.name}</span>
+            <span className="muted">{result.scanned.toLocaleString("tr-TR")} döngü tarandı · {result.evaluated} tam modelle değerlendirildi · {result.eligible} eşikleri geçti{result.rejected_view ? ` · ${result.rejected_view} diğer takımın gözünde dengesiz` : ""} · senin stratejin: {result.strategy.name}</span>
             <span style={{ flex: 1 }} />
             {result.suggestions.length > 0 && (
               <>

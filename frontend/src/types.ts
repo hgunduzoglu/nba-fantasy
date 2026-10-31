@@ -194,6 +194,8 @@ export interface SuggestIn {
   min_fairness: number;
   min_gain: number;
   ecw_weight?: number;
+  /** Karşılıklı faydada rakibin gözünde (algılanan değer) en az aldığı / verdiği. */
+  min_view?: number;
   auto_balance: boolean;
   strategy?: StrategyIn | null;
   injuries: boolean;
@@ -233,6 +235,7 @@ export interface SuggestOut {
   examined: number;
   eligible: number;
   rejected_balance: number;
+  rejected_view?: number;
   rejected_roster: number;
   limit_reached: boolean;
   message: string;
@@ -452,6 +455,7 @@ export interface MultiSuggestIn {
   min_gain: number;
   min_win?: number;
   ecw_weight?: number;
+  min_view?: number;
   strategy?: StrategyIn | null;
   injuries: boolean;
 }
@@ -487,6 +491,7 @@ export interface MultiSuggestOut {
   candidates: number;
   evaluated: number;
   eligible: number;
+  rejected_view?: number;
   message: string;
   shapes: Record<string, string>;
 }
