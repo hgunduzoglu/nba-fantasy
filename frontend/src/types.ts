@@ -490,3 +490,25 @@ export interface MultiSuggestOut {
   message: string;
   shapes: Record<string, string>;
 }
+
+// ------------------------------------------------------------------ fikstür etkisi
+export interface FixtureWeek {
+  week: number;
+  start: string | null;
+  opponent: string;
+  opponent_name: string;
+  p_before: number;
+  p_after: number;
+  exp_before: number;
+  exp_after: number;
+  /** Rakip de takasta (onun kadrosu da değişti). */
+  partner: boolean;
+}
+
+export interface FixtureTeam {
+  team_id: string;
+  team: string;
+  weeks: FixtureWeek[];
+  wins_before: number;
+  wins_after: number;
+}

@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError } from "../api";
 import { CategoryImpact } from "../components/CategoryImpact";
+import { FixtureImpact } from "../components/FixtureImpact";
 import { PlayerPicker } from "../components/PlayerPicker";
 import { RosterTable } from "../components/RosterTable";
 import { BALANCED, StrategyPicker, strategyLabel, toStrategyIn, type StrategyChoice } from "../components/StrategyPicker";
 import { deltaClass } from "../components/common";
 import { fmtDelta, fmtNum, fmtPct, fmtStat } from "../format";
 import { downloadJson, useScenarios, type NamedId, type Scenario } from "../scenarios";
-import type { League, Meta, Player, Roster, SeasonOut, Source, TradeIn, TradeOut, TradeSide } from "../types";
+import type { FixtureTeam, League, Meta, Player, Roster, SeasonOut, Source, TradeIn, TradeOut, TradeSide } from "../types";
 
 export interface TradeInit {
   opp: string;
@@ -241,7 +242,10 @@ export function TradePage({ meta, league, team, injuries, initial }: Props) {
   const [mode, setMode] = useState(MODE_ORDER[0]);
   const [fa, setFa] = useState<Player[]>([]);
   const [savedId, setSavedId] = useState<string | null>(null);
+  const [fixtures, setFixtures] = useState<FixtureTeam[] | null>(null);
+  const [fixBusy, setFixBusy] = useState(false);
   const seq = useRef(0);
+  const fixSeq = useRef(0);
   const scenarios = useScenarios();
 
   const mine = useRoster(league.id, team, source, injuries);
@@ -276,6 +280,18 @@ export function TradePage({ meta, league, team, injuries, initial }: Props) {
     }, 200);
     return () => clearTimeout(t);
   }, [body, league.id]);
+
+  // Fikstür etkisi (hızlı, simülasyonsuz): analiz sonucu geldikçe kendiliğinden hesaplanır.
+  useEffect(() => {
+    setFixtures(null);
+    if (!result || !body) return;
+    const id = ++fixSeq.current;
+    setFixBusy(true);
+    api.tradeFixtures(league.id, body)
+      .then((r) => { if (id === fixSeq.current) setFixtures(r.teams); })
+      .catch(() => { if (id === fixSeq.current) setFixtures(null); })
+      .finally(() => { if (id === fixSeq.current) setFixBusy(false); });
+  }, [result]);   // gövde, sonucu üreten gövdedir
 
   const runSeason = () => {
     if (!body) return;
@@ -485,6 +501,14 @@ export function TradePage({ meta, league, team, injuries, initial }: Props) {
                 </table>
               )}
               {season && <p className="muted" style={{ fontSize: 12 }}>{season.n_sims} simülasyon · takım gücü belirsizliği ±%{(season.strength_sd * 100).toFixed(0)} · aynı çekilişlerle takassız/takaslı karşılaştırma. Olasılıklar kalibre edilmedi.</p>}
+
+              {(fixBusy || fixtures) && (
+                <>
+                  <div className="section-title">Fikstür: haftalık kazanma olasılığı</div>
+                  {fixtures ? <FixtureImpact teams={fixtures} me={team} />
+                    : <span className="muted"><span className="spinner" /> Hesaplanıyor…</span>}
+                </>
+              )}
 
               <div className="section-title">Lig sıralamasında kategori değişimi</div>
               <div className="seg" role="group" style={{ marginBottom: 10 }}>

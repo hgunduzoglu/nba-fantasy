@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api";
 import { CategoryImpact } from "../components/CategoryImpact";
+import { FixtureImpact } from "../components/FixtureImpact";
 import { CategoryChips, ErrorBanner, Loading, PlayerName, deltaClass } from "../components/common";
 import { RosterTable } from "../components/RosterTable";
 import { BALANCED, StrategyPicker, toStrategyIn, type StrategyChoice } from "../components/StrategyPicker";
 import { fmtDelta, fmtNum, fmtPct, fmtStat } from "../format";
 import type {
-  League, Meta, MultiSeasonOut, MultiSuggestOut, MultiSuggestion, MultiTeamOut, MultiTradeIn, MultiTradeOut, Player,
+  FixtureTeam, League, Meta, MultiSeasonOut, MultiSuggestOut, MultiSuggestion, MultiTeamOut, MultiTradeIn, MultiTradeOut, Player,
   Roster, Source,
 } from "../types";
 
@@ -120,7 +121,10 @@ function MultiAnalyze({ meta, league, team, injuries, initial }: Props & { initi
   const [season, setSeason] = useState<MultiSeasonOut | null>(null);
   const [seasonBusy, setSeasonBusy] = useState(false);
   const [rankMode, setRankMode] = useState(MODE_ORDER[0]);
+  const [fixtures, setFixtures] = useState<FixtureTeam[] | null>(null);
+  const [fixBusy, setFixBusy] = useState(false);
   const seq = useRef(0);
+  const fixSeq = useRef(0);
 
   const filled = slots.filter(Boolean);
   const { map: rosters, errors } = useRosters(league.id, filled, source, injuries);
@@ -213,6 +217,17 @@ function MultiAnalyze({ meta, league, team, injuries, initial }: Props & { initi
     }, 250);
     return () => clearTimeout(t);
   }, [JSON.stringify(body), league.id]);   // gövde içerik olarak karşılaştırılır
+
+  useEffect(() => {
+    setFixtures(null);
+    if (!result || !body) return;
+    const id = ++fixSeq.current;
+    setFixBusy(true);
+    api.multiFixtures(league.id, body)
+      .then((r) => { if (id === fixSeq.current) setFixtures(r.teams); })
+      .catch(() => { if (id === fixSeq.current) setFixtures(null); })
+      .finally(() => { if (id === fixSeq.current) setFixBusy(false); });
+  }, [result]);   // gövde, sonucu üreten gövdedir
 
   const runSeason = () => {
     if (!body) return;
@@ -406,6 +421,14 @@ function MultiAnalyze({ meta, league, team, injuries, initial }: Props & { initi
                     </tbody>
                   </table>
                   <p className="muted" style={{ fontSize: 12 }}>{season.n_sims} simülasyon · takım gücü belirsizliği ±%{(season.strength_sd * 100).toFixed(0)} · aynı çekilişlerle takassız/takaslı karşılaştırma. Olasılıklar kalibre edilmedi.</p>
+                </>
+              )}
+
+              {(fixBusy || fixtures) && (
+                <>
+                  <div className="section-title">Fikstür: haftalık kazanma olasılığı</div>
+                  {fixtures ? <FixtureImpact teams={fixtures} me={result.teams.some((t) => t.team_id === team) ? team : result.teams[0].team_id} />
+                    : <span className="muted"><span className="spinner" /> Hesaplanıyor…</span>}
                 </>
               )}
 

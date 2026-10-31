@@ -1,5 +1,5 @@
 import type {
-  Meta, MispricedRow, MultiSeasonOut, MultiSuggestIn, MultiSuggestOut, MultiTradeIn, MultiTradeOut, Perceived, Player,
+  FixtureTeam, Meta, MispricedRow, MultiSeasonOut, MultiSuggestIn, MultiSuggestOut, MultiTradeIn, MultiTradeOut, Perceived, Player,
   RankingsOut, Roster, SeasonOut, SeasonPageOut, Source, StreamOut, StrategyIn, SuggestIn, SuggestOut, TradeIn,
   TradeOut, WaiverOut, WeeklyIn, WeeklyOut,
 } from "./types";
@@ -45,6 +45,10 @@ export const api = {
     request<MultiTradeOut>(`/api/leagues/${league}/trade/multi/analyze`, post(body)),
   multiSeason: (league: string, body: MultiTradeIn & { n_sims?: number; strength_sd?: number }) =>
     request<MultiSeasonOut>(`/api/leagues/${league}/trade/multi/season`, post(body)),
+  tradeFixtures: (league: string, body: TradeIn) =>
+    request<{ teams: FixtureTeam[] }>(`/api/leagues/${league}/trade/fixtures`, post(body)),
+  multiFixtures: (league: string, body: MultiTradeIn) =>
+    request<{ teams: FixtureTeam[] }>(`/api/leagues/${league}/trade/multi/fixtures`, post(body)),
   multiSuggest: (league: string, body: MultiSuggestIn) =>
     request<MultiSuggestOut>(`/api/leagues/${league}/trade/multi/suggest`, post(body)),
   mispricing: (league: string, team: string, perceived: Perceived, injuries: boolean) =>
