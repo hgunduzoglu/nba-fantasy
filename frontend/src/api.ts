@@ -1,6 +1,7 @@
 import type {
-  Meta, MispricedRow, Perceived, Player, RankingsOut, Roster, SeasonOut, SeasonPageOut, Source, StreamOut,
-  StrategyIn, SuggestIn, SuggestOut, TradeIn, TradeOut, WaiverOut, WeeklyIn, WeeklyOut,
+  Meta, MispricedRow, MultiSeasonOut, MultiSuggestIn, MultiSuggestOut, MultiTradeIn, MultiTradeOut, Perceived, Player,
+  RankingsOut, Roster, SeasonOut, SeasonPageOut, Source, StreamOut, StrategyIn, SuggestIn, SuggestOut, TradeIn,
+  TradeOut, WaiverOut, WeeklyIn, WeeklyOut,
 } from "./types";
 
 export class ApiError extends Error {
@@ -40,6 +41,12 @@ export const api = {
   season: (league: string, body: TradeIn & { n_sims?: number; strength_sd?: number }) =>
     request<SeasonOut>(`/api/leagues/${league}/trade/season`, post(body)),
   suggest: (league: string, body: SuggestIn) => request<SuggestOut>(`/api/leagues/${league}/trade/suggest`, post(body)),
+  multiAnalyze: (league: string, body: MultiTradeIn) =>
+    request<MultiTradeOut>(`/api/leagues/${league}/trade/multi/analyze`, post(body)),
+  multiSeason: (league: string, body: MultiTradeIn & { n_sims?: number; strength_sd?: number }) =>
+    request<MultiSeasonOut>(`/api/leagues/${league}/trade/multi/season`, post(body)),
+  multiSuggest: (league: string, body: MultiSuggestIn) =>
+    request<MultiSuggestOut>(`/api/leagues/${league}/trade/multi/suggest`, post(body)),
   mispricing: (league: string, team: string, perceived: Perceived, injuries: boolean) =>
     request<{ sell_high: MispricedRow[]; buy_low: MispricedRow[] }>(
       `/api/leagues/${league}/trade/mispricing?team=${team}&perceived=${perceived}&${q(injuries)}`),

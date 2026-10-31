@@ -45,6 +45,21 @@ export function deltaClass(d: number | null | undefined, scale: number): string 
   return "";
 }
 
+/** En büyük ``k`` kategori olasılığı değişimi (puan): "FT% +12 · REB −5". Tümü başlıkta (title). */
+export function CategoryChips({ deltas, labels, k = 3 }: {
+  deltas: Record<string, number>; labels: Record<string, string>; k?: number;
+}) {
+  const items = Object.entries(deltas).map(([c, d]) => ({ c, d: d * 100 })).sort((a, b) => Math.abs(b.d) - Math.abs(a.d));
+  const all = items.map((x) => `${labels[x.c] ?? x.c} ${x.d > 0 ? "+" : ""}${x.d.toFixed(1)}`).join(" · ");
+  return (
+    <span className="catchips" title={`Kategori kazanma olasılığı değişimi (puan): ${all}`}>
+      {items.slice(0, k).filter((x) => Math.abs(x.d) >= 0.5).map((x) => (
+        <span key={x.c} className={x.d > 0 ? "good" : "bad"}>{labels[x.c] ?? x.c} {x.d > 0 ? "+" : "−"}{Math.abs(x.d).toFixed(0)}</span>
+      ))}
+    </span>
+  );
+}
+
 export function InlineBar({ value, max = 1 }: { value: number; max?: number }) {
   const w = Math.max(0, Math.min(1, value / max)) * 100;
   return <span className="ibar" aria-hidden="true"><span style={{ width: `${w}%` }} /></span>;

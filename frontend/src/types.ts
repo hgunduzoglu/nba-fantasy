@@ -76,6 +76,7 @@ export interface StrategyIn {
   name?: string;
   weights?: number[];
   auto_punt?: 1 | 2;
+  auto_revive?: 1 | 2;
 }
 
 export interface TradeIn {
@@ -186,6 +187,7 @@ export interface SuggestIn {
   max_evaluations: number;
   min_fairness: number;
   min_gain: number;
+  ecw_weight?: number;
   auto_balance: boolean;
   strategy?: StrategyIn | null;
   injuries: boolean;
@@ -207,10 +209,21 @@ export interface Suggestion {
   key_players: string[];
   other_strategy: string;
   other_weights: number[];
+  /** Rakiplere karşı ortalama kategori kazanma olasılığı değişimi (0–1 ölçeğinde fark). */
+  my_categories: Record<CategoryKey, number>;
+  other_categories: Record<CategoryKey, number>;
+  /** Fantezi playoff haftalarında kadronun toplam NBA maçı farkı, otomatik bırak/ekle dahil (bilinmiyorsa null). */
+  playoff_games: number | null;
+  /** Takastan sonra senin aktif kadronda doldurulamayan pozisyon sayısı. */
+  position_gap: number;
+  /** Rakibin gözünden (algılanan değer): aldığı / verdiği. */
+  perceived_view: number | null;
+  adjustments: Record<string, Record<"drop" | "add" | "move_to_il", string[]>>;
 }
 
 export interface SuggestOut {
   suggestions: Suggestion[];
+  strategy: { name: string; weights: number[] };
   examined: number;
   eligible: number;
   rejected_balance: number;
@@ -361,4 +374,113 @@ export interface RankingsOut {
   source: Source;
   mode_label: string;
   teams: RankTeam[];
+}
+
+// ------------------------------------------------------------------ çok takımlı takas
+export interface MoveIn {
+  player: string;
+  from_team: string;
+  to_team: string;
+}
+
+export interface MultiTradeIn {
+  moves: MoveIn[];
+  drops?: Record<string, string[]>;
+  adds?: Record<string, string[]>;
+  strategies?: Record<string, StrategyIn | null>;
+  auto_balance: boolean;
+  injuries: boolean;
+}
+
+export interface MultiTeamOut {
+  team_id: string;
+  team: string;
+  strategy: string;
+  ecw_before: number;
+  ecw_after: number;
+  ecw_delta: number;
+  win_before: number;
+  win_after: number;
+  win_delta: number;
+  strategy_before: number;
+  strategy_after: number;
+  strategy_delta: number;
+  value_in: number;
+  value_out: number;
+  perceived_in: number;
+  perceived_out: number;
+  playoff_games: number | null;
+  sent: (BriefPlayer & { to: string; to_name: string })[];
+  received: (BriefPlayer & { from: string; from_name: string })[];
+  categories: CategoryProb[];
+  adjustments: Record<"drop" | "add" | "move_to_il", { id: string; name: string }[]>;
+  ranks: Record<string, RankRow[]>;
+}
+
+export interface MultiTradeOut {
+  teams: MultiTeamOut[];
+  fairness: number;
+  mutual: boolean;
+  assessments: { commissioner_risk: string; review_type: string; deadline: string | null; deadline_passed: boolean;
+                 all_matchup_improve: boolean };
+  notes: string[];
+  modes: Record<string, string>;
+  n_teams: number;
+}
+
+export interface MultiSeasonOut {
+  n_sims: number;
+  strength_sd: number;
+  teams: (SeasonSide & { team: string })[];
+  notes: string[];
+}
+
+export interface MultiSuggestIn {
+  team: string;
+  shapes: string[];
+  opponents?: string[] | null;
+  opponent_assumption: "balanced" | "punt1" | "punt2";
+  shortlist: number;
+  shortlist4: number;
+  min_fairness: number;
+  min_gain: number;
+  min_win?: number;
+  ecw_weight?: number;
+  strategy?: StrategyIn | null;
+  injuries: boolean;
+}
+
+export interface MultiSuggestTeam {
+  team_id: string;
+  team: string;
+  strategy: string;
+  weights: number[];
+  strategy_delta: number;
+  win_delta: number;
+  ecw_delta: number;
+  value_in: number;
+  value_out: number;
+  playoff_games: number | null;
+  categories: Record<CategoryKey, number>;
+  adjustments: Record<"drop" | "add" | "move_to_il", string[]>;
+}
+
+export interface MultiSuggestion {
+  shape: string;
+  shape_label: string;
+  score: number;
+  fairness: number;
+  moves: { player: BriefPlayer; from: string; from_name: string; to: string; to_name: string }[];
+  teams: MultiSuggestTeam[];
+}
+
+export interface MultiSuggestOut {
+  suggestions: MultiSuggestion[];
+  strategy: { name: string; weights: number[] };
+  scanned: number;
+  candidates: number;
+  evaluated: number;
+  eligible: number;
+  message: string;
+  shapes: Record<string, string>;
 }
