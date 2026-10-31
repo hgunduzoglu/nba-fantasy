@@ -2,6 +2,7 @@
 import streamlit as st
 
 from fdo.trade import TradeError, TradeRequest
+from fdo.ui import season_common as sc
 from fdo.ui import trade_common as tc
 
 data, eng, mine, day = tc.page("Takas Analizi")
@@ -41,5 +42,6 @@ if submitted:
 cached = st.session_state.get("trade_analysis_result")
 if cached and cached[0] == fingerprint:
     tc.show_result(eng, cached[1], key="manual_trade")
+    sc.show_trade_effect(eng, cached[1], key="manual_trade_season")
 elif cached:
     st.info("Seçimler değişti. Güncel karşılaştırma için takası yeniden analiz et.")
