@@ -1,0 +1,58 @@
+"""Sezon içi API uç noktaları: öneriler, yanlış fiyatlama, bu hafta + streaming, boştakiler, sezon, sıralamalar."""
+import pandas as pd
+import pytest
+
+pytest.importorskip("fastapi")
+from fastapi.testclient import TestClient  # noqa: E402
+
+from fdo.api.app import create_app  # noqa: E402
+from unit.test_inseason import data  # noqa: E402,F401  paylaşılan sentetik lig
+from unit.test_season import _fixtures  # noqa: E402
+
+
+@pytest.fixture
+def client(data, tmp_path):  # noqa: F811
+    _fixtures(range(1, 20)).to_csv(tmp_path / "fixtures.csv", index=False)
+    pd.DataFrame({"league_id": "L", "team_id": ["1", "2", "3", "4"], "wins": [7, 2, 5, 4],
+                  "losses": [2, 7, 4, 5], "ties": 0}).to_csv(tmp_path / "standings.csv", index=False)
+    app = create_app(data_dir=tmp_path, frontend_dir=tmp_path / "yok")
+    st = app.state.fdo
+    st.data = lambda injuries=True: data
+    st.signature = lambda: "test"
+    return TestClient(app)
+
+
+def test_weekly_and_stream(client):
+    w = client.post("/api/leagues/L/weekly", json={"team": "1", "week": 3}).json()
+    assert w["week"] == 3 and len(w["days"]) == 7 and w["acquisitions_limit"] == 4
+    assert w["opponent"] in {"2", "3", "4"} and w["fixture_opponent"] == w["opponent"]
+    o = w["outlook"]
+    assert len(o["p"]) == 9 and o["expected_wins"] == pytest.approx(sum(o["p"]))
+    assert len(o["grid"]["mine"][0]["marks"]) == 7 and len(w["default_droppable"]) == 3
+    s = client.post("/api/leagues/L/weekly/stream", json={"team": "1", "week": 3, "droppable": w["default_droppable"]}).json()
+    assert s["left"] == 4 and len(s["moves"]) <= 4 and s["after"]["expected_wins"] >= s["before"]["expected_wins"] - 1e-9
+    assert client.post("/api/leagues/L/weekly", json={"team": "1", "week": 99}).status_code == 400
+
+
+def test_waiver_season_rankings(client):
+    wv = client.get("/api/leagues/L/waiver?team=2&preset=Punt%20FT_PCT").json()
+    assert wv["rows"] and set(wv["rows"][0]["dp"]) >= {"FG_PCT", "TOV"}
+    assert all(r["drop"]["id"] != "7" for r in wv["rows"])                       # IL'deki oyuncu bırakılmaz
+    se = client.get("/api/leagues/L/season?team=1&n=300").json()
+    assert se["standings_known"] and se["start_week"] == 2 and len(se["table"]) == 4
+    assert sum(r["p_champion"] for r in se["table"]) == pytest.approx(1)
+    rk = client.get("/api/leagues/L/rankings?source=ros").json()
+    assert len(rk["teams"]) == 4 and "ecw" in rk["teams"][0]
+    assert "ecw" not in client.get("/api/leagues/L/rankings?source=season").json()["teams"][0]
+
+
+def test_suggest_and_mispricing(client):
+    r = client.post("/api/leagues/L/trade/suggest", json={"team": "1", "max_evaluations": 200, "min_fairness": 0.1,
+                                                         "min_gain": 0.00001}).json()
+    assert r["examined"] <= 200 and isinstance(r["suggestions"], list)
+    for s in r["suggestions"]:
+        assert s["own_delta"] > 0 and s["other_delta"] > 0 and s["give_a"] and s["give_b"]
+    bad = client.post("/api/leagues/L/trade/suggest", json={"team": "1", "mode": "x"})
+    assert bad.status_code == 400
+    m = client.get("/api/leagues/L/trade/mispricing?team=1").json()
+    assert set(m) == {"sell_high", "buy_low"} and all(x["team_id"] == "1" for x in m["sell_high"])
