@@ -134,10 +134,11 @@ class WeekModel:
                           for p in engine.ids}
 
     # ------------------------------------------------------------- yardımcılar
-    def playable(self, pid: str) -> bool:
+    def playable(self, pid: str, use_status: bool = True) -> bool:
+        """``use_status=False``: güncel sakatlık durumu yok sayılır (gelecek haftalar; kayıp maçlar ROS GP'de)."""
         i = self.engine.index[pid]
         status = str(self.engine.data.players.loc[pid, "injury_status"] or "")
-        return bool(self.engine.modeled[i]) and status not in self.out_statuses
+        return bool(self.engine.modeled[i]) and (not use_status or status not in self.out_statuses)
 
     def has_game(self, pid: str, day: dt.date) -> bool:
         return self.team[self.engine.index[pid]] in self.games.get(day, ())
@@ -147,11 +148,11 @@ class WeekModel:
         return [p for p in lg.rosters[team_id] if p not in lg.injury_rosters[team_id]]
 
     def team_week(self, team_id: str, stints: list[Stint], days: list[dt.date],
-                  acc: np.ndarray | None = None) -> TeamWeek:
+                  acc: np.ndarray | None = None, *, use_status: bool = True) -> TeamWeek:
         ids = [s.player_id for s in stints]
         n, D = len(ids), len(days)
         idx = [self.engine.index[p] for p in ids]
-        can = np.array([self.playable(p) for p in ids], dtype=bool)
+        can = np.array([self.playable(p, use_status) for p in ids], dtype=bool)
         playing = np.zeros((D, n), dtype=bool)
         for d, day in enumerate(days):
             teams = self.games.get(day, ())
