@@ -125,7 +125,8 @@ def register(app: FastAPI, state: AppState) -> None:
             shapes = tuple(tuple(int(x) for x in s.split("-")) for s in body.shapes)
             opts = MultiSearchOptions(shapes, body.shortlist, min(body.shortlist4, body.shortlist),
                                       min_fairness=body.min_fairness, min_strategy_gain=body.min_gain,
-                                      min_win_gain=body.min_win / 100, ecw_weight=body.ecw_weight)
+                                      min_win_gain=body.min_win / 100, ecw_weight=body.ecw_weight,
+                                      min_opponent_view=body.min_view)
             strategy = _strategy(body.strategy, eng, body.team)
             found = suggest_multi(eng, body.team, strategy=strategy,
                                   opponent_strategies=assumed_strategies(eng, body.opponent_assumption, opps),
@@ -156,5 +157,5 @@ def register(app: FastAPI, state: AppState) -> None:
             })
         return clean({"suggestions": rows, "strategy": {"name": strategy.name, "weights": list(strategy.weights)},
                       "scanned": found.scanned, "candidates": found.candidates, "evaluated": found.evaluated,
-                      "eligible": found.eligible, "message": found.message,
+                      "eligible": found.eligible, "rejected_view": found.rejected_view, "message": found.message,
                       "shapes": {"-".join(map(str, k)): v for k, v in SHAPES.items()}})

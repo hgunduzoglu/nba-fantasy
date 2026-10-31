@@ -68,7 +68,8 @@ def register(app: FastAPI, state: AppState) -> None:
             sizes = tuple(tuple(int(x) for x in p.split("x")) for p in body.packages)
             opts = SearchOptions(sizes, body.shortlist, int(body.max_evaluations), 20, body.min_fairness,
                                  body.min_gain, body.min_win / 100, body.auto_balance, body.ecw_weight,
-                                 body.mode, body.perceived, body.min_balance, body.min_edge)
+                                 body.mode, body.perceived, body.min_balance, body.min_edge,
+                                 body.min_view if body.mode == "mutual" else 0.0)
             strategy = _strategy(body.strategy, eng, body.team)
             found = suggest_trades(eng, body.team, strategy=strategy, opponent_strategies=opp_strats,
                                    opponents=opps, options=opts)
@@ -99,7 +100,8 @@ def register(app: FastAPI, state: AppState) -> None:
                                          for t, a in adj.items()}})
         return clean({"suggestions": rows, "strategy": {"name": strategy.name, "weights": list(strategy.weights)},
                       "examined": found.examined, "eligible": found.eligible,
-                      "rejected_balance": found.rejected_fairness, "rejected_roster": found.rejected_roster,
+                      "rejected_balance": found.rejected_fairness, "rejected_view": found.rejected_view,
+                      "rejected_roster": found.rejected_roster,
                       "limit_reached": found.limit_reached, "message": found.message})
 
     @app.get("/api/leagues/{lid}/trade/mispricing")

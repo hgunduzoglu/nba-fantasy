@@ -45,6 +45,7 @@ class SuggestIn(BaseModel):
     perceived: str = "blend"
     min_balance: float = 0.9
     min_edge: float = 1.0
+    min_view: float = 0.8                           # karşılıklı faydada rakibin gözünde en az denge
     packages: list[str] = Field(default_factory=lambda: ["1x1", "2x1", "1x2", "2x2"])
     shortlist: int = 8
     max_evaluations: int = 4000
@@ -88,6 +89,7 @@ class MultiSuggestIn(BaseModel):
     min_gain: float = 0.005
     min_win: float = 0.0
     ecw_weight: float = 0.65
+    min_view: float = 0.8                           # diğer takımların gözünde (algılanan) en az denge
     strategy: StrategyIn | None = None
     injuries: bool = True
 
