@@ -1656,6 +1656,15 @@ Takas Önerileri'nde üç ayrı tür (`SearchOptions.mode`), her biri kendi eşi
   (aldığı / verdiği algılanan değer) ≥ eşik; senin kazancın eşiği geçer. Rakibin ROS kazancı şart değil.
 - **Al düşük** (`buy_low`): aldığın pakette `−edge ≥ min_edge` oyuncu; aynı denge ve kazanç şartı.
 - Puan: karşılıklıda önceki formül; diğerlerinde `senin birleşik kazancın × min(1, algılanan denge)`.
+- **Gerçekçilik (1 Kasım 2026)**: karşılıklı faydada da rakibin gözündeki denge (algılanan aldığı / verdiği,
+  `SearchOptions.min_opponent_view`, arayüz varsayılanı 0.8) şarttır; çok takımlıda takastaki diğer her takım için.
+  Yahoo ROS bazı oyunculara neredeyse tüm kalan maçları verdiği için (ör. Caruso 72 maç, sezon öncesi 58) ROS değeri
+  ile rakibin baktığı değer çok ayrışabilir; model kazanç görse de rakibin isimlere bakıp reddedeceği takaslar elenir.
+- **Bedava waiver** (`TradeEngine.waiver_best`): takasa giren takım hem önce hem sonra boştaki oyuncularla yapabileceği
+  bedava hamleleri yapmış sayılır (boş aktif yer en iyi boştakiyle dolar; boştakinden zayıf aktif oyuncu değişir).
+  Önceden 2'ye 1 takasta açılan yere giren boştaki oyuncu takasın kazancı sayılıyordu: ör. Caruso ↔ Jalen Johnson +
+  Shannon'da 4-2-3-1 Gegen'in "kazancı" (+0.36) aslında takassız da alabileceği iki boştaki oyuncudandı (gerçekte −0.36).
+  Değersiz ek oyuncuyla şişirilmiş paketler (aynı takasın + ek oyunculu kopyaları) listeden çıkarılır.
 - Sayfada kadrondaki sat-yüksek adayları / rakiplerdeki al-düşük hedefleri tablosu; öneriler için
   "playoff etkisini hesapla" (sezon simülasyonu, CRN) ve ΔP(playoff) / ΔP(şampiyon) ile sıralama.
 - Uyarı: en üst oyuncularda değer merdiveni dik olduğu için (ör. SGA bu sezon 17.) büyük negatif edge
