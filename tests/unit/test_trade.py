@@ -264,3 +264,15 @@ def test_real_snapshot_loads_without_modifying_sources():
         assert len(e.before[ROS].ranks) == len(lg.teams)
         assert np.isfinite(e.league_probabilities().to_numpy()).all()
     assert hashes == [hashlib.sha256(p.read_bytes()).digest() for p in protected]
+
+
+def test_injured_active_player_fills_free_il_before_any_drop(trade_data):
+    trade_data.players.loc["1", "injury_status"] = "O"
+    e = TradeEngine(trade_data, "L", horizon_weeks=4)
+    req = TradeRequest("1", "2", ("0",), ("3", "4"))                 # 1 ver 2 al: kapasite 1 aşılır
+    rosters, adj, injuries = e.resolve(req)
+    assert adj["1"]["move_to_il"] == ("1",) and not adj["1"]["drop"]
+    assert "1" in injuries["1"] and set(rosters["1"]) == {"1", "2", "3", "4"}
+    trade_data.players.loc["1", "injury_status"] = ""
+    with pytest.raises(TradeError):                                  # sakat yoksa bırakma seçilmeli
+        TradeEngine(trade_data, "L", horizon_weeks=4).resolve(req)

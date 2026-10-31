@@ -231,6 +231,15 @@ class TradeEngine:
             strategy = strategies.get(tid, Strategy())
             automatic_drops, automatic_adds = [], []
             over = len(roster) - len(il) - self.league.capacity
+            if over > 0:
+                # Boşalan IL yerine kadrodaki sakat (O/INJ) aktif oyuncu taşınır; bırakma ancak sonra gerekir.
+                free_il = (self.config.unverified.il_slots or 0) - len(il)
+                injured = [p for p in roster if p not in il
+                           and str(self.data.players.loc[p, "injury_status"]) in ("O", "INJ", "INJ+")]
+                for pid in injured[: max(0, min(over, free_il))]:
+                    il.add(pid)
+                    moved_il.append(pid)
+                over = len(roster) - len(il) - self.league.capacity
             if over > 0 and request.auto_drop:
                 candidates = [p for p in roster if p not in il and p not in received + adds
                               and self.modeled[self.index[p]]]
