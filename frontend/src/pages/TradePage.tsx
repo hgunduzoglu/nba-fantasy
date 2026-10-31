@@ -10,6 +10,8 @@ interface Props {
   league: League;
   team: string;
   injuries: boolean;
+  /** Takas Önerileri'nden "Takas ekranında aç": rakip ve seçili oyuncular. */
+  initial?: { opp: string; giveA: string[]; giveB: string[] } | null;
 }
 
 const MODE_ORDER = ["remaining_games_projection", "season_total", "preseason"];
@@ -92,15 +94,16 @@ function SideCard({ side, title, scale }: { side: TradeSide; title: string; scal
   );
 }
 
-export function TradePage({ meta, league, team, injuries }: Props) {
+export function TradePage({ meta, league, team, injuries, initial }: Props) {
   const others = league.teams.filter((t) => t.id !== team);
-  const [opp, setOpp] = useState<string>(others[0]?.id ?? "");
+  const [opp, setOpp] = useState<string>(
+    initial && others.some((t) => t.id === initial.opp) ? initial.opp : others[0]?.id ?? "");
   const [source, setSource] = useState<Source>("ros");
   const [stratA, setStratA] = useState("");
   const [stratB, setStratB] = useState("");
   const [auto, setAuto] = useState(true);
-  const [giveA, setGiveA] = useState<Set<string>>(new Set());
-  const [giveB, setGiveB] = useState<Set<string>>(new Set());
+  const [giveA, setGiveA] = useState<Set<string>>(new Set(initial?.giveA ?? []));
+  const [giveB, setGiveB] = useState<Set<string>>(new Set(initial?.giveB ?? []));
   const [result, setResult] = useState<TradeOut | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -109,11 +112,6 @@ export function TradePage({ meta, league, team, injuries }: Props) {
   const [mode, setMode] = useState(MODE_ORDER[0]);
   const seq = useRef(0);
 
-  useEffect(() => {
-    if (!others.some((t) => t.id === opp)) setOpp(others[0]?.id ?? "");
-    setGiveA(new Set());
-  }, [league.id, team]);
-  useEffect(() => setGiveB(new Set()), [opp, league.id]);
 
   const mine = useRoster(league.id, team, source, injuries);
   const theirs = useRoster(league.id, opp, source, injuries);
@@ -168,7 +166,7 @@ export function TradePage({ meta, league, team, injuries }: Props) {
     <>
       <div className="toolbar">
         <label className="field"><span>Karşı takım</span>
-          <select className="select" value={opp} onChange={(e) => setOpp(e.target.value)}>
+          <select className="select" value={opp} onChange={(e) => { setOpp(e.target.value); setGiveB(new Set()); }}>
             {others.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
         </label>
