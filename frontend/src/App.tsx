@@ -1,13 +1,25 @@
 import { useEffect, useState } from "react";
 import { api } from "./api";
+import { FreeAgentsPage } from "./pages/FreeAgentsPage";
+import { RankingsPage } from "./pages/RankingsPage";
+import { SeasonPage } from "./pages/SeasonPage";
+import { SuggestPage, type PendingTrade } from "./pages/SuggestPage";
 import { TradePage } from "./pages/TradePage";
+import { WeeklyPage } from "./pages/WeeklyPage";
 import type { Meta } from "./types";
 
 type Theme = "auto" | "light" | "dark";
 type Scale = "gr" | "br";
-type Tab = "trade";
+type Tab = "trade" | "suggest" | "weekly" | "fa" | "season" | "ranks";
 
-const TABS: { id: Tab; label: string }[] = [{ id: "trade", label: "Takas Analizi" }];
+const TABS: { id: Tab; label: string }[] = [
+  { id: "trade", label: "Takas Analizi" },
+  { id: "suggest", label: "Takas Önerileri" },
+  { id: "weekly", label: "Bu Hafta" },
+  { id: "fa", label: "Boştaki Oyuncular" },
+  { id: "season", label: "Sezon Simülasyonu" },
+  { id: "ranks", label: "Lig Sıralamaları" },
+];
 
 function stored<T extends string>(key: string, fallback: T): T {
   try {
@@ -39,7 +51,16 @@ export default function App() {
   });
   const [theme, setTheme] = useState<Theme>(stored("tl.theme", "auto"));
   const [scale, setScale] = useState<Scale>(stored("tl.scale", "gr"));
-  const [tab, setTab] = useState<Tab>("trade");
+  const [tab, setTab] = useState<Tab>(() => {
+    const h = window.location.hash.replace("#", "") as Tab;
+    return TABS.some((t) => t.id === h) ? h : "trade";
+  });
+  const [pending, setPending] = useState<{ trade: PendingTrade; seq: number } | null>(null);
+
+  const go = (t: Tab) => {
+    setTab(t);
+    window.history.replaceState(null, "", `#${t}`);
+  };
 
   useEffect(() => {
     api.meta(injuries).then(setMeta).catch((e: Error) => setError(e.message));
@@ -105,13 +126,24 @@ export default function App() {
       </header>
       <nav className="tabs" role="tablist">
         {TABS.map((t) => (
-          <button key={t.id} className="tab" role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)}>
+          <button key={t.id} className="tab" role="tab" aria-selected={tab === t.id} onClick={() => go(t.id)}>
             {t.label}
           </button>
         ))}
       </nav>
       <main>
-        {tab === "trade" && <TradePage key={league.id + team} meta={meta} league={league} team={team} injuries={injuries} />}
+        {tab === "trade" && (
+          <TradePage key={`${league.id}-${team}-${pending?.seq ?? 0}`} meta={meta} league={league} team={team}
+                     injuries={injuries} initial={pending?.trade ?? null} />
+        )}
+        {tab === "suggest" && (
+          <SuggestPage key={league.id + team} meta={meta} league={league} team={team} injuries={injuries}
+                       onOpen={(trade) => { setPending({ trade, seq: (pending?.seq ?? 0) + 1 }); go("trade"); }} />
+        )}
+        {tab === "weekly" && <WeeklyPage key={league.id + team} meta={meta} league={league} team={team} injuries={injuries} />}
+        {tab === "fa" && <FreeAgentsPage key={league.id + team} meta={meta} league={league} team={team} injuries={injuries} />}
+        {tab === "season" && <SeasonPage key={league.id + team} league={league} team={team} injuries={injuries} />}
+        {tab === "ranks" && <RankingsPage meta={meta} league={league} team={team} injuries={injuries} />}
       </main>
     </>
   );
