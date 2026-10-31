@@ -336,6 +336,30 @@ def _place(arr: np.ndarray, ax_a: int, ax_b: int, k: int) -> np.ndarray:
     return arr.reshape(shape)
 
 
+def _pick(items: list, limit: int, shape: Callable, caps: list[tuple[Callable, int]]) -> list:
+    """Puana göre sıralı ``items``'tan çeşitli seçim. Önce her şekle eşit pay verilir, kalan yer en iyilerle
+    dolar; ``caps`` (anahtar, sınır) çiftleri her iki turda da geçerlidir (takım grubu, senin paketin)."""
+    quota = -(-limit // max(1, len({shape(x) for x in items})))
+    counts: list[dict] = [{} for _ in caps]
+    per_shape: dict = {}
+    out, taken = [], set()
+    for first in (True, False):
+        for i, x in enumerate(items):
+            if len(out) >= limit:
+                return out
+            if i in taken or (first and per_shape.get(shape(x), 0) >= quota):
+                continue
+            keys = [key(x) for key, _ in caps]
+            if any(c.get(k, 0) >= cap for c, k, (_, cap) in zip(counts, keys, caps)):
+                continue
+            for c, k in zip(counts, keys):
+                c[k] = c.get(k, 0) + 1
+            per_shape[shape(x)] = per_shape.get(shape(x), 0) + 1
+            taken.add(i)
+            out.append(x)
+    return out
+
+
 def suggest_multi(engine: TradeEngine, team_id: str, *, strategy: Strategy | None = None,
                   opponent_strategies: dict[str, Strategy] | None = None,
                   opponents: tuple[str, ...] | None = None, options: MultiSearchOptions | None = None,
@@ -398,16 +422,12 @@ def suggest_multi(engine: TradeEngine, team_id: str, *, strategy: Strategy | Non
             progress(n_job + 1, len(jobs))
     result.candidates = len(pool)
     pool.sort(key=lambda x: -x[0])
-    per_group: dict[frozenset, int] = {}
-    chosen = []
-    for item in pool:
-        group = frozenset(item[2])
-        if per_group.get(group, 0) >= 15:
-            continue
-        per_group[group] = per_group.get(group, 0) + 1
-        chosen.append(item)
-        if len(chosen) >= options.candidates:
-            break
+    # Kesin değerlendirmeye çeşitli adaylar geçer: her şekle pay, aynı takım grubu ve senin aynı paketin sınırlı.
+    def my_package(item):
+        _, shape, teams, idx = item
+        return frozenset(local.tables[(teams[1], teams[0], shape[1], shape[0])].ins[idx[0]])
+    chosen = _pick(pool, options.candidates, lambda x: x[1],
+                   [(lambda x: frozenset(x[2]), 15), (my_package, 5 * options.per_package)])
     found = []
     for _, shape, teams, idx in chosen:
         k = len(teams)
@@ -436,17 +456,10 @@ def suggest_multi(engine: TradeEngine, team_id: str, *, strategy: Strategy | Non
         value = (g.min() + float(np.exp(np.log(g).mean()))) * (.5 + .5 * fair)
         found.append(MultiSuggestion(req, shape, float(value), metrics, fair, {t: strategies[t] for t in teams}))
     found.sort(key=lambda s: -s.score)
-    groups: dict[frozenset, int] = {}
-    packages: dict[frozenset, int] = {}
-    for s in found:
-        group, package = frozenset(s.request.teams), frozenset(s.request.sent(team_id))
-        if groups.get(group, 0) >= options.per_group or packages.get(package, 0) >= options.per_package:
-            continue
-        groups[group] = groups.get(group, 0) + 1
-        packages[package] = packages.get(package, 0) + 1
-        result.suggestions.append(s)
-        if len(result.suggestions) >= options.max_results:
-            break
+    result.suggestions = sorted(_pick(found, options.max_results, lambda s: s.shape,
+                                      [(lambda s: frozenset(s.request.teams), options.per_group),
+                                       (lambda s: frozenset(s.request.sent(team_id)), options.per_package)]),
+                                key=lambda s: -s.score)
     if not result.suggestions:
         result.message = ("Bu aralıkta takastaki her takıma fayda sağlayan çok takımlı döngü bulunamadı. Eşikleri "
                           "gevşetmeyi, kısa listeyi büyütmeyi ya da rakip strateji varsayımını değiştirmeyi dene.")
