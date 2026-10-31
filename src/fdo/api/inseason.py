@@ -6,8 +6,8 @@ import numpy as np
 from fastapi import FastAPI, HTTPException, Query
 
 from fdo.api.schemas import StrategyIn, StreamIn, SuggestIn, WaiverIn, WeeklyIn
-from fdo.api.serialize import (assumed_strategies, brief, category_deltas, clean, player_row, strategy_from,
-                               value_ranks)
+from fdo.api.serialize import (assumed_strategies, brief, category_deltas, clean, games_delta, player_row,
+                               strategy_from, value_ranks)
 from fdo.api.state import AppState
 from fdo.inseason.fixtures import opponent as fixture_opponent
 from fdo.inseason.waiver import drop_ranking, waiver_table
@@ -85,8 +85,7 @@ def register(app: FastAPI, state: AppState) -> None:
             active = [x for x in rosters[body.team] if x not in il[body.team]]
             rows.append({"my_categories": category_deltas(eng, p, body.team),
                          "other_categories": category_deltas(eng, p, r.team_b),
-                         "playoff_games": (sum(po_games.get(x, 0) for x in r.give_b)
-                                           - sum(po_games.get(x, 0) for x in r.give_a)) if po_games else None,
+                         "playoff_games": games_delta(po_games, eng.league.rosters[body.team], rosters[body.team]),
                          "position_gap": best_assignment(eng.positions(active), eng.config).n_open_active,
                          "perceived_view": float(perceived.reindex(list(r.give_a)).fillna(0).sum()) / taken
                          if taken > 0 else None,"team_b": r.team_b, "team_b_name": eng.league.teams[r.team_b],

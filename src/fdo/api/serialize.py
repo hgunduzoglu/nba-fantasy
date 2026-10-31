@@ -88,6 +88,13 @@ def category_deltas(eng: TradeEngine, p_after: np.ndarray, team_id: str) -> dict
     return {c: float(x) for c, x in zip(CATEGORIES, d)}
 
 
+def games_delta(games: dict[str, int], before, after) -> int | None:
+    """Kadronun playoff haftalarındaki toplam NBA maçı farkı (otomatik bırak/ekle dahil); bilinmiyorsa None."""
+    if not games:
+        return None
+    return sum(games.get(p, 0) for p in after) - sum(games.get(p, 0) for p in before)
+
+
 def presets() -> list[dict]:
     return [{"name": n, "weights": list(Strategy.preset(n).weights)} for n in PRESETS]
 

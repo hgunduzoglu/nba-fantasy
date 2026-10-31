@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import FastAPI, HTTPException
 
 from fdo.api.schemas import MultiSeasonIn, MultiSuggestIn, MultiTradeIn, StrategyIn
-from fdo.api.serialize import assumed_strategies, brief, category_deltas, clean, strategy_from
+from fdo.api.serialize import assumed_strategies, brief, category_deltas, clean, games_delta, strategy_from
 from fdo.api.state import AppState
 from fdo.trade import Strategy, TradeError
 from fdo.trade.data import MODES
@@ -45,11 +45,6 @@ def register(app: FastAPI, state: AppState) -> None:
             raise HTTPException(400, str(e)) from e
         return eng, req, strategies
 
-    def games_delta(po: dict, req: MultiTradeRequest, team: str) -> int | None:
-        if not po:
-            return None
-        return (sum(po.get(p, 0) for p, _ in req.received(team)) - sum(po.get(p, 0) for p in req.sent(team)))
-
     @app.post("/api/leagues/{lid}/trade/multi/analyze")
     def analyze(lid: str, body: MultiTradeIn):
         eng, req, strategies = setup(lid, body)
@@ -70,7 +65,7 @@ def register(app: FastAPI, state: AppState) -> None:
                                              "win_delta", "strategy_before", "strategy_after", "strategy_delta",
                                              "value_in", "value_out")},
                 "perceived_in": perceived[t][0], "perceived_out": perceived[t][1],
-                "playoff_games": games_delta(po, req, t),
+                "playoff_games": games_delta(po, eng.league.rosters[t], r.rosters_after[t]),
                 "sent": [{**brief(eng, p), "to": d, "to_name": teams[d]} for p, s, d in req.moves if s == t],
                 "received": [{**brief(eng, p), "from": s, "from_name": teams[s]} for p, s, d in req.moves if d == t],
                 "categories": [{"key": c, "label": CATEGORY_LABELS[c], "before": float(x), "after": float(y)}
@@ -140,7 +135,8 @@ def register(app: FastAPI, state: AppState) -> None:
                 "teams": [{"team_id": t, "team": teams[t], "strategy": s.strategies[t].name,
                            "weights": list(s.strategies[t].weights), "strategy_delta": s.metrics[t]["strategy_delta"],
                            "win_delta": s.metrics[t]["win_delta"], "ecw_delta": s.metrics[t]["ecw_delta"],
-                           "value_in": flow[t][0], "value_out": flow[t][1], "playoff_games": games_delta(po, req, t),
+                           "value_in": flow[t][0], "value_out": flow[t][1],
+                           "playoff_games": games_delta(po, eng.league.rosters[t], rosters[t]),
                            "categories": category_deltas(eng, p, t),
                            "adjustments": {k: [names[x] for x in v] for k, v in adj[t].items()}}
                           for t in req.teams],
