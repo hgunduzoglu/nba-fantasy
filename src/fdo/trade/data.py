@@ -56,6 +56,7 @@ class TradeData:
     as_of: dt.date
     fingerprint: str
     issues: tuple[str, ...]
+    injuries: pd.DataFrame | None = None     # fdo.inseason.injuries.apply_injuries ile (dönüş tarihleri)
 
 
 def number(value) -> float:
@@ -72,6 +73,7 @@ def file_signature(directory: str | Path) -> str:
     paths += list(directory.glob("players_yahoo_*.csv"))
     paths += list(directory.glob("projections_yahoo_*.csv"))
     paths += list(directory.glob("variance*.csv")) + list(directory.glob("schedule*.csv"))
+    paths += list(directory.glob("injuries*.csv"))
     paths += list((REPO_ROOT / "config").glob("*.yaml"))
     return hashlib.sha256("|".join(f"{p}:{p.stat().st_mtime_ns}:{p.stat().st_size}"
                                   for p in sorted(paths) if p.exists()).encode()).hexdigest()[:20]

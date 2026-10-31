@@ -60,3 +60,4 @@ data/live/
 /data/real/standings*.json
 /data/real/week*_results*.csv
 /data/real/week*_results*.json
+/data/real/injuries*.csv
