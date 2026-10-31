@@ -42,10 +42,18 @@ def categories_meta() -> list[dict]:
     return [{"key": c, "label": CATEGORY_LABELS[c], "lower_is_better": c == "TOV"} for c in CATEGORIES]
 
 
-def strategy_from(payload: dict | None) -> Strategy:
-    """``{"preset": "Punt FT_PCT"}`` ya da ``{"name": .., "weights": [9]}``; yoksa dengeli."""
+def strategy_from(payload: dict | None, eng: TradeEngine | None = None, team: str | None = None) -> Strategy:
+    """``{"preset": ..}``, ``{"name": .., "weights": [9]}`` ya da ``{"auto_punt": 1|2}`` (takımın kategori
+    profilinden en zayıf kategori(ler)i punt; ``eng`` ve ``team`` gerekir); yoksa dengeli."""
     if not payload:
         return Strategy()
+    if payload.get("auto_punt"):
+        if eng is None or team is None:
+            raise ValueError("Otomatik punt için takım gerekli")
+        probs = eng.league_probabilities().loc[team, list(CATEGORIES)].to_numpy()
+        auto = Strategy.adaptive(probs, int(payload["auto_punt"]))
+        punted = [CATEGORY_LABELS[c] for c, w in zip(CATEGORIES, auto.weights) if w == 0]
+        return Strategy(f"Otomatik: punt {' + '.join(punted)}", auto.weights)
     if payload.get("preset"):
         return Strategy.preset(payload["preset"])
     w = payload.get("weights")

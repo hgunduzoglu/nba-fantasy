@@ -35,9 +35,11 @@ def test_weekly_and_stream(client):
 
 
 def test_waiver_season_rankings(client):
-    wv = client.get("/api/leagues/L/waiver?team=2&preset=Punt%20FT_PCT").json()
+    wv = client.post("/api/leagues/L/waiver", json={"team": "2", "strategy": {"preset": "Punt FT_PCT"}}).json()
     assert wv["rows"] and set(wv["rows"][0]["dp"]) >= {"FG_PCT", "TOV"}
     assert all(r["drop"]["id"] != "7" for r in wv["rows"])                       # IL'deki oyuncu bırakılmaz
+    auto = client.post("/api/leagues/L/waiver", json={"team": "2", "strategy": {"auto_punt": 1}})
+    assert auto.status_code == 200 and auto.json()["rows"]
     se = client.get("/api/leagues/L/season?team=1&n=300").json()
     assert se["standings_known"] and se["start_week"] == 2 and len(se["table"]) == 4
     assert sum(r["p_champion"] for r in se["table"]) == pytest.approx(1)

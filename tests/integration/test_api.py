@@ -44,3 +44,16 @@ def test_trade_analyze_and_errors(client):
     assert bad.status_code == 400 and "en az bir" in bad.json()["detail"]
     assert client.post("/api/leagues/L/trade/season", json=body).status_code == 409   # fikstür yok
     assert client.get("/api/bilinmeyen").status_code == 404
+
+
+def test_auto_punt_strategy_and_manual_roster_moves(client):
+    body = {"team_a": "1", "team_b": "2", "give_a": ["0"], "give_b": ["3", "4"], "auto_balance": False,
+            "drop_a": ["1"], "add_b": ["12"], "strategy_b": {"auto_punt": 2}}
+    j = client.post("/api/leagues/L/trade/analyze", json=body).json()
+    assert j["teams"]["b"]["strategy"].startswith("Otomatik: punt") and "+" in j["teams"]["b"]["strategy"]
+    assert [x["id"] for x in j["teams"]["a"]["adjustments"]["drop"]] == ["1"]
+    assert [x["id"] for x in j["teams"]["b"]["adjustments"]["add"]] == ["12"]
+    taken = client.post("/api/leagues/L/trade/analyze", json={**body, "add_b": ["5"]})   # kadrolu oyuncu eklenemez
+    assert taken.status_code == 400
+    bad = client.post("/api/leagues/L/trade/analyze", json={**body, "strategy_b": {"auto_punt": 3}})
+    assert bad.status_code == 422

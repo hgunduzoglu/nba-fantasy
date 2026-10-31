@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import numpy as np
 from fastapi import FastAPI, HTTPException, Query
-from pydantic import BaseModel, Field
 
+from fdo.api.schemas import StrategyIn, StreamIn, SuggestIn, WaiverIn, WeeklyIn
 from fdo.api.serialize import clean, player_row, strategy_from, value_ranks
 from fdo.api.state import AppState
 from fdo.inseason.fixtures import opponent as fixture_opponent
@@ -19,50 +19,11 @@ from fdo.trade.suggest import SearchOptions, suggest_trades
 from fdo.types import CATEGORY_LABELS
 
 
-class StrategyIn(BaseModel):
-    preset: str | None = None
-    name: str | None = None
-    weights: list[float] | None = None
-
-
-class SuggestIn(BaseModel):
-    team: str
-    mode: str = "mutual"
-    opponents: list[str] | None = None
-    opponent_assumption: str = "balanced"           # balanced | punt1 | punt2
-    perceived: str = "blend"
-    min_balance: float = 0.9
-    min_edge: float = 1.0
-    packages: list[str] = Field(default_factory=lambda: ["1x1", "2x1", "1x2", "2x2"])
-    shortlist: int = 8
-    max_evaluations: int = 4000
-    min_fairness: float = 0.55
-    min_gain: float = 0.005
-    min_win: float = 0.0
-    ecw_weight: float = 0.65
-    auto_balance: bool = True
-    strategy: StrategyIn | None = None
-    injuries: bool = True
-
-
-class WeeklyIn(BaseModel):
-    team: str
-    week: int | None = None
-    opponent: str | None = None
-    sit_out: bool = True
-    strategy: StrategyIn | None = None
-    acc_mine: dict[str, float] | None = None
-    acc_opp: dict[str, float] | None = None
-    injuries: bool = True
-
-
-class StreamIn(WeeklyIn):
-    used: int = 0
-    droppable: list[str] = Field(default_factory=list)
-
-
-def _strategy(s: StrategyIn | None) -> Strategy:
-    return strategy_from(s.model_dump() if s else None)
+def _strategy(s: StrategyIn | None, eng=None, team: str | None = None) -> Strategy:
+    try:
+        return strategy_from(s.model_dump() if s else None, eng, team)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
 
 
 def _brief(eng, pid: str) -> dict:
@@ -114,7 +75,7 @@ def register(app: FastAPI, state: AppState) -> None:
             opts = SearchOptions(sizes, body.shortlist, int(body.max_evaluations), 20, body.min_fairness,
                                  body.min_gain, body.min_win / 100, body.auto_balance, body.ecw_weight,
                                  body.mode, body.perceived, body.min_balance, body.min_edge)
-            strategy = _strategy(body.strategy)
+            strategy = _strategy(body.strategy, eng, body.team)
             found = suggest_trades(eng, body.team, strategy=strategy, opponent_strategies=opp_strats,
                                    opponents=opps, options=opts)
         except (ValueError, TradeError) as e:
@@ -165,7 +126,7 @@ def register(app: FastAPI, state: AppState) -> None:
         opp = body.opponent or fx_opp or next(t for t in eng.team_ids if t != body.team)
         team_check(eng, opp)
         out = DEFAULT_OUT if body.sit_out else tuple(s for s in DEFAULT_OUT if s != "O")
-        model = state.week_model(lid, body.injuries, _strategy(body.strategy), out)
+        model = state.week_model(lid, body.injuries, _strategy(body.strategy, eng, body.team), out)
         return eng, weeks, current, wk, days, fx_opp, opp, model
 
     def _weeks_list(weeks, current):
@@ -176,7 +137,7 @@ def register(app: FastAPI, state: AppState) -> None:
     def weekly(lid: str, body: WeeklyIn):
         eng, weeks, current, wk, days, fx_opp, opp, model = _week_setup(lid, body)
         o = model.outlook(body.team, opp, days, acc_mine=body.acc_mine, acc_opp=body.acc_opp, week=wk)
-        drops = drop_ranking(eng, body.team, _strategy(body.strategy))
+        drops = drop_ranking(eng, body.team, _strategy(body.strategy, eng, body.team))
         active = model.active_roster(body.team)
         ranked = [p for p in (list(drops["drop"]) if len(drops) else []) if p in active]
         cheapest = sorted(active, key=lambda p: float(eng.market.get(p, 0.0)))     # kalan sezon değeri en düşük
@@ -202,12 +163,13 @@ def register(app: FastAPI, state: AppState) -> None:
                       "after": _outlook(eng, s)})
 
     # ------------------------------------------------------------- boştakiler
-    @app.get("/api/leagues/{lid}/waiver")
-    def waiver(lid: str, team: str, preset: str | None = None, injuries: bool = True, top: int = 80):
+    @app.post("/api/leagues/{lid}/waiver")
+    def waiver(lid: str, body: WaiverIn):
+        team, injuries = body.team, body.injuries
         eng = engine(lid, injuries)
         team_check(eng, team)
-        strategy = Strategy.preset(preset) if preset else Strategy()
-        t = waiver_table(eng, team, strategy, top=top)
+        strategy = _strategy(body.strategy, eng, team)
+        t = waiver_table(eng, team, strategy, top=body.top)
         weeks = state.weeks(lid, injuries)
         wk = weeks.week_of(eng.data.as_of)
         model = state.week_model(lid, injuries)
