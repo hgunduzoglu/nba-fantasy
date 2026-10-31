@@ -58,3 +58,39 @@ def test_suggest_and_mispricing(client):
     assert bad.status_code == 400
     m = client.get("/api/leagues/L/trade/mispricing?team=1").json()
     assert set(m) == {"sell_high", "buy_low"} and all(x["team_id"] == "1" for x in m["sell_high"])
+
+
+def test_suggest_rows_carry_category_playoff_and_view_details(client):
+    r = client.post("/api/leagues/L/trade/suggest", json={"team": "1", "max_evaluations": 300, "min_fairness": 0.1,
+                                                         "min_gain": 0.00001, "strategy": {"auto_revive": 1}}).json()
+    assert r["strategy"]["name"].startswith("Canlandır") and max(r["strategy"]["weights"]) == 3
+    for s in r["suggestions"]:
+        assert set(s["my_categories"]) == set(s["other_categories"]) == {
+            "FG_PCT", "FT_PCT", "FG3M", "PTS", "REB", "AST", "STL", "BLK", "TOV"}
+        assert isinstance(s["playoff_games"], int) and s["position_gap"] >= 0
+        assert s["perceived_view"] is None or s["perceived_view"] > 0
+
+
+def test_multi_team_analyze_season_and_suggest(client):
+    body = {"moves": [{"player": "0", "from_team": "1", "to_team": "2"},
+                      {"player": "4", "from_team": "2", "to_team": "3"},
+                      {"player": "8", "from_team": "3", "to_team": "1"}],
+            "strategies": {"1": {"auto_revive": 1}, "3": {"auto_punt": 1}}}
+    a = client.post("/api/leagues/L/trade/multi/analyze", json=body).json()
+    assert a["n_teams"] == 3 and [t["team_id"] for t in a["teams"]] == ["1", "2", "3"]
+    me = a["teams"][0]
+    assert me["strategy"].startswith("Canlandır") and a["teams"][2]["strategy"].startswith("Otomatik")
+    assert [p["id"] for p in me["sent"]] == ["0"] and me["received"][0]["from"] == "3"
+    assert len(me["categories"]) == 9 and set(me["ranks"]) >= {"remaining_games_projection"}
+    assert sum(c["after"] - c["before"] for c in me["categories"]) == pytest.approx(me["ecw_delta"])
+    assert isinstance(me["playoff_games"], int)
+    se = client.post("/api/leagues/L/trade/multi/season", json={**body, "n_sims": 300}).json()
+    assert len(se["teams"]) == 3 and all(0 <= t["playoff_after"] <= 1 for t in se["teams"])
+    bad = client.post("/api/leagues/L/trade/multi/analyze", json={"moves": body["moves"][:2]})
+    assert bad.status_code == 400                                     # 3. takım hiçbir şey vermiyor
+    s = client.post("/api/leagues/L/trade/multi/suggest", json={"team": "1", "shortlist": 4, "shortlist4": 3,
+                                                               "min_fairness": 0, "min_gain": 0}).json()
+    assert s["scanned"] > 0 and isinstance(s["suggestions"], list) and "1-1-1" in s["shapes"]
+    for row in s["suggestions"]:
+        assert all(t["strategy_delta"] >= 0 for t in row["teams"]) and len(row["moves"]) >= 3
+    assert client.post("/api/leagues/L/trade/multi/suggest", json={"team": "1", "shapes": ["3-3-3"]}).status_code == 400
