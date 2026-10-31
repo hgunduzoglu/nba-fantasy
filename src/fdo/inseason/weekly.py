@@ -127,6 +127,26 @@ class WeekModel:
         left = pd.concat([future["home_team"], future["away_team"]]).map(normalize_team).value_counts()
         team_left = pd.Series(self.team).map(left).fillna(0).to_numpy(float)
         gp = f["gp"].to_numpy(float)
+        # Sakatlık dönüş tarihi (CBS): o güne kadar oynamaz; kalan maçları dönüş sonrasına yayılır.
+        self.return_date: dict[str, dt.date] = {}
+        self.injury_known: set[str] = set()
+        inj = getattr(data, "injuries", None)
+        if inj is not None and len(inj):
+            for pid, r in inj.iterrows():
+                if pid not in engine.index:
+                    continue
+                self.injury_known.add(pid)
+                if r["kind"] == "season":
+                    self.return_date[pid] = dt.date.max
+                elif r["kind"] == "out_until" and r["return_date"] is not None and not pd.isna(r["return_date"]):
+                    self.return_date[pid] = max(data.as_of, pd.Timestamp(r["return_date"]).date())
+        games_by_team: dict[str, list[dt.date]] = {}
+        for d_, teams_ in self.games.items():
+            for t_ in teams_:
+                games_by_team.setdefault(t_, []).append(d_)
+        for pid, ret in self.return_date.items():
+            i = engine.index[pid]
+            team_left[i] = sum(d_ >= ret for d_ in games_by_team.get(self.team[i], []))
         self.availability = np.where(ok & (team_left > 0), np.clip(np.nan_to_num(gp) / np.maximum(team_left, 1), 0, 1),
                                      0.0)
         self.corr = category_corr_matrix(self.config)
@@ -135,9 +155,12 @@ class WeekModel:
 
     # ------------------------------------------------------------- yardımcılar
     def playable(self, pid: str, use_status: bool = True) -> bool:
-        """``use_status=False``: güncel sakatlık durumu yok sayılır (gelecek haftalar; kayıp maçlar ROS GP'de)."""
+        """``use_status=False``: güncel sakatlık durumu yok sayılır (gelecek haftalar; kayıp maçlar ROS GP'de).
+        Dönüş tarihi bilinen oyuncuda Yahoo durumu yerine tarih kullanılır (``team_week`` gün maskesi)."""
         i = self.engine.index[pid]
         status = str(self.engine.data.players.loc[pid, "injury_status"] or "")
+        if pid in self.injury_known:
+            use_status = status == "NA" and use_status
         return bool(self.engine.modeled[i]) and (not use_status or status not in self.out_statuses)
 
     def has_game(self, pid: str, day: dt.date) -> bool:
@@ -157,7 +180,8 @@ class WeekModel:
         for d, day in enumerate(days):
             teams = self.games.get(day, ())
             for j, s in enumerate(stints):
-                playing[d, j] = can[j] and s.first <= d <= s.last and self.team[idx[j]] in teams
+                playing[d, j] = (can[j] and s.first <= d <= s.last and self.team[idx[j]] in teams
+                                 and day >= self.return_date.get(s.player_id, day))
         elig = active_eligibility([self.positions[p] for p in ids], self.config)
         pr = self.priority[idx]
         counted_mask = np.zeros((D, n), dtype=bool)
@@ -173,7 +197,8 @@ class WeekModel:
                 if not (s.first <= d <= s.last):
                     continue
                 if self.team[idx[j]] in self.games.get(day, ()):
-                    grid.iat[j, d] = "▶" if counted_mask[d, j] else ("✕" if not can[j] else "B")
+                    out_today = not can[j] or day < self.return_date.get(s.player_id, day)
+                    grid.iat[j, d] = "▶" if counted_mask[d, j] else ("✕" if out_today else "B")
         return TeamWeek(team_id, list(stints), vec, grid, pd.Series(counted, index=ids),
                         int(playing.sum()), int(playing.sum() - counted.sum()))
 
