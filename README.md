@@ -1589,6 +1589,32 @@ sayfadan oturum için değiştirilebilir). Auction sayfası seçili lig snake is
   (rakipler harcasın) ve değeri fiyatından yüksek hedefler.
 - **Eksik**: rakip teklif davranışı modeli ve auction mock'u (gerçek auction draft verisi yok).
 
+### 13.13 Sezon içi: Bu Hafta ve Boştaki Oyuncular (`fdo.inseason`)
+
+Trade Lab verisini (kadrolar, kalan sezon projeksiyonu, NBA takvimi) kullanır; Trade Merkezi menüsünde.
+
+- **Hafta tarihleri** (`weeks.py`): pazartesi başlayan haftalar, 1. hafta sezonun ilk maç günüyle başlar,
+  `merge_with_next` (All-Star) birleşir. Lig ayarındaki `Playoffs` metninden playoff haftaları ve bitiş günü
+  okunur; hesaplanan son playoff haftası daha erken bitiyorsa o güne uzatılır (dört ligde de son tur iki
+  takvim haftası çıkıyor). 93992 sıralamasında 31 Ekim'de herkesin 9 kategori oynamış olması 1. haftanın
+  20–25 Ekim olduğunu doğrular. Fikstürde tarih yoktur; tarihler bu kuralla türetilir.
+- **Fikstür** (`fixtures.py`): `fixtures*.csv` (league_id, team_id, week, opponent_team_id) ve
+  `league_info.json` `schedules.teams`; A–B eşleşmesi B–A olarak tamamlanır. Kayıt yoksa rakip elle seçilir.
+- **Bu Hafta** (`weekly.py`): kalan her gün o gün oynayan oyuncular aktif slotlara yerleştirilir
+  (`daily_today` çözücüsü, öncelik = stratejiye göre maç başı z). Katkı = sayılan maç × uygunluk
+  (`min(1, ROS GP / takımın kalan maçı)`) × maç başı ROS vektörü; haftanın şu ana kadarki skoru elle girilir
+  ve sabit eklenir. NA ve (isteğe bağlı) O durumundakiler oynamaz, Q oynar, IL'dekiler kadro dışıdır.
+  Çıktı: kategori başına P(kazan), beklenen kategori, P(5+) (kopula), gün gün kadro (▶/B/✕).
+- **Streaming planı**: kalan haftalık alım hakkı kadar açgözlü adım; her adım (bırak d, al f, gün t)
+  içinden haftalık strateji puanını en çok artıranı seçer. f, d'nin kalan günlerini devralır (kadro her
+  gün sabit), t yalnızca f'nin maç günleridir; eklenen oyuncu sonra yeniden bırakılabilir. Son plan gün
+  sıralı işlem listesine çevrilir; her işlemin "kalıcı olsaydı" kalan sezon etkisi gösterilir.
+- **Boştaki Oyuncular** (`waiver.py`): her boştaki oyuncu için kadrodan en iyi bırakma eşi; kalan sezon
+  vektörüyle `R − v_d + v_f` ligdeki diğer takımlara karşı (strateji ΔECW, ağırlıksız ΔECW, kategori ΔP).
+  Bırakma sonrası doldurulamayan aktif slot artmaz; IL'deki oyuncu bırakma adayı değildir.
+- **Sınırlar**: waiver'daki oyuncular, Can't Cut listesi ve maç saatleri doğrulanmaz; oyuncular arası
+  bağımsızlık ve Normal yaklaşım (kalibre edilmedi). Plan açgözlüdür, global optimum değildir.
+
 ### 13.8 V3 adayları
 
 Beam search ve H-score ağırlık optimizasyonu; profil karışımı uyumu; oyuncular arası maç sayısı
