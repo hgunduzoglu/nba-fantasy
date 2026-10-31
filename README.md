@@ -1731,6 +1731,36 @@ python scripts/backtest.py --data data/real/ --n 30 --strategies adp,z,g,ecw
 
 ---
 
+### 14.1 Trade Lab web uygulaması (React + FastAPI)
+
+Sezon içi araçların yeni arayüzü (31 Ekim 2026). Draft ve auction sayfaları Streamlit'te kalır.
+
+```powershell
+.venv\Scripts\python.exe -m pip install -e ".[dev,web]"   # bir kere
+.venv\Scripts\python.exe run_app.py                        # http://127.0.0.1:8000
+```
+
+`run_app.py` arayüz derlenmemişse ya da `frontend/src` değiştiyse önce `npm install` / `npm run build` çalıştırır
+(Node.js gerekir), sonra FastAPI'yi başlatıp tarayıcıyı açar. Sekmeler: Takas Analizi, Takas Önerileri, Bu Hafta,
+Boştaki Oyuncular, Sezon Simülasyonu, Lig Sıralamaları. Lig, takım, sakatlık dönüş tarihleri, renk skalası
+(yeşil↔kırmızı ya da renk körlüğüne uygun mavi↔kırmızı) ve tema üst çubuktadır.
+
+- **Takas Analizi**: Yahoo tarzı iki kadro tablosu (seçilebilir kaynak: kalan sezon / bu sezon / sezon öncesi;
+  maç başı istatistikler z seviyesine göre renkli, sakatlık ve dönüş tarihi rozetleri). Satıra tıklamak oyuncuyu
+  pakete ekler; analiz seçim değiştikçe kendiliğinden çalışır: iki takımın beklenen kategori, P(5+), strateji
+  puanı, ortak ölçekli kategori etki grafiği, kadro işlemleri (IL / bırak / ekle), değer ve algılanan denge,
+  sezon etkisi (playoff ve şampiyonluk), üç kaynağa göre lig sıra değişimi.
+- **Takas Önerileri**: karşılıklı fayda, sat yüksek, al düşük ayrı türler; yanlış fiyatlama tabloları; öneriler
+  için playoff etkisi; "Takas ekranında aç" öneriyi seçili olarak Takas Analizi'ne taşır.
+- **Bu Hafta / Boştaki Oyuncular / Sezon Simülasyonu / Lig Sıralamaları**: §13.13–§13.16'daki modellerin arayüzü.
+
+Yapı: `src/fdo/api/` (FastAPI: `state.py` önbellekli veri/motorlar, `serialize.py` JSON dönüşümü, `app.py` kadro,
+takas analizi ve sezon etkisi, `inseason.py` öneriler, yanlış fiyatlama, haftalık + streaming, boştakiler, sezon,
+sıralamalar), `frontend/` (Vite + React + TypeScript, ek UI kütüphanesi yok; `src/pages/*`, `src/components/*`,
+`styles.css` tasarım belirteçleri, açık/koyu tema). Geliştirme: `uvicorn` ile API'yi (8000) ve `npm run dev` ile
+arayüzü (5173, `/api` 8000'e yönlendirilir) ayrı çalıştır. `frontend/node_modules` ve `frontend/dist` git'e girmez.
+CI arayüzü tip kontrolüyle derler; API testleri `tests/integration/test_api*.py`.
+
 ## 15. Sözlük
 
 | Terim | Anlamı |
