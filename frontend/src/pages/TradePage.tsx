@@ -375,11 +375,11 @@ export function TradePage({ meta, league, team, injuries, initial }: Props) {
 
       <div className="grid-2">
         <RosterTable title={teamName(team)} subtitle={giveA.size ? `${giveA.size} oyuncu veriyorsun` : "veriyorsun"}
-                     players={mine.data?.players ?? null} categories={meta.categories} selected={giveA}
+                     players={mine.data?.players ?? null} categories={meta.categories} selected={giveA} source={source}
                      onToggle={(id) => { setGiveA((s) => toggle(s, id)); setDropA((d) => d.filter((x) => x !== id)); }}
                      loading={mine.loading} error={mine.error} />
         <RosterTable title={teamName(opp)} subtitle={giveB.size ? `${giveB.size} oyuncu alıyorsun` : "alıyorsun"}
-                     players={theirs.data?.players ?? null} categories={meta.categories} selected={giveB}
+                     players={theirs.data?.players ?? null} categories={meta.categories} selected={giveB} source={source}
                      onToggle={(id) => { setGiveB((s) => toggle(s, id)); setDropB((d) => d.filter((x) => x !== id)); }}
                      loading={theirs.loading} error={theirs.error} />
       </div>

@@ -280,3 +280,5 @@ table.data { width: 100%; border-collapse: separate; border-spacing: 0; font-siz
 .flow { display: flex; flex-direction: column; gap: 4px; }
 .flow-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .arrow { color: var(--muted); }
+.perc-over { color: #b7791f; font-weight: 700; }
+.perc-under { color: var(--accent); font-weight: 700; }

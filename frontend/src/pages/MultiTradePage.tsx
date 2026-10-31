@@ -273,7 +273,7 @@ function MultiAnalyze({ meta, league, team, injuries, initial }: Props & { initi
                                 autoHint="Takımın gerçek tercihi bilinmiyor: kategori profilinden en zayıf kategori(ler)i punt ettiği varsayılır." />
               </div>
               <RosterTable title={teamName(t)} subtitle={mine.length ? `${mine.length} oyuncu veriyor` : "oyuncuya tıkla = takasa koy"}
-                           players={rosters[t]?.players ?? null} categories={meta.categories} selected={new Set(mine)}
+                           players={rosters[t]?.players ?? null} categories={meta.categories} selected={new Set(mine)} source={source}
                            onToggle={(pid) => toggle(t, pid)} loading={!rosters[t] && !errors[t]} error={errors[t] ?? null} />
             </div>
           );

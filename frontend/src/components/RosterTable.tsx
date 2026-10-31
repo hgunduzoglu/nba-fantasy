@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
-import type { Category, CategoryKey, Player } from "../types";
-import { fmtNum, fmtStat, returnText, zClass, zLabel } from "../format";
+import type { Category, CategoryKey, Player, Source } from "../types";
+import { fmtDelta, fmtNum, fmtStat, returnText, zClass, zLabel } from "../format";
 
-type SortKey = "order" | "name" | "gp" | "value" | CategoryKey;
+type SortKey = "order" | "name" | "gp" | "value" | "perceived" | CategoryKey;
 
 interface Props {
   title: string;
@@ -13,6 +13,30 @@ interface Props {
   onToggle: (id: string) => void;
   loading?: boolean;
   error?: string | null;
+  /** Bu sezon / sezon öncesi seçiliyken Değer'in yanında algılanan değer sütunu gösterilir. */
+  source?: Source;
+}
+
+/** Algılanan − kalan sezon değeri (piyasa birimi): + olduğundan iyi görünüyor, − olduğundan kötü. */
+function edgeOf(p: Player): number | null {
+  return p.perceived_value != null && p.value != null ? p.perceived_value - p.value : null;
+}
+
+function PerceivedCell({ p, label }: { p: Player; label: string }) {
+  const edge = edgeOf(p);
+  if (p.perceived_value == null || p.perceived_rank == null || edge === null) return <td className="muted">–</td>;
+  const diff = p.rank != null ? Math.round(p.rank - p.perceived_rank) : 0;   // + = algıda daha üst sırada
+  const tip = `${label}: ${p.perceived_rank.toFixed(0)}. sıra → piyasada ${fmtNum(p.perceived_value)} değer görür. `
+    + `Kalan sezon: ${p.rank?.toFixed(0) ?? "–"}. (${fmtNum(p.value)}). Fark ${fmtDelta(edge, 2)}`
+    + (edge >= 0.5 ? ": olduğundan iyi görünüyor → satmak için iyi zaman." : edge <= -0.5 ? ": olduğundan kötü görünüyor → almak için iyi zaman." : ": aşağı yukarı doğru fiyatlanmış.")
+    + (p.perceived_fallback ? " Bu sezon 3 maçtan az oynadığı için sezon öncesi sırası kullanıldı." : "");
+  const cls = edge >= 1 ? "perc-over" : edge <= -1 ? "perc-under" : "";
+  return (
+    <td title={tip} className={cls}>
+      {fmtNum(p.perceived_value)} <span className="psub">({p.perceived_rank.toFixed(0)}{p.perceived_fallback ? "*" : ""})</span>
+      {Math.abs(edge) >= 0.5 && diff !== 0 && <div className="psub">{diff > 0 ? `▲ ${diff} sıra` : `▼ ${-diff} sıra`}</div>}
+    </td>
+  );
 }
 
 export function StatusBadges({ p }: { p: Player }) {
@@ -31,7 +55,7 @@ export function StatusBadges({ p }: { p: Player }) {
   );
 }
 
-export function RosterTable({ title, subtitle, players, categories, selected, onToggle, loading, error }: Props) {
+export function RosterTable({ title, subtitle, players, categories, selected, onToggle, loading, error, source }: Props) {
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "order", dir: 1 });
 
   const rows = useMemo(() => {
@@ -42,6 +66,7 @@ export function RosterTable({ title, subtitle, players, categories, selected, on
       if (sort.key === "name") return p.name;
       if (sort.key === "gp") return p.gp ?? -1;
       if (sort.key === "value") return p.value ?? -1;
+      if (sort.key === "perceived") return edgeOf(p) ?? -Infinity;
       const v = p.stats[sort.key as CategoryKey];
       if (v === null || v === undefined) return -Infinity;
       return sort.key === "TOV" ? -v : v;          // TO: az olan önce gelsin ("iyi" sırası)
@@ -53,6 +78,8 @@ export function RosterTable({ title, subtitle, players, categories, selected, on
     });
   }, [players, sort]);
 
+  const perceived = (players ?? []).some((p) => p.perceived_value != null);
+  const pLabel = source === "preseason" ? "Sezon öncesi algısı" : "Bu sezon algısı";
   const header = (key: SortKey, label: string, cls = "", tip?: string) => (
     <th
       className={cls}
@@ -82,6 +109,8 @@ export function RosterTable({ title, subtitle, players, categories, selected, on
               {header("gp", "GP", "", "Maç sayısı (seçili kaynakta)")}
               {categories.map((c) => header(c.key, c.label, "", `${c.label} — maç başı`))}
               {header("value", "Değer", "", "Kalan sezon dengeli değeri (yedek seviyesine göre); parantezde ligdeki sıra")}
+              {perceived && header("perceived", pLabel, "",
+                `${source === "preseason" ? "Sezon öncesi" : "Bu sezonun maç başı"} rakamlarına bakan menajerin gözündeki sıra (parantezde) ve bu sıranın kalan sezon piyasasındaki karşılığı. ▲ olduğundan iyi görünüyor (sat), ▼ olduğundan kötü (al). Tıkla: farka göre sırala.`)}
             </tr>
           </thead>
           <tbody>
@@ -108,11 +137,12 @@ export function RosterTable({ title, subtitle, players, categories, selected, on
                   <td title={p.rank ? `Ligde ${p.rank.toFixed(0)}. (kalan sezon değeri)` : ""}>
                     {fmtNum(p.value)} <span className="psub">{p.rank ? `(${p.rank.toFixed(0)})` : ""}</span>
                   </td>
+                  {perceived && <PerceivedCell p={p} label={pLabel} />}
                 </tr>
               );
             })}
             {!loading && rows.length === 0 && (
-              <tr><td colSpan={categories.length + 4} className="empty">Oyuncu yok</td></tr>
+              <tr><td colSpan={categories.length + (perceived ? 5 : 4)} className="empty">Oyuncu yok</td></tr>
             )}
           </tbody>
         </table>
@@ -122,6 +152,7 @@ export function RosterTable({ title, subtitle, players, categories, selected, on
         <span><i className="z3" />Elite</span><span><i className="z2" />Great</span><span><i className="z1" />Good</span>
         <span><i style={{ background: "var(--mid)" }} />Avg</span><span><i className="zm2" />Below</span><span><i className="zm3" />Poor</span>
         <span>· TO'da az olan iyidir · satıra tıkla = takasa ekle</span>
+        {perceived && <span>· Algı: <b className="perc-over">kalın turuncu</b> olduğundan iyi görünüyor (sat), <b className="perc-under">kalın mor</b> olduğundan kötü (al); * = 3 maçtan az, sezon öncesi</span>}
       </div>
     </div>
   );

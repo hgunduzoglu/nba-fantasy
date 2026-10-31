@@ -1802,6 +1802,11 @@ Boştaki Oyuncular, Sezon Simülasyonu, Lig Sıralamaları. Lig, takım, sakatl�
   pakete ekler; analiz seçim değiştikçe kendiliğinden çalışır: iki takımın beklenen kategori, P(5+), strateji
   puanı, ortak ölçekli kategori etki grafiği, kadro işlemleri (IL / bırak / ekle), değer ve algılanan denge,
   sezon etkisi (playoff ve şampiyonluk), üç kaynağa göre lig sıra değişimi.
+  Kaynak "Bu sezon" ya da "Sezon öncesi" seçiliyken Değer'in yanında **algı sütunu**: o kaynağa bakan menajerin
+  gözündeki sıra ve bu sıranın kalan sezon piyasasındaki karşılığı (Değer ile aynı ölçek, `perceived_prices`; bu sezon
+  maç başı, 3 maçtan azı * ile sezon öncesine düşer). ▲/▼ sıra farkı; fark ≥ 1 değer kalın (turuncu: olduğundan iyi
+  görünüyor → sat, mor: olduğundan kötü → al). Başlığa tıklamak farka göre sıralar. Değer ve takas hesapları her zaman
+  kalan sezondur: takasla yalnız kalan maçlar el değiştirir.
 - **Takas ekranı ekleri**: iki taraf için elle "bırak" ve aranabilir boştaki oyuncu "al" (otomatik dengeleme bunlardan
   sonra uygulanır); strateji seçici her sekmede: dengeli, hazır punt'lar, **otomatik punt** (takımın kategori profilinden
   en zayıf 1 ya da 2 kategori, `StrategyIn.auto_punt`), **zayıfı canlandır** (en zayıf 1–2 kategori ×3,

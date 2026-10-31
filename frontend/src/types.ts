@@ -62,6 +62,12 @@ export interface Player {
   z: Record<CategoryKey, number | null>;
   value: number | null;
   rank: number | null;
+  /** Bu sezon / sezon öncesi kaynağında: o kaynağa bakan menajerin gözündeki sıra ve bu sıranın kalan sezon
+   *  piyasasındaki karşılığı (Değer ile aynı ölçek). Kalan sezon kaynağında null. */
+  perceived_value?: number | null;
+  perceived_rank?: number | null;
+  /** Bu sezon 3 maçtan az: sezon öncesi sırası kullanıldı. */
+  perceived_fallback?: boolean | null;
 }
 
 export interface Roster {
