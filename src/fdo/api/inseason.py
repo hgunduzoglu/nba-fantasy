@@ -6,11 +6,13 @@ import numpy as np
 from fastapi import FastAPI, HTTPException, Query
 
 from fdo.api.schemas import StrategyIn, StreamIn, SuggestIn, WaiverIn, WeeklyIn
-from fdo.api.serialize import clean, player_row, strategy_from, value_ranks
+from fdo.api.serialize import (assumed_strategies, brief, category_deltas, clean, player_row, strategy_from,
+                               value_ranks)
 from fdo.api.state import AppState
 from fdo.inseason.fixtures import opponent as fixture_opponent
 from fdo.inseason.waiver import drop_ranking, waiver_table
 from fdo.inseason.weekly import DEFAULT_OUT, Stint, WeekOutlook, acquisition_limit, vector_totals
+from fdo.roster.assignment import best_assignment
 from fdo.trade import Strategy, TradeError
 from fdo.trade.data import MODES, ROS
 from fdo.trade.perception import mispricing, perceived_prices
@@ -26,11 +28,7 @@ def _strategy(s: StrategyIn | None, eng=None, team: str | None = None) -> Strate
         raise HTTPException(400, str(e)) from e
 
 
-def _brief(eng, pid: str) -> dict:
-    P = eng.data.players
-    return {"id": pid, "name": P.loc[pid, "name"], "nba_team": P.loc[pid, "nba_team"],
-            "positions": [p for p in str(P.loc[pid, "yahoo_positions"]).split(",") if p],
-            "status": P.loc[pid, "injury_status"] or ""}
+_brief = brief
 
 
 def _outlook(eng, o: WeekOutlook) -> dict:
@@ -65,11 +63,7 @@ def register(app: FastAPI, state: AppState) -> None:
         eng = engine(lid, body.injuries)
         team_check(eng, body.team)
         opps = tuple(t for t in (body.opponents or eng.team_ids) if t != body.team)
-        opp_strats = {}
-        if body.opponent_assumption in ("punt1", "punt2"):
-            probs = eng.league_probabilities()
-            k = 1 if body.opponent_assumption == "punt1" else 2
-            opp_strats = {t: Strategy.adaptive(probs.loc[t, list(CATEGORIES)].to_numpy(), k) for t in opps}
+        opp_strats = assumed_strategies(eng, body.opponent_assumption, opps)
         try:
             sizes = tuple(tuple(int(x) for x in p.split("x")) for p in body.packages)
             opts = SearchOptions(sizes, body.shortlist, int(body.max_evaluations), 20, body.min_fairness,
@@ -80,11 +74,22 @@ def register(app: FastAPI, state: AppState) -> None:
                                    opponents=opps, options=opts)
         except (ValueError, TradeError) as e:
             raise HTTPException(400, str(e)) from e
+        perceived = perceived_prices(eng, body.perceived)
+        po_games = state.playoff_games(lid, body.injuries)
         rows = []
         for s in found.suggestions:
             r = s.request
-            _, adj, _ = eng.resolve(r, {body.team: strategy, r.team_b: s.other_strategy})
-            rows.append({"team_b": r.team_b, "team_b_name": eng.league.teams[r.team_b],
+            rosters, adj, il = eng.resolve(r, {body.team: strategy, r.team_b: s.other_strategy})
+            p, _ = eng.score(rosters, body.team, r.team_b, strategy, s.other_strategy)
+            taken = float(perceived.reindex(list(r.give_b)).fillna(0).sum())
+            active = [x for x in rosters[body.team] if x not in il[body.team]]
+            rows.append({"my_categories": category_deltas(eng, p, body.team),
+                         "other_categories": category_deltas(eng, p, r.team_b),
+                         "playoff_games": (sum(po_games.get(x, 0) for x in r.give_b)
+                                           - sum(po_games.get(x, 0) for x in r.give_a)) if po_games else None,
+                         "position_gap": best_assignment(eng.positions(active), eng.config).n_open_active,
+                         "perceived_view": float(perceived.reindex(list(r.give_a)).fillna(0).sum()) / taken
+                         if taken > 0 else None,"team_b": r.team_b, "team_b_name": eng.league.teams[r.team_b],
                          "give_a": [_brief(eng, p) for p in r.give_a], "give_b": [_brief(eng, p) for p in r.give_b],
                          "own_delta": s.own_strategy_delta, "other_delta": s.other_strategy_delta,
                          "own_win": s.own_win_delta, "other_win": s.other_win_delta, "fairness": s.fairness,
@@ -93,7 +98,8 @@ def register(app: FastAPI, state: AppState) -> None:
                          "other_weights": list(s.other_strategy.weights),
                          "adjustments": {t: {k: [eng.data.players.loc[p, "name"] for p in v] for k, v in a.items()}
                                          for t, a in adj.items()}})
-        return clean({"suggestions": rows, "examined": found.examined, "eligible": found.eligible,
+        return clean({"suggestions": rows, "strategy": {"name": strategy.name, "weights": list(strategy.weights)},
+                      "examined": found.examined, "eligible": found.eligible,
                       "rejected_balance": found.rejected_fairness, "rejected_roster": found.rejected_roster,
                       "limit_reached": found.limit_reached, "message": found.message})
 

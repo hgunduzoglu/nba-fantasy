@@ -104,6 +104,20 @@ class AppState:
         return self._get(("season_base", eng.data.fingerprint, str(league_id), n_sims, round(sd, 4), seed),
                          lambda: sim.run(n_sims=n_sims, seed=seed, strength_sd=sd))
 
+    def playoff_games(self, league_id: str, injuries: bool = True) -> dict[str, int]:
+        """Oyuncu → fantezi playoff haftalarındaki NBA maçı (bilinen sakatlık dönüşünden önceki maçlar hariç).
+        Playoff haftaları bilinmiyorsa boş."""
+        eng = self.engine(league_id, injuries)
+
+        def build():
+            weeks = self.weeks(league_id, injuries)
+            days = [d for w in weeks.playoff_weeks if w in weeks.weeks.index for d in weeks.days(w)]
+            if not days:
+                return {}
+            model = self.week_model(league_id, injuries)
+            return {p: model.games_in(p, days) for p in eng.ids}
+        return self._get(("playoff_games", eng.data.fingerprint, str(league_id)), build)
+
     def per_game_z(self, league_id: str, source: str, injuries: bool = True) -> pd.DataFrame:
         """Seçilen kaynağın maç başı dengeli z'si (renklendirme için), ``player_id`` × kategori."""
         eng = self.engine(league_id, injuries)

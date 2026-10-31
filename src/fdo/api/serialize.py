@@ -47,19 +47,45 @@ def strategy_from(payload: dict | None, eng: TradeEngine | None = None, team: st
     profilinden en zayıf kategori(ler)i punt; ``eng`` ve ``team`` gerekir); yoksa dengeli."""
     if not payload:
         return Strategy()
-    if payload.get("auto_punt"):
+    if payload.get("auto_punt") or payload.get("auto_revive"):
         if eng is None or team is None:
-            raise ValueError("Otomatik punt için takım gerekli")
+            raise ValueError("Otomatik strateji için takım gerekli")
         probs = eng.league_probabilities().loc[team, list(CATEGORIES)].to_numpy()
-        auto = Strategy.adaptive(probs, int(payload["auto_punt"]))
-        punted = [CATEGORY_LABELS[c] for c, w in zip(CATEGORIES, auto.weights) if w == 0]
-        return Strategy(f"Otomatik: punt {' + '.join(punted)}", auto.weights)
+        if payload.get("auto_punt"):
+            auto = Strategy.adaptive(probs, int(payload["auto_punt"]))
+            punted = [CATEGORY_LABELS[c] for c, w in zip(CATEGORIES, auto.weights) if w == 0]
+            return Strategy(f"Otomatik: punt {' + '.join(punted)}", auto.weights)
+        auto = Strategy.revive(probs, int(payload["auto_revive"]))
+        weak = [CATEGORY_LABELS[c] for c, w in zip(CATEGORIES, auto.weights) if w > 1]
+        return Strategy(f"Canlandır: {' + '.join(weak)} ×3", auto.weights)
     if payload.get("preset"):
         return Strategy.preset(payload["preset"])
     w = payload.get("weights")
     if w:
         return Strategy(str(payload.get("name") or "Özel"), tuple(float(x) for x in w))
     return Strategy()
+
+
+def assumed_strategies(eng: TradeEngine, assumption: str, teams) -> dict[str, Strategy]:
+    """Rakip strateji varsayımı: ``balanced`` (boş sözlük = dengeli) ya da ``punt1``/``punt2`` (profilden)."""
+    if assumption not in ("punt1", "punt2"):
+        return {}
+    probs = eng.league_probabilities()
+    k = 1 if assumption == "punt1" else 2
+    return {t: Strategy.adaptive(probs.loc[t, list(CATEGORIES)].to_numpy(), k) for t in teams}
+
+
+def brief(eng: TradeEngine, pid: str) -> dict:
+    P = eng.data.players
+    return {"id": pid, "name": P.loc[pid, "name"], "nba_team": P.loc[pid, "nba_team"],
+            "positions": [p for p in str(P.loc[pid, "yahoo_positions"]).split(",") if p],
+            "status": P.loc[pid, "injury_status"] or ""}
+
+
+def category_deltas(eng: TradeEngine, p_after: np.ndarray, team_id: str) -> dict[str, float]:
+    """Takımın rakiplere karşı ortalama kategori kazanma olasılığı değişimi (takas sonrası − önce)."""
+    d = eng.category_profile(p_after, team_id) - eng.category_profile(eng.baseline_p, team_id)
+    return {c: float(x) for c, x in zip(CATEGORIES, d)}
 
 
 def presets() -> list[dict]:

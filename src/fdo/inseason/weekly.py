@@ -166,6 +166,11 @@ class WeekModel:
     def has_game(self, pid: str, day: dt.date) -> bool:
         return self.team[self.engine.index[pid]] in self.games.get(day, ())
 
+    def games_in(self, pid: str, days) -> int:
+        """NBA takımının ``days`` içindeki maçları; bilinen sakatlık dönüşünden önceki günler sayılmaz."""
+        team, ret = self.team[self.engine.index[pid]], self.return_date.get(pid)
+        return sum(1 for d in days if team in self.games.get(d, ()) and (ret is None or d >= ret))
+
     def active_roster(self, team_id: str) -> list[str]:
         lg = self.engine.league
         return [p for p in lg.rosters[team_id] if p not in lg.injury_rosters[team_id]]
