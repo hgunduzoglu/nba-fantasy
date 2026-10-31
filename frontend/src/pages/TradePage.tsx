@@ -63,7 +63,7 @@ function useRoster(league: string, team: string, source: Source, injuries: boole
   return state;
 }
 
-function Metric({ k, before, after, delta, fmt, dfmt }: {
+export function Metric({ k, before, after, delta, fmt, dfmt }: {
   k: string; before: number; after: number; delta: number;
   fmt: (v: number) => string; dfmt: (v: number) => string;
 }) {
@@ -114,7 +114,7 @@ function SideCard({ side, title, scale }: { side: TradeSide; title: string; scal
 }
 
 /** Bir takım için elle kadro işlemleri: kadrodan bırak, boştan al. */
-function MovesEditor({ title, roster, give, drops, adds, freeAgents, taken, onDrop, onAdd, name }: {
+export function MovesEditor({ title, roster, give, drops, adds, freeAgents, taken, onDrop, onAdd, name }: {
   title: string; roster: Player[]; give: Set<string>; drops: string[]; adds: string[]; freeAgents: Player[];
   taken: Set<string>; onDrop: (ids: string[]) => void; onAdd: (ids: string[]) => void; name: (id: string) => string;
 }) {

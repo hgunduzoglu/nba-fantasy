@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "./api";
 import { FreeAgentsPage } from "./pages/FreeAgentsPage";
+import { MultiTradePage } from "./pages/MultiTradePage";
 import { RankingsPage } from "./pages/RankingsPage";
 import { SeasonPage } from "./pages/SeasonPage";
 import { SuggestPage } from "./pages/SuggestPage";
@@ -10,11 +11,12 @@ import type { Meta } from "./types";
 
 type Theme = "auto" | "light" | "dark";
 type Scale = "gr" | "br";
-type Tab = "trade" | "suggest" | "weekly" | "fa" | "season" | "ranks";
+type Tab = "trade" | "suggest" | "multi" | "weekly" | "fa" | "season" | "ranks";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "trade", label: "Takas Analizi" },
   { id: "suggest", label: "Takas Önerileri" },
+  { id: "multi", label: "Çok Takımlı Takas" },
   { id: "weekly", label: "Bu Hafta" },
   { id: "fa", label: "Boştaki Oyuncular" },
   { id: "season", label: "Sezon Simülasyonu" },
@@ -140,6 +142,7 @@ export default function App() {
           <SuggestPage key={league.id + team} meta={meta} league={league} team={team} injuries={injuries}
                        onOpen={(trade) => { setPending({ trade, seq: (pending?.seq ?? 0) + 1 }); go("trade"); }} />
         )}
+        {tab === "multi" && <MultiTradePage key={league.id + team} meta={meta} league={league} team={team} injuries={injuries} />}
         {tab === "weekly" && <WeeklyPage key={league.id + team} meta={meta} league={league} team={team} injuries={injuries} />}
         {tab === "fa" && <FreeAgentsPage key={league.id + team} meta={meta} league={league} team={team} injuries={injuries} />}
         {tab === "season" && <SeasonPage key={league.id + team} league={league} team={team} injuries={injuries} />}
