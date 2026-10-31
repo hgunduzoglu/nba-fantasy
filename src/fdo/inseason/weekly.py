@@ -16,6 +16,7 @@ kullanıcının seçtiği kümedir; takasın kalıcı olsaydı kalan sezon etkis
 from __future__ import annotations
 
 import datetime as dt
+import re
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -23,7 +24,7 @@ import pandas as pd
 
 from fdo.inseason.waiver import swap_delta
 from fdo.matchup.ecw import category_corr_matrix, ecw_vs, p_at_least
-from fdo.matchup.player_week import N_COUNT, RATIO_OFFSETS, WEEK_DIM, per_game_variance, weekly_vectors
+from fdo.matchup.player_week import RATIO_OFFSETS, WEEK_DIM, per_game_variance, weekly_vectors
 from fdo.schedule.calendar import normalize_team
 from fdo.schedule.lineup import active_eligibility, day_assignment
 from fdo.trade.data import ROS
@@ -263,3 +264,19 @@ class WeekModel:
                                 swap_delta(self.engine, team_id, prev, s.player_id, self.strategy)))
                 prev = s.player_id
         return sorted(out, key=lambda m: m.day)
+
+
+def vector_totals(vec: np.ndarray) -> dict[str, float]:
+    """Takım haftalık vektörü → kategori beklenen toplamları (FG%/FT% isabet/deneme oranı)."""
+    fg, ft = RATIO_OFFSETS["fg"], RATIO_OFFSETS["ft"]
+    out = {"FG_PCT": vec[fg] / vec[fg + 1] if vec[fg + 1] > 0 else float("nan"),
+           "FT_PCT": vec[ft] / vec[ft + 1] if vec[ft + 1] > 0 else float("nan")}
+    for j, c in enumerate(("FG3M", "PTS", "REB", "AST", "STL", "BLK", "TOV")):
+        out[c] = float(vec[j])
+    return out
+
+
+def acquisition_limit(settings: dict[str, str], default: int = 7) -> int:
+    """Lig ayarı ``Max Acquisitions per Week`` (ör. ``"4"``); sınırsızsa ``default``."""
+    m = re.match(r"\s*(\d+)", str(settings.get("Max Acquisitions per Week", "")))
+    return int(m.group(1)) if m else default
