@@ -183,7 +183,8 @@ class SeasonSim:
         # koltuk (seed) → takım indeksi; bay koltuğu -1
         by_seed = np.full((S, size), -1)
         order = np.argsort(seeds, axis=1)
-        by_seed[:, :min(n, size)] = order[:, :min(n, size)]
+        k = min(n, size, T)
+        by_seed[:, :k] = order[:, :k]
         current = bracket_order(size) if not self.reseed else list(range(1, size + 1))
         cur = np.array(current)[None, :].repeat(S, 0)                                     # (S, k) seed
         for r, week in enumerate(self.playoff_weeks):
