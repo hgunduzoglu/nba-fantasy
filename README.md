@@ -1633,8 +1633,33 @@ Tam H2H fikstürü (`fixtures*.csv`, dört lig 56 takım 519 eşleşme) ve mevcu
 - **Takas etkisi**: Takas Analizi'nde ve Sezon Simülasyonu'nda, takassız/takaslı kadrolar aynı çekilişlerle
   (CRN, seed 1) — iki takımın ΔP(playoff), ΔP(şampiyon), ortalama sıra farkı.
 - Kullanıcının takımı fikstürdeki `is_user_team` işaretinden seçilir (tam fikstürle tek takım kuralı bozulmuştu).
+- **Güç belirsizliği**: her simülasyonda her takımın vektörü sezon boyu `λ ~ lognormal(0, sd)` ile
+  ölçeklenir (varsayılan sd 0.06, sayfadan 0–0.15). Olmadan güçler kesin bilinir sayılır: 93992'de playoff
+  %100, tek takas +50 puan gibi aşırı kesin sonuçlar çıkıyordu. Kalibre edilmedi; takas ve öneri etkileri
+  aynı ayarla hesaplanır.
+- Sıralama `standings*.csv` (league_id, team_id, wins, losses, ties) dahil üç kaynaktan; dört ligin
+  sıralaması 31 Ekim'de tamamlandı, hepsi 1. haftanın gerçek sonucundan başlar.
 - Sınırlar: kategori beraberliği, kadro değişiklikleri, sakatlık dönüş zamanları ve oyuncular arası maç
   kovaryansı modellenmez; olasılıklar kalibre edilmedi.
+
+### 13.15 Öneri türleri: karşılıklı fayda, sat yüksek, al düşük (`fdo.trade.perception`, `suggest.py`)
+
+Takas Önerileri'nde üç ayrı tür (`SearchOptions.mode`), her biri kendi eşikleriyle:
+
+- **Karşılıklı fayda** (`mutual`, önceki davranış): iki takımın da kalan sezon strateji kazancı ve paket
+  piyasa (ROS) dengesi.
+- **Algılanan değer**: rakibin baktığı değer — bu sezonun rakamları (maç başı z; 3 maçtan azı sezon
+  öncesine düşer), sezon öncesi isim değeri ya da ikisinin sıra ortalaması (varsayılan). Algılanan sıra,
+  ROS piyasa değer merdivenindeki aynı sıranın fiyatına çevrilir; `edge = algılanan − ROS`. Oran
+  kullanılmaz (yedek seviyesinde anlamsız büyür).
+- **Sat yüksek** (`sell_high`): verdiğin pakette `edge ≥ min_edge` oyuncu; rakibin gözünde denge
+  (aldığı / verdiği algılanan değer) ≥ eşik; senin kazancın eşiği geçer. Rakibin ROS kazancı şart değil.
+- **Al düşük** (`buy_low`): aldığın pakette `−edge ≥ min_edge` oyuncu; aynı denge ve kazanç şartı.
+- Puan: karşılıklıda önceki formül; diğerlerinde `senin birleşik kazancın × min(1, algılanan denge)`.
+- Sayfada kadrondaki sat-yüksek adayları / rakiplerdeki al-düşük hedefleri tablosu; öneriler için
+  "playoff etkisini hesapla" (sezon simülasyonu, CRN) ve ΔP(playoff) / ΔP(şampiyon) ile sıralama.
+- Uyarı: en üst oyuncularda değer merdiveni dik olduğu için (ör. SGA bu sezon 17.) büyük negatif edge
+  çıkabilir; gerçek menajer isim değerine bakar — bu yüzden varsayılan algılanan değer ortalamadır.
 
 ### 13.8 V3 adayları
 
