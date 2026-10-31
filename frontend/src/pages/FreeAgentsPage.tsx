@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
-import { ErrorBanner, Loading, PlayerName, StrategySelect, deltaClass } from "../components/common";
+import { ErrorBanner, Loading, PlayerName, deltaClass } from "../components/common";
+import { BALANCED, StrategyPicker, toStrategyIn, type StrategyChoice } from "../components/StrategyPicker";
 import { StatusBadges } from "../components/RosterTable";
 import { fmtDelta, fmtNum, fmtStat, zClass } from "../format";
 import type { League, Meta, WaiverOut } from "../types";
@@ -8,7 +9,7 @@ import type { League, Meta, WaiverOut } from "../types";
 const POSITIONS = ["Hepsi", "PG", "SG", "G", "SF", "PF", "F", "C"];
 
 export function FreeAgentsPage({ meta, league, team, injuries }: { meta: Meta; league: League; team: string; injuries: boolean }) {
-  const [strategy, setStrategy] = useState("");
+  const [strategy, setStrategy] = useState<StrategyChoice>(BALANCED);
   const [pos, setPos] = useState("Hepsi");
   const [view, setView] = useState<"stats" | "impact">("stats");
   const [data, setData] = useState<WaiverOut | null>(null);
@@ -17,7 +18,7 @@ export function FreeAgentsPage({ meta, league, team, injuries }: { meta: Meta; l
 
   useEffect(() => {
     setBusy(true);
-    api.waiver(league.id, team, strategy, injuries)
+    api.waiver(league.id, team, toStrategyIn(strategy), injuries)
       .then((d) => { setData(d); setError(null); })
       .catch((e: Error) => setError(e.message))
       .finally(() => setBusy(false));
@@ -31,7 +32,7 @@ export function FreeAgentsPage({ meta, league, team, injuries }: { meta: Meta; l
     <div className="stack">
       <p className="desc">Kalan sezon için her boştaki oyuncu ve kadrondan en iyi bırakma eşi. Pozisyon kuralı korunur; IL'dekiler bırakılmaz.</p>
       <div className="toolbar" style={{ marginBottom: 0 }}>
-        <StrategySelect meta={meta} value={strategy} onChange={setStrategy} label="Senin stratejin" />
+        <StrategyPicker meta={meta} value={strategy} onChange={setStrategy} label="Senin stratejin" />
         <div className="field"><span>Pozisyon</span>
           <div className="seg">{POSITIONS.map((p) => <button key={p} aria-pressed={pos === p} onClick={() => setPos(p)}>{p}</button>)}</div>
         </div>

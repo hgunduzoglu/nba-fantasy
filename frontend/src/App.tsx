@@ -3,8 +3,8 @@ import { api } from "./api";
 import { FreeAgentsPage } from "./pages/FreeAgentsPage";
 import { RankingsPage } from "./pages/RankingsPage";
 import { SeasonPage } from "./pages/SeasonPage";
-import { SuggestPage, type PendingTrade } from "./pages/SuggestPage";
-import { TradePage } from "./pages/TradePage";
+import { SuggestPage } from "./pages/SuggestPage";
+import { TradePage, type TradeInit } from "./pages/TradePage";
 import { WeeklyPage } from "./pages/WeeklyPage";
 import type { Meta } from "./types";
 
@@ -55,7 +55,7 @@ export default function App() {
     const h = window.location.hash.replace("#", "") as Tab;
     return TABS.some((t) => t.id === h) ? h : "trade";
   });
-  const [pending, setPending] = useState<{ trade: PendingTrade; seq: number } | null>(null);
+  const [pending, setPending] = useState<{ trade: TradeInit; seq: number } | null>(null);
 
   const go = (t: Tab) => {
     setTab(t);

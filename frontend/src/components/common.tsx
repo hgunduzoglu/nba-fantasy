@@ -1,4 +1,4 @@
-import type { BriefPlayer, Meta } from "../types";
+import type { BriefPlayer } from "../types";
 
 export function PlayerName({ p, sub = true }: { p: BriefPlayer; sub?: boolean }) {
   return (
@@ -9,19 +9,6 @@ export function PlayerName({ p, sub = true }: { p: BriefPlayer; sub?: boolean })
       {p.status === "NA" && <span className="badge il">NA</span>}
       {sub && <span className="psub" style={{ marginLeft: 6 }}>{p.nba_team} · {p.positions.join(", ")}</span>}
     </span>
-  );
-}
-
-export function StrategySelect({ meta, value, onChange, label = "Strateji" }: {
-  meta: Meta; value: string; onChange: (v: string) => void; label?: string;
-}) {
-  return (
-    <label className="field"><span>{label}</span>
-      <select className="select" value={value} onChange={(e) => onChange(e.target.value)}>
-        <option value="">Dengeli</option>
-        {meta.presets.filter((p) => p.name !== "Dengeli").map((p) => <option key={p.name}>{p.name}</option>)}
-      </select>
-    </label>
   );
 }
 

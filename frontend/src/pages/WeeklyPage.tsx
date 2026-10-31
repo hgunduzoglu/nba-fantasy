@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
-import { ErrorBanner, Loading, PlayerName, StrategySelect, probClass } from "../components/common";
+import { ErrorBanner, Loading, PlayerName, probClass } from "../components/common";
+import { BALANCED, StrategyPicker, toStrategyIn, type StrategyChoice } from "../components/StrategyPicker";
 import { fmtDate, fmtDay, fmtDelta, fmtNum, fmtPct, fmtStat } from "../format";
 import type { GridRow, League, Meta, Outlook, StreamOut, WeeklyIn, WeeklyOut } from "../types";
 
@@ -60,7 +61,7 @@ function CategoryTable({ meta, o, me, opp }: { meta: Meta; o: Outlook; me: strin
 export function WeeklyPage({ meta, league, team, injuries }: Props) {
   const [week, setWeek] = useState<number | null>(null);
   const [opponent, setOpponent] = useState<string | null>(null);
-  const [strategy, setStrategy] = useState("");
+  const [strategy, setStrategy] = useState<StrategyChoice>(BALANCED);
   const [sitOut, setSitOut] = useState(true);
   const [accMine, setAccMine] = useState<Acc>(empty);
   const [accOpp, setAccOpp] = useState<Acc>(empty);
@@ -74,7 +75,7 @@ export function WeeklyPage({ meta, league, team, injuries }: Props) {
 
   const hasAcc = (a: Acc) => Object.values(a).some((v) => v > 0);
   const body: WeeklyIn = useMemo(() => ({
-    team, week, opponent, sit_out: sitOut, strategy: strategy ? { preset: strategy } : null, injuries,
+    team, week, opponent, sit_out: sitOut, strategy: toStrategyIn(strategy), injuries,
     acc_mine: hasAcc(accMine) ? accMine : null, acc_opp: hasAcc(accOpp) ? accOpp : null,
   }), [team, week, opponent, sitOut, strategy, injuries, accMine, accOpp]);
 
@@ -123,7 +124,7 @@ export function WeeklyPage({ meta, league, team, injuries }: Props) {
             ))}
           </select>
         </label>
-        <StrategySelect meta={meta} value={strategy} onChange={setStrategy} label="Senin stratejin" />
+        <StrategyPicker meta={meta} value={strategy} onChange={setStrategy} label="Senin stratejin" />
         <label className="check" title="NA (takımda değil) her zaman oynamaz; Q oynar; dönüş tarihi bilinen sakatlar o güne kadar oynamaz.">
           <input type="checkbox" checked={sitOut} onChange={(e) => setSitOut(e.target.checked)} /> O durumundakileri oynatma
         </label>

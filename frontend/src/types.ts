@@ -75,6 +75,7 @@ export interface StrategyIn {
   preset?: string;
   name?: string;
   weights?: number[];
+  auto_punt?: 1 | 2;
 }
 
 export interface TradeIn {

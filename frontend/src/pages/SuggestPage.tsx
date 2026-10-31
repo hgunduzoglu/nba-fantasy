@@ -1,22 +1,18 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
-import { ErrorBanner, Loading, PlayerName, StrategySelect, deltaClass } from "../components/common";
+import { ErrorBanner, Loading, PlayerName, deltaClass } from "../components/common";
+import { BALANCED, StrategyPicker, toStrategyIn, type StrategyChoice } from "../components/StrategyPicker";
 import { fmtDelta, fmtNum, fmtPct } from "../format";
 import type { League, Meta, MispricedRow, Perceived, SuggestMode, SuggestOut, Suggestion } from "../types";
 
-export interface PendingTrade {
-  opp: string;
-  giveA: string[];
-  giveB: string[];
-  stratB?: string;
-}
+import type { TradeInit } from "./TradePage";
 
 interface Props {
   meta: Meta;
   league: League;
   team: string;
   injuries: boolean;
-  onOpen: (t: PendingTrade) => void;
+  onOpen: (t: TradeInit) => void;
 }
 
 const MODES: { id: SuggestMode; label: string; desc: string }[] = [
@@ -62,7 +58,7 @@ function MispricedTable({ rows, title, showTeam }: { rows: MispricedRow[]; title
 
 export function SuggestPage({ meta, league, team, injuries, onOpen }: Props) {
   const [mode, setMode] = useState<SuggestMode>("mutual");
-  const [strategy, setStrategy] = useState("");
+  const [strategy, setStrategy] = useState<StrategyChoice>(BALANCED);
   const [assume, setAssume] = useState<"balanced" | "punt1" | "punt2">("balanced");
   const [perceived, setPerceived] = useState<Perceived>("blend");
   const [minBalance, setMinBalance] = useState(0.9);
@@ -95,7 +91,7 @@ export function SuggestPage({ meta, league, team, injuries, onOpen }: Props) {
     api.suggest(league.id, {
       team, mode, opponent_assumption: assume, perceived, min_balance: minBalance, min_edge: minEdge, packages,
       max_evaluations: budget, min_fairness: minFair, min_gain: 0.005, auto_balance: true,
-      strategy: strategy ? { preset: strategy } : null, injuries,
+      strategy: toStrategyIn(strategy), injuries,
     }).then(setResult).catch((e: Error) => setError(e.message)).finally(() => setBusy(false));
   };
 
@@ -107,7 +103,7 @@ export function SuggestPage({ meta, league, team, injuries, onOpen }: Props) {
       try {
         const r = await api.season(league.id, {
           team_a: team, team_b: s.team_b, give_a: s.give_a.map((p) => p.id), give_b: s.give_b.map((p) => p.id),
-          auto_balance: true, strategy_a: strategy ? { preset: strategy } : null,
+          auto_balance: true, strategy_a: toStrategyIn(strategy),
           strategy_b: { name: s.other_strategy, weights: s.other_weights }, injuries, n_sims: 1000,
         });
         const e: Effect = { me_playoff: r.teams.a.playoff_after - r.teams.a.playoff_before,
@@ -128,7 +124,10 @@ export function SuggestPage({ meta, league, team, injuries, onOpen }: Props) {
   }
   const modeInfo = MODES.find((m) => m.id === mode)!;
 
-  const open = (s: Suggestion) => onOpen({ opp: s.team_b, giveA: s.give_a.map((p) => p.id), giveB: s.give_b.map((p) => p.id) });
+  const open = (s: Suggestion) => onOpen({
+    opp: s.team_b, giveA: s.give_a.map((p) => p.id), giveB: s.give_b.map((p) => p.id), stratA: strategy,
+    stratB: s.other_weights.every((w) => w === 1) ? BALANCED : { kind: "custom", weights: s.other_weights },
+  });
 
   return (
     <div className="stack">
@@ -141,7 +140,7 @@ export function SuggestPage({ meta, league, team, injuries, onOpen }: Props) {
 
       <div className="card"><div className="card-b">
         <div className="toolbar" style={{ marginBottom: 0 }}>
-          <StrategySelect meta={meta} value={strategy} onChange={setStrategy} label="Senin stratejin" />
+          <StrategyPicker meta={meta} value={strategy} onChange={setStrategy} label="Senin stratejin" />
           <label className="field"><span>Rakip stratejisi varsayımı</span>
             <select className="select" value={assume} onChange={(e) => setAssume(e.target.value as typeof assume)}>
               <option value="balanced">Dengeli</option>

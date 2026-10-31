@@ -1,6 +1,6 @@
 import type {
   Meta, MispricedRow, Perceived, Player, RankingsOut, Roster, SeasonOut, SeasonPageOut, Source, StreamOut,
-  SuggestIn, SuggestOut, TradeIn, TradeOut, WaiverOut, WeeklyIn, WeeklyOut,
+  StrategyIn, SuggestIn, SuggestOut, TradeIn, TradeOut, WaiverOut, WeeklyIn, WeeklyOut,
 } from "./types";
 
 export class ApiError extends Error {
@@ -46,9 +46,8 @@ export const api = {
   weekly: (league: string, body: WeeklyIn) => request<WeeklyOut>(`/api/leagues/${league}/weekly`, post(body)),
   stream: (league: string, body: WeeklyIn & { used: number; droppable: string[] }) =>
     request<StreamOut>(`/api/leagues/${league}/weekly/stream`, post(body)),
-  waiver: (league: string, team: string, preset: string, injuries: boolean) =>
-    request<WaiverOut>(
-      `/api/leagues/${league}/waiver?team=${team}${preset ? `&preset=${encodeURIComponent(preset)}` : ""}&${q(injuries)}`),
+  waiver: (league: string, team: string, strategy: StrategyIn | null, injuries: boolean) =>
+    request<WaiverOut>(`/api/leagues/${league}/waiver`, post({ team, strategy, injuries })),
   seasonPage: (league: string, team: string, n: number, sd: number, injuries: boolean) =>
     request<SeasonPageOut>(`/api/leagues/${league}/season?team=${team}&n=${n}&sd=${sd}&${q(injuries)}`),
   rankings: (league: string, source: Source, injuries: boolean) =>
