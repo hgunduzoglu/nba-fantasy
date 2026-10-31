@@ -106,6 +106,11 @@ class TradeEngine:
         np.fill_diagonal(self.baseline_matchup, np.nan)
         self.before = {m: self.view(self.league.rosters, m) for m in MODES}
         self.market, self.zscores = self._market_values()
+        # Arama döngüleri için pandas'sız kopyalar (öneri taraması paket başına çok kez okur).
+        self._market_arr = self.market.to_numpy(float)
+        self._z_arr = self.zscores.to_numpy(float)
+        self._utility_cache: dict[Strategy, np.ndarray] = {}
+        self._status = dict(zip(self.ids, data.players["injury_status"].reindex(list(self.ids)).astype(str)))
 
     def _weekly_vectors(self) -> tuple[np.ndarray, np.ndarray]:
         f = self.data.stats[ROS].reindex(self.ids)
@@ -191,7 +196,13 @@ class TradeEngine:
         return [frozenset(str(self.data.players.loc[p, "yahoo_positions"]).split(",")) for p in ids]
 
     def _utility(self, ids, strategy: Strategy) -> pd.Series:
-        return self.zscores.loc[list(ids)].mul(strategy.normalized, axis=1).sum(axis=1)
+        u = self._utility_cache.get(strategy)
+        if u is None:
+            if len(self._utility_cache) > 64:
+                self._utility_cache.clear()
+            u = self._utility_cache[strategy] = self._z_arr @ strategy.normalized
+        ids = list(ids)
+        return pd.Series(u[[self.index[p] for p in ids]], index=ids, dtype=float)
 
     def resolve(self, request: TradeRequest, strategies: dict[str, Strategy] | None = None
                 ) -> tuple[dict[str, tuple[str, ...]], dict, dict[str, frozenset[str]]]:
@@ -240,7 +251,7 @@ class TradeEngine:
             il = set(injuries[tid]) - set(out + drp)
             moved_il = []
             for pid, origin in incoming:
-                if (pid in self.league.injury_rosters[origin] and str(self.data.players.loc[pid, "injury_status"]) in ("O", "INJ", "INJ+")
+                if (pid in self.league.injury_rosters[origin] and self._status[pid] in ("O", "INJ", "INJ+")
                         and len(il) < (self.config.unverified.il_slots or 0)):
                     il.add(pid)
                     moved_il.append(pid)
@@ -251,7 +262,7 @@ class TradeEngine:
                 # Boşalan IL yerine kadrodaki sakat (O/INJ) aktif oyuncu taşınır; bırakma ancak sonra gerekir.
                 free_il = (self.config.unverified.il_slots or 0) - len(il)
                 injured = [p for p in roster if p not in il
-                           and str(self.data.players.loc[p, "injury_status"]) in ("O", "INJ", "INJ+")]
+                           and self._status[p] in ("O", "INJ", "INJ+")]
                 for pid in injured[: max(0, min(over, free_il))]:
                     il.add(pid)
                     moved_il.append(pid)
@@ -318,7 +329,8 @@ class TradeEngine:
         return deadline, (day or self.data.as_of) > deadline
 
     def fairness(self, request: TradeRequest) -> float:
-        a, b = float(self.market.loc[list(request.give_a)].sum()), float(self.market.loc[list(request.give_b)].sum())
+        a = float(self._market_arr[[self.index[p] for p in request.give_a]].sum())
+        b = float(self._market_arr[[self.index[p] for p in request.give_b]].sum())
         return min(a, b) / max(a, b) if max(a, b) > 0 else 0.0
 
     def analyze(self, request: TradeRequest, *, strategy_a: Strategy | None = None,
