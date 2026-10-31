@@ -1676,6 +1676,15 @@ soyad + ilk harf (CBS "Nicolas Claxton" = Yahoo "Nic Claxton"). 31 Ekim raporu: 
   uygunluk `ROS GP / dönüş sonrası takım maçı`. Önceden kaçırılan maçlar sezona eşit yayılıyordu; artık
   zamanlama doğru, özellikle playoff haftaları için (ör. Banchero 22 Kasım'da dönüp playoff'ta tam oynar).
 - Trade motoru: kapasite aşılırsa önce kadrodaki O/INJ oyuncu boş IL yerine taşınır, bırakma ancak sonra.
+- **IL dönüşü bedeli** (`TradeEngine.crunch_vector`, `SeasonSim.drop_schedule`): IL'deki oyuncu döndüğünde aktif
+  kadroda ona yer açılmalı. Boş aktif yer yoksa dönüş sırasıyla (erken dönen önce) aktifler ve dönen oyuncu arasında en
+  düşük faydalı olan bırakılır: aktif oyuncu bırakılırsa dönüş sonrası payı (`pay × katkı`, pay = dönüşten sonraki
+  takım maçı / kalan takım maçı; tarih bilinmiyorsa ROS maç / kalan maç), dönen oyuncunun kendisi bırakılırsa tüm
+  katkısı düşülür. Sezon boyu yok sayılan oyuncu dönmez (bedel yok). Takas ve waiver hesaplarında değişen takım kendi
+  stratejisiyle, diğer takımlar ve sezon simülasyonu dengeli değerle karar verir. Önceden model dönen oyuncuları
+  kimseyi bırakmadan fazladan sayıyordu: 31 Ekim'de METU IE'de Kekstra'nın 4 IL oyuncusu 13/13 aktif kadroya dönüyor;
+  playoff olasılığı %92 → %70, şampiyonluk %17 → %6 oldu (220594'te NY Hav Havs %18 → %30). IL'deki oyuncuyu vermek
+  artık bu bedeli kaldırdığı için doğru değerlenir; IL'den oyuncu almak bedeli ekler.
 
 ### 13.17 Öneri yönleri ve öneri ayrıntıları (31 Ekim 2026)
 
@@ -1813,6 +1822,10 @@ Boştaki Oyuncular, Sezon Simülasyonu, Lig Sıralamaları. Lig, takım, sakatl�
   `StrategyIn.auto_revive`) ve özel ağırlıklar (0–3); **kayıtlı senaryolar** (tarayıcıda,
   JSON dışa/içe aktarma): ΔECW, strateji Δ, ΔP(5+), değer ve algılanan denge, playoff/şampiyonluk etkisi yan yana;
   "Aç" senaryoyu bütün seçimleriyle geri yükler.
+- **Fikstür etkisi** (iki takımlı ve çok takımlı analizde kendiliğinden): fikstürdeki her kalan normal sezon haftası için
+  haftayı kazanma olasılığı takassız → takaslı (Sezon Simülasyonu'ndaki fikstür tablosuyla aynı nokta tahmini:
+  o haftanın NBA maçları, sakatlık dönüşleri, IL dönüşü bedeli), beklenen galibiyet toplamı ve takımlar arası geçiş;
+  rakip de takastaysa "takasta" işareti. `POST /trade/fixtures`, `/trade/multi/fixtures`.
 - **Takas Önerileri**: karşılıklı fayda, sat yüksek, al düşük ayrı türler; her biri birden çok yönde aranır (§13.17);
   yanlış fiyatlama tabloları; öneriler için playoff etkisi; "Takas ekranında aç" öneriyi seçili olarak Takas
   Analizi'ne taşır.
