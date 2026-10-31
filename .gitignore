@@ -55,3 +55,8 @@ data/live/
 /data/real/fixtures*.json
 /data/real/matchups.csv
 /data/real/matchups.json
+/data/real/STANDINGS*README*.txt
+/data/real/standings*.csv
+/data/real/standings*.json
+/data/real/week*_results*.csv
+/data/real/week*_results*.json
