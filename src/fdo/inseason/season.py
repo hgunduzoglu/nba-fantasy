@@ -8,6 +8,9 @@
   IL dönüşü: boş aktif yer yoksa dönüş gününden itibaren en düşük değerli aktif oyuncu (dengeli değer) kadrodan
   çıkar, dönen oyuncu daha zayıfsa kendisi hiç aktifleşmez (``drop_schedule``). Dönüş tarihi bilinmeyen IL
   oyuncusu gelecek hafta döner sayılır.
+* **İçinde bulunulan hafta**: yalnız veri tarihinden itibaren kalan günler senaryonun (takas sonrası) kadrosuyla
+  oynanır. Geçmiş günlerin gerçek skoru veride yok; bu günler takas öncesi gerçek kadronun beklenen katkısıdır ve her
+  senaryoda aynıdır (``_past``). Takas geçmiş günleri değiştirmez.
 * **Eşleşme**: kategori olasılıkları ``p_win``; birlikte çekiliş Gauss kopulası (``category_corr``).
   Kategori beraberliği yok sayılır (9 tek sayı → eşleşmede beraberlik yok).
 * **Sıralama**: (W + T/2) / (W+L+T), eşitlikte rastgele. **Playoff**: ilk ``n`` takım; braket ``2^tur``
@@ -33,6 +36,7 @@ from scipy.special import ndtri
 from fdo.inseason.weekly import Stint, WeekModel
 from fdo.inseason.weeks import LeagueWeeks
 from fdo.matchup.ecw import ecw_vs, p_at_least, p_win
+from fdo.matchup.player_week import WEEK_DIM
 from fdo.trade.strategy import Strategy
 
 
@@ -96,7 +100,11 @@ class SeasonSim:
         self.reseed = str(self.league.settings.get("Playoff Reseeding", "")).lower().startswith("y")
         self.corr = model.corr
         self._vec_cache: dict[tuple, np.ndarray] = {}
+        self._past_cache: dict[tuple[str, int], np.ndarray] = {}
         self._drop_cache: dict[tuple, dict[str, dt.date]] = {}
+        if self.current_week is not None and any(d < as_of for d in weeks.days(self.current_week)):
+            self.notes.append(f"{self.current_week}. hafta sürüyor: geçmiş günlerin gerçek skoru bilinmediği için bu "
+                              "günler takas öncesi kadroyla beklenen değerdir; takas yalnız kalan günleri etkiler.")
 
     # ------------------------------------------------------------- haftalık vektörler
     def il_map(self, rosters: dict[str, tuple[str, ...]],
@@ -131,6 +139,18 @@ class SeasonSim:
         self._drop_cache[key] = gone
         return gone
 
+    def _past(self, team: str, week: int) -> np.ndarray:
+        """İçinde bulunulan haftanın veri tarihinden önceki günleri: takas öncesi gerçek kadronun (IL hariç, güncel
+        durumla) beklenen katkısı. Senaryodan bağımsız."""
+        key = (team, week)
+        if key not in self._past_cache:
+            days = [d for d in self.weeks.days(week) if d < self.as_of]
+            roster = self.league.rosters[team]
+            il = self.engine._il(team, roster)
+            stints = [Stint(p, slot=i) for i, p in enumerate(p for p in roster if p not in il)]
+            self._past_cache[key] = self.model.team_week(team, stints, days).vector if days else np.zeros(WEEK_DIM)
+        return self._past_cache[key]
+
     def vector(self, team: str, roster: tuple[str, ...], week: int, il: frozenset[str] | None = None) -> np.ndarray:
         il = self.engine._il(team, roster) if il is None else frozenset(il)
         key = (team, tuple(sorted(roster)), tuple(sorted(il)), week)
@@ -139,6 +159,8 @@ class SeasonSim:
                 self._vec_cache.clear()
             current = week == self.current_week
             days = self.weeks.days(week)
+            if current:
+                days = [d for d in days if d >= self.as_of]
             gone = self.drop_schedule(roster, il)
             stints = []
             for p in roster:
@@ -151,7 +173,7 @@ class SeasonSim:
                         continue
                 stints.append(Stint(p, last=last, slot=len(stints)))
             tw = self.model.team_week(team, stints, days, use_status=current)
-            self._vec_cache[key] = tw.vector
+            self._vec_cache[key] = tw.vector + self._past(team, week) if current else tw.vector
         return self._vec_cache[key]
 
     def week_vectors(self, rosters: dict[str, tuple[str, ...]], week: int,

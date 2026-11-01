@@ -1,6 +1,7 @@
 """Sezon simülasyonu: braket, sıralamadan başlama, olasılık toplamları ve CRN."""
 from __future__ import annotations
 
+import dataclasses
 import datetime as dt
 
 import numpy as np
@@ -103,3 +104,23 @@ def test_returning_il_player_pushes_the_weakest_active_off_the_roster(sim):
               if not (p == worst and last < 0)]
     expected = sim.model.team_week("2", stints, days, use_status=False).vector
     np.testing.assert_allclose(sim.vector("2", roster, 3, il), expected)
+
+
+def test_current_week_trade_changes_only_the_remaining_days(data):  # noqa: F811
+    # 2. hafta (26 Ekim – 1 Kasım) veri tarihinde (31 Ekim) sürüyor: AAA yalnız geçmişte, BBB yalnız kalan günde oynar.
+    extra = pd.DataFrame([{"game_date": "2026-10-28", "home_team": "AAA", "away_team": "CCC"},
+                          {"game_date": "2026-11-01", "home_team": "BBB", "away_team": "DDD"}])
+    data = dataclasses.replace(data, schedule=pd.concat([data.schedule, extra], ignore_index=True))
+    lg = data.leagues["L"]
+    eng = TradeEngine(data, "L", utilization=1)
+    s = SeasonSim(WeekModel(eng), league_weeks(data.schedule, lg.settings, lg.config), _fixtures(range(1, 20)),
+                  pd.DataFrame({"wins": [7, 2, 5, 4], "losses": [2, 7, 4, 5], "ties": 0}, index=["1", "2", "3", "4"]),
+                  data.as_of)
+    w = s.current_week
+    assert w == 2 and min(s.weeks.days(w)) < data.as_of <= max(s.weeks.days(w))
+    roster = lg.rosters["1"]                                          # 0 AAA, 1 BBB, 2 CCC (O), 3 DDD
+    swap = lambda out, inn: tuple(p for p in roster if p != out) + (inn,)
+    base = s.vector("1", roster, w)
+    np.testing.assert_allclose(s.vector("1", swap("0", "16"), w), base)       # AAA'nın maçı geçti: takas etkilemez
+    assert not np.allclose(s.vector("1", swap("1", "17"), w), base)          # BBB kalan günde oynar
+    assert s._past("1", w)[1] > 0 and any("hafta sürüyor" in n for n in s.notes)
