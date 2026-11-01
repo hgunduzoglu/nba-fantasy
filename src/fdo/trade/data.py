@@ -57,6 +57,7 @@ class TradeData:
     fingerprint: str
     issues: tuple[str, ...]
     injuries: pd.DataFrame | None = None     # fdo.inseason.injuries.apply_injuries ile (dönüş tarihleri)
+    durability: pd.DataFrame | None = None   # fdo.inseason.durability.apply_durability ile (oynama oranları)
 
 
 def number(value) -> float:
