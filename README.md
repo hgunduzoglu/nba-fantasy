@@ -1745,6 +1745,27 @@ tek bir senaryo olarak değerlendirir.
   senin stratejin (yön), diğer takımların varsayımı, eşikler; "Analizde aç" öneriyi Analiz'e taşır. İki takımlı Takas
   Analizi değişmedi.
 
+### 13.19 Dayanıklılık: kalan sezon maçı (`fdo.inseason.durability`, 1 Kasım 2026)
+
+Yahoo'nun kalan sezon (ROS) projeksiyonu sakatlık riskini yok sayar: 31 Ekim'de kadrolu oyuncuların %90'ına takımının
+kalan maçlarının ≥ %95'ini veriyordu (Caruso 72 maç; sezon öncesi projeksiyonu 82'de 58). Sık sakatlanan oyuncular
+dayanıklılara göre fazla değerli görünüyordu. `apply_durability` sakatlık dönüş tarihlerinden sonra, API'de her zaman
+uygulanır:
+
+- **Oynama oranı**: önsel = sezon öncesi projeksiyon maçı / 82 (Yahoo'nun sakatlık geçmişini içeren tahmini). Bu sezon
+  oynanan / takımın oynadığı maç, 20 maçlık önselle birleştirilir ve oranı **yalnız yukarı** çeker (rotasyona girip her
+  maça çıkan oyuncu, ör. Quenton Jackson .41 → .55). Kaçırılan maçlar oranı düşürmez: güncel sakatlık dönüş tarihiyle
+  zaten modellenir, çift sayılmaz.
+- **Tavan** = oran × dönüşten sonraki takım maçı (dönüş tarihi bilinmiyorsa bugünden). ROS maçı tavanı aşıyorsa ROS
+  toplamları orantılı küçülür, maç başı değerler korunur. Yahoo'nun zaten kıstığı oyuncu (ör. Anthony Davis 59) değişmez;
+  sezon öncesi projeksiyonu olmayan oyuncuya dokunulmaz.
+- Etki her yerde: takas motoru (haftalık vektör, piyasa değeri), haftalık model ve sezon simülasyonu (uygunluk
+  `ROS GP / kalan takım maçı`), IL dönüş payı. Kalan sezon kaynağında GP sütununda kısılan oyuncu `*` ile işaretli; üzerine
+  gelince Yahoo'nun maçı ve oran görünür. Bu haftanın görünümünde de sağlıklı oyuncu beklenen değerle (oran kadar) oynar.
+- 31 Ekim: 416 oyuncu kısıldı (toplam 30 140 → 24 328 maç). METU IE değer sırası: Kawhi 11 → 48, Kyrie 23 → 60,
+  Caruso 37 → 78; Mikal Bridges 90 → 54, Alexander-Walker 45 → 19. Playoff olasılığı: Kekstra %70 → %62, NY Hav Havs
+  %30 → %20, Galatasaray Cafe Crown %25 → %37, Karaali SK %19 → %27.
+
 ### 13.8 V3 adayları
 
 Beam search ve H-score ağırlık optimizasyonu; profil karışımı uyumu; oyuncular arası maç sayısı
@@ -1825,6 +1846,7 @@ Boştaki Oyuncular, Sezon Simülasyonu, Lig Sıralamaları. Lig, takım, sakatl�
   maç başı, 3 maçtan azı * ile sezon öncesine düşer). ▲/▼ sıra farkı; fark ≥ 1 değer kalın (turuncu: olduğundan iyi
   görünüyor → sat, mor: olduğundan kötü → al). Başlığa tıklamak farka göre sıralar. Değer ve takas hesapları her zaman
   kalan sezondur: takasla yalnız kalan maçlar el değiştirir.
+  Kalan sezon kaynağında GP sonundaki `*`: Yahoo'nun verdiği maç oynama oranıyla kısıldı (§13.19; üzerine gelince ayrıntı).
 - **Takas ekranı ekleri**: iki taraf için elle "bırak" ve aranabilir boştaki oyuncu "al" (otomatik dengeleme bunlardan
   sonra uygulanır); strateji seçici her sekmede: dengeli, hazır punt'lar, **otomatik punt** (takımın kategori profilinden
   en zayıf 1 ya da 2 kategori, `StrategyIn.auto_punt`), **zayıfı canlandır** (en zayıf 1–2 kategori ×3,
