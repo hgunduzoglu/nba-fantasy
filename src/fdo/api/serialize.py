@@ -124,6 +124,15 @@ def injury_info(eng: TradeEngine, pid: str) -> dict | None:
             "injury": r.get("injury", "")}
 
 
+def durability_info(eng: TradeEngine, pid: str) -> dict | None:
+    """Kalan sezon maçı oynama oranıyla kısıldıysa: oran ve Yahoo'nun ham kalan sezon maçı."""
+    dur = getattr(eng.data, "durability", None)
+    if dur is None or pid not in dur.index or dur.loc[pid, "ros_gp_after"] >= dur.loc[pid, "ros_gp_before"] - 1e-9:
+        return None
+    r = dur.loc[pid]
+    return {"rate": float(r["rate"]), "yahoo_gp": float(r["ros_gp_before"]), "games_left": int(r["games_left"])}
+
+
 def player_row(eng: TradeEngine, pid: str, source: str, z: pd.DataFrame, *, il: frozenset = frozenset(),
                ranks: pd.Series | None = None, perceived: pd.DataFrame | None = None) -> dict:
     """``perceived``: ``AppState.perceived`` (bu sezon / sezon öncesi kaynağında algılanan değer ve sıra)."""
@@ -144,7 +153,8 @@ def player_row(eng: TradeEngine, pid: str, source: str, z: pd.DataFrame, *, il: 
         "positions": [p for p in str(P.loc[pid, "yahoo_positions"]).split(",") if p],
         "status": P.loc[pid, "injury_status"] or "", "il": pid in il,
         "injury": injury_info(eng, pid), "modeled": bool(eng.modeled[eng.index[pid]]),
-        "gp": gp, "stats": stats, "attempts": {k: per.get(k) for k in ("fgm", "fga", "ftm", "fta")},
+        "gp": gp, "durability": durability_info(eng, pid) if source == "ros" else None,
+        "stats": stats, "attempts": {k: per.get(k) for k in ("fgm", "fga", "ftm", "fta")},
         "z": {c: (float(zrow[c]) if zrow is not None and c in zrow else None) for c in CATEGORIES},
         "value": float(eng.market.get(pid, 0.0)),
         "rank": float(ranks[pid]) if ranks is not None and pid in ranks.index else None,

@@ -14,6 +14,7 @@ from typing import Callable
 import pandas as pd
 
 from fdo.config import REPO_ROOT
+from fdo.inseason.durability import apply_durability
 from fdo.inseason.fixtures import load_fixtures
 from fdo.inseason.injuries import latest_file, with_injuries
 from fdo.inseason.season import SeasonResult, SeasonSim
@@ -57,11 +58,12 @@ class AppState:
         return latest_file(self.data_dir)
 
     def data(self, injuries: bool = True) -> TradeData:
+        """Yahoo verisi + (istenirse) sakatlık dönüş tarihleri + dayanıklılık (kalan sezon maçı oynama oranıyla)."""
         sig = self.signature()
         base = self._get(("data", sig), lambda: load_trade_data(self.data_dir))
         if not injuries:
-            return base
-        return self._get(("data_inj", sig), lambda: with_injuries(base, self.data_dir))
+            return self._get(("data_dur", sig), lambda: apply_durability(base))
+        return self._get(("data_inj", sig), lambda: apply_durability(with_injuries(base, self.data_dir)))
 
     def engine(self, league_id: str, injuries: bool = True) -> TradeEngine:
         data = self.data(injuries)

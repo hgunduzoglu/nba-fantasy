@@ -6,6 +6,7 @@ pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient  # noqa: E402
 
 from fdo.api.app import create_app  # noqa: E402
+from fdo.inseason.durability import apply_durability  # noqa: E402
 from unit.test_inseason import data  # noqa: E402,F401  paylaşılan sentetik lig
 from unit.test_season import _fixtures  # noqa: E402
 
@@ -20,6 +21,18 @@ def client(data, tmp_path):  # noqa: F811
     st.data = lambda injuries=True: data
     st.signature = lambda: "test"
     return TestClient(app)
+
+
+def test_roster_marks_durability_cut(data, tmp_path):  # noqa: F811
+    data.stats["preseason"].loc["0", "gp"] = 41.0
+    app = create_app(data_dir=tmp_path, frontend_dir=tmp_path / "yok")
+    app.state.fdo.data = lambda injuries=True: apply_durability(data)
+    app.state.fdo.signature = lambda: "test"
+    c = TestClient(app)
+    p = next(x for x in c.get("/api/leagues/L/roster/1").json()["players"] if x["id"] == "0")
+    assert p["durability"]["rate"] == pytest.approx(.5, abs=.05) and p["durability"]["yahoo_gp"] > p["gp"]
+    s = next(x for x in c.get("/api/leagues/L/roster/1?source=season").json()["players"] if x["id"] == "0")
+    assert s["durability"] is None
 
 
 def test_weekly_and_stream(client):
