@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { api } from "../api";
 import { ErrorBanner, Loading, PlayerName, deltaClass } from "../components/common";
 import { BALANCED, StrategyPicker, toStrategyIn, type StrategyChoice } from "../components/StrategyPicker";
-import { StatusBadges } from "../components/RosterTable";
-import { fmtDelta, fmtNum, fmtStat, zClass } from "../format";
+import { GpCell, StatusBadges } from "../components/RosterTable";
+import { fmtDelta, fmtStat, zClass } from "../format";
 import type { League, Meta, WaiverOut } from "../types";
 
 const POSITIONS = ["Hepsi", "PG", "SG", "G", "SF", "PF", "F", "C"];
@@ -68,7 +68,7 @@ export function FreeAgentsPage({ meta, league, team, injuries }: { meta: Meta; l
                     {meta.categories.map((c) => view === "stats"
                       ? <td key={c.key} className={zClass(r.add.z[c.key])}>{fmtStat(c.key, r.add.stats[c.key])}</td>
                       : <td key={c.key} className={deltaClass(r.dp[c.key], maxDp)}>{fmtDelta(r.dp[c.key] * 100, 1)}</td>)}
-                    <td>{r.games_this_week}</td><td>{r.games_next_week}</td><td>{fmtNum(r.add.gp, 0)}</td>
+                    <td>{r.games_this_week}</td><td>{r.games_next_week}</td><GpCell p={r.add} />
                   </tr>
                 ))}
                 {!rows.length && <tr><td colSpan={meta.categories.length + 7} className="empty">Bu filtrede oyuncu yok</td></tr>}

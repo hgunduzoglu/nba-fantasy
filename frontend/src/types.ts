@@ -57,6 +57,8 @@ export interface Player {
   injury: Injury | null;
   modeled: boolean;
   gp: number | null;
+  /** Kalan sezon maçı oynama oranıyla kısıldıysa (yalnız kalan sezon kaynağında). */
+  durability?: { rate: number; yahoo_gp: number; games_left: number } | null;
   stats: Record<CategoryKey, number | null>;
   attempts: { fgm: number | null; fga: number | null; ftm: number | null; fta: number | null };
   z: Record<CategoryKey, number | null>;

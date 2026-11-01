@@ -2,6 +2,16 @@ import { useMemo, useState } from "react";
 import type { Category, CategoryKey, Player, Source } from "../types";
 import { fmtDelta, fmtNum, fmtStat, returnText, zClass, zLabel } from "../format";
 
+/** Maç sayısı; kalan sezon maçı oynama oranıyla kısıldıysa * ve açıklama. */
+export function GpCell({ p }: { p: Player }) {
+  const d = p.durability;
+  return (
+    <td title={d ? `Yahoo ${fmtNum(d.yahoo_gp, 0)} maç veriyor; beklenen oynama oranı %${Math.round(d.rate * 100)} × ${d.games_left} kalan maç` : undefined}>
+      {fmtNum(p.gp, 0)}{d && <span className="muted">*</span>}
+    </td>
+  );
+}
+
 type SortKey = "order" | "name" | "gp" | "value" | "perceived" | CategoryKey;
 
 interface Props {
@@ -106,7 +116,9 @@ export function RosterTable({ title, subtitle, players, categories, selected, on
             <tr>
               <th className="l" onClick={() => setSort({ key: "order", dir: 1 })} title="Varsayılan sıra" />
               {header("name", "Oyuncu", "l")}
-              {header("gp", "GP", "", "Maç sayısı (seçili kaynakta)")}
+              {header("gp", "GP", "", source === "ros"
+                ? "Kalan sezon maçı; * Yahoo'nun verdiği maç sezon öncesi oynama oranıyla kısıldı (üzerine gel)"
+                : "Maç sayısı (seçili kaynakta)")}
               {categories.map((c) => header(c.key, c.label, "", `${c.label} — maç başı`))}
               {header("value", "Değer", "", "Kalan sezon dengeli değeri (yedek seviyesine göre); parantezde ligdeki sıra")}
               {perceived && header("perceived", pLabel, "",
@@ -124,7 +136,7 @@ export function RosterTable({ title, subtitle, players, categories, selected, on
                     <div><span className="pname">{p.name}</span><StatusBadges p={p} /></div>
                     <div className="psub">{p.nba_team} · {p.positions.filter((x) => !["IL", "Util", "UTIL"].includes(x)).join(", ")}</div>
                   </td>
-                  <td>{fmtNum(p.gp, 0)}</td>
+                  <GpCell p={p} />
                   {categories.map((c) => {
                     const z = p.z[c.key];
                     const tip = c.key === "FG_PCT" && p.attempts.fga
