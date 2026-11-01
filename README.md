@@ -1625,6 +1625,11 @@ Tam H2H fikstürü (`fixtures*.csv`, dört lig 56 takım 519 eşleşme) ve mevcu
 - Her takımın her haftalık gücü o haftanın NBA takvimi ve günlük lineup'ıyla (`WeekModel.team_week`);
   içinde bulunulan hafta güncel sakatlık ve IL ile, sonrakiler tam kadroyla (kayıp maçlar ROS GP'de).
   Kadrolar sezon boyu sabit.
+- **İçinde bulunulan hafta**: veri tarihinden önceki günlerin gerçek skoru veride yok (matchup kaydında yalnız biten
+  haftalar var). Bu günler takas öncesi gerçek kadronun beklenen katkısıdır ve her senaryoda aynıdır; takas sonrası
+  kadro yalnız veri tarihinden itibaren kalan günlerde oynar. Önceden takas sonrası kadro haftanın tamamına (31 Ekim
+  verisinde 26 Ekim – 1 Kasım) uygulanıyordu: takasta giden oyuncunun geçmiş günlerdeki maçları da silinip gelen
+  oyuncuya yazılıyordu.
 - Eşleşme: kategori olasılıkları + Gauss kopulası; sıralama (W + T/2)/oynanan, eşitlikte rastgele.
   Playoff: ilk n takım (`Playoffs` ayarı), `2^tur` braket, boş koltuk bay; `Playoff Reseeding` açıksa her
   turda en yüksek–en düşük, değilse sabit braket. Playoff haftaları kendi takvimiyle (son tur 14 gün).
@@ -1665,6 +1670,12 @@ Takas Önerileri'nde üç ayrı tür (`SearchOptions.mode`), her biri kendi eşi
   Önceden 2'ye 1 takasta açılan yere giren boştaki oyuncu takasın kazancı sayılıyordu: ör. Caruso ↔ Jalen Johnson +
   Shannon'da 4-2-3-1 Gegen'in "kazancı" (+0.36) aslında takassız da alabileceği iki boştaki oyuncudandı (gerçekte −0.36).
   Değersiz ek oyuncuyla şişirilmiş paketler (aynı takasın + ek oyunculu kopyaları) listeden çıkarılır.
+  Takas öncesi tablo (`before_matrix`) takastaki **bütün** takımlara bu hamleleri uygular; ilk sürümde yalnız
+  değerlendirilen takıma uygulanıyor, takas sonrası ise iki tarafa birden uygulanıyordu. Karşı tarafın bedava
+  iyileşmesi takasın bedeli gibi görünüyordu: istatistikleri aynı iki oyuncunun takası iki tarafa −0.23 / −0.27 ECW
+  yazıyordu (şimdi 0, test). METU IE'de bu sapma Kekstra için rakibe göre −0.002 ile −0.073 ECW arasındaydı; öneriler
+  gereksiz eleniyordu (ör. losadanas takası +0.037 → +0.060). Çok takımlı önerilerin yerel taraması tek takım
+  değişiyormuş gibi (`before_row`) kalır; adaylar tam modelde bu ortak tabanla yeniden puanlanır.
 - Sayfada kadrondaki sat-yüksek adayları / rakiplerdeki al-düşük hedefleri tablosu; öneriler için
   "playoff etkisini hesapla" (sezon simülasyonu, CRN) ve ΔP(playoff) / ΔP(şampiyon) ile sıralama.
 - Uyarı: en üst oyuncularda değer merdiveni dik olduğu için (ör. SGA bu sezon 17.) büyük negatif edge
