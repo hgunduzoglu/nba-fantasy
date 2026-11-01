@@ -84,7 +84,9 @@ class TradeEngine:
     Bedava waiver: takasa giren takım hem önce hem sonra boştaki oyuncularla yapabileceği bedava iyileştirmeleri
     yapmış kabul edilir (``waiver_best``: boş aktif yer en iyi boştakiyle dolar, boştakinden zayıf aktif oyuncu
     değiştirilir). Böylece takasla açılan yer ancak boştan alınabilecek bir sonraki oyuncu kadar değer katar;
-    yedek seviyesinin altındaki oyuncuyu "vermek" kazanç sayılmaz. Lig tablosu ve diğer takımlar gerçek kadrodur.
+    yedek seviyesinin altındaki oyuncuyu "vermek" kazanç sayılmaz. Takas öncesi tablo da (``before_matrix``) takastaki
+    bütün takımlara aynı hamleleri uygular; yalnız bir tarafa uygulamak, karşı tarafın bedava iyileşmesini takasın
+    bedeli gibi gösterirdi. Lig tablosu ve takasta olmayan takımlar gerçek kadrodur.
     """
 
     def __init__(self, data: TradeData, league_id: str, *, utilization: float = .987,
@@ -123,6 +125,7 @@ class TradeEngine:
         self._share_cache: dict[str, float] = {}
         self._crunch_cache: dict[tuple, np.ndarray] = {}
         self._before_cache: dict[tuple[str, Strategy], np.ndarray] = {}
+        self._before_p_cache: dict[tuple, np.ndarray] = {}
         self._fa_cache: dict[Strategy, list[str]] = {}
         self._waiver_cache: dict[tuple, tuple[tuple[str, ...], tuple[tuple[str, str], ...]]] = {}
         owned = {p for r in self.league.rosters.values() for p in r}
@@ -318,8 +321,10 @@ class TradeEngine:
         return self.team_vector(self.waiver_best(roster, il, strategy)[0], il, strategy)
 
     def before_row(self, team_id: str, strategy: Strategy | None = None) -> np.ndarray:
-        """Takasa girmeden önce takımın rakiplere karşı kategori olasılıkları ``(K, C)``: kendi stratejisiyle
-        bedava waiver hamleleri ve IL dönüşü bedeli (``trade_vector``) uygulanmış kadro."""
+        """Yalnız bu takım değişiyorsa takas öncesi rakiplere karşı kategori olasılıkları ``(K, C)``: kendi
+        stratejisiyle bedava waiver hamleleri ve IL dönüşü bedeli (``trade_vector``) uygulanmış kadro, diğerleri
+        gerçek kadro. Birden çok takım değişiyorsa ``before_matrix`` kullanılır (çok takımlı yerel tarama bu
+        varsayımla çalışır)."""
         i = self.team_index[team_id]
         keep = np.arange(len(self.team_ids)) != i
         s = strategy or Strategy()
@@ -331,12 +336,23 @@ class TradeEngine:
                                        else p_win(v[None, :], self.baseline_vectors[keep], self.config))
         return self._before_cache[key]
 
+    def _before_p(self, strategies: dict[str, Strategy]) -> np.ndarray:
+        key = tuple(sorted(((t, s or Strategy()) for t, s in strategies.items()), key=lambda x: x[0]))
+        if key not in self._before_p_cache:
+            if len(self._before_p_cache) > 4096:
+                self._before_p_cache.clear()
+            vectors = self.baseline_vectors.copy()
+            for tid, s in key:
+                roster = self.league.rosters[tid]
+                vectors[self.team_index[tid]] = self.trade_vector(roster, self._il(tid, roster), s)
+            self._before_p_cache[key] = ecw_matrix(vectors, self.config)
+        return self._before_p_cache[key]
+
     def before_matrix(self, strategies: dict[str, Strategy]) -> np.ndarray:
-        """Temel olasılık matrisi; ``strategies`` takımlarının satırları kendi stratejileriyle (``before_row``)."""
-        p = self.baseline_p.copy()
-        for tid, s in strategies.items():
-            p[self.team_index[tid], np.arange(len(self.team_ids)) != self.team_index[tid]] = self.before_row(tid, s)
-        return p
+        """Takas öncesi olasılık matrisi, ``score_many`` ile aynı taban: ``strategies`` takımlarının (takastakiler)
+        hepsi kendi stratejileriyle bedava waiver hamleleri ve IL dönüşü bedeli uygulanmış gerçek kadrolarıyla,
+        diğerleri gerçek kadroyla. Aynı oyuncuları değiş tokuş eden takas her takım için sıfır fark verir."""
+        return self._before_p(strategies).copy()
 
     def view(self, rosters: dict[str, tuple[str, ...]], mode: str) -> LeagueView:
         categories, cover = [], []
@@ -473,11 +489,12 @@ class TradeEngine:
         for tid, s in strategies.items():
             vectors[self.team_index[tid]] = self.trade_vector(rosters[tid], self._il(tid, rosters[tid], injuries), s)
         p = ecw_matrix(vectors, self.config)
+        p_before = self._before_p(strategies)
         metrics = {}
         for tid, strategy in strategies.items():
             i = self.team_index[tid]
             keep = np.arange(len(self.team_ids)) != i
-            before, after = self.before_row(tid, strategy), p[i, keep]
+            before, after = p_before[i, keep], p[i, keep]
             bp, ap = before.mean(axis=0), after.mean(axis=0)
             bw, aw = float(p_at_least(before).mean()), float(p_at_least(after).mean())
             metrics[tid] = {"ecw_before": float(bp.sum()), "ecw_after": float(ap.sum()),

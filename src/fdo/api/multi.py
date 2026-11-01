@@ -151,7 +151,7 @@ def register(app: FastAPI, state: AppState) -> None:
                            "win_delta": s.metrics[t]["win_delta"], "ecw_delta": s.metrics[t]["ecw_delta"],
                            "value_in": flow[t][0], "value_out": flow[t][1],
                            "playoff_games": games_delta(po, eng.league.rosters[t], rosters[t]),
-                           "categories": category_deltas(eng, p, t, s.strategies[t]),
+                           "categories": category_deltas(eng, p, t, s.strategies),
                            "adjustments": {k: [names[x] for x in v] for k, v in adj[t].items()}}
                           for t in req.teams],
             })

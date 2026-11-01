@@ -80,12 +80,13 @@ def register(app: FastAPI, state: AppState) -> None:
         rows = []
         for s in found.suggestions:
             r = s.request
-            rosters, adj, il = eng.resolve(r, {body.team: strategy, r.team_b: s.other_strategy})
+            pair = {body.team: strategy, r.team_b: s.other_strategy}
+            rosters, adj, il = eng.resolve(r, pair)
             p, _ = eng.score(rosters, body.team, r.team_b, strategy, s.other_strategy, il)
             taken = float(perceived.reindex(list(r.give_b)).fillna(0).sum())
             active = [x for x in rosters[body.team] if x not in il[body.team]]
-            rows.append({"my_categories": category_deltas(eng, p, body.team, strategy),
-                         "other_categories": category_deltas(eng, p, r.team_b, s.other_strategy),
+            rows.append({"my_categories": category_deltas(eng, p, body.team, pair),
+                         "other_categories": category_deltas(eng, p, r.team_b, pair),
                          "playoff_games": games_delta(po_games, eng.league.rosters[body.team], rosters[body.team]),
                          "position_gap": best_assignment(eng.positions(active), eng.config).n_open_active,
                          "perceived_view": float(perceived.reindex(list(r.give_a)).fillna(0).sum()) / taken

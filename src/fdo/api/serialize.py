@@ -83,9 +83,10 @@ def brief(eng: TradeEngine, pid: str) -> dict:
 
 
 def category_deltas(eng: TradeEngine, p_after: np.ndarray, team_id: str,
-                    strategy: Strategy | None = None) -> dict[str, float]:
-    """Takımın rakiplere karşı ortalama kategori kazanma olasılığı değişimi (takas sonrası − önce)."""
-    d = eng.category_profile(p_after, team_id) - eng.before_row(team_id, strategy).mean(axis=0)
+                    strategies: dict[str, Strategy]) -> dict[str, float]:
+    """Takımın rakiplere karşı ortalama kategori kazanma olasılığı değişimi (takas sonrası − önce);
+    ``strategies``: takastaki bütün takımlar (``TradeEngine.before_matrix`` ile aynı taban)."""
+    d = eng.category_profile(p_after, team_id) - eng.category_profile(eng.before_matrix(strategies), team_id)
     return {c: float(x) for c, x in zip(CATEGORIES, d)}
 
 

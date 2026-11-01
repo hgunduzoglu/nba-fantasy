@@ -345,6 +345,20 @@ def test_free_waiver_moves_are_not_credited_to_the_trade(trade_data):
     assert any("bedava waiver" in n for n in dump.notes)
 
 
+def test_swapping_identical_players_changes_nothing_with_free_waiver_on_both_sides(trade_data):
+    # İki takımın da bedava waiver hamlesi var (2 ve 5 yedek seviyesinin altında); 0 ile 3 aynı oyuncu.
+    for f in trade_data.stats.values():
+        f.loc[["2", "5"], [c for c in f.columns if c != "gp"]] *= .05
+        f.loc["3"] = f.loc["0"]
+    e = TradeEngine(trade_data, "L", utilization=1, horizon_weeks=4)
+    assert e.waiver_best(e.league.rosters["1"])[1] and e.waiver_best(e.league.rosters["2"])[1]
+    res = e.analyze(TradeRequest("1", "2", ("0",), ("3",)))
+    for t in ("1", "2"):
+        for k in ("ecw_delta", "strategy_delta", "win_delta"):
+            assert res.metrics.loc[t, k] == pytest.approx(0, abs=1e-9)
+    np.testing.assert_allclose(res.probabilities_before, res.probabilities_after, atol=1e-12)
+
+
 def test_waiver_best_fills_open_spots_and_only_swaps_for_better_free_agents(eng):
     roster = eng.league.rosters["1"][:2]                       # 3 kapasitede bir yer boş
     best, moves = eng.waiver_best(roster)
