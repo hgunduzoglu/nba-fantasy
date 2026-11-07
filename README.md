@@ -1810,6 +1810,79 @@ Resmi API yolu kapalı kaldığı için (§13.7) lig sayfaları kullanıcının 
   Brunson ve Anunoby değişmedi. Sakatlanan oyuncunun yalnız maç sayısı düşüyor (73 → 69). Kısa vadeli rol değişimi
   haftalık kararlar için ayrıca modellenmeli.
 
+### 13.21 Sit/Start (`fdo.inseason.sitstart`, Sit/Start sekmesi)
+
+Maçı olan oyuncu aktif slottan fazlaysa kim oynasın; karar oyuncunun genel değerine değil, o haftaki eşleşmeye göre:
+
+- **Maç değeri**: oyuncunun bir maçının haftalık strateji puanına (dengelide beklenen kategori galibiyeti) katkısı,
+  mevcut düzende sayılıyorsa `S(V) − S(V − a·u)`, sayılmıyorsa `S(V + a·u) − S(V)` (`V` iki takımın haftalık vektörü,
+  gerçek hafta skoru dahil; `a` uygunluk; `u` maç başı vektör, rol değişimi süresince rollü). Oranlar isabet/deneme ile.
+- **Düzen**: her gün maçı olan ve değeri −0.002'den büyük oyuncular değer önceliğiyle pozisyon kuralına göre slotlara
+  (`slot_assignment`); değerler yeni düzene göre yeniden hesaplanır, düzen değişmeyene kadar (en çok 6 tur). Değeri
+  −0.002'nin altındaki oyuncu boş slot olsa da oturur (**oran koruma**: sayım kategorileri kesinleşmişken düşük
+  isabetli hacimli şutçu FG%/FT%'yi riske atar). Rakibin düzeni statik önceliktedir.
+- **Bugün**: önerilen düzen Yahoo'daki düzenle (senkronizasyon günündeki `rosters.json` slotları) karşılaştırılır:
+  "Başlat" (yedekte ama oynamalı) ve "Oturt" (aktif ama oturmalı) listesi. Maçı başlamış oyuncu değiştirilemez.
+- 7 Kasım (WNBA 26-27, Galatasaray Cafe Crown): sayım kategorileri belliyken 8 oyuncu-maçı oran koruma ile oturdu,
+  beklenen kategori 2.71 → 2.84; METU IE'de Kekstra'nın düzeni zaten önerilenle aynıydı.
+
+### 13.22 Add/Drop: kalan sezon ve bu hafta (`fdo.inseason.adddrop`, Add/Drop sekmesi)
+
+İki ayrı menü:
+
+- **Kalan sezon**: §13.13'teki boştaki oyuncular tablosu (ROS ECW, pozisyon kuralı, IL dönüş bedeli) + alınabilirlik:
+  FA hemen; waiver'daki oyuncu Yahoo'nun gösterdiği günden itibaren (`W (Nov 9)`, senkronizasyon; tarihsiz kayıtta bugün
+  + lig ayarındaki waiver süresi). Bu hafta kalan alım hakkı, FAB bütçesi ve waiver kuralı başlıkta.
+- **Bu hafta**: kısa listedeki (30) her boştaki oyuncu için en iyi tek hamle (bırakılacak oyuncu ve gün) ve etkisi:
+  beklenen kategori, P(5+), kategori olasılıkları ve hamle kalıcı olsaydı kalan sezon etkisi; altında kalan alım hakkıyla
+  açgözlü gün gün plan (§13.13 streaming). Waiver'daki oyuncu serbest kaldığı günden önce planlanmaz. İki hedef:
+  - *Haftayı kazan*: stratejine göre beklenen kategori galibiyeti.
+  - *Kritik kategori*: seçilen kategorilere oyna (ağırlık 1, diğerleri 0.05). Otomatik seçim: her kategori için tek bir
+    boştaki oyuncuyu kalan günlere kısıtsız eklemenin en iyi 5 adayının ortalama kazanma olasılığı artışı
+    ("kıpırdatılabilir"); en büyük iki kategori (≥ 0.02). Kesinleşmiş kategoride bu artış ~0'dır.
+- 7 Kasım: Kekstra için kritik kategori BLK (%44, +9 puan kıpırdatılabilir); 4 alımlık plan beklenen kategoriyi
+  1.50 → 1.87'ye çıkarıyor.
+
+### 13.23 Performans: haftalık kategori sıralaması (`fdo.inseason.history`, Performans sekmesi)
+
+Biten haftaların takım toplamları (`matchups.json`, §13.20) ve süren haftanın şu ana kadarki toplamı ile takımın her
+kategoride ligdeki sırası (1 = en iyi, TO'da en az; eşitlikte en iyi sıra paylaşılır), haftanın kategori skoru ve sezon
+toplamının sırası. Isı tablosu iki yönlü (üst/alt üçte bir), değerler hücrede; üzerine gelince lig ortancası ve haftanın
+en iyisi.
+
+### 13.24 Sakatlıkta rol değişimi (`fdo.inseason.roles`)
+
+Yahoo projeksiyonları takım arkadaşı sakatlığına neredeyse tepki vermediği için (§13.20) bu sezonun NBA maç kayıtlarından
+(`gamelogs_nba_2026-27.csv`, her senkronizasyonda yenilenir, git dışı) ölçülür:
+
+- **Önemli oyuncu**: bu sezon ≥ 3 maç, maç başı ≥ 20 dk. **Yok kümesi**: takımın şu an oynamayan önemli oyuncuları
+  (Yahoo O/INJ/NA ya da CBS dönüş tarihi gelecekte / sezon boyu). Bütün sezonu kaçıran oyuncu sayılmaz.
+- Takımın maçları: yok kümesinin hiçbirinin oynamadığı (W) ve hepsinin oynadığı (H); W boşsa en çok dakika alan tek
+  oyuncu. Takım arkadaşının farkı `ort(W) − ort(H)` (W ≥ 1, H ≥ 2 maç), küçültme `n_W / (n_W + 4)`, kalan sezon maç
+  başına eklenir. Geçerlilik: en erken bilinen dönüşe kadar (bilinmiyorsa 14 gün).
+- Haftalık model (dolayısıyla Bu Hafta, Sit/Start, Add/Drop ve sezon simülasyonunun içinde bulunulan/sonraki haftaları)
+  bu günlerde rollü maç başı vektörü kullanır. Ad eşleştirme: ad + takım, ad, baş harf + soyad + takım
+  ("N. Alexander-Walker"); 7 Kasım'da satırların %100'ü eşleşti, 106 oyuncuda rol değişimi (ör. OKC'de Holmgren ve
+  Jalen Williams yokken Bennett Stirtz +11 dk, +5.9 sayı).
+
+### 13.25 Haber analizi (`fdo.inseason.news`, Haberler sekmesi, `scripts/news_refresh.py`)
+
+- **Kaynaklar**: CBS fantezi oyuncu haberleri (RotoWire notları; genel akışın iki, sakatlık akışının bir sayfası — site
+  daha derin ve pozisyon sayfalarını 406 ile reddediyor, ~4–8 saatlik haber) ve ESPN NBA haber akışı (50 başlık + özet).
+  Haber kimliği bağlantısıdır; bir kez saklanır, bir kez analiz edilir, 21 günden eskisi silinir (`news.json`, git dışı).
+  Boşluk kalmaması için birkaç saatte bir yenilenmeli (Görev Zamanlayıcı: `scripts/news_refresh.py`).
+- **Süzme** (ücretsiz, model öncesi): CBS haberi Yahoo oyuncu havuzuna eşleşmeli ve başlığında rol/sakatlık/takas
+  sinyali olmalı (maç özetleri listede kalır, analiz edilmez); ESPN haberinde havuzdaki bir oyuncunun tam adı geçmeli.
+- **Model**: `claude-opus-5-5`, efor `low`, JSON şemalı yapılandırılmış çıktı, 30 haberlik partiler, sabit sistem talimatı
+  önbellekli, sunucu tarafı yedek model (`fallbacks: "default"`). `FDO_NEWS_MODEL` ile değişir (ör. `claude-sonnet-5-5`
+  yaklaşık yarı fiyat). Anahtar `ANTHROPIC_API_KEY` ya da depo kökündeki `.env` (git dışı). Yanıtı reddedilen ya da
+  kesilen parti sonraki yenilemede yeniden denenir.
+- **Çıktı**: olay türü (sakatlık, dönüş, rol ↑/↓, takas, takas söylentisi, dinlenme…), durum, tahmini dönüş, kaçırılacak
+  maç, süre kazanan/kaybeden takım arkadaşları, fantezi etkisi (−2…+2) ve Türkçe tek cümle özet. Uygulama oyuncuları lige
+  göre etiketler: senin, bu haftaki rakibinin, FA / waiver (fırsat).
+- **Maliyet**: her çağrının token kullanımı kaydedilir. İlk yenileme (8 Kasım): 70 haber, 42'si analiz edildi, ~$0.15
+  (haber başına ~$0.0036); günde 40–80 ilgili haberle ayda ~$6–10.
+
 ### 13.8 V3 adayları
 
 Beam search ve H-score ağırlık optimizasyonu; profil karışımı uyumu; oyuncular arası maç sayısı
@@ -1870,17 +1943,20 @@ Sezon içi araçların yeni arayüzü (31 Ekim 2026). Draft ve auction sayfalar�
 Öneri yönleri §13.17, çok takımlı takas §13.18.
 
 ```powershell
-.venv\Scripts\python.exe -m pip install -e ".[dev,web,yahoo]"   # bir kere
+.venv\Scripts\python.exe -m pip install -e ".[dev,web,yahoo,nba,news]"   # bir kere
 .venv\Scripts\python.exe scripts\yahoo_login.py                  # bir kere: Yahoo girişi (§13.20)
 .venv\Scripts\python.exe run_app.py                              # http://127.0.0.1:8000
 ```
 
-Veri üst çubuktaki "Yahoo'dan güncelle" ile (ya da `scripts\yahoo_sync.py`) tazelenir.
+Veri üst çubuktaki "Yahoo'dan güncelle" ile (ya da `scripts\yahoo_sync.py`) tazelenir: Yahoo, CBS sakatlık raporu,
+NBA maç kayıtları ve haberler. Haber analizi için `pip install -e ".[news]"` ve `.env` içinde `ANTHROPIC_API_KEY=...`.
+Önerilen zamanlama (Görev Zamanlayıcı): her sabah ~10:30 `scripts\yahoo_sync.py` (Türkiye 10:00–20:00 arası hafta skoru
+tam "dünküne kadar"dır), gün içinde 3 saatte bir `scripts\news_refresh.py`.
 
 `run_app.py` arayüz derlenmemişse ya da `frontend/src` değiştiyse önce `npm install` / `npm run build` çalıştırır
 (Node.js gerekir), sonra FastAPI'yi başlatıp tarayıcıyı açar. Sekmeler: Takas Analizi, Takas Önerileri, Çok Takımlı
-Takas, Bu Hafta,
-Boştaki Oyuncular, Sezon Simülasyonu, Lig Sıralamaları. Lig, takım, sakatlık dönüş tarihleri, renk skalası
+Takas, Bu Hafta, Sit/Start (§13.21), Add/Drop (kalan sezon + bu hafta, §13.22), Haberler (§13.24–13.25), Performans
+(§13.23), Sezon Simülasyonu, Lig Sıralamaları. Lig, takım, sakatlık dönüş tarihleri, renk skalası
 (yeşil↔kırmızı ya da renk körlüğüne uygun mavi↔kırmızı) ve tema üst çubuktadır.
 
 - **Takas Analizi**: Yahoo tarzı iki kadro tablosu (seçilebilir kaynak: kalan sezon / bu sezon / sezon öncesi;
