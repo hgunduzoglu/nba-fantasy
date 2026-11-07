@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 from fdo.api.app import create_app  # noqa: E402
 from fdo.inseason.durability import apply_durability  # noqa: E402
 from unit.test_inseason import data  # noqa: E402,F401  paylaşılan sentetik lig
+from unit.test_live import write_live  # noqa: E402
 from unit.test_season import _fixtures  # noqa: E402
 
 
@@ -45,6 +46,26 @@ def test_weekly_and_stream(client):
     s = client.post("/api/leagues/L/weekly/stream", json={"team": "1", "week": 3, "droppable": w["default_droppable"]}).json()
     assert s["left"] == 4 and len(s["moves"]) <= 4 and s["after"]["expected_wins"] >= s["before"]["expected_wins"] - 1e-9
     assert client.post("/api/leagues/L/weekly", json={"team": "1", "week": 99}).status_code == 400
+
+
+def test_weekly_uses_the_synced_score_unless_entered(client, tmp_path):
+    w = client.post("/api/leagues/L/weekly", json={"team": "1"}).json()
+    assert w["live"] is None
+    st = client.app.state.fdo
+    write_live(tmp_path, week=w["current_week"], used=1)
+    st.signature = lambda: "synced"                                             # dosya yazılınca imza değişir
+    w = client.post("/api/leagues/L/weekly", json={"team": "1", "opponent": "2"}).json()
+    assert w["live"]["mine"]["pts"] == 300 and w["live"]["adds_used"] == 1 and not w["live"]["manual"]
+    assert w["outlook"]["totals"]["mine"]["PTS"] >= 300
+    manual = client.post("/api/leagues/L/weekly", json={"team": "1", "opponent": "2", "acc_mine": {"pts": 5}}).json()
+    assert manual["live"]["manual"] and manual["outlook"]["totals"]["mine"]["PTS"] < w["outlook"]["totals"]["mine"]["PTS"]
+    s = client.post("/api/leagues/L/weekly/stream", json={"team": "1", "opponent": "2", "droppable": []}).json()
+    assert s["left"] == 3                                                       # 4 − Yahoo'daki 1 alım
+    other = client.post("/api/leagues/L/weekly", json={"team": "1", "week": w["current_week"] + 1}).json()
+    assert other["live"] is None                                                # yalnız içinde bulunulan hafta
+    write_live(tmp_path, as_of="2026-10-30", week=w["current_week"])
+    st.signature = lambda: "synced-old"
+    assert client.post("/api/leagues/L/weekly", json={"team": "1"}).json()["live"] is None   # başka çekim
 
 
 def test_waiver_season_rankings(client):

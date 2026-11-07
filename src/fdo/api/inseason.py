@@ -137,6 +137,13 @@ def register(app: FastAPI, state: AppState) -> None:
         model = state.week_model(lid, body.injuries, _strategy(body.strategy, eng, body.team), out)
         return eng, weeks, current, wk, days, fx_opp, opp, model
 
+    def _acc(lid: str, body: WeeklyIn, wk: int, current: int, opp: str):
+        """Haftanın şu ana kadarki skoru: elle girilen, yoksa (bu hafta için) Yahoo senkronizasyonu."""
+        lv = state.live(lid, body.injuries) if wk == current else None
+        mine = body.acc_mine if body.acc_mine is not None else (lv.totals.get(body.team) if lv else None)
+        theirs = body.acc_opp if body.acc_opp is not None else (lv.totals.get(opp) if lv else None)
+        return mine, theirs, lv
+
     def _weeks_list(weeks, current):
         return [{"week": int(w), "start": r.start, "end": r.end, "playoff": bool(r.playoff), "current": int(w) == current}
                 for w, r in weeks.weeks.iterrows() if int(w) >= current]
@@ -144,7 +151,8 @@ def register(app: FastAPI, state: AppState) -> None:
     @app.post("/api/leagues/{lid}/weekly")
     def weekly(lid: str, body: WeeklyIn):
         eng, weeks, current, wk, days, fx_opp, opp, model = _week_setup(lid, body)
-        o = model.outlook(body.team, opp, days, acc_mine=body.acc_mine, acc_opp=body.acc_opp, week=wk)
+        acc_mine, acc_opp, lv = _acc(lid, body, wk, current, opp)
+        o = model.outlook(body.team, opp, days, acc_mine=acc_mine, acc_opp=acc_opp, week=wk)
         drops = drop_ranking(eng, body.team, _strategy(body.strategy, eng, body.team))
         active = model.active_roster(body.team)
         ranked = [p for p in (list(drops["drop"]) if len(drops) else []) if p in active]
@@ -155,15 +163,22 @@ def register(app: FastAPI, state: AppState) -> None:
                       "opponent_name": eng.league.teams[opp], "fixture_opponent": fx_opp,
                       "started": wk == current and eng.data.as_of > weeks.weeks.loc[wk, "start"],
                       "acquisitions_limit": acquisition_limit(eng.league.settings),
+                      "live": {"captured_at": lv.captured_at, "partial_today": lv.live, "mine": lv.totals.get(body.team),
+                               "opp": lv.totals.get(opp), "category_wins": [lv.category_wins.get(body.team),
+                                                                            lv.category_wins.get(opp)],
+                               "adds_used": lv.adds_used if body.team == lv.my_team else None,
+                               "manual": body.acc_mine is not None or body.acc_opp is not None} if lv else None,
                       "active_roster": [_brief(eng, p) for p in active], "default_droppable": default_drop,
                       "outlook": _outlook(eng, o), "notes": list(weeks.notes)})
 
     @app.post("/api/leagues/{lid}/weekly/stream")
     def stream(lid: str, body: StreamIn):
         eng, weeks, current, wk, days, fx_opp, opp, model = _week_setup(lid, body)
-        base = model.outlook(body.team, opp, days, acc_mine=body.acc_mine, acc_opp=body.acc_opp, week=wk)
-        left = max(0, acquisition_limit(eng.league.settings) - int(body.used))
-        s = model.stream(base, moves=left, droppable=list(body.droppable), acc_mine=body.acc_mine)
+        acc_mine, acc_opp, lv = _acc(lid, body, wk, current, opp)
+        base = model.outlook(body.team, opp, days, acc_mine=acc_mine, acc_opp=acc_opp, week=wk)
+        used = body.used if body.used is not None else (lv.adds_used if lv and body.team == lv.my_team else 0) or 0
+        left = max(0, acquisition_limit(eng.league.settings) - int(used))
+        s = model.stream(base, moves=left, droppable=list(body.droppable), acc_mine=acc_mine)
         moves = [{"day": m.day, "add": _brief(eng, m.add), "drop": _brief(eng, m.drop), "ros_delta": m.ros_delta,
                   "games": sum(model.has_game(m.add, d) for d in s.days if d >= m.day)} for m in s.moves]
         return clean({"moves": moves, "left": left, "before": {"p": list(base.p), "expected_wins": base.expected_wins,

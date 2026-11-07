@@ -106,7 +106,7 @@ class WeeklyIn(BaseModel):
 
 
 class StreamIn(WeeklyIn):
-    used: int = 0
+    used: int | None = None          # None: Yahoo senkronizasyonundaki bu hafta kullanılan alım
     droppable: list[str] = Field(default_factory=list)
 
 

@@ -17,6 +17,7 @@ from fdo.config import REPO_ROOT
 from fdo.inseason.durability import apply_durability
 from fdo.inseason.fixtures import load_fixtures
 from fdo.inseason.injuries import latest_file, with_injuries
+from fdo.inseason.live import LiveLeague, load_live
 from fdo.inseason.season import SeasonResult, SeasonSim
 from fdo.inseason.standings import league_standings, load_standings
 from fdo.inseason.weekly import WeekModel
@@ -84,6 +85,14 @@ class AppState:
         return self._get(("week_model", eng.data.fingerprint, str(league_id), s, out_statuses),
                          lambda: WeekModel(eng, strategy=s, **kwargs))
 
+    def live(self, league_id: str, injuries: bool = True) -> LiveLeague | None:
+        """Senkronizasyonun canlı hafta verisi; kadrolarla aynı çekimden değilse (tarih ya da hafta tutmuyorsa) ``None``."""
+        eng = self.engine(league_id, injuries)
+        lv = self._get(("live", self.signature()), lambda: load_live(self.data_dir)).get(str(league_id))
+        if lv is None or lv.as_of != eng.data.as_of or self.weeks(league_id, injuries).week_of(lv.as_of) != lv.week:
+            return None
+        return lv
+
     def fixtures(self) -> pd.DataFrame:
         return self._get(("fixtures", self.signature()), lambda: load_fixtures(self.data_dir))
 
@@ -95,8 +104,9 @@ class AppState:
             if not (fx["league_id"] == str(league_id)).any():
                 return None
             standings = league_standings(load_standings(self.data_dir), league_id, eng.league.teams)
+            lv = self.live(league_id, injuries)
             return SeasonSim(self.week_model(league_id, injuries), self.weeks(league_id, injuries), fx, standings,
-                             eng.data.as_of)
+                             eng.data.as_of, realized=lv.totals if lv else None)
         return self._get(("season_sim", eng.data.fingerprint, str(league_id)), build)
 
     def season_base(self, league_id: str, injuries: bool, n_sims: int, sd: float, seed: int = 1) -> SeasonResult | None:

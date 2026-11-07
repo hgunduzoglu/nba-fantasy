@@ -124,3 +124,25 @@ def test_current_week_trade_changes_only_the_remaining_days(data):  # noqa: F811
     np.testing.assert_allclose(s.vector("1", swap("0", "16"), w), base)       # AAA'nın maçı geçti: takas etkilemez
     assert not np.allclose(s.vector("1", swap("1", "17"), w), base)          # BBB kalan günde oynar
     assert s._past("1", w)[1] > 0 and any("hafta sürüyor" in n for n in s.notes)
+
+
+def test_current_week_past_days_use_the_realized_totals(data):  # noqa: F811
+    from fdo.inseason.weekly import accumulated_vector
+
+    lg = data.leagues["L"]
+    eng = TradeEngine(data, "L", utilization=1)
+    weeks = league_weeks(data.schedule, lg.settings, lg.config)
+    standings = pd.DataFrame({"wins": [7, 2, 5, 4], "losses": [2, 7, 4, 5], "ties": 0}, index=["1", "2", "3", "4"])
+    totals = {t: {"fgm": 40, "fga": 90, "ftm": 20, "fta": 25, "fg3m": 9, "pts": 130 + i, "reb": 50, "ast": 30,
+                  "stl": 8, "blk": 5, "tov": 15} for i, t in enumerate(["1", "2", "3", "4"])}
+    s = SeasonSim(WeekModel(eng), weeks, _fixtures(range(1, 20)), standings, data.as_of, realized=totals)
+    w = s.current_week
+    np.testing.assert_allclose(s._past("2", w), accumulated_vector(totals["2"]))
+    roster = lg.rosters["1"]
+    future = s.vector("1", roster, w) - s._past("1", w)                       # kalan günler + gerçek toplam
+    assert future[1] < s.vector("1", roster, w)[1] and any("gerçek skor" in n for n in s.notes)
+    # bir takımın toplamı eksikse gerçek skor kullanılmaz (takımlar arasında karışık taban olmasın)
+    partial = SeasonSim(WeekModel(eng), weeks, _fixtures(range(1, 20)), standings, data.as_of,
+                        realized={k: v for k, v in totals.items() if k != "4"})
+    assert not np.allclose(partial._past("2", w), accumulated_vector(totals["2"]))
+    assert any("bilinmediği" in n for n in partial.notes)

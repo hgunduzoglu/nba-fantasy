@@ -9,8 +9,8 @@
   çıkar, dönen oyuncu daha zayıfsa kendisi hiç aktifleşmez (``drop_schedule``). Dönüş tarihi bilinmeyen IL
   oyuncusu gelecek hafta döner sayılır.
 * **İçinde bulunulan hafta**: yalnız veri tarihinden itibaren kalan günler senaryonun (takas sonrası) kadrosuyla
-  oynanır. Geçmiş günlerin gerçek skoru veride yok; bu günler takas öncesi gerçek kadronun beklenen katkısıdır ve her
-  senaryoda aynıdır (``_past``). Takas geçmiş günleri değiştirmez.
+  oynanır. Geçmiş günler Yahoo senkronizasyonunun gerçek hafta toplamıdır (``realized``, §13.20); yoksa takas öncesi
+  gerçek kadronun beklenen katkısı. İkisi de her senaryoda aynıdır (``_past``); takas geçmiş günleri değiştirmez.
 * **Eşleşme**: kategori olasılıkları ``p_win``; birlikte çekiliş Gauss kopulası (``category_corr``).
   Kategori beraberliği yok sayılır (9 tek sayı → eşleşmede beraberlik yok).
 * **Sıralama**: (W + T/2) / (W+L+T), eşitlikte rastgele. **Playoff**: ilk ``n`` takım; braket ``2^tur``
@@ -33,7 +33,7 @@ import numpy as np
 import pandas as pd
 from scipy.special import ndtri
 
-from fdo.inseason.weekly import Stint, WeekModel
+from fdo.inseason.weekly import Stint, WeekModel, accumulated_vector
 from fdo.inseason.weeks import LeagueWeeks
 from fdo.matchup.ecw import ecw_vs, p_at_least, p_win
 from fdo.matchup.player_week import WEEK_DIM
@@ -68,8 +68,11 @@ class SeasonResult:
 
 class SeasonSim:
     def __init__(self, model: WeekModel, weeks: LeagueWeeks, fixtures: pd.DataFrame,
-                 standings: pd.DataFrame | None, as_of: dt.date):
+                 standings: pd.DataFrame | None, as_of: dt.date,
+                 realized: dict[str, dict[str, float]] | None = None):
+        """``realized``: içinde bulunulan haftanın takım → şu ana kadarki toplamları (``accumulated_vector`` alanları)."""
         self.model = model
+        self.realized = realized or {}
         eng = model.engine
         self.engine, self.league = eng, eng.league
         self.teams = list(eng.team_ids)
@@ -103,8 +106,13 @@ class SeasonSim:
         self._past_cache: dict[tuple[str, int], np.ndarray] = {}
         self._drop_cache: dict[tuple, dict[str, dt.date]] = {}
         if self.current_week is not None and any(d < as_of for d in weeks.days(self.current_week)):
-            self.notes.append(f"{self.current_week}. hafta sürüyor: geçmiş günlerin gerçek skoru bilinmediği için bu "
-                              "günler takas öncesi kadroyla beklenen değerdir; takas yalnız kalan günleri etkiler.")
+            if set(self.teams) <= set(self.realized):
+                self.notes.append(f"{self.current_week}. hafta sürüyor: geçmiş günler Yahoo'daki gerçek skordur; takas "
+                                  "yalnız kalan günleri etkiler.")
+            else:
+                self.realized = {}
+                self.notes.append(f"{self.current_week}. hafta sürüyor: geçmiş günlerin gerçek skoru bilinmediği için bu "
+                                  "günler takas öncesi kadroyla beklenen değerdir; takas yalnız kalan günleri etkiler.")
 
     # ------------------------------------------------------------- haftalık vektörler
     def il_map(self, rosters: dict[str, tuple[str, ...]],
@@ -140,9 +148,11 @@ class SeasonSim:
         return gone
 
     def _past(self, team: str, week: int) -> np.ndarray:
-        """İçinde bulunulan haftanın veri tarihinden önceki günleri: takas öncesi gerçek kadronun (IL hariç, güncel
-        durumla) beklenen katkısı. Senaryodan bağımsız."""
+        """İçinde bulunulan haftanın veri tarihinden önceki günleri: Yahoo'daki gerçek toplam, yoksa takas öncesi gerçek
+        kadronun (IL hariç, güncel durumla) beklenen katkısı. Senaryodan bağımsız."""
         key = (team, week)
+        if key not in self._past_cache and week == self.current_week and team in self.realized:
+            self._past_cache[key] = accumulated_vector(self.realized[team])
         if key not in self._past_cache:
             days = [d for d in self.weeks.days(week) if d < self.as_of]
             roster = self.league.rosters[team]
