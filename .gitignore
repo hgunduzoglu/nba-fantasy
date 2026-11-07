@@ -68,3 +68,7 @@ data/live/
 # React arayüzü: bağımlılıklar ve derleme çıktısı (python run_app.py gerekirse derler)
 frontend/node_modules/
 frontend/dist/
+
+# API anahtarları (ANTHROPIC_API_KEY vb.) asla depoya girmez
+.env
+.env.*
