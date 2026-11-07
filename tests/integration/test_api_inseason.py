@@ -114,6 +114,29 @@ def test_history_without_and_with_results(client, tmp_path):
     assert h["weeks"][0]["start"] == "2026-10-20" and h["season"]["values"]["PTS"] == 100
 
 
+def test_news_tags_by_owner_and_status(client, tmp_path):
+    import datetime as dt
+    import json
+
+    when = dt.datetime.now(dt.timezone.utc).isoformat(timespec="minutes")
+    a = {"player": "P0", "team": "AAA", "type": "injury", "status": "out", "return_estimate": "2026-11-12",
+         "games_out": 2, "beneficiaries": ["P16"], "hurt": [], "impact": -1, "summary_tr": "P0 yok"}
+    store = {"fetched_at": when, "usage": [], "items": {
+        "u1": {"id": "u1", "source": "cbs", "url": "u1", "player_name": "P0", "player_team": "AAA", "headline": "h",
+               "body": "b", "published": when, "fetched_at": when, "analysis": a},
+        "u2": {"id": "u2", "source": "cbs", "url": "u2", "player_name": "P5", "player_team": "BBB",
+               "headline": "Scores", "body": "", "published": "2020-01-01T00:00+00:00", "fetched_at": when,
+               "analysis": None}}}
+    (tmp_path / "news.json").write_text(json.dumps(store), encoding="utf-8")
+    r = client.get("/api/leagues/L/news?team=1").json()
+    assert [e["id"] for e in r["events"]] == ["u1"]                              # eski haber pencere dışında
+    e = r["events"][0]
+    assert e["player"]["owner"] == "me" and e["beneficiaries"][0]["owner"] == "FA" and e["tags"] == ["fa", "mine"]
+    assert e["games_out"] == 2 and e["summary"] == "P0 yok" and r["roles"] == []
+    st = client.get("/api/news/status").json()
+    assert st["items"] == 2 and st["analyzed"] == 1 and st["cost_7d"] == 0
+
+
 def test_waiver_season_rankings(client):
     wv = client.post("/api/leagues/L/waiver", json={"team": "2", "strategy": {"preset": "Punt FT_PCT"}}).json()
     assert wv["rows"] and set(wv["rows"][0]["dp"]) >= {"FG_PCT", "TOV"}

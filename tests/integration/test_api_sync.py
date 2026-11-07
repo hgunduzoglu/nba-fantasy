@@ -27,11 +27,13 @@ def test_sync_runs_in_background_and_reports(real_dir, monkeypatch):  # noqa: F8
     app = create_app(data_dir=real_dir, frontend_dir=real_dir / "yok")
     fetch, _ = _site()
     app.state.sync.make_fetch = lambda: fetch
+    app.state.sync.after = [lambda log: "NBA atlandı"]                       # ağ yok
     c = TestClient(app)
     assert c.get("/api/sync").json()["last_sync"] is None
     assert c.post("/api/sync", json={"players": False}).status_code == 200
     s = _wait(c)
-    assert s["error"] is None and s["result"]["written"][0] == "rosters.json" and "CBS atlandı" in s["log"]
+    assert s["error"] is None and s["result"]["written"][0] == "rosters.json"
+    assert "CBS atlandı" in s["log"] and "NBA atlandı" in s["log"]
     assert s["last_sync"] is not None
     assert json.loads((real_dir / "yahoo_live.json").read_text(encoding="utf-8"))["leagues"]["500"]["week"] == 3
 
@@ -46,6 +48,7 @@ def test_sync_error_leaves_files_and_second_start_is_refused(real_dir, monkeypat
             time.sleep(0.01)
         return "<html>bakım</html>"
     app.state.sync.make_fetch = lambda: slow
+    app.state.sync.after = []
     c = TestClient(app)
     assert c.post("/api/sync", json={}).status_code == 200
     assert c.post("/api/sync", json={}).status_code == 409                     # zaten sürüyor

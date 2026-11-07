@@ -1,16 +1,16 @@
-"""Uygulamadan Yahoo senkronizasyonu (README §13.20): arka plan iş parçacığında ``fdo.ingest.yahoo_sync.sync``
-ve ardından CBS sakatlık raporu. Aynı anda tek senkronizasyon çalışır; durum ``GET /api/sync`` ile izlenir.
-Dosyalar değişince ``AppState`` her şeyi yeniden kurar (``file_signature``)."""
+"""Uygulamadan Yahoo senkronizasyonu (README §13.20): arka plan iş parçacığında ``fdo.ingest.yahoo_sync.sync``,
+ardından CBS sakatlık raporu, bu sezonun NBA maç kayıtları (rol değişimi, §13.24) ve haberler (§13.25). Aynı anda tek
+senkronizasyon çalışır; durum ``GET /api/sync`` ile izlenir. Dosyalar değişince ``AppState`` her şeyi yeniden kurar
+(``file_signature``)."""
 
 from __future__ import annotations
 
-import datetime as dt
-import threading
 from typing import Callable
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
+from fdo.api.jobs import Job
 from fdo.api.state import AppState
 from fdo.inseason.injuries import refresh_cbs
 from fdo.inseason.live import load_live
@@ -20,54 +20,38 @@ class SyncIn(BaseModel):
     players: bool = True
 
 
-class SyncJob:
-    def __init__(self, state: AppState, make_fetch: Callable[[], Callable[[str], str]] | None = None):
+class SyncJob(Job):
+    def __init__(self, state: AppState, make_fetch: Callable[[], Callable[[str], str]] | None = None,
+                 after: list[Callable[[Callable[[str], None]], str]] | None = None):
+        """``after``: Yahoo'dan sonra sırayla çalışan adımlar (her biri günlüğe tek satır özet döner)."""
+        super().__init__()
         self.state = state
         self.make_fetch = make_fetch
-        self.lock = threading.Lock()
-        self.running = False
-        self.log: list[str] = []
-        self.started_at: str | None = None
-        self.finished_at: str | None = None
-        self.error: str | None = None
-        self.result: dict | None = None
+        self.after = after if after is not None else []
 
-    def start(self, players: bool) -> bool:
-        with self.lock:
-            if self.running:
-                return False
-            self.running, self.log, self.error, self.result = True, [], None, None
-            self.started_at, self.finished_at = _now(), None
-        threading.Thread(target=self._run, args=(players,), daemon=True).start()
-        return True
+    def begin(self, players: bool) -> bool:
+        return self.start(lambda log: self._work(players, log))
 
-    def _run(self, players: bool) -> None:
-        from fdo.ingest.yahoo_sync import Fetcher, NotLoggedIn, sync
+    def _work(self, players: bool, log) -> dict:
+        from fdo.ingest.yahoo_sync import Fetcher, sync
 
-        try:
-            self.log.append("Chrome profilinden Yahoo oturumu alınıyor")
-            fetch = self.make_fetch() if self.make_fetch else Fetcher()
-            res = sync(self.state.data_dir, fetch, players=players, log=self.log.append)
-            self.log.append(refresh_cbs(self.state.data_dir))
-            self.result = {"as_of": res.as_of.isoformat(), "pages": res.pages, "written": res.written,
-                           "notes": res.notes, "live": res.live}
-        except NotLoggedIn as e:
-            self.error = f"{e}"
-        except Exception as e:  # noqa: BLE001 — kullanıcıya gösterilir; dosyalar yazılmadan durur
-            self.error = f"Senkronizasyon durdu, dosyalara dokunulmadı: {e}"
-        finally:
-            self.finished_at = _now()
-            self.running = False
+        log("Chrome profilinden Yahoo oturumu alınıyor")
+        fetch = self.make_fetch() if self.make_fetch else Fetcher()
+        res = sync(self.state.data_dir, fetch, players=players, log=log)
+        log(refresh_cbs(self.state.data_dir))
+        for step in self.after:
+            log(step(log))
+        return {"as_of": res.as_of.isoformat(), "pages": res.pages, "written": res.written, "notes": res.notes,
+                "live": res.live}
+
+    def describe(self, e: Exception) -> str:
+        from fdo.ingest.yahoo_sync import NotLoggedIn
+
+        return str(e) if isinstance(e, NotLoggedIn) else f"Senkronizasyon durdu, dosyalara dokunulmadı: {e}"
 
     def status(self) -> dict:
         live = load_live(self.state.data_dir)
-        last = max((lv.captured_at for lv in live.values()), default=None)
-        return {"running": self.running, "log": self.log[-12:], "started_at": self.started_at,
-                "finished_at": self.finished_at, "error": self.error, "result": self.result, "last_sync": last}
-
-
-def _now() -> str:
-    return dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
+        return {**super().status(), "last_sync": max((lv.captured_at for lv in live.values()), default=None)}
 
 
 def register(app: FastAPI, state: AppState, job: SyncJob | None = None) -> SyncJob:
@@ -79,7 +63,7 @@ def register(app: FastAPI, state: AppState, job: SyncJob | None = None) -> SyncJ
 
     @app.post("/api/sync")
     def sync_start(body: SyncIn):
-        if not job.start(body.players):
+        if not job.begin(body.players):
             raise HTTPException(409, "Senkronizasyon zaten sürüyor")
         return job.status()
 
