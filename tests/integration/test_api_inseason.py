@@ -100,6 +100,20 @@ def test_adddrop_week_modes_and_waiver_dates(client, tmp_path):
     assert kinds.get("16", "W") == "W" and set(kinds.values()) <= {"FA", "W"}
 
 
+def test_history_without_and_with_results(client, tmp_path):
+    assert client.get("/api/leagues/L/history?team=1").json()["weeks"] == []
+    t = {"fgm": 40, "fga": 100, "ftm": 8, "fta": 10, "fg3m": 5, "pts": 100, "reb": 30, "ast": 20, "stl": 5, "blk": 3,
+         "tov": 10}
+    import json
+    (tmp_path / "matchups.json").write_text(json.dumps({"matchups": [
+        {"league_id": "L", "week": 1, "team_a_id": "1", "team_b_id": "2", "team_a_totals": t,
+         "team_b_totals": {**t, "pts": 50}, "team_a_category_wins": 1, "team_b_category_wins": 0, "tied_categories": 8}]}),
+        encoding="utf-8")
+    h = client.get("/api/leagues/L/history?team=1").json()
+    assert h["weeks"][0]["ranks"]["PTS"] == 1 and h["weeks"][0]["result"]["opponent_name"] == "Takım 2"
+    assert h["weeks"][0]["start"] == "2026-10-20" and h["season"]["values"]["PTS"] == 100
+
+
 def test_waiver_season_rankings(client):
     wv = client.post("/api/leagues/L/waiver", json={"team": "2", "strategy": {"preset": "Punt FT_PCT"}}).json()
     assert wv["rows"] and set(wv["rows"][0]["dp"]) >= {"FG_PCT", "TOV"}

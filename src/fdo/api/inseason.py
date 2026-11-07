@@ -11,6 +11,7 @@ from fdo.api.serialize import (assumed_strategies, brief, category_deltas, clean
 from fdo.api.state import AppState
 from fdo.inseason.adddrop import available_from, critical_categories, critical_strategy, pick_critical
 from fdo.inseason.fixtures import opponent as fixture_opponent
+from fdo.inseason.history import team_history
 from fdo.inseason.sitstart import plan_week, today_changes
 from fdo.inseason.waiver import drop_ranking, waiver_table
 from fdo.inseason.weekly import DEFAULT_OUT, Stint, WeekOutlook, acquisition_limit, vector_totals
@@ -277,6 +278,21 @@ def register(app: FastAPI, state: AppState) -> None:
                       "waiver_type": eng.league.settings.get("Waiver Type"), "synced": lv is not None,
                       "singles": rows, "plan": plan, "droppable": droppable,
                       "active_roster": [_brief(eng, p) for p in model.active_roster(body.team)]})
+
+    @app.get("/api/leagues/{lid}/history")
+    def history(lid: str, team: str, injuries: bool = True):
+        """Geçmiş haftaların kategori değerleri ve ligdeki sıra (README §13.23)."""
+        eng = engine(lid, injuries)
+        team_check(eng, team)
+        weeks = state.weeks(lid, injuries)
+        h = team_history(state.data_dir, lid, team, state.live(lid, injuries))
+        for r in h["weeks"]:
+            w = r["week"]
+            r["start"], r["end"] = (weeks.weeks.loc[w, "start"], weeks.weeks.loc[w, "end"]) if w in weeks.weeks.index \
+                else (None, None)
+            if r["result"] and r["result"]["opponent"] in eng.league.teams:
+                r["result"]["opponent_name"] = eng.league.teams[r["result"]["opponent"]]
+        return clean({**h, "team": eng.league.teams[team], "synced": state.live(lid, injuries) is not None})
 
     # ------------------------------------------------------------- boştakiler
     @app.post("/api/leagues/{lid}/waiver")
