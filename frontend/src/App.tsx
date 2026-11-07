@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "./api";
-import { FreeAgentsPage } from "./pages/FreeAgentsPage";
+import { AddDropPage } from "./pages/AddDropPage";
 import { MultiTradePage } from "./pages/MultiTradePage";
 import { RankingsPage } from "./pages/RankingsPage";
 import { SeasonPage } from "./pages/SeasonPage";
@@ -21,7 +21,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "multi", label: "Çok Takımlı Takas" },
   { id: "weekly", label: "Bu Hafta" },
   { id: "sitstart", label: "Sit/Start" },
-  { id: "fa", label: "Boştaki Oyuncular" },
+  { id: "fa", label: "Add/Drop" },
   { id: "season", label: "Sezon Simülasyonu" },
   { id: "ranks", label: "Lig Sıralamaları" },
 ];
@@ -150,7 +150,7 @@ export default function App() {
         {tab === "multi" && <MultiTradePage key={league.id + team} meta={meta} league={league} team={team} injuries={injuries} />}
         {tab === "weekly" && <WeeklyPage key={league.id + team} meta={meta} league={league} team={team} injuries={injuries} />}
         {tab === "sitstart" && <SitStartPage key={league.id + team} meta={meta} league={league} team={team} injuries={injuries} />}
-        {tab === "fa" && <FreeAgentsPage key={league.id + team} meta={meta} league={league} team={team} injuries={injuries} />}
+        {tab === "fa" && <AddDropPage key={league.id + team} meta={meta} league={league} team={team} injuries={injuries} />}
         {tab === "season" && <SeasonPage key={league.id + team} league={league} team={team} injuries={injuries} />}
         {tab === "ranks" && <RankingsPage meta={meta} league={league} team={team} injuries={injuries} />}
       </main>

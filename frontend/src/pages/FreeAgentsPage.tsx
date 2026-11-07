@@ -1,12 +1,27 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
-import { ErrorBanner, Loading, PlayerName, deltaClass } from "../components/common";
+import { AvailBadge, ErrorBanner, Loading, PlayerName, deltaClass } from "../components/common";
 import { BALANCED, StrategyPicker, toStrategyIn, type StrategyChoice } from "../components/StrategyPicker";
 import { GpCell, StatusBadges } from "../components/RosterTable";
 import { fmtDelta, fmtStat, zClass } from "../format";
 import type { League, Meta, WaiverOut } from "../types";
 
 const POSITIONS = ["Hepsi", "PG", "SG", "G", "SF", "PF", "F", "C"];
+
+/** Alım hakkı, FAB ve waiver kuralı (Yahoo senkronizasyonundan). */
+export function WaiverInfo({ data }: { data: { adds_left: number | null; fab: number | null; synced: boolean;
+  waiver_time: string | null; waiver_type: string | null } }) {
+  const parts = [
+    data.adds_left != null ? `Bu hafta ${data.adds_left} alım hakkın kaldı` : null,
+    data.fab != null ? `FAB bütçen $${data.fab}` : null,
+    data.waiver_time ? `Waiver süresi: ${data.waiver_time}${data.waiver_type ? ` (${data.waiver_type})` : ""}` : null,
+  ].filter(Boolean);
+  return (
+    <div className="banner" style={{ marginTop: -6 }}>
+      {parts.join(" · ")}{!data.synced && " · Yahoo senkronizasyonu yok: waiver durumu bilinmiyor, herkes FA sayıldı"}
+    </div>
+  );
+}
 
 export function FreeAgentsPage({ meta, league, team, injuries }: { meta: Meta; league: League; team: string; injuries: boolean }) {
   const [strategy, setStrategy] = useState<StrategyChoice>(BALANCED);
@@ -31,6 +46,7 @@ export function FreeAgentsPage({ meta, league, team, injuries }: { meta: Meta; l
   return (
     <div className="stack">
       <p className="desc">Kalan sezon için her boştaki oyuncu ve kadrondan en iyi bırakma eşi. Pozisyon kuralı korunur; IL'dekiler bırakılmaz.</p>
+      {data && <WaiverInfo data={data} />}
       <div className="toolbar" style={{ marginBottom: 0 }}>
         <StrategyPicker meta={meta} value={strategy} onChange={setStrategy} label="Senin stratejin" />
         <div className="field"><span>Pozisyon</span>
@@ -60,7 +76,7 @@ export function FreeAgentsPage({ meta, league, team, injuries }: { meta: Meta; l
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.add.id}>
-                    <td className="l"><span className="pname">{r.add.name}</span><StatusBadges p={r.add} />
+                    <td className="l"><span className="pname">{r.add.name}</span><AvailBadge a={r.add.availability} /><StatusBadges p={r.add} />
                       <div className="psub">{r.add.nba_team} · {r.add.positions.join(", ")}</div></td>
                     <td className="l"><PlayerName p={r.drop} sub={false} /></td>
                     <td className={deltaClass(r.score, 0.25)}>{fmtDelta(r.score, 3)}</td>
@@ -77,7 +93,7 @@ export function FreeAgentsPage({ meta, league, team, injuries }: { meta: Meta; l
           </div>
           <div className="hint" style={{ padding: "0 14px 12px" }}>
             İstatistik: kalan sezon maç başı, renk seviyesi. Takımına etkisi: kategori kazanma olasılığındaki puan değişimi
-            (ortalama rakibe karşı). Waiver durumu ve Can't Cut doğrulanmadı.
+            (ortalama rakibe karşı). FA hemen alınır; W → gün: waiver'dan o gün çıkar (Yahoo senkronizasyonu). Can't Cut doğrulanmadı.
           </div>
         </div>
       )}

@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 import { ErrorBanner, Loading, PlayerName, probClass } from "../components/common";
 import { BALANCED, StrategyPicker, toStrategyIn, type StrategyChoice } from "../components/StrategyPicker";
-import { fmtDate, fmtDay, fmtDelta, fmtNum, fmtPct, fmtStamp, fmtStat } from "../format";
-import type { GridRow, League, Meta, Outlook, StreamOut, WeeklyIn, WeeklyOut } from "../types";
+import { fmtDate, fmtDay, fmtNum, fmtPct, fmtStamp, fmtStat } from "../format";
+import type { GridRow, League, Meta, Outlook, WeeklyIn, WeeklyOut } from "../types";
 
 interface Props {
   meta: Meta;
@@ -68,10 +68,6 @@ export function WeeklyPage({ meta, league, team, injuries }: Props) {
   const [data, setData] = useState<WeeklyOut | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(true);
-  const [used, setUsed] = useState<number | null>(null);    // null: Yahoo senkronizasyonundaki değer
-  const [droppable, setDroppable] = useState<string[] | null>(null);
-  const [plan, setPlan] = useState<StreamOut | null>(null);
-  const [planBusy, setPlanBusy] = useState(false);
 
   const hasAcc = (a: Acc) => Object.values(a).some((v) => v > 0);
   const body: WeeklyIn = useMemo(() => ({
@@ -81,22 +77,14 @@ export function WeeklyPage({ meta, league, team, injuries }: Props) {
 
   useEffect(() => {
     setBusy(true);
-    setPlan(null);
     const t = setTimeout(() => {
       api.weekly(league.id, body)
-        .then((d) => { setData(d); setError(null); setDroppable((x) => x ?? d.default_droppable); })
+        .then((d) => { setData(d); setError(null); })
         .catch((e: Error) => setError(e.message))
         .finally(() => setBusy(false));
     }, 250);
     return () => clearTimeout(t);
   }, [league.id, body]);
-
-  const runPlan = () => {
-    if (!data) return;
-    setPlanBusy(true);
-    api.stream(league.id, { ...body, used, droppable: droppable ?? [] })
-      .then(setPlan).catch((e: Error) => setError(e.message)).finally(() => setPlanBusy(false));
-  };
 
   if (!data && busy) return <Loading text="Haftalık eşleşme hesaplanıyor…" />;
   if (!data) return <ErrorBanner error={error} />;
@@ -104,8 +92,6 @@ export function WeeklyPage({ meta, league, team, injuries }: Props) {
   const myName = league.teams.find((t) => t.id === team)?.name ?? team;
   const swing = meta.categories.filter((_, i) => o.p[i] >= 0.25 && o.p[i] <= 0.75).map((c) => c.label);
   const live = data.live;
-  const usedNow = used ?? live?.adds_used ?? 0;
-  const left = Math.max(0, data.acquisitions_limit - usedNow);
 
   return (
     <div className="stack">
@@ -185,60 +171,7 @@ export function WeeklyPage({ meta, league, team, injuries }: Props) {
         <Grid rows={o.grid.opp} labels={data.days.map(fmtDay)} />
       </details>
 
-      <div className="card">
-        <div className="card-h"><h3>Streaming planı</h3><span className="muted">haftalık alım sınırı {data.acquisitions_limit}</span></div>
-        <div className="card-b">
-          <div className="toolbar">
-            <label className="field"><span>Bu hafta kullandığın alım</span>
-              <input className="num-input" type="number" min={0} max={data.acquisitions_limit} value={usedNow}
-                     title={used === null && live?.adds_used != null ? "Yahoo'dan" : undefined}
-                     onChange={(e) => setUsed(Math.max(0, Number(e.target.value) || 0))} />
-            </label>
-            <div className="field"><span>Bırakılabilecek oyuncular</span>
-              <div>
-                {data.active_roster.map((p) => {
-                  const on = droppable?.includes(p.id) ?? false;
-                  return (
-                    <button key={p.id} className={"chip"} style={{ opacity: on ? 1 : 0.45, cursor: "pointer", border: 0, paddingRight: 10 }}
-                            onClick={() => setDroppable((x) => on ? (x ?? []).filter((y) => y !== p.id) : [...(x ?? []), p.id])}>
-                      {on ? "✓ " : ""}{p.name}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            <button className="btn primary" onClick={runPlan} disabled={planBusy || left === 0 || !droppable?.length}>
-              {planBusy ? <><span className="spinner" /> Deneniyor…</> : `Planı hesapla (${left} alım)`}
-            </button>
-          </div>
-          {plan && plan.moves.length === 0 && <div className="banner">Bu haftayı belirgin iyileştiren bir alım bulunamadı.</div>}
-          {plan && plan.moves.length > 0 && (
-            <>
-              <div className="banner">
-                {plan.moves.length} alımla beklenen kategori {fmtNum(plan.before.expected_wins, 2)} → <b>{fmtNum(plan.after.expected_wins, 2)}</b>,
-                haftayı kazanma {fmtPct(plan.before.p5)} → <b>{fmtPct(plan.after.p5)}</b>
-              </div>
-              <table className="data">
-                <thead><tr><th className="l">Gün</th><th className="l">Bırak</th><th className="l">Al</th><th>Bu hafta maçı</th>
-                  <th title="Değişiklik kalıcı olsaydı kalan sezon strateji ECW'sine etkisi">Kalıcı olsa ROS etkisi</th></tr></thead>
-                <tbody>
-                  {plan.moves.map((m, i) => (
-                    <tr key={i}>
-                      <td className="l">{fmtDate(m.day)}</td><td className="l"><PlayerName p={m.drop} sub={false} /></td>
-                      <td className="l"><PlayerName p={m.add} /></td><td>{m.games}</td>
-                      <td className={m.ros_delta > 0.005 ? "good" : m.ros_delta < -0.005 ? "bad" : ""}>{fmtDelta(m.ros_delta, 3)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div className="section-title">Plan sonrası kategoriler</div>
-              <CategoryTable meta={meta} o={plan.after} me={myName} opp={data.opponent_name} />
-              <p className="hint">İşlemleri gün ve sırayla yap; her satırda bırakılanın yerine yenisi gelir. Waiver'daki oyuncular,
-                Can't Cut listesi ve maç saatleri doğrulanmadı. Negatif ROS etkisi: o oyuncuyu hafta sonunda geri almayı düşün.</p>
-            </>
-          )}
-        </div>
-      </div>
+      <p className="hint">Bu haftanın alım planı ve tek hamleler: Add/Drop → Bu hafta. Günlük kim oynasın: Sit/Start.</p>
       {data.notes.length > 0 && <p className="hint">{data.notes.join(" ")}</p>}
     </div>
   );

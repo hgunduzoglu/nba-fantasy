@@ -191,6 +191,8 @@ table.roster { width: 100%; border-collapse: separate; border-spacing: 0; font-s
 .badge.out { color: var(--bad-ink); }
 .badge.q { color: #b7791f; }
 .badge.il { color: var(--muted); }
+.badge.fa { color: var(--good-ink); }
+.badge.w { color: #b7791f; }
 .legend { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 11.5px; color: var(--muted); padding: 8px 14px; border-top: 1px solid var(--border); }
 .legend i { display: inline-block; width: 18px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: 4px; }
 

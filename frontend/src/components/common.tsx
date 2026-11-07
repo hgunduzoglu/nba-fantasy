@@ -1,4 +1,5 @@
-import type { BriefPlayer } from "../types";
+import { fmtDate } from "../format";
+import type { Availability, BriefPlayer } from "../types";
 
 export function PlayerName({ p, sub = true }: { p: BriefPlayer; sub?: boolean }) {
   return (
@@ -10,6 +11,13 @@ export function PlayerName({ p, sub = true }: { p: BriefPlayer; sub?: boolean })
       {sub && <span className="psub" style={{ marginLeft: 6 }}>{p.nba_team} · {p.positions.join(", ")}</span>}
     </span>
   );
+}
+
+/** Boştaki oyuncunun alınabilirliği: FA hemen; waiver'daysa serbest kaldığı gün. */
+export function AvailBadge({ a }: { a?: Availability | null }) {
+  if (!a) return null;
+  if (a.kind === "FA") return <span className="badge fa" title="Serbest oyuncu: hemen alınabilir">FA</span>;
+  return <span className="badge w" title="Waiver'da: bu günden itibaren kadroya girer (FAB ligde teklif gerekir)">W → {fmtDate(a.from)}</span>;
 }
 
 export function ErrorBanner({ error }: { error: string | null }) {

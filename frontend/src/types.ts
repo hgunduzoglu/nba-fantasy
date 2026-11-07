@@ -70,6 +70,13 @@ export interface Player {
   perceived_rank?: number | null;
   /** Bu sezon 3 maçtan az: sezon öncesi sırası kullanıldı. */
   perceived_fallback?: boolean | null;
+  /** Boştaki oyuncu: hemen alınabilir (FA) ya da waiver'da (``from`` gününden itibaren). */
+  availability?: Availability;
+}
+
+export interface Availability {
+  kind: "FA" | "W";
+  from: string | null;
 }
 
 export interface Roster {
@@ -359,6 +366,71 @@ export interface WaiverOut {
   drops: { drop: BriefPlayer; best_add: BriefPlayer; score: number }[];
   days_this_week: number;
   week: number | null;
+  adds_left: number | null;
+  fab: number | null;
+  synced: boolean;
+  waiver_time: string | null;
+  waiver_type: string | null;
+}
+
+/** Bu haftanın add/drop menüsü (``/adddrop/week``). */
+export interface AddDropPlayer extends BriefPlayer {
+  availability: Availability;
+}
+
+export interface AddDropSingle {
+  add: AddDropPlayer;
+  drop: BriefPlayer;
+  day: string;
+  games: number;
+  gain: number;
+  d_expected_wins: number;
+  d_p5: number;
+  dp: Record<CategoryKey, number>;
+  ros_delta: number;
+}
+
+export interface AddDropCategory {
+  key: CategoryKey;
+  label: string;
+  p: number;
+  leverage: number;
+  chosen: boolean;
+}
+
+export interface AddDropWeekOut {
+  week: number;
+  current_week: number;
+  weeks: WeekInfo[];
+  days: string[];
+  opponent: string;
+  opponent_name: string;
+  mode: "win" | "critical";
+  objective: string;
+  chosen: CategoryKey[];
+  categories: AddDropCategory[];
+  base: { p: number[]; expected_wins: number; p5: number };
+  adds_limit: number;
+  adds_used: number;
+  adds_left: number;
+  fab: number | null;
+  waiver_time: string | null;
+  waiver_type: string | null;
+  synced: boolean;
+  singles: AddDropSingle[];
+  plan: {
+    moves: { day: string; add: AddDropPlayer; drop: BriefPlayer; ros_delta: number; games: number }[];
+    after: { p: number[]; expected_wins: number; p5: number };
+  } | null;
+  droppable: string[];
+  active_roster: BriefPlayer[];
+}
+
+export interface AddDropWeekIn extends WeeklyIn {
+  mode: "win" | "critical";
+  categories: CategoryKey[] | null;
+  droppable: string[] | null;
+  used: number | null;
 }
 
 export interface SeasonTeamRow {
