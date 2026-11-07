@@ -22,6 +22,7 @@ web = ["fastapi>=0.115", "uvicorn>=0.30"]   # React arayüzünün API'si (python
 nba = ["nba_api>=1.4"]          # scripts/fetch_gamelogs_nba_api.py (opsiyonel)
 excel = ["openpyxl>=3.1"]       # scripts/draft_scenarios.py xlsx çıktısı (opsiyonel)
 yahoo = ["playwright>=1.45"]     # scripts/yahoo_sync.py: kurulu Chrome ile Yahoo sayfaları (opsiyonel)
+news = ["anthropic>=2.6"]        # haber analizi (Claude; ANTHROPIC_API_KEY ya da .env) (opsiyonel)
 
 [tool.setuptools.packages.find]
 where = ["src"]
