@@ -18,6 +18,7 @@ from fdo.inseason.durability import apply_durability
 from fdo.inseason.fixtures import load_fixtures
 from fdo.inseason.injuries import latest_file, with_injuries
 from fdo.inseason.live import LiveLeague, load_live
+from fdo.inseason.roles import RoleBoost, load_logs, role_boosts
 from fdo.inseason.season import SeasonResult, SeasonSim
 from fdo.inseason.standings import league_standings, load_standings
 from fdo.inseason.weekly import WeekModel
@@ -77,13 +78,19 @@ class AppState:
         return self._get(("weeks", eng.data.fingerprint, str(league_id)),
                          lambda: league_weeks(eng.data.schedule, eng.league.settings, eng.config))
 
+    def roles(self, injuries: bool = True) -> dict[str, RoleBoost]:
+        """Sakatlıkta rol değişimi (bu sezonun NBA maç kayıtları; yoksa boş)."""
+        data = self.data(injuries)
+        season = next(iter(data.leagues.values())).config.league.season
+        return self._get(("roles", data.fingerprint), lambda: role_boosts(data, load_logs(self.data_dir, season)))
+
     def week_model(self, league_id: str, injuries: bool = True, strategy: Strategy | None = None,
                    out_statuses: tuple[str, ...] | None = None) -> WeekModel:
         eng = self.engine(league_id, injuries)
         s = strategy or Strategy()
         kwargs = {} if out_statuses is None else {"out_statuses": out_statuses}
         return self._get(("week_model", eng.data.fingerprint, str(league_id), s, out_statuses),
-                         lambda: WeekModel(eng, strategy=s, **kwargs))
+                         lambda: WeekModel(eng, strategy=s, roles=self.roles(injuries), **kwargs))
 
     def live(self, league_id: str, injuries: bool = True) -> LiveLeague | None:
         """Senkronizasyonun canlı hafta verisi; kadrolarla aynı çekimden değilse (tarih ya da hafta tutmuyorsa) ``None``."""

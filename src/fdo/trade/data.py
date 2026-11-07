@@ -76,7 +76,7 @@ def file_signature(directory: str | Path) -> str:
     paths += list(directory.glob("players_yahoo_*.csv"))
     paths += list(directory.glob("projections_yahoo_*.csv"))
     paths += list(directory.glob("variance*.csv")) + list(directory.glob("schedule*.csv"))
-    paths += list(directory.glob("injuries*.csv"))
+    paths += list(directory.glob("injuries*.csv")) + list(directory.glob("gamelogs_nba_*.csv"))
     paths += list((REPO_ROOT / "config").glob("*.yaml"))
     return hashlib.sha256("|".join(f"{p}:{p.stat().st_mtime_ns}:{p.stat().st_size}"
                                   for p in sorted(paths) if p.exists()).encode()).hexdigest()[:20]

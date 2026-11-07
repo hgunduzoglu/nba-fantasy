@@ -98,7 +98,9 @@ class WeekOutlook:
 class WeekModel:
     """``TradeEngine``'in kalan sezon (ROS) verisiyle tek bir haftanın eşleşmesini modeller."""
 
-    def __init__(self, engine: TradeEngine, *, strategy: Strategy | None = None, out_statuses=DEFAULT_OUT):
+    def __init__(self, engine: TradeEngine, *, strategy: Strategy | None = None, out_statuses=DEFAULT_OUT,
+                 roles: dict | None = None):
+        """``roles``: oyuncu → ``fdo.inseason.roles.RoleBoost`` (takım arkadaşı yokken maç başı; ``until``'e kadar)."""
         self.engine = engine
         self.config = engine.config
         self.strategy = strategy or Strategy()
@@ -114,6 +116,19 @@ class WeekModel:
         cfg1 = self.config.with_overrides({"model": {"matchup": {"utilization": 1.0, "games_variance": False}}})
         unit = weekly_vectors(proj, var, cfg1, games=pd.Series(1.0, index=ids))
         self.unit = unit.reindex(list(engine.ids)).fillna(0.0).to_numpy(float)          # (n, 24) maç başı
+        # rol değişimi: dönüşe kadar (hariç) maç başı vektörü yerine bu kullanılır (README §13.24)
+        self.roles = {p: r for p, r in (roles or {}).items() if p in engine.index and ok[engine.index[p]]}
+        self.boost_unit = self.unit.copy()
+        self.boost_until = np.full(len(engine.ids), dt.date.min, dtype=object)
+        if self.roles:
+            rp = list(self.roles)
+            bproj = pd.DataFrame([self.roles[p].per_game for p in rp])[list(STATS)].assign(
+                player_id=rp, projected_gp=cap)
+            bvar, _ = per_game_variance(bproj, data.variance, self.config.model.variance.phi)
+            bunit = weekly_vectors(bproj, bvar, cfg1, games=pd.Series(1.0, index=rp))
+            for p in rp:
+                self.boost_unit[engine.index[p]] = bunit.loc[p].to_numpy(float)
+                self.boost_until[engine.index[p]] = self.roles[p].until
         # öncelik: stratejiye göre maç başı z (oturma/oynatma kararı)
         z = value_players(proj, self.config, basis="per_game", method="z").scores
         w = pd.Series(self.strategy.normalized, index=list(z.columns)) if len(z.columns) == 9 else 1.0
@@ -165,6 +180,17 @@ class WeekModel:
             use_status = status == "NA" and use_status
         return bool(self.engine.modeled[i]) and (not use_status or status not in self.out_statuses)
 
+    def game_unit(self, idx: np.ndarray, days: list[dt.date]) -> np.ndarray:
+        """``(n, 24)`` maç başı vektör, ``days`` içindeki maçları üzerinden ortalama (rol değişimi süresince rollü)."""
+        out = self.unit[idx].copy()
+        for j, i in enumerate(idx if days else ()):
+            until = self.boost_until[i]
+            if until > days[0]:
+                plays = [d for d in days if self.team[i] in self.games.get(d, ())] or days
+                share = sum(d < until for d in plays) / len(plays)
+                out[j] = share * self.boost_unit[i] + (1 - share) * self.unit[i]
+        return out
+
     def has_game(self, pid: str, day: dt.date) -> bool:
         return self.team[self.engine.index[pid]] in self.games.get(day, ())
 
@@ -203,6 +229,11 @@ class WeekModel:
         vec = (acc.copy() if acc is not None else np.zeros(WEEK_DIM))
         if n:
             vec += ((counted * self.availability[idx])[:, None] * self.unit[idx]).sum(axis=0)
+            for j, i in enumerate(idx if D else ()):
+                until = self.boost_until[i]
+                if until > days[0]:
+                    early = counted_mask[[d for d, day in enumerate(days) if day < until], j].sum()
+                    vec += early * self.availability[i] * (self.boost_unit[i] - self.unit[i])
         grid = pd.DataFrame("", index=ids, columns=[f"{day:%a %d}" for day in days])
         for d, day in enumerate(days):
             for j, s in enumerate(stints):
@@ -251,7 +282,7 @@ class WeekModel:
             return [], np.zeros((0, len(base.p)))
         idx = np.array([self.engine.index[p] for p in fa])
         g = np.array([sum(self._can_start(p, d, avail) for d in base.days) for p in fa], dtype=float)
-        cand = base.mine.vector[None, :] + (g * self.availability[idx])[:, None] * self.unit[idx]
+        cand = base.mine.vector[None, :] + (g * self.availability[idx])[:, None] * self.game_unit(idx, base.days)
         dp = ecw_vs(cand, base.opp.vector[None, None, :], self.config)[:, 0, :] - base.p[None, :]
         order = np.argsort(-(dp @ self.strategy.normalized), kind="stable")[:size]
         return [fa[i] for i in order], dp[order]
