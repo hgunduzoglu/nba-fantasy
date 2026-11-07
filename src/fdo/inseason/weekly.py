@@ -26,7 +26,7 @@ from fdo.inseason.waiver import swap_delta
 from fdo.matchup.ecw import category_corr_matrix, ecw_vs, p_at_least
 from fdo.matchup.player_week import RATIO_OFFSETS, WEEK_DIM, per_game_variance, weekly_vectors
 from fdo.schedule.calendar import normalize_team
-from fdo.schedule.lineup import active_eligibility, day_assignment
+from fdo.schedule.lineup import active_eligibility, slot_assignment
 from fdo.trade.data import ROS
 from fdo.trade.engine import TradeEngine
 from fdo.trade.strategy import Strategy
@@ -69,6 +69,8 @@ class TeamWeek:
     counted: pd.Series                       # oyuncu → sayılan maç
     scheduled: int
     benched: int
+    slots: np.ndarray | None = None          # (gün, oyuncu) aktif slot satırı, -1 sayılmadı (``slot_assignment``)
+    playing: np.ndarray | None = None        # (gün, oyuncu) maçı var ve oynayabilir
 
 
 @dataclass
@@ -176,7 +178,10 @@ class WeekModel:
         return [p for p in lg.rosters[team_id] if p not in lg.injury_rosters[team_id]]
 
     def team_week(self, team_id: str, stints: list[Stint], days: list[dt.date],
-                  acc: np.ndarray | None = None, *, use_status: bool = True) -> TeamWeek:
+                  acc: np.ndarray | None = None, *, use_status: bool = True, priority: np.ndarray | None = None,
+                  sit: np.ndarray | None = None) -> TeamWeek:
+        """``priority``: stint başına öncelik (varsayılan stratejiye göre maç başı z); ``sit``: (gün, stint) maçı olsa da
+        oturtulan (sit/start önerisi)."""
         ids = [s.player_id for s in stints]
         n, D = len(ids), len(days)
         idx = [self.engine.index[p] for p in ids]
@@ -188,10 +193,12 @@ class WeekModel:
                 playing[d, j] = (can[j] and s.first <= d <= s.last and self.team[idx[j]] in teams
                                  and day >= self.return_date.get(s.player_id, day))
         elig = active_eligibility([self.positions[p] for p in ids], self.config)
-        pr = self.priority[idx]
-        counted_mask = np.zeros((D, n), dtype=bool)
+        pr = self.priority[idx] if priority is None else np.asarray(priority, float)
+        allowed = playing & ~sit if sit is not None else playing
+        slots = np.full((D, n), -1)
         for d in range(D):
-            counted_mask[d] = day_assignment(elig, playing[d], pr)
+            slots[d] = slot_assignment(elig, allowed[d], pr)
+        counted_mask = slots >= 0
         counted = counted_mask.sum(axis=0)
         vec = (acc.copy() if acc is not None else np.zeros(WEEK_DIM))
         if n:
@@ -205,7 +212,7 @@ class WeekModel:
                     out_today = not can[j] or day < self.return_date.get(s.player_id, day)
                     grid.iat[j, d] = "▶" if counted_mask[d, j] else ("✕" if out_today else "B")
         return TeamWeek(team_id, list(stints), vec, grid, pd.Series(counted, index=ids),
-                        int(playing.sum()), int(playing.sum() - counted.sum()))
+                        int(playing.sum()), int(playing.sum() - counted.sum()), slots, playing)
 
     def _score(self, p: np.ndarray) -> float:
         return float(9 * p @ self.strategy.normalized)

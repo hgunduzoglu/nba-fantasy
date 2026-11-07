@@ -10,6 +10,7 @@ from fdo.api.serialize import (assumed_strategies, brief, category_deltas, clean
                                strategy_from, value_ranks)
 from fdo.api.state import AppState
 from fdo.inseason.fixtures import opponent as fixture_opponent
+from fdo.inseason.sitstart import plan_week, today_changes
 from fdo.inseason.waiver import drop_ranking, waiver_table
 from fdo.inseason.weekly import DEFAULT_OUT, Stint, WeekOutlook, acquisition_limit, vector_totals
 from fdo.roster.assignment import best_assignment
@@ -184,6 +185,37 @@ def register(app: FastAPI, state: AppState) -> None:
         return clean({"moves": moves, "left": left, "before": {"p": list(base.p), "expected_wins": base.expected_wins,
                                                                 "p5": base.p5},
                       "after": _outlook(eng, s)})
+
+    @app.post("/api/leagues/{lid}/sitstart")
+    def sitstart(lid: str, body: WeeklyIn):
+        """Eşleşmeye göre günlük kadro önerisi (README §13.21)."""
+        eng, weeks, current, wk, days, fx_opp, opp, model = _week_setup(lid, body)
+        acc_mine, acc_opp, lv = _acc(lid, body, wk, current, opp)
+        plan = plan_week(model, body.team, opp, days, acc_mine=acc_mine, acc_opp=acc_opp)
+        tw = plan.week
+        players = []
+        for j, pid in enumerate(plan.players):
+            cells = []
+            for d in range(len(days)):
+                k = tw.slots[d, j]
+                state_ = ("start" if k >= 0 else "sit" if plan.sat[d, j] else "bench" if tw.playing[d, j]
+                          else "out" if tw.grid.iat[j, d] == "✕" else "")
+                cells.append({"state": state_, "slot": plan.slot_names[k] if k >= 0 else None})
+            players.append({**_brief(eng, pid), "value": plan.value[j],
+                            "dp": {c: plan.dp[j, i] for i, c in enumerate(CATEGORIES)},
+                            "games": int(tw.playing[:, j].sum()), "started": int((tw.slots[:, j] >= 0).sum()),
+                            "yahoo_slot": eng.league.lineups.get(body.team, {}).get(pid), "cells": cells})
+        score = lambda x: {"p": list(x.p), "expected_wins": x.expected_wins, "p5": x.p5, "strategy_score": x.strategy_score}
+        as_of = eng.data.as_of
+        today = None
+        if wk == current and as_of in days and eng.league.lineups.get(body.team):
+            ch = today_changes(plan, eng.league.lineups[body.team], as_of)
+            today = {"day": as_of, **{k: [{**_brief(eng, r["player_id"]), **r} for r in v] for k, v in ch.items()}}
+        return clean({"week": wk, "current_week": current, "weeks": _weeks_list(weeks, current), "days": days,
+                      "opponent": opp, "opponent_name": eng.league.teams[opp], "fixture_opponent": fx_opp,
+                      "slot_names": plan.slot_names, "before": score(plan.before), "after": score(plan.after),
+                      "players": players, "today": today, "rounds": plan.rounds,
+                      "live": {"captured_at": lv.captured_at, "partial_today": lv.live} if lv else None})
 
     # ------------------------------------------------------------- boştakiler
     @app.post("/api/leagues/{lid}/waiver")

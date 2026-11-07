@@ -7,7 +7,7 @@ import hashlib
 import json
 import re
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import numpy as np
@@ -39,6 +39,7 @@ class TradeLeague:
     config: Config
     default_team_id: str
     roster_date: dt.date
+    lineups: dict[str, dict[str, str]] = field(default_factory=dict)    # takım → oyuncu → slot (roster_date günü)
 
     @property
     def capacity(self) -> int:
@@ -171,13 +172,14 @@ def load_trade_data(directory: str | Path | None = None) -> TradeData:
     for lg in root["leagues"]:
         lid = str(lg["league_id"])
         settings = meta[lid]["settings"]["values"]
-        team_names, rosters, injury, occupied = {}, {}, {}, set()
+        team_names, rosters, injury, occupied, lineups = {}, {}, {}, set(), {}
         for team in lg["teams"]:
             tid = str(team["team_id"])
             if tid in team_names:
                 raise ValueError(f"{lid}: tekrarlanan team_id {tid}")
             team_names[tid] = team["team_name"]
             ids, il_ids = [], set()
+            lineups[tid] = {str(sl["player_id"]): sl["slot"] for sl in team["slots"] if sl.get("player_id")}
             for slot in team["slots"]:
                 if not slot.get("player_id"):
                     continue
@@ -198,7 +200,7 @@ def load_trade_data(directory: str | Path | None = None) -> TradeData:
                      else next(iter(team_names)))
         leagues[lid] = TradeLeague(lid, lg["league_name"], team_names, rosters, injury, settings,
                                   _config(settings, len(rosters), root["season"], lg["league_name"]),
-                                  preferred if preferred in team_names else next(iter(team_names)), as_of)
+                                  preferred if preferred in team_names else next(iter(team_names)), as_of, lineups)
     stats, sources = {}, {}
     sp = sorted(directory.glob("schedule*.csv"))
     schedule = pd.read_csv(sp[-1]) if sp else None

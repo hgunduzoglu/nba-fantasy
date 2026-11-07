@@ -23,18 +23,28 @@ def active_eligibility(positions: list[frozenset[str]], config: Config) -> np.nd
     return np.array([[bool(p & elig[s]) for p in positions] for s in slots], dtype=bool)
 
 
-def day_assignment(elig: np.ndarray, playing: np.ndarray, priority: np.ndarray | None = None) -> np.ndarray:
-    """Bir gün için aktif slota yerleşen oyuncu maskesi ``(m,)``."""
+def slot_assignment(elig: np.ndarray, playing: np.ndarray, priority: np.ndarray | None = None) -> np.ndarray:
+    """Bir gün için her oyuncunun aktif slot satırı (``active_eligibility`` sırası), yerleşmeyen ``-1``."""
     m = elig.shape[1]
-    out = np.zeros(m, dtype=bool)
+    out = np.full(m, -1)
     if not playing.any():
         return out
     pr = np.ones(m) if priority is None else 1.0 + 1e-3 * (priority - priority.min()) / (np.ptp(priority) or 1.0)
     w = elig * (playing * pr)[None, :]
     rows, cols = linear_sum_assignment(w, maximize=True)
     keep = w[rows, cols] > 0
-    out[cols[keep]] = True
+    out[cols[keep]] = rows[keep]
     return out
+
+
+def day_assignment(elig: np.ndarray, playing: np.ndarray, priority: np.ndarray | None = None) -> np.ndarray:
+    """Bir gün için aktif slota yerleşen oyuncu maskesi ``(m,)``."""
+    return slot_assignment(elig, playing, priority) >= 0
+
+
+def active_slot_names(config: Config) -> list[str]:
+    """``active_eligibility`` satırlarının slot adları (ör. ``PG, SG, G, …, UTIL``)."""
+    return [s for s in slot_instances(config) if s in config.roster.active_slots]
 
 
 def counted_games(positions: list[frozenset[str]], playing: np.ndarray, config: Config,

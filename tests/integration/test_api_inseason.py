@@ -68,6 +68,15 @@ def test_weekly_uses_the_synced_score_unless_entered(client, tmp_path):
     assert client.post("/api/leagues/L/weekly", json={"team": "1"}).json()["live"] is None   # başka çekim
 
 
+def test_sitstart(client):
+    r = client.post("/api/leagues/L/sitstart", json={"team": "1", "week": 3}).json()
+    assert len(r["days"]) == 7 and r["slot_names"] == ["PG", "C"] and r["today"] is None   # veri tarihi 3. haftada değil
+    assert r["after"]["strategy_score"] >= r["before"]["strategy_score"] - 1e-9
+    p = r["players"][0]
+    assert len(p["cells"]) == 7 and set(p["dp"]) >= {"FG_PCT", "TOV"}
+    assert all(c["slot"] in ("PG", "C") for q in r["players"] for c in q["cells"] if c["state"] == "start")
+
+
 def test_waiver_season_rankings(client):
     wv = client.post("/api/leagues/L/waiver", json={"team": "2", "strategy": {"preset": "Punt FT_PCT"}}).json()
     assert wv["rows"] and set(wv["rows"][0]["dp"]) >= {"FG_PCT", "TOV"}
