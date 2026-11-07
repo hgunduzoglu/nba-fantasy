@@ -37,6 +37,8 @@ _CELL = re.compile(r"<td[^>]*>(.*?)</td>", re.S)
 _LONG = re.compile(r'CellPlayerName--long">.*?<a[^>]*>(.*?)</a>', re.S)
 _TAG = re.compile(r"<[^>]+>")
 _UNTIL = re.compile(r"out until (?:at least )?([A-Z][a-z]{2})[a-z]*\.?\s+(\d{1,2})", re.I)
+HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
+                         "Chrome/120 Safari/537.36", "Accept-Language": "en-US,en;q=0.9"}
 DTD = ("game time decision", "day-to-day", "day to day", "questionable", "probable", "doubtful")
 
 
@@ -75,6 +77,43 @@ def interpret(status: str, season_start: dt.date) -> tuple[str, dt.date | None]:
     if any(k in low for k in DTD):
         return "day_to_day", None
     return "unknown", None
+
+
+def fetch_cbs(out_dir: str | Path, season_start: dt.date, page: str | None = None) -> tuple[Path, pd.DataFrame]:
+    """CBS sayfasını indirir (``page`` verilirse onu ayrıştırır) ve ``injuries_cbs_<UTC tarih>.csv`` yazar."""
+    import requests
+
+    captured = dt.datetime.now(dt.timezone.utc)
+    if page is None:
+        r = requests.get(SOURCE_URL, headers=HEADERS, timeout=30)
+        r.raise_for_status()
+        page = r.text
+    df = parse_cbs(page)
+    if df.empty:
+        raise ValueError("Sakatlık tablosu bulunamadı (CBS sayfa yapısı değişmiş olabilir).")
+    kinds = [interpret(s, season_start) for s in df["status_text"]]
+    df["kind"] = [k for k, _ in kinds]
+    df["return_date"] = [d.isoformat() if d else "" for _, d in kinds]
+    df["source_url"] = SOURCE_URL
+    df["captured_at"] = captured.isoformat(timespec="seconds")
+    out = Path(out_dir) / f"injuries_cbs_{captured.date().isoformat()}.csv"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(out, index=False, encoding="utf-8")
+    return out, df
+
+
+def refresh_cbs(directory: str | Path) -> str:
+    """CBS raporunu günceller (Yahoo senkronizasyonundan sonra); sezon başlangıcı NBA takviminden. Hata
+    senkronizasyonu düşürmez, açıklama olarak döner."""
+    directory = Path(directory)
+    sched = sorted(directory.glob("schedule*.csv"))
+    start = (pd.to_datetime(pd.read_csv(sched[-1], usecols=["game_date"])["game_date"]).min().date()
+             if sched else dt.date(dt.date.today().year, 10, 1))
+    try:
+        out, df = fetch_cbs(directory, start)
+    except Exception as e:  # noqa: BLE001 — ayrı kaynak
+        return f"CBS sakatlık raporu alınamadı: {e}"
+    return f"CBS sakatlık raporu: {len(df)} kayıt → {out.name}"
 
 
 def latest_file(directory: str | Path) -> Path | None:

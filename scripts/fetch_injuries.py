@@ -14,13 +14,8 @@ import datetime as dt
 import sys
 from pathlib import Path
 
-import requests
-
 from fdo.config import REPO_ROOT
-from fdo.inseason.injuries import SOURCE_URL, interpret, parse_cbs
-
-HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
-                         "Chrome/120 Safari/537.36", "Accept-Language": "en-US,en;q=0.9"}
+from fdo.inseason.injuries import fetch_cbs
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -30,26 +25,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--season-start", default="2026-10-20")
     args = ap.parse_args(argv)
     sys.stdout.reconfigure(errors="replace")
-    captured = dt.datetime.now(dt.timezone.utc)
-    if args.html:
-        page = Path(args.html).read_text(encoding="utf-8")
-    else:
-        r = requests.get(SOURCE_URL, headers=HEADERS, timeout=30)
-        r.raise_for_status()
-        page = r.text
-    df = parse_cbs(page)
-    if df.empty:
-        print("Sakatlık tablosu bulunamadı (sayfa yapısı değişmiş olabilir).")
+    page = Path(args.html).read_text(encoding="utf-8") if args.html else None
+    try:
+        out, df = fetch_cbs(args.out, dt.date.fromisoformat(args.season_start), page)
+    except ValueError as e:
+        print(e)
         return 1
-    start = dt.date.fromisoformat(args.season_start)
-    kinds = [interpret(s, start) for s in df["status_text"]]
-    df["kind"] = [k for k, _ in kinds]
-    df["return_date"] = [d.isoformat() if d else "" for _, d in kinds]
-    df["source_url"] = SOURCE_URL
-    df["captured_at"] = captured.isoformat(timespec="seconds")
-    out = Path(args.out) / f"injuries_cbs_{captured.date().isoformat()}.csv"
-    out.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(out, index=False, encoding="utf-8")
     print(f"{len(df)} sakatlık kaydı, {df['nba_team'].nunique()} takım → {out}")
     print(df["kind"].value_counts().to_string())
     return 0
