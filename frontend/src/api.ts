@@ -1,5 +1,5 @@
 import type {
-  AddDropWeekIn, AddDropWeekOut, FixtureTeam, HistoryOut, Meta, MispricedRow, MultiSeasonOut, MultiSuggestIn, MultiSuggestOut, MultiTradeIn, MultiTradeOut, Perceived, Player,
+  AddDropWeekIn, AddDropWeekOut, FixtureTeam, HistoryOut, NewsOut, NewsStatus, Meta, MispricedRow, MultiSeasonOut, MultiSuggestIn, MultiSuggestOut, MultiTradeIn, MultiTradeOut, Perceived, Player,
   RankingsOut, Roster, SeasonOut, SeasonPageOut, SitStartOut, Source, StreamOut, StrategyIn, SuggestIn, SuggestOut, SyncStatus, TradeIn,
   TradeOut, WaiverOut, WeeklyIn, WeeklyOut,
 } from "./types";
@@ -67,6 +67,10 @@ export const api = {
     request<AddDropWeekOut>(`/api/leagues/${league}/adddrop/week`, post(body)),
   history: (league: string, team: string, injuries: boolean) =>
     request<HistoryOut>(`/api/leagues/${league}/history?team=${team}&${q(injuries)}`),
+  news: (league: string, team: string, injuries: boolean) =>
+    request<NewsOut>(`/api/leagues/${league}/news?team=${team}&${q(injuries)}`),
+  newsStatus: () => request<NewsStatus>("/api/news/status"),
+  newsRefresh: () => request<NewsStatus>("/api/news/refresh", { method: "POST" }),
   sitstart: (league: string, body: WeeklyIn) => request<SitStartOut>(`/api/leagues/${league}/sitstart`, post(body)),
   syncStatus: () => request<SyncStatus>("/api/sync"),
   syncStart: (players: boolean) => request<SyncStatus>("/api/sync", post({ players })),

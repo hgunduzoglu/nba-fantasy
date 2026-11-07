@@ -635,6 +635,69 @@ export interface HistoryOut {
   season: HistoryRow | null;
 }
 
+/** Haberler (``/news``): lige göre etiketlenmiş olaylar ve rol değişimleri. */
+export interface NewsPerson {
+  id: string | null;
+  name: string;
+  owner: "me" | "opp" | "team" | "FA" | "W" | null;
+  owner_name: string | null;
+  nba_team: string;
+  status: string;
+  waiver_until?: string | null;
+}
+
+export interface NewsEvent {
+  id: string;
+  source: "cbs" | "espn";
+  url: string;
+  published: string;
+  headline: string;
+  body: string;
+  analyzed: boolean;
+  type: string | null;
+  status: string | null;
+  return_estimate: string | null;
+  games_out: number | null;
+  impact: number | null;
+  summary: string | null;
+  player: NewsPerson | null;
+  beneficiaries: NewsPerson[];
+  hurt: NewsPerson[];
+  tags: ("mine" | "opp" | "fa")[];
+}
+
+export interface RoleRow {
+  player: NewsPerson;
+  team: string;
+  absent: string[];
+  until: string | null;
+  n_without: number;
+  n_with: number;
+  delta: Record<"minutes" | "pts" | "reb" | "ast" | "stl" | "blk" | "fg3m" | "tov", number>;
+  raw_minutes: number;
+}
+
+export interface NewsOut {
+  events: NewsEvent[];
+  roles: RoleRow[];
+  opponent: string | null;
+  opponent_name: string | null;
+}
+
+export interface NewsStatus {
+  running: boolean;
+  log: string[];
+  error: string | null;
+  result: { summary: string } | null;
+  fetched_at: string | null;
+  items: number;
+  analyzed: number;
+  model: string;
+  has_key: boolean;
+  cost_7d: number;
+  cost_total: number;
+}
+
 /** Sit/start önerisi (``/sitstart``). */
 export interface SitStartCell {
   state: "start" | "sit" | "bench" | "out" | "";

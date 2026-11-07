@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "./api";
 import { AddDropPage } from "./pages/AddDropPage";
 import { HistoryPage } from "./pages/HistoryPage";
+import { NewsPage } from "./pages/NewsPage";
 import { MultiTradePage } from "./pages/MultiTradePage";
 import { RankingsPage } from "./pages/RankingsPage";
 import { SeasonPage } from "./pages/SeasonPage";
@@ -14,7 +15,7 @@ import type { Meta } from "./types";
 
 type Theme = "auto" | "light" | "dark";
 type Scale = "gr" | "br";
-type Tab = "trade" | "suggest" | "multi" | "weekly" | "sitstart" | "fa" | "history" | "season" | "ranks";
+type Tab = "trade" | "suggest" | "multi" | "weekly" | "sitstart" | "fa" | "news" | "history" | "season" | "ranks";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "trade", label: "Takas Analizi" },
@@ -23,6 +24,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "weekly", label: "Bu Hafta" },
   { id: "sitstart", label: "Sit/Start" },
   { id: "fa", label: "Add/Drop" },
+  { id: "news", label: "Haberler" },
   { id: "history", label: "Performans" },
   { id: "season", label: "Sezon Simülasyonu" },
   { id: "ranks", label: "Lig Sıralamaları" },
@@ -153,6 +155,7 @@ export default function App() {
         {tab === "weekly" && <WeeklyPage key={league.id + team} meta={meta} league={league} team={team} injuries={injuries} />}
         {tab === "sitstart" && <SitStartPage key={league.id + team} meta={meta} league={league} team={team} injuries={injuries} />}
         {tab === "fa" && <AddDropPage key={league.id + team} meta={meta} league={league} team={team} injuries={injuries} />}
+        {tab === "news" && <NewsPage key={league.id + team} league={league} team={team} injuries={injuries} />}
         {tab === "history" && <HistoryPage key={league.id + team} meta={meta} league={league} team={team} injuries={injuries} />}
         {tab === "season" && <SeasonPage key={league.id + team} league={league} team={team} injuries={injuries} />}
         {tab === "ranks" && <RankingsPage meta={meta} league={league} team={team} injuries={injuries} />}
