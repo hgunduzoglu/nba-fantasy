@@ -77,6 +77,29 @@ def test_sitstart(client):
     assert all(c["slot"] in ("PG", "C") for q in r["players"] for c in q["cells"] if c["state"] == "start")
 
 
+def test_adddrop_week_modes_and_waiver_dates(client, tmp_path):
+    w = client.post("/api/leagues/L/adddrop/week", json={"team": "1", "week": 3}).json()
+    assert w["mode"] == "win" and w["objective"] == "Dengeli" and not w["synced"] and w["adds_left"] == 4
+    assert len(w["categories"]) == 9 and w["chosen"] and len(w["droppable"]) == 3
+    assert all(r["add"]["availability"]["kind"] == "FA" for r in w["singles"])
+    c = client.post("/api/leagues/L/adddrop/week",
+                    json={"team": "1", "week": 3, "mode": "critical", "categories": ["BLK"], "plan": False}).json()
+    assert c["objective"] == "Kritik: BLK" and c["plan"] is None and c["chosen"] == ["BLK"]
+    assert client.post("/api/leagues/L/adddrop/week", json={"team": "1", "mode": "critical",
+                                                            "categories": ["XYZ"]}).status_code == 400
+    write_live(tmp_path, week=w["current_week"], used=1)                         # 16: waiver, 2 Kasım'dan itibaren
+    client.app.state.fdo.signature = lambda: "synced"
+    s = client.post("/api/leagues/L/adddrop/week", json={"team": "1"}).json()
+    assert s["synced"] and s["adds_left"] == 3 and s["fab"] == 87
+    for r in s["singles"]:
+        if r["add"]["id"] == "16":
+            assert r["add"]["availability"] == {"kind": "W", "from": "2026-11-02"} and r["day"] >= "2026-11-02"
+    ros = client.post("/api/leagues/L/waiver", json={"team": "1"}).json()
+    assert ros["adds_left"] == 3 and ros["fab"] == 87 and ros["synced"]
+    kinds = {r["add"]["id"]: r["add"]["availability"]["kind"] for r in ros["rows"]}
+    assert kinds.get("16", "W") == "W" and set(kinds.values()) <= {"FA", "W"}
+
+
 def test_waiver_season_rankings(client):
     wv = client.post("/api/leagues/L/waiver", json={"team": "2", "strategy": {"preset": "Punt FT_PCT"}}).json()
     assert wv["rows"] and set(wv["rows"][0]["dp"]) >= {"FG_PCT", "TOV"}

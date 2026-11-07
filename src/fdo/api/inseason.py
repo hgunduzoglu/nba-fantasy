@@ -5,10 +5,11 @@ from __future__ import annotations
 import numpy as np
 from fastapi import FastAPI, HTTPException, Query
 
-from fdo.api.schemas import StrategyIn, StreamIn, SuggestIn, WaiverIn, WeeklyIn
+from fdo.api.schemas import AddDropWeekIn, StrategyIn, StreamIn, SuggestIn, WaiverIn, WeeklyIn
 from fdo.api.serialize import (assumed_strategies, brief, category_deltas, clean, games_delta, player_row,
                                strategy_from, value_ranks)
 from fdo.api.state import AppState
+from fdo.inseason.adddrop import available_from, critical_categories, critical_strategy, pick_critical
 from fdo.inseason.fixtures import opponent as fixture_opponent
 from fdo.inseason.sitstart import plan_week, today_changes
 from fdo.inseason.waiver import drop_ranking, waiver_table
@@ -145,6 +146,19 @@ def register(app: FastAPI, state: AppState) -> None:
         theirs = body.acc_opp if body.acc_opp is not None else (lv.totals.get(opp) if lv else None)
         return mine, theirs, lv
 
+    def _default_droppable(eng, model, body) -> list[str]:
+        """Kalan sezonda en kolay bırakılabilecek 3 aktif oyuncu (boştakilerle değişim sırası, sonra piyasa değeri)."""
+        drops = drop_ranking(eng, body.team, _strategy(body.strategy, eng, body.team))
+        active = model.active_roster(body.team)
+        ranked = [p for p in (list(drops["drop"]) if len(drops) else []) if p in active]
+        cheapest = sorted(active, key=lambda p: float(eng.market.get(p, 0.0)))     # kalan sezon değeri en düşük
+        return list(dict.fromkeys([*ranked, *cheapest]))[:3]
+
+    def _availability(lid: str, eng, injuries: bool) -> dict:
+        """Waiver'daki oyuncu → ilk alınabilir gün (senkronizasyon yoksa boş: herkes FA sayılır)."""
+        lv = state.live(lid, injuries)
+        return available_from(lv.waivers, eng.data.as_of, eng.league.settings) if lv else {}
+
     def _weeks_list(weeks, current):
         return [{"week": int(w), "start": r.start, "end": r.end, "playoff": bool(r.playoff), "current": int(w) == current}
                 for w, r in weeks.weeks.iterrows() if int(w) >= current]
@@ -154,11 +168,8 @@ def register(app: FastAPI, state: AppState) -> None:
         eng, weeks, current, wk, days, fx_opp, opp, model = _week_setup(lid, body)
         acc_mine, acc_opp, lv = _acc(lid, body, wk, current, opp)
         o = model.outlook(body.team, opp, days, acc_mine=acc_mine, acc_opp=acc_opp, week=wk)
-        drops = drop_ranking(eng, body.team, _strategy(body.strategy, eng, body.team))
         active = model.active_roster(body.team)
-        ranked = [p for p in (list(drops["drop"]) if len(drops) else []) if p in active]
-        cheapest = sorted(active, key=lambda p: float(eng.market.get(p, 0.0)))     # kalan sezon değeri en düşük
-        default_drop = list(dict.fromkeys([*ranked, *cheapest]))[:3]
+        default_drop = _default_droppable(eng, model, body)
         return clean({"weeks": _weeks_list(weeks, current), "current_week": current, "week": wk,
                       "week_start": weeks.weeks.loc[wk, "start"], "days": days, "opponent": opp,
                       "opponent_name": eng.league.teams[opp], "fixture_opponent": fx_opp,
@@ -179,7 +190,8 @@ def register(app: FastAPI, state: AppState) -> None:
         base = model.outlook(body.team, opp, days, acc_mine=acc_mine, acc_opp=acc_opp, week=wk)
         used = body.used if body.used is not None else (lv.adds_used if lv and body.team == lv.my_team else 0) or 0
         left = max(0, acquisition_limit(eng.league.settings) - int(used))
-        s = model.stream(base, moves=left, droppable=list(body.droppable), acc_mine=acc_mine)
+        s = model.stream(base, moves=left, droppable=list(body.droppable), acc_mine=acc_mine,
+                         available_from=_availability(lid, eng, body.injuries))
         moves = [{"day": m.day, "add": _brief(eng, m.add), "drop": _brief(eng, m.drop), "ros_delta": m.ros_delta,
                   "games": sum(model.has_game(m.add, d) for d in s.days if d >= m.day)} for m in s.moves]
         return clean({"moves": moves, "left": left, "before": {"p": list(base.p), "expected_wins": base.expected_wins,
@@ -217,6 +229,55 @@ def register(app: FastAPI, state: AppState) -> None:
                       "players": players, "today": today, "rounds": plan.rounds,
                       "live": {"captured_at": lv.captured_at, "partial_today": lv.live} if lv else None})
 
+    @app.post("/api/leagues/{lid}/adddrop/week")
+    def adddrop_week(lid: str, body: AddDropWeekIn):
+        """Bu haftanın add/drop menüsü: tek hamleler ve kalan alım hakkıyla günlük plan (README §13.22)."""
+        eng, weeks, current, wk, days, fx_opp, opp, model = _week_setup(lid, body)
+        acc_mine, acc_opp, lv = _acc(lid, body, wk, current, opp)
+        avail = _availability(lid, eng, body.injuries)
+        base = model.outlook(body.team, opp, days, acc_mine=acc_mine, acc_opp=acc_opp, week=wk)
+        leverage = critical_categories(model, base, avail)
+        bad = [c for c in body.categories or [] if c not in CATEGORIES]
+        if bad:
+            raise HTTPException(400, f"Bilinmeyen kategori: {bad}")
+        chosen = body.categories or pick_critical(leverage)
+        if body.mode == "critical":
+            out = DEFAULT_OUT if body.sit_out else tuple(s for s in DEFAULT_OUT if s != "O")
+            model = state.week_model(lid, body.injuries, critical_strategy(chosen), out)
+            base = model.outlook(body.team, opp, days, acc_mine=acc_mine, acc_opp=acc_opp, week=wk)
+        droppable = list(body.droppable) if body.droppable is not None else _default_droppable(eng, model, body)
+        limit = acquisition_limit(eng.league.settings)
+        used = body.used if body.used is not None else (lv.adds_used if lv and body.team == lv.my_team else 0) or 0
+        left = max(0, limit - int(used))
+
+        def avail_info(pid):
+            return {"kind": "W", "from": avail[pid]} if pid in avail else {"kind": "FA", "from": None}
+
+        singles = model.single_moves(base, droppable=droppable, acc_mine=acc_mine, available_from=avail)
+        rows = [{"add": {**_brief(eng, r.add), "availability": avail_info(r.add)}, "drop": _brief(eng, r.drop),
+                 "day": r.day, "games": r.games, "gain": r.gain, "d_expected_wins": r.d_expected_wins, "d_p5": r.d_p5,
+                 "dp": {c: r.dp[i] for i, c in enumerate(CATEGORIES)}, "ros_delta": r.ros_delta}
+                for r in singles.itertuples()] if len(singles) else []
+        plan = None
+        if body.plan and left > 0 and droppable:
+            st = model.stream(base, moves=left, droppable=droppable, acc_mine=acc_mine, available_from=avail)
+            plan = {"moves": [{"day": m.day, "add": {**_brief(eng, m.add), "availability": avail_info(m.add)},
+                               "drop": _brief(eng, m.drop), "ros_delta": m.ros_delta,
+                               "games": sum(model.has_game(m.add, d) for d in st.days if d >= m.day)} for m in st.moves],
+                    "after": {"p": list(st.p), "expected_wins": st.expected_wins, "p5": st.p5}}
+        mine = lv is not None and body.team == lv.my_team
+        return clean({"week": wk, "current_week": current, "weeks": _weeks_list(weeks, current), "days": days,
+                      "opponent": opp, "opponent_name": eng.league.teams[opp], "fixture_opponent": fx_opp,
+                      "mode": body.mode, "objective": model.strategy.name, "chosen": chosen,
+                      "categories": [{"key": c, "label": CATEGORY_LABELS[c], "p": base.p[i], "leverage": leverage[i],
+                                      "chosen": c in chosen} for i, c in enumerate(CATEGORIES)],
+                      "base": {"p": list(base.p), "expected_wins": base.expected_wins, "p5": base.p5},
+                      "adds_limit": limit, "adds_used": used, "adds_left": left, "fab": lv.fab if mine else None,
+                      "waiver_time": eng.league.settings.get("Waiver Time"),
+                      "waiver_type": eng.league.settings.get("Waiver Type"), "synced": lv is not None,
+                      "singles": rows, "plan": plan, "droppable": droppable,
+                      "active_roster": [_brief(eng, p) for p in model.active_roster(body.team)]})
+
     # ------------------------------------------------------------- boştakiler
     @app.post("/api/leagues/{lid}/waiver")
     def waiver(lid: str, body: WaiverIn):
@@ -225,6 +286,7 @@ def register(app: FastAPI, state: AppState) -> None:
         team_check(eng, team)
         strategy = _strategy(body.strategy, eng, team)
         t = waiver_table(eng, team, strategy, top=body.top)
+        avail = _availability(lid, eng, injuries)
         weeks = state.weeks(lid, injuries)
         wk = weeks.week_of(eng.data.as_of)
         model = state.week_model(lid, injuries)
@@ -234,7 +296,9 @@ def register(app: FastAPI, state: AppState) -> None:
         ranks = value_ranks(eng)
         rows = []
         for r in t.itertuples():
-            rows.append({"add": player_row(eng, r.add, "ros", z, ranks=ranks), "drop": _brief(eng, r.drop),
+            row = player_row(eng, r.add, "ros", z, ranks=ranks)
+            row["availability"] = {"kind": "W", "from": avail[r.add]} if r.add in avail else {"kind": "FA", "from": None}
+            rows.append({"add": row, "drop": _brief(eng, r.drop),
                          "score": r.score, "delta_ecw": r.delta_ecw,
                          "dp": {c: getattr(r, f"d_{c}") for c in CATEGORIES},
                          "games_this_week": sum(model.has_game(r.add, d) for d in this_days),
@@ -242,7 +306,13 @@ def register(app: FastAPI, state: AppState) -> None:
         d = drop_ranking(eng, team, strategy)
         drops = [{"drop": _brief(eng, x.drop), "best_add": _brief(eng, x.add), "score": x.score}
                  for x in d.itertuples()] if len(d) else []
-        return clean({"rows": rows, "drops": drops, "days_this_week": len(this_days), "week": wk})
+        lv = state.live(lid, injuries)
+        mine = lv is not None and team == lv.my_team
+        return clean({"rows": rows, "drops": drops, "days_this_week": len(this_days), "week": wk,
+                      "adds_left": lv.adds_left(team, acquisition_limit(eng.league.settings)) if mine else None,
+                      "fab": lv.fab if mine else None, "synced": lv is not None,
+                      "waiver_time": eng.league.settings.get("Waiver Time"),
+                      "waiver_type": eng.league.settings.get("Waiver Type")})
 
     # ------------------------------------------------------------- sezon
     @app.get("/api/leagues/{lid}/season")

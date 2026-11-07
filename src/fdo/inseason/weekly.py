@@ -237,47 +237,86 @@ class WeekModel:
         owned = {p for r in self.engine.league.rosters.values() for p in r}
         return [p for p in self.engine.ids if p not in owned and self.playable(p)]
 
+    def _can_start(self, pid: str, day: dt.date, available_from: dict[str, dt.date]) -> bool:
+        """Eklenen oyuncu o gün oynayabilir mi: maçı var ve (waiver'daysa) serbest kalmış."""
+        return self.has_game(pid, day) and day >= available_from.get(pid, day)
+
+    def shortlist(self, base: WeekOutlook, available_from: dict[str, dt.date] | None = None,
+                  size: int = 30) -> tuple[list[str], np.ndarray]:
+        """Boştakiler, kadroya kısıtsız eklenince (lineup yok, hızlı ön eleme) haftalık puan artışına göre; ikinci
+        çıktı her birinin kategori olasılığı artışı ``(F, C)``."""
+        avail = available_from or {}
+        fa = [p for p in self.free_agents() if any(self._can_start(p, d, avail) for d in base.days)]
+        if not fa:
+            return [], np.zeros((0, len(base.p)))
+        idx = np.array([self.engine.index[p] for p in fa])
+        g = np.array([sum(self._can_start(p, d, avail) for d in base.days) for p in fa], dtype=float)
+        cand = base.mine.vector[None, :] + (g * self.availability[idx])[:, None] * self.unit[idx]
+        dp = ecw_vs(cand, base.opp.vector[None, None, :], self.config)[:, 0, :] - base.p[None, :]
+        order = np.argsort(-(dp @ self.strategy.normalized), kind="stable")[:size]
+        return [fa[i] for i in order], dp[order]
+
+    def _moves(self, team_id: str, stints: list[Stint], drop_pool: list[str], fa: list[str], added: set[str],
+               days: list[dt.date], acc: np.ndarray, opp: TeamWeek, available_from: dict[str, dt.date]):
+        """Tek bir al/bırak adımının bütün adayları: ``(puan, deneme, tw, p, ew, p5, bırak, al, gün)``."""
+        active_ids = {s.player_id for s in stints}
+        for d_id in [p for p in drop_pool if p in active_ids]:
+            j = next(k for k, s in enumerate(stints) if s.player_id == d_id)
+            s0 = stints[j]
+            end = min(s0.last, len(days) - 1)
+            for f_id in fa:
+                if f_id in active_ids:
+                    continue
+                # eklenen oyuncu bırakılanın kalan günlerini devralır (kadro büyüklüğü her gün sabit);
+                # başlangıç yalnızca eklenenin oynayabildiği günler (maçsız günden başlamak bırakılanın maçını boşa
+                # harcar; waiver'daki oyuncu serbest kalmadan alınamaz); eklenmiş bir streamer ilk gününde bırakılmaz
+                first_t = max(s0.first, 0) + (1 if d_id in added else 0)
+                for t in (k for k in range(first_t, end + 1) if self._can_start(f_id, days[k], available_from)):
+                    trial = [*stints[:j], Stint(d_id, s0.first, t - 1, s0.slot), *stints[j + 1:],
+                             Stint(f_id, t, s0.last, s0.slot)]
+                    tw = self.team_week(team_id, trial, days, acc)
+                    p, ew, sc, p5 = self.evaluate(tw, opp)
+                    yield sc, trial, tw, p, ew, p5, d_id, f_id, t
+
+    def single_moves(self, base: WeekOutlook, *, droppable: list[str], acc_mine=None,
+                     available_from: dict[str, dt.date] | None = None, shortlist: int = 30) -> pd.DataFrame:
+        """Kısa listedeki her boştaki oyuncu için en iyi tek hamle (bırakılacak oyuncu ve gün) ve etkisi."""
+        avail = available_from or {}
+        fa, _ = self.shortlist(base, avail, shortlist)
+        stints = [Stint(s.player_id, s.first, s.last, s.slot) for s in base.mine.stints]
+        best: dict[str, tuple] = {}
+        for c in self._moves(base.mine.team_id, stints, list(dict.fromkeys(droppable)), fa, set(), base.days,
+                             accumulated_vector(acc_mine), base.opp, avail):
+            if c[7] not in best or c[0] > best[c[7]][0]:
+                best[c[7]] = c
+        rows = []
+        for f_id, (sc, trial, tw, p, ew, p5, d_id, _, t) in best.items():
+            rows.append({"add": f_id, "drop": d_id, "day": base.days[t], "games": int(tw.counted.get(f_id, 0)),
+                         "gain": sc - base.strategy_score, "d_expected_wins": ew - base.expected_wins,
+                         "d_p5": p5 - base.p5, "dp": p - base.p, "available_from": avail.get(f_id),
+                         "ros_delta": swap_delta(self.engine, base.mine.team_id, d_id, f_id, self.strategy)})
+        return pd.DataFrame(rows).sort_values("gain", ascending=False, kind="stable").reset_index(drop=True)             if rows else pd.DataFrame(rows)
+
     def stream(self, base: WeekOutlook, *, moves: int, droppable: list[str], acc_mine=None,
-               shortlist: int = 30, min_gain: float = 0.01) -> WeekOutlook:
-        """Açgözlü streaming planı; ``base`` aynı günler için ``outlook`` sonucudur."""
+               shortlist: int = 30, min_gain: float = 0.01,
+               available_from: dict[str, dt.date] | None = None) -> WeekOutlook:
+        """Açgözlü streaming planı; ``base`` aynı günler için ``outlook`` sonucudur. ``available_from``: waiver'daki
+        oyuncunun serbest kaldığı gün (öncesinde alınamaz)."""
         days = base.days
+        avail = available_from or {}
         a_m = accumulated_vector(acc_mine)
         opp = base.opp
         stints = [Stint(s.player_id, s.first, s.last, s.slot) for s in base.mine.stints]
         added: set[str] = set()
         out = WeekOutlook(base.week, days, base.mine, opp, base.p, base.expected_wins, base.strategy_score, base.p5)
-        fa = [p for p in self.free_agents() if any(self.has_game(p, d) for d in days)]
+        fa, _ = self.shortlist(base, avail, shortlist)
         if not fa or moves <= 0 or not droppable:
             return out
-        # kısa liste: kadroya kısıtsız eklenince haftalık puan artışı (lineup yok, hızlı ön eleme)
-        idx = np.array([self.engine.index[p] for p in fa])
-        g = np.array([sum(self.has_game(p, d) for d in days) for p in fa], dtype=float)
-        cand = base.mine.vector[None, :] + (g * self.availability[idx])[:, None] * self.unit[idx]
-        pre = ecw_vs(cand, opp.vector[None, None, :], self.config)[:, 0, :] @ self.strategy.normalized * 9
-        fa = [fa[i] for i in np.argsort(-pre, kind="stable")[:shortlist]]
         drop_pool = list(dict.fromkeys(droppable))
         current = out
         for _ in range(moves):
-            best = None
-            active_ids = {s.player_id for s in stints}
-            for d_id in [p for p in drop_pool if p in active_ids]:
-                j = next(k for k, s in enumerate(stints) if s.player_id == d_id)
-                s0 = stints[j]
-                end = min(s0.last, len(days) - 1)
-                for f_id in fa:
-                    if f_id in active_ids:
-                        continue
-                    # eklenen oyuncu bırakılanın kalan günlerini devralır (kadro büyüklüğü her gün sabit);
-                    # başlangıç yalnızca eklenenin maç günleri (maçsız günden başlamak bırakılanın maçını boşa harcar)
-                    # eklenmiş bir streamer ilk gününde bırakılmaz (alım hakkını boşa harcar)
-                    first_t = max(s0.first, 0) + (1 if d_id in added else 0)
-                    for t in (k for k in range(first_t, end + 1) if self.has_game(f_id, days[k])):
-                        trial = [*stints[:j], Stint(d_id, s0.first, t - 1, s0.slot), *stints[j + 1:],
-                                 Stint(f_id, t, s0.last, s0.slot)]
-                        tw = self.team_week(base.mine.team_id, trial, days, a_m)
-                        p, ew, sc, p5 = self.evaluate(tw, opp)
-                        if best is None or sc > best[0]:
-                            best = (sc, trial, tw, p, ew, p5, d_id, f_id, t)
+            best = max(self._moves(base.mine.team_id, stints, drop_pool, fa, added, days, a_m, opp, avail),
+                       key=lambda c: c[0], default=None)
             if best is None or best[0] - current.strategy_score < min_gain:
                 break
             sc, trial, tw, p, ew, p5, d_id, f_id, t = best

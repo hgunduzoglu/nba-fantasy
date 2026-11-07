@@ -110,6 +110,14 @@ class StreamIn(WeeklyIn):
     droppable: list[str] = Field(default_factory=list)
 
 
+class AddDropWeekIn(WeeklyIn):
+    mode: str = Field("win", pattern="^(win|critical)$")   # win: beklenen kategori; critical: seçilen kategoriler
+    categories: list[str] | None = None                     # critical: None → otomatik (en kıpırdatılabilir 2)
+    droppable: list[str] | None = None                      # None → kalan sezon değeri en düşük 3 aktif oyuncu
+    used: int | None = None                                 # None → Yahoo'daki bu hafta kullanılan alım
+    plan: bool = True
+
+
 class WaiverIn(BaseModel):
     team: str
     strategy: StrategyIn | None = None
