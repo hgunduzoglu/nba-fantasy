@@ -71,3 +71,11 @@ export function fmtDay(iso: string): string {
   const [y, m, d] = iso.split("-").map(Number);
   return `${WEEKDAYS[new Date(y, m - 1, d).getDay()]} ${d}`;
 }
+
+/** UTC zaman damgası → yerel "8 Kas 01:08". */
+export function fmtStamp(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const t = new Date(iso);
+  if (Number.isNaN(t.getTime())) return iso;
+  return `${t.getDate()} ${MONTHS[t.getMonth()]} ${String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}`;
+}

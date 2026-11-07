@@ -140,9 +140,10 @@ def create_app(data_dir: str | Path | None = None, frontend_dir: str | Path | No
     def sources():
         return SOURCES
 
-    from fdo.api import inseason, multi
+    from fdo.api import inseason, multi, sync
     inseason.register(app, state)
     multi.register(app, state)
+    app.state.sync = sync.register(app, state)
 
     frontend = Path(frontend_dir) if frontend_dir else FRONTEND_DIST
     if (frontend / "index.html").exists():

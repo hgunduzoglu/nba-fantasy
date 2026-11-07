@@ -7,6 +7,7 @@ import { SeasonPage } from "./pages/SeasonPage";
 import { SuggestPage } from "./pages/SuggestPage";
 import { TradePage, type TradeInit } from "./pages/TradePage";
 import { WeeklyPage } from "./pages/WeeklyPage";
+import { SyncButton } from "./components/SyncButton";
 import type { Meta } from "./types";
 
 type Theme = "auto" | "light" | "dark";
@@ -58,6 +59,7 @@ export default function App() {
     return TABS.some((t) => t.id === h) ? h : "trade";
   });
   const [pending, setPending] = useState<{ trade: TradeInit; seq: number } | null>(null);
+  const [version, setVersion] = useState(0);              // senkronizasyondan sonra sayfalar yeniden yüklenir
 
   const go = (t: Tab) => {
     setTab(t);
@@ -66,7 +68,7 @@ export default function App() {
 
   useEffect(() => {
     api.meta(injuries).then(setMeta).catch((e: Error) => setError(e.message));
-  }, [injuries]);
+  }, [injuries, version]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -111,6 +113,7 @@ export default function App() {
           </select>
         </label>
         <span className="spacer" />
+        <SyncButton onDone={() => setVersion((v) => v + 1)} />
         <label className="check" title={meta.injury_file ? `Kaynak: ${meta.injury_file}` : "Sakatlık raporu yok (scripts/fetch_injuries.py)"}>
           <input type="checkbox" checked={injuries} disabled={!meta.injury_file}
                  onChange={(e) => { setInjuries(e.target.checked); save("tl.injuries", e.target.checked ? "1" : "0"); }} />
@@ -133,7 +136,7 @@ export default function App() {
           </button>
         ))}
       </nav>
-      <main>
+      <main key={version}>
         {tab === "trade" && (
           <TradePage key={`${league.id}-${team}-${pending?.seq ?? 0}`} meta={meta} league={league} team={team}
                      injuries={injuries} initial={pending?.trade ?? null} />

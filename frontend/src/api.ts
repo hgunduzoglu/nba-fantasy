@@ -1,6 +1,6 @@
 import type {
   FixtureTeam, Meta, MispricedRow, MultiSeasonOut, MultiSuggestIn, MultiSuggestOut, MultiTradeIn, MultiTradeOut, Perceived, Player,
-  RankingsOut, Roster, SeasonOut, SeasonPageOut, Source, StreamOut, StrategyIn, SuggestIn, SuggestOut, TradeIn,
+  RankingsOut, Roster, SeasonOut, SeasonPageOut, Source, StreamOut, StrategyIn, SuggestIn, SuggestOut, SyncStatus, TradeIn,
   TradeOut, WaiverOut, WeeklyIn, WeeklyOut,
 } from "./types";
 
@@ -55,7 +55,7 @@ export const api = {
     request<{ sell_high: MispricedRow[]; buy_low: MispricedRow[] }>(
       `/api/leagues/${league}/trade/mispricing?team=${team}&perceived=${perceived}&${q(injuries)}`),
   weekly: (league: string, body: WeeklyIn) => request<WeeklyOut>(`/api/leagues/${league}/weekly`, post(body)),
-  stream: (league: string, body: WeeklyIn & { used: number; droppable: string[] }) =>
+  stream: (league: string, body: WeeklyIn & { used: number | null; droppable: string[] }) =>
     request<StreamOut>(`/api/leagues/${league}/weekly/stream`, post(body)),
   waiver: (league: string, team: string, strategy: StrategyIn | null, injuries: boolean) =>
     request<WaiverOut>(`/api/leagues/${league}/waiver`, post({ team, strategy, injuries })),
@@ -63,4 +63,6 @@ export const api = {
     request<SeasonPageOut>(`/api/leagues/${league}/season?team=${team}&n=${n}&sd=${sd}&${q(injuries)}`),
   rankings: (league: string, source: Source, injuries: boolean) =>
     request<RankingsOut>(`/api/leagues/${league}/rankings?source=${source}&${q(injuries)}`),
+  syncStatus: () => request<SyncStatus>("/api/sync"),
+  syncStart: (players: boolean) => request<SyncStatus>("/api/sync", post({ players })),
 };

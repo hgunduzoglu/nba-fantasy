@@ -290,10 +290,32 @@ export interface WeeklyOut {
   fixture_opponent: string | null;
   started: boolean;
   acquisitions_limit: number;
+  live: WeeklyLive | null;
   active_roster: BriefPlayer[];
   default_droppable: string[];
   outlook: Outlook;
   notes: string[];
+}
+
+/** Yahoo senkronizasyonundan haftanın şu ana kadarki skoru (``yahoo_live.json``). */
+export interface WeeklyLive {
+  captured_at: string;
+  partial_today: boolean;
+  mine: Record<string, number> | null;
+  opp: Record<string, number> | null;
+  category_wins: [number | null, number | null];
+  adds_used: number | null;
+  manual: boolean;
+}
+
+export interface SyncStatus {
+  running: boolean;
+  log: string[];
+  started_at: string | null;
+  finished_at: string | null;
+  error: string | null;
+  result: { as_of: string; pages: number; written: string[]; notes: string[]; live: boolean } | null;
+  last_sync: string | null;
 }
 
 export interface WeeklyIn {

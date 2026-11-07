@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 import { ErrorBanner, Loading, PlayerName, probClass } from "../components/common";
 import { BALANCED, StrategyPicker, toStrategyIn, type StrategyChoice } from "../components/StrategyPicker";
-import { fmtDate, fmtDay, fmtDelta, fmtNum, fmtPct, fmtStat } from "../format";
+import { fmtDate, fmtDay, fmtDelta, fmtNum, fmtPct, fmtStamp, fmtStat } from "../format";
 import type { GridRow, League, Meta, Outlook, StreamOut, WeeklyIn, WeeklyOut } from "../types";
 
 interface Props {
@@ -68,7 +68,7 @@ export function WeeklyPage({ meta, league, team, injuries }: Props) {
   const [data, setData] = useState<WeeklyOut | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(true);
-  const [used, setUsed] = useState(0);
+  const [used, setUsed] = useState<number | null>(null);    // null: Yahoo senkronizasyonundaki değer
   const [droppable, setDroppable] = useState<string[] | null>(null);
   const [plan, setPlan] = useState<StreamOut | null>(null);
   const [planBusy, setPlanBusy] = useState(false);
@@ -103,7 +103,9 @@ export function WeeklyPage({ meta, league, team, injuries }: Props) {
   const o = data.outlook;
   const myName = league.teams.find((t) => t.id === team)?.name ?? team;
   const swing = meta.categories.filter((_, i) => o.p[i] >= 0.25 && o.p[i] <= 0.75).map((c) => c.label);
-  const left = Math.max(0, data.acquisitions_limit - used);
+  const live = data.live;
+  const usedNow = used ?? live?.adds_used ?? 0;
+  const left = Math.max(0, data.acquisitions_limit - usedNow);
 
   return (
     <div className="stack">
@@ -135,15 +137,20 @@ export function WeeklyPage({ meta, league, team, injuries }: Props) {
       {data.started && (
         <div className="card">
           <div className="card-h"><h3>Bu haftanın şu ana kadarki skoru</h3>
-            <span className="muted">Yahoo matchup sayfasından gir; boş bırakırsan yalnızca kalan {data.days.length} gün hesaplanır</span></div>
+            {live && !live.manual
+              ? <span className="muted">Yahoo'dan ({fmtStamp(live.captured_at)}) · kategori skoru {live.category_wins[0] ?? "–"}–{live.category_wins[1] ?? "–"}
+                  {live.partial_today ? " · maçlar sürerken çekildi, bugünün kısmi skoru dahil" : ""} · düzeltmek için üzerine yaz</span>
+              : <span className="muted">Yahoo matchup sayfasından gir ya da üstten "Yahoo'dan güncelle"; boş bırakırsan yalnızca kalan {data.days.length} gün hesaplanır</span>}
+          </div>
           <div className="card-b table-wrap">
             <table className="data">
               <thead><tr><th className="l" />{ACC.map(([, l]) => <th key={l}>{l}</th>)}</tr></thead>
               <tbody>
-                {([["Sen", accMine, setAccMine], [data.opponent_name, accOpp, setAccOpp]] as const).map(([name, acc, set]) => (
+                {([["Sen", accMine, setAccMine, live?.mine], [data.opponent_name, accOpp, setAccOpp, live?.opp]] as const).map(([name, acc, set, yahoo]) => (
                   <tr key={name}><td className="l pname">{name}</td>
                     {ACC.map(([k]) => (
                       <td key={k}><input className="num-input" type="number" min={0} value={acc[k] || ""}
+                        placeholder={yahoo?.[k] != null ? String(yahoo[k]) : ""}
                         onChange={(e) => set({ ...acc, [k]: Number(e.target.value) || 0 })} /></td>
                     ))}
                   </tr>
@@ -183,7 +190,8 @@ export function WeeklyPage({ meta, league, team, injuries }: Props) {
         <div className="card-b">
           <div className="toolbar">
             <label className="field"><span>Bu hafta kullandığın alım</span>
-              <input className="num-input" type="number" min={0} max={data.acquisitions_limit} value={used}
+              <input className="num-input" type="number" min={0} max={data.acquisitions_limit} value={usedNow}
+                     title={used === null && live?.adds_used != null ? "Yahoo'dan" : undefined}
                      onChange={(e) => setUsed(Math.max(0, Number(e.target.value) || 0))} />
             </label>
             <div className="field"><span>Bırakılabilecek oyuncular</span>
