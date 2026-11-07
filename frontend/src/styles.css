@@ -249,6 +249,9 @@ table.data { width: 100%; border-collapse: separate; border-spacing: 0; font-siz
 .mark.play { background: var(--pos-2); }
 .mark.bench { background: var(--mid); color: var(--muted); }
 .mark.out { background: var(--neg-1); color: var(--bad-ink); }
+.mark.sit { background: var(--neg-2); color: var(--bad-ink); }
+.todo-row { padding: 4px 0; }
+.stack-sm { display: flex; flex-direction: column; gap: 2px; margin-bottom: 10px; }
 .num-input { width: 70px; padding: 4px 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-2); text-align: right; }
 .hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
 .link-btn { border: 0; background: none; color: var(--accent); cursor: pointer; padding: 0; font-weight: 600; }

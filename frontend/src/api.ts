@@ -1,6 +1,6 @@
 import type {
   FixtureTeam, Meta, MispricedRow, MultiSeasonOut, MultiSuggestIn, MultiSuggestOut, MultiTradeIn, MultiTradeOut, Perceived, Player,
-  RankingsOut, Roster, SeasonOut, SeasonPageOut, Source, StreamOut, StrategyIn, SuggestIn, SuggestOut, SyncStatus, TradeIn,
+  RankingsOut, Roster, SeasonOut, SeasonPageOut, SitStartOut, Source, StreamOut, StrategyIn, SuggestIn, SuggestOut, SyncStatus, TradeIn,
   TradeOut, WaiverOut, WeeklyIn, WeeklyOut,
 } from "./types";
 
@@ -63,6 +63,7 @@ export const api = {
     request<SeasonPageOut>(`/api/leagues/${league}/season?team=${team}&n=${n}&sd=${sd}&${q(injuries)}`),
   rankings: (league: string, source: Source, injuries: boolean) =>
     request<RankingsOut>(`/api/leagues/${league}/rankings?source=${source}&${q(injuries)}`),
+  sitstart: (league: string, body: WeeklyIn) => request<SitStartOut>(`/api/leagues/${league}/sitstart`, post(body)),
   syncStatus: () => request<SyncStatus>("/api/sync"),
   syncStart: (players: boolean) => request<SyncStatus>("/api/sync", post({ players })),
 };

@@ -541,3 +541,55 @@ export interface FixtureTeam {
   wins_before: number;
   wins_after: number;
 }
+
+/** Sit/start önerisi (``/sitstart``). */
+export interface SitStartCell {
+  state: "start" | "sit" | "bench" | "out" | "";
+  slot: string | null;
+}
+
+export interface SitStartPlayer extends BriefPlayer {
+  value: number;
+  dp: Record<string, number>;
+  games: number;
+  started: number;
+  yahoo_slot: string | null;
+  cells: SitStartCell[];
+}
+
+export interface SitStartChange extends BriefPlayer {
+  yahoo_slot: string;
+  slot: string | null;
+  value: number;
+  negative: boolean;
+}
+
+export interface SitStartToday {
+  day: string;
+  start: SitStartChange[];
+  sit: SitStartChange[];
+}
+
+export interface SitStartScore {
+  p: number[];
+  expected_wins: number;
+  p5: number;
+  strategy_score: number;
+}
+
+export interface SitStartOut {
+  week: number;
+  current_week: number;
+  weeks: WeekInfo[];
+  days: string[];
+  opponent: string;
+  opponent_name: string;
+  fixture_opponent: string | null;
+  slot_names: string[];
+  before: SitStartScore;
+  after: SitStartScore;
+  players: SitStartPlayer[];
+  today: SitStartToday | null;
+  rounds: number;
+  live: { captured_at: string; partial_today: boolean } | null;
+}
