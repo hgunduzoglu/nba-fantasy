@@ -1501,7 +1501,8 @@ pick'lerde ADP'den ±10–13 pick sapar; önceki σ₁ bu bölgede fazla dardı 
 
 Kullanıcı kararı (13 Ekim 2026): Yahoo Fantasy API uygulama onayı bireysel kullanım için alınamaz.
 Bir ara sürümde yazılan OAuth/draftresults istemcisi kaldırıldı; gerçek draft'ta pick'ler Mock Draft
-sayfasından elle girilir (ya da log CSV'si import edilir).
+sayfasından elle girilir (ya da log CSV'si import edilir). Sezon içi veri için kullanıcının oturumuyla sayfa okuyan
+senkronizasyon: §13.20.
 
 ### 13.9 Strateji araçları ve bot davranışı (13 Ekim 2026)
 
@@ -1777,6 +1778,38 @@ uygulanır:
   Caruso 37 → 78; Mikal Bridges 90 → 54, Alexander-Walker 45 → 19. Playoff olasılığı: Kekstra %70 → %62, NY Hav Havs
   %30 → %20, Galatasaray Cafe Crown %25 → %37, Karaali SK %19 → %27.
 
+### 13.20 Yahoo senkronizasyonu (`fdo.ingest.yahoo_sync`, `scripts/yahoo_sync.py`, 8 Kasım 2026)
+
+Resmi API yolu kapalı kaldığı için (§13.7) lig sayfaları kullanıcının kendi oturumuyla okunur:
+
+- **Giriş**: `python scripts/yahoo_login.py` otomasyonsuz bir Chrome penceresi açar; ayrı profil
+  (`%LOCALAPPDATA%\fdo\yahoo-chrome`, depo dışı) ile bir kez giriş yapılır. Senkronizasyon bu profilin çerezlerini
+  Playwright ile (görünmez pencere) bir kez alır; sayfaları düz HTTP ile, aralarında 0,8 sn bekleyerek çeker.
+- **Okunanlar** (`fdo.ingest.yahoo_html`, standart kütüphane HTML ayrıştırıcısı): lig ana sayfası (puan durumu, FAB,
+  waiver sırası, haftanın eşleşmeleri, kullanıcının takımı), başlangıç kadroları, eşleşme `date=totals` (haftanın şu ana
+  kadarki takım toplamları ve kategori skoru), takım sayfası (bu hafta kullanılan alım hakkı, IL, FAB), waiver listesi
+  (`W (Nov 9)` → serbest kalma günü), sezon toplamı ve kalan sezon projeksiyonu sayfaları (30 + 30 sayfa, isteğe bağlı).
+  Biten haftaların sonuçları yalnız eksikse çekilir (`matchups.json`'a takım toplamlarıyla). Ardından CBS sakatlık raporu.
+- **Yazılanlar** mevcut biçimdedir (`rosters.json`, `player_stat_pages.json`), `load_trade_data` değişmeden okur; ek
+  olarak `standings_live.csv` ve `yahoo_live.json`. Bir sayfa okunamazsa hiçbir dosya yazılmaz. Üzerine yazmadan önce
+  dosyalar `snapshots/<eski tarih>/`, sonra `snapshots/<bugün>/` altına kopyalanır. Hepsi git dışı.
+- **Tarih**: `roster_date` ABD Doğu saatine göre bugündür. Hafta toplamı çekildiği ana kadardır; ABD Doğu 02:00–12:00
+  (Türkiye ~10:00–20:00) arası maç oynanmadığından bu aralıkta toplam tam "dünküne kadar"dır. Dışında `live` işaretlenir
+  (bugünün kısmi skoru dahil; uyarı gösterilir). Eşleşme sayfasının takım tablosu tarih seçilse de hafta toplamını verir,
+  gün gün ayrım yalnız oyuncu satırlarında ve orada isabet/deneme yok; bu yüzden ayrıştırma yapılmaz.
+- **Kullanım**: Bu Hafta sayfasında skor elle girilmezse Yahoo'daki toplamdır; streaming planının kalan alım hakkı
+  Yahoo'daki kullanılan alımdan. Sezon simülasyonunda içinde bulunulan haftanın geçmiş günleri gerçek toplamdır
+  (yalnız bütün takımların toplamı varsa; yoksa §13.14'teki beklenen değer). Canlı veri ancak kadrolarla aynı çekimden ve
+  aynı haftadan ise kullanılır. Kadroda olmayan oyuncunun takımı ve sakatlık durumu da artık oyuncu sayfalarından gelir.
+- **Uygulama**: üst çubukta "Yahoo'dan güncelle" (arka plan işi, `GET/POST /api/sync`); "projeksiyonlar" kapalıyken
+  ~50 sayfa (~1 dk), açıkken ~110 sayfa (~3 dk). İlk çalıştırma biten haftalar dahil 160 sayfa, 4 dk 44 sn sürdü.
+  Her sabah için Görev Zamanlayıcı'ya `python scripts/yahoo_sync.py` eklenebilir.
+- **Yahoo projeksiyonları rol değişimine tepki veriyor mu** (31 Ekim → 7 Kasım anlık görüntüleri): kalan sezon
+  projeksiyonları haftalık güncelleniyor (744 oyuncunun 271'inde maç başı sayı değişti; Paul George 15,2 → 17,3), ama
+  takım arkadaşı sakatlığına neredeyse tepki yok: Jalen Johnson "O" → ATL'de en çok +0,4 sayı/maç; Josh Hart "O" →
+  Brunson ve Anunoby değişmedi. Sakatlanan oyuncunun yalnız maç sayısı düşüyor (73 → 69). Kısa vadeli rol değişimi
+  haftalık kararlar için ayrıca modellenmeli.
+
 ### 13.8 V3 adayları
 
 Beam search ve H-score ağırlık optimizasyonu; profil karışımı uyumu; oyuncular arası maç sayısı
@@ -1837,9 +1870,12 @@ Sezon içi araçların yeni arayüzü (31 Ekim 2026). Draft ve auction sayfalar�
 Öneri yönleri §13.17, çok takımlı takas §13.18.
 
 ```powershell
-.venv\Scripts\python.exe -m pip install -e ".[dev,web]"   # bir kere
-.venv\Scripts\python.exe run_app.py                        # http://127.0.0.1:8000
+.venv\Scripts\python.exe -m pip install -e ".[dev,web,yahoo]"   # bir kere
+.venv\Scripts\python.exe scripts\yahoo_login.py                  # bir kere: Yahoo girişi (§13.20)
+.venv\Scripts\python.exe run_app.py                              # http://127.0.0.1:8000
 ```
+
+Veri üst çubuktaki "Yahoo'dan güncelle" ile (ya da `scripts\yahoo_sync.py`) tazelenir.
 
 `run_app.py` arayüz derlenmemişse ya da `frontend/src` değiştiyse önce `npm install` / `npm run build` çalıştırır
 (Node.js gerekir), sonra FastAPI'yi başlatıp tarayıcıyı açar. Sekmeler: Takas Analizi, Takas Önerileri, Çok Takımlı
