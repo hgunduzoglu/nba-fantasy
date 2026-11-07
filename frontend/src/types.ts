@@ -614,6 +614,27 @@ export interface FixtureTeam {
   wins_after: number;
 }
 
+/** Geçmiş haftalar (``/history``): takımın kategori değerleri ve ligdeki sırası. */
+export interface HistoryRow {
+  week: number;
+  start: string | null;
+  end: string | null;
+  partial: boolean;
+  n_teams: number;
+  result: { opponent: string; opponent_name?: string; wins: number | null; losses: number | null; ties: number | null } | null;
+  values: Record<CategoryKey, number>;
+  ranks: Record<CategoryKey, number>;
+  median: Record<CategoryKey, number>;
+  best: Record<CategoryKey, number>;
+}
+
+export interface HistoryOut {
+  team: string;
+  synced: boolean;
+  weeks: HistoryRow[];
+  season: HistoryRow | null;
+}
+
 /** Sit/start önerisi (``/sitstart``). */
 export interface SitStartCell {
   state: "start" | "sit" | "bench" | "out" | "";
