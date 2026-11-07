@@ -69,8 +69,9 @@ def number(value) -> float:
 
 def file_signature(directory: str | Path) -> str:
     directory = Path(directory)
-    names = ["rosters.json", "league_info.json", "player_stat_pages.json"]
+    names = ["rosters.json", "league_info.json", "player_stat_pages.json", "matchups.json", "yahoo_live.json"]
     paths = [directory / n for n in names]
+    paths += list(directory.glob("standings*.csv"))
     paths += list(directory.glob("players_yahoo_*.csv"))
     paths += list(directory.glob("projections_yahoo_*.csv"))
     paths += list(directory.glob("variance*.csv")) + list(directory.glob("schedule*.csv"))
@@ -215,11 +216,16 @@ def load_trade_data(directory: str | Path | None = None) -> TradeData:
     pages = read("player_stat_pages.json")
     for kind in ("season_total", ROS):
         stats[kind], sources[kind] = _stat_pages(pages, kind)
-    # Yeni istatistik sayfalarında bulunan, eski kimlik dosyasında olmayan oyuncular da korunur.
+    # Yeni istatistik sayfalarında bulunan, eski kimlik dosyasında olmayan oyuncular da korunur. Senkronizasyonun
+    # yazdığı satırlar (``status`` alanı) kadroda olmayan oyuncunun takımını ve sakatlık durumunu da günceller.
+    on_roster = {p for lg in leagues.values() for r in lg.rosters.values() for p in r}
     for page in pages:
         for row in page["table"]["rows"]:
             pid = str(row["player_id"])
-            if pid not in players.index:
+            if "status" in row and pid not in on_roster:
+                players.loc[pid] = [row["player_name"], row["nba_team"], ",".join(row["positions"]),
+                                    row["status"] or ""]
+            elif pid not in players.index:
                 text = row["cells"][2]
                 match = re.search(r"\n([A-Z]+) - ([A-Z,]+)", text)
                 players.loc[pid] = [row["player_name"], match[1] if match else "",
