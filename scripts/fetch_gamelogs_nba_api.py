@@ -15,21 +15,10 @@ import datetime as dt
 import sys
 from pathlib import Path
 
-import pandas as pd
 import yaml
 
 from fdo.config import REPO_ROOT
-
-COLUMNS = {"PLAYER_NAME": "name", "TEAM_ABBREVIATION": "nba_team", "GAME_DATE": "game_date", "MIN": "minutes",
-           "FGM": "fgm", "FGA": "fga", "FTM": "ftm", "FTA": "fta", "FG3M": "fg3m", "PTS": "pts", "REB": "reb",
-           "AST": "ast", "STL": "stl", "BLK": "blk", "TOV": "tov"}
-
-
-def to_schema(raw: pd.DataFrame, season: str) -> pd.DataFrame:
-    df = raw[list(COLUMNS)].rename(columns=COLUMNS)
-    df["game_date"] = pd.to_datetime(df["game_date"]).dt.date.astype(str)
-    df["season"] = season
-    return df
+from fdo.ingest.nba_logs import fetch_season
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -42,14 +31,10 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
     sys.stdout.reconfigure(errors="replace")
     try:
-        from nba_api.stats.endpoints import playergamelogs
+        df = fetch_season(args.season)
     except ImportError:
         print('nba_api kurulu değil: pip install -e ".[nba]"')
         return 1
-
-    raw = playergamelogs.PlayerGameLogs(season_nullable=args.season,
-                                        season_type_nullable="Regular Season").get_data_frames()[0]
-    df = to_schema(raw, args.season)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     path = out / f"gamelogs_nba_{args.season}.csv"

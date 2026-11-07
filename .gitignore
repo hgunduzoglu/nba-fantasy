@@ -72,3 +72,5 @@ frontend/dist/
 # API anahtarları (ANTHROPIC_API_KEY vb.) asla depoya girmez
 .env
 .env.*
+/data/real/gamelogs_nba_2026-27.csv
+/data/real/news*.json
