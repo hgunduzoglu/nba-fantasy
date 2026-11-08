@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
-import { AvailBadge, ErrorBanner, Loading, PlayerName, deltaClass } from "../components/common";
+import { AvailBadge, CategoryChips, ErrorBanner, Loading, PlayerName, deltaClass } from "../components/common";
+import { useIsMobile } from "../hooks";
 import { BALANCED, StrategyPicker, toStrategyIn, type StrategyChoice } from "../components/StrategyPicker";
 import { GpCell, StatusBadges } from "../components/RosterTable";
 import { fmtDelta, fmtStat, zClass } from "../format";
@@ -24,6 +25,8 @@ export function WaiverInfo({ data }: { data: { adds_left: number | null; fab: nu
 }
 
 export function FreeAgentsPage({ meta, league, team, injuries }: { meta: Meta; league: League; team: string; injuries: boolean }) {
+  const mobile = useIsMobile();
+  const labels = Object.fromEntries(meta.categories.map((c) => [c.key, c.label]));
   const [strategy, setStrategy] = useState<StrategyChoice>(BALANCED);
   const [pos, setPos] = useState("Hepsi");
   const [view, setView] = useState<"stats" | "impact">("stats");
@@ -52,7 +55,7 @@ export function FreeAgentsPage({ meta, league, team, injuries }: { meta: Meta; l
         <div className="field"><span>Pozisyon</span>
           <div className="seg">{POSITIONS.map((p) => <button key={p} aria-pressed={pos === p} onClick={() => setPos(p)}>{p}</button>)}</div>
         </div>
-        <div className="field"><span>Görünüm</span>
+        <div className={"field" + (mobile ? " only-desktop" : "")}><span>Görünüm</span>
           <div className="seg">
             <button aria-pressed={view === "stats"} onClick={() => setView("stats")}>İstatistik</button>
             <button aria-pressed={view === "impact"} onClick={() => setView("impact")}>Takımına etkisi</button>
@@ -64,7 +67,27 @@ export function FreeAgentsPage({ meta, league, team, injuries }: { meta: Meta; l
       {!data && busy && <Loading />}
       {data && (
         <div className="card">
-          <div className="table-wrap">
+          {mobile && (
+            <ul className="m-list">
+              {rows.map((r) => (
+                <li key={r.add.id} className="m-item">
+                  <div className="m-line"><span className="m-lbl add">Al</span>
+                    <span className="pname">{r.add.name}</span><AvailBadge a={r.add.availability} /><StatusBadges p={r.add} />
+                    <span className="psub">{r.add.nba_team} · {r.add.positions.join(", ")}</span></div>
+                  <div className="m-line"><span className="m-lbl drop">Bırak</span><PlayerName p={r.drop} sub={false} /></div>
+                  <div className="m-line">
+                    <span className={"m-big " + (r.score > 0.005 ? "good" : r.score < -0.005 ? "bad" : "")}>{fmtDelta(r.score, 3)}</span>
+                    <span className="m-kv">strateji · ΔECW <b>{fmtDelta(r.delta_ecw, 3)}</b></span>
+                    <span className="spacer" />
+                    <span className="m-kv">maç: bu hafta <b>{r.games_this_week}</b> · gelecek <b>{r.games_next_week}</b></span>
+                  </div>
+                  <div className="m-line"><CategoryChips deltas={r.dp} labels={labels} k={4} /></div>
+                </li>
+              ))}
+              {!rows.length && <li className="empty">Bu filtrede oyuncu yok</li>}
+            </ul>
+          )}
+          <div className={"table-wrap" + (mobile ? " only-desktop" : "")}>
             <table className="data">
               <thead><tr>
                 <th className="l">Al</th><th className="l">Bırak</th>

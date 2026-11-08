@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
 import { ErrorBanner, Loading } from "../components/common";
 import { fmtDate, fmtDelta, fmtStamp } from "../format";
+import { useIsMobile } from "../hooks";
 import type { League, NewsEvent, NewsOut, NewsPerson, NewsStatus } from "../types";
 
 interface Props {
@@ -78,6 +79,7 @@ function EventCard({ e }: { e: NewsEvent }) {
 }
 
 export function NewsPage({ league, team, injuries }: Props) {
+  const mobile = useIsMobile();
   const [filter, setFilter] = useState<Filter>("mine");
   const [data, setData] = useState<NewsOut | null>(null);
   const [status, setStatus] = useState<NewsStatus | null>(null);
@@ -118,16 +120,16 @@ export function NewsPage({ league, team, injuries }: Props) {
         ne zaman döneceği, yerine kimin süre alacağı. Altta, bu sezonun maç kayıtlarından ölçülen rol değişimleri.</p>
       <div className="toolbar" style={{ marginBottom: 0 }}>
         <div className="seg" role="group" aria-label="Haber filtresi">
-          <button aria-pressed={filter === "mine"} onClick={() => setFilter("mine")}>Senin için ({counts("mine")})</button>
-          <button aria-pressed={filter === "opp"} onClick={() => setFilter("opp")}>Rakibin{data.opponent_name ? `: ${data.opponent_name}` : ""} ({counts("opp")})</button>
-          <button aria-pressed={filter === "fa"} onClick={() => setFilter("fa")}>Boştaki fırsatlar ({counts("fa")})</button>
+          <button aria-pressed={filter === "mine"} onClick={() => setFilter("mine")}>{mobile ? "Senin" : "Senin için"} ({counts("mine")})</button>
+          <button aria-pressed={filter === "opp"} onClick={() => setFilter("opp")}>Rakibin{!mobile && data.opponent_name ? `: ${data.opponent_name}` : ""} ({counts("opp")})</button>
+          <button aria-pressed={filter === "fa"} onClick={() => setFilter("fa")}>{mobile ? "Fırsatlar" : "Boştaki fırsatlar"} ({counts("fa")})</button>
           <button aria-pressed={filter === "all"} onClick={() => setFilter("all")}>Tümü ({counts("all")})</button>
         </div>
         <span className="spacer" />
         {status && (
           <span className="muted" style={{ fontSize: 12 }}>
-            Son yenileme {status.fetched_at ? fmtStamp(status.fetched_at) : "yok"} · {status.analyzed}/{status.items} analiz ·
-            {" "}{status.model} · son 7 gün ~${status.cost_7d.toFixed(2)}
+            Son yenileme {status.fetched_at ? fmtStamp(status.fetched_at) : "yok"} · {status.analyzed}/{status.items} analiz
+            {mobile ? "" : ` · ${status.model}`} · son 7 gün ~${status.cost_7d.toFixed(2)}
           </span>
         )}
         <button className="btn" onClick={refresh} disabled={status?.running || !status?.has_key}

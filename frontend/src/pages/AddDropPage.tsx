@@ -24,7 +24,7 @@ export function AddDropPage(props: { meta: Meta; league: League; team: string; i
   };
   return (
     <div className="stack">
-      <div className="seg" role="group" aria-label="Add/drop menüsü" style={{ alignSelf: "flex-start" }}>
+      <div className="seg seg-main" role="group" aria-label="Add/drop menüsü">
         <button aria-pressed={menu === "ros"} onClick={() => pick("ros")}>Kalan sezon</button>
         <button aria-pressed={menu === "week"} onClick={() => pick("week")}>Bu hafta</button>
       </div>

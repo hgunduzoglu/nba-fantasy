@@ -3,6 +3,7 @@ import { api } from "../api";
 import { ErrorBanner, Loading, PlayerName, probClass } from "../components/common";
 import { BALANCED, StrategyPicker, toStrategyIn, type StrategyChoice } from "../components/StrategyPicker";
 import { fmtDate, fmtDay, fmtNum, fmtPct, fmtStamp, fmtStat } from "../format";
+import { useIsMobile } from "../hooks";
 import type { GridRow, League, Meta, Outlook, WeeklyIn, WeeklyOut } from "../types";
 
 interface Props {
@@ -58,7 +59,25 @@ function CategoryTable({ meta, o, me, opp }: { meta: Meta; o: Outlook; me: strin
   );
 }
 
+/** Telefon: kategori başına bir satır (sen, rakip, kazanma olasılığın). */
+function CategoryList({ meta, o }: { meta: Meta; o: Outlook }) {
+  return (
+    <ul className="cat-list">
+      <li className="head"><span /><span className="v">Sen</span><span className="v">Rakip</span><span style={{ textAlign: "center" }}>Kazanma</span></li>
+      {meta.categories.map((c, i) => (
+        <li key={c.key}>
+          <span className="k">{c.label}</span>
+          <span className="v pname">{fmtStat(c.key, o.totals.mine[c.key])}</span>
+          <span className="v muted">{fmtStat(c.key, o.totals.opp[c.key])}</span>
+          <span className={"p " + (probClass(o.p[i]) || "mid")}>{fmtPct(o.p[i])}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function WeeklyPage({ meta, league, team, injuries }: Props) {
+  const mobile = useIsMobile();
   const [week, setWeek] = useState<number | null>(null);
   const [opponent, setOpponent] = useState<string | null>(null);
   const [strategy, setStrategy] = useState<StrategyChoice>(BALANCED);
@@ -92,6 +111,24 @@ export function WeeklyPage({ meta, league, team, injuries }: Props) {
   const myName = league.teams.find((t) => t.id === team)?.name ?? team;
   const swing = meta.categories.filter((_, i) => o.p[i] >= 0.25 && o.p[i] <= 0.75).map((c) => c.label);
   const live = data.live;
+  const scoreTable = (
+    <div className="table-wrap">
+      <table className="data">
+        <thead><tr><th className="l" />{ACC.map(([, l]) => <th key={l}>{l}</th>)}</tr></thead>
+        <tbody>
+          {([["Sen", accMine, setAccMine, live?.mine], [data.opponent_name, accOpp, setAccOpp, live?.opp]] as const).map(([name, acc, set, yahoo]) => (
+            <tr key={name}><td className="l pname">{name}</td>
+              {ACC.map(([k]) => (
+                <td key={k}><input className="num-input" type="number" min={0} value={acc[k] || ""}
+                  placeholder={yahoo?.[k] != null ? String(yahoo[k]) : ""}
+                  onChange={(e) => set({ ...acc, [k]: Number(e.target.value) || 0 })} /></td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 
   return (
     <div className="stack">
@@ -128,22 +165,9 @@ export function WeeklyPage({ meta, league, team, injuries }: Props) {
                   {live.partial_today ? " · maçlar sürerken çekildi, bugünün kısmi skoru dahil" : ""} · düzeltmek için üzerine yaz</span>
               : <span className="muted">Yahoo matchup sayfasından gir ya da üstten "Yahoo'dan güncelle"; boş bırakırsan yalnızca kalan {data.days.length} gün hesaplanır</span>}
           </div>
-          <div className="card-b table-wrap">
-            <table className="data">
-              <thead><tr><th className="l" />{ACC.map(([, l]) => <th key={l}>{l}</th>)}</tr></thead>
-              <tbody>
-                {([["Sen", accMine, setAccMine, live?.mine], [data.opponent_name, accOpp, setAccOpp, live?.opp]] as const).map(([name, acc, set, yahoo]) => (
-                  <tr key={name}><td className="l pname">{name}</td>
-                    {ACC.map(([k]) => (
-                      <td key={k}><input className="num-input" type="number" min={0} value={acc[k] || ""}
-                        placeholder={yahoo?.[k] != null ? String(yahoo[k]) : ""}
-                        onChange={(e) => set({ ...acc, [k]: Number(e.target.value) || 0 })} /></td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          {mobile && live && !live.manual
+            ? <details className="card-b"><summary>Toplamları gör · elle düzelt</summary>{scoreTable}</details>
+            : <div className="card-b">{scoreTable}</div>}
         </div>
       )}
 
@@ -159,7 +183,7 @@ export function WeeklyPage({ meta, league, team, injuries }: Props) {
       <div className="card">
         <div className="card-h"><h3>Kategoriler — {myName} vs {data.opponent_name}</h3>
           <span className="muted">Çevrilebilir: {swing.length ? swing.join(", ") : "yok"}</span></div>
-        <CategoryTable meta={meta} o={o} me={myName} opp={data.opponent_name} />
+        {mobile ? <CategoryList meta={meta} o={o} /> : <CategoryTable meta={meta} o={o} me={myName} opp={data.opponent_name} />}
       </div>
 
       <div className="card">

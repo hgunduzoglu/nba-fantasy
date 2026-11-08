@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../api";
 import { ErrorBanner, Loading } from "../components/common";
 import { fmtDate, fmtStat } from "../format";
+import { useIsMobile } from "../hooks";
 import type { HistoryOut, HistoryRow, League, Meta } from "../types";
 
 interface Props {
@@ -41,6 +42,7 @@ function Result({ r }: { r: HistoryRow }) {
 }
 
 export function HistoryPage({ meta, league, team, injuries }: Props) {
+  const mobile = useIsMobile();
   const [data, setData] = useState<HistoryOut | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -73,20 +75,29 @@ export function HistoryPage({ meta, league, team, injuries }: Props) {
             <span className="muted">renk: ligin üst üçte biri yeşil, alt üçte biri kırmızı</span></div>
           <div className="table-wrap">
             <table className="data heatmap">
-              <thead><tr><th className="l">Hafta</th><th className="l">Rakip</th><th>Skor</th>
+              <thead><tr><th className="l">Hafta</th>{!mobile && <><th className="l">Rakip</th><th>Skor</th></>}
                 {meta.categories.map((c) => <th key={c.key}>{c.label}</th>)}</tr></thead>
               <tbody>
                 {data.weeks.map((r) => (
                   <tr key={r.week} className={r.partial ? "partial" : ""}>
-                    <td className="l pname">{r.week}. hafta<div className="psub">{r.start ? `${fmtDate(r.start)}–${fmtDate(r.end)}` : ""}</div></td>
-                    <td className="l">{r.result?.opponent_name ?? ""}</td>
-                    <td><Result r={r} /></td>
+                    {mobile ? (
+                      <td className="l pname">{r.week}. hafta · <Result r={r} />
+                        <div className="psub">{r.result?.opponent_name ?? (r.start ? `${fmtDate(r.start)}–${fmtDate(r.end)}` : "")}</div></td>
+                    ) : (
+                      <>
+                        <td className="l pname">{r.week}. hafta<div className="psub">{r.start ? `${fmtDate(r.start)}–${fmtDate(r.end)}` : ""}</div></td>
+                        <td className="l">{r.result?.opponent_name ?? ""}</td>
+                        <td><Result r={r} /></td>
+                      </>
+                    )}
                     {meta.categories.map((c) => cell(r, c.key))}
                   </tr>
                 ))}
                 {data.season && (
                   <tr className="total">
-                    <td className="l pname">Sezon</td><td className="l muted">biten haftaların toplamı</td><td />
+                    {mobile
+                      ? <td className="l pname">Sezon<div className="psub">biten haftalar</div></td>
+                      : <><td className="l pname">Sezon</td><td className="l muted">biten haftaların toplamı</td><td /></>}
                     {meta.categories.map((c) => cell(data.season!, c.key))}
                   </tr>
                 )}

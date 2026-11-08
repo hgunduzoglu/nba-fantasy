@@ -3,6 +3,7 @@ import { api } from "../api";
 import { ErrorBanner, Loading, PlayerName, deltaClass } from "../components/common";
 import { BALANCED, StrategyPicker, toStrategyIn, type StrategyChoice } from "../components/StrategyPicker";
 import { fmtDate, fmtDay, fmtDelta, fmtNum, fmtPct, fmtStamp } from "../format";
+import { useIsMobile } from "../hooks";
 import type { League, Meta, SitStartOut, SitStartPlayer, SitStartToday } from "../types";
 
 interface Props {
@@ -67,6 +68,7 @@ function TodayCard({ today }: { today: SitStartToday }) {
 }
 
 export function SitStartPage({ meta, league, team, injuries }: Props) {
+  const mobile = useIsMobile();
   const [week, setWeek] = useState<number | null>(null);
   const [strategy, setStrategy] = useState<StrategyChoice>(BALANCED);
   const [sitOut, setSitOut] = useState(true);
@@ -92,6 +94,7 @@ export function SitStartPage({ meta, league, team, injuries }: Props) {
 
   return (
     <div className="stack">
+      {mobile && data.today && <TodayCard today={data.today} />}
       <p className="desc">Her gün kim oynasın: oyuncunun bir maçının bu eşleşmede beklenen kategori galibiyetine katkısına göre.
         Maçı olan oyuncu slottan fazlaysa en değerliler oynar; oranlarda (FG%, FT%) ya da TO'da zarar veren oyuncu boş slot olsa da oturur.</p>
       <div className="toolbar" style={{ marginBottom: 0 }}>
@@ -123,7 +126,7 @@ export function SitStartPage({ meta, league, team, injuries }: Props) {
           <div className="d muted">{sits.map((p) => p.name).join(", ") || "yok"}</div></div>
       </div>
 
-      {data.today && <TodayCard today={data.today} />}
+      {!mobile && data.today && <TodayCard today={data.today} />}
 
       <div className="card">
         <div className="card-h"><h3>Gün gün önerilen düzen</h3>
