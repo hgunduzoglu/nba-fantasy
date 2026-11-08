@@ -1961,6 +1961,25 @@ Takas, Bu Hafta, Sit/Start (§13.21), Add/Drop (kalan sezon + bu hafta, §13.22)
 (§13.23), Sezon Simülasyonu, Lig Sıralamaları. Lig, takım, sakatlık dönüş tarihleri, renk skalası
 (yeşil↔kırmızı ya da renk körlüğüne uygun mavi↔kırmızı) ve tema üst çubuktadır.
 
+**Telefondan** (8 Kasım 2026): ekran 760 px'ten darsa üstte sayfa adı ile lig/takım (dokununca ayarlar paneli) ve
+Yahoo güncelleme düğmesi, altta sekme çubuğu (Bu Hafta, Sit/Start, Add/Drop, Haberler, Daha). Geniş tablolar kart ve
+listeye döner: kategori olasılıkları satır/karo, tek hamleler ve alım planı kart (plan üstte), Sit/Start'ta "bugün
+yapılacaklar" en üstte; kalan tablolar yatay kayar, ad sütunu sabit. Uygulama ana ekrana eklenebilir (manifest, ikonlar,
+yalnız arayüz kabuğunu önbelleğe alan service worker; veri hiç önbelleğe alınmaz). Arka plandan dönünce arada bir
+senkronizasyon olduysa sayfa kendiliğinden yenilenir.
+
+Bilgisayar dışından erişim için [Tailscale](https://tailscale.com) (kişisel kullanım ücretsiz, aynı Wi-Fi gerekmez,
+uygulama internete açılmaz):
+
+```powershell
+# bilgisayara ve telefona Tailscale kur, ikisinde aynı hesapla giriş yap; yönetim panelinde DNS → HTTPS Certificates aç
+.venv\Scripts\python.exe run_app.py --no-browser          # uygulama 127.0.0.1:8000'de kalır
+tailscale serve --bg 8000                                 # bir kere: https://<bilgisayar>.<tailnet>.ts.net → 8000
+```
+
+Telefonda `https://<bilgisayar>.<tailnet>.ts.net` adresini aç → Safari: Paylaş → Ana Ekrana Ekle; Chrome: ⋮ → Ana ekrana
+ekle / Uygulamayı yükle. HTTPS adresi gerekir (service worker ve tam ekran uygulama yalnız güvenli bağlamda çalışır).
+
 - **Takas Analizi**: Yahoo tarzı iki kadro tablosu (seçilebilir kaynak: kalan sezon / bu sezon / sezon öncesi;
   maç başı istatistikler z seviyesine göre renkli, sakatlık ve dönüş tarihi rozetleri). Satıra tıklamak oyuncuyu
   pakete ekler; analiz seçim değiştikçe kendiliğinden çalışır: iki takımın beklenen kategori, P(5+), strateji
