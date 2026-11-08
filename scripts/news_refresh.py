@@ -1,6 +1,6 @@
 """Haberleri yeniler: CBS (RotoWire) oyuncu haberleri + ESPN, yenileri Claude ile analiz eder (README §13.25).
 
-CBS durağan olarak yalnız son ~30 haberi veriyor; boşluk kalmaması için birkaç saatte bir çalıştır (Windows Görev
+CBS durağan olarak yalnız son ~30 haberi veriyor; boşluk kalmaması için 2 saatte bir çalıştır (Windows Görev
 Zamanlayıcı). Anahtar: ``ANTHROPIC_API_KEY`` ya da depo kökündeki ``.env``. Model: ``FDO_NEWS_MODEL`` (varsayılan
 ``claude-opus-5-5``).
 

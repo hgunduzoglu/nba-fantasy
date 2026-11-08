@@ -1,9 +1,9 @@
 """Haber analizi (README §13.25): CBS (RotoWire) oyuncu haberleri ve ESPN NBA haberleri Claude ile yapılandırılmış
 fantezi olaylarına çevrilir.
 
-* **Kaynaklar**: CBS fantezi oyuncu haberleri (genel akışın iki, sakatlık akışının bir sayfası = 30 haber, ~4–8 saat;
-  pozisyon akışlarını ve daha derin sayfaları site 406 ile reddediyor) ve ESPN NBA haber akışı (başlık + özet, 50).
-  Boşluk kalmaması için sık yenilenmeli (``scripts/news_refresh.py``, birkaç saatte bir). Her yenilemede yeni olanlar eklenir; haber
+* **Kaynaklar**: CBS fantezi oyuncu haberleri (genel akışın ilk sayfası = son 30 not, ~4–8 saat; 8 Kasım 2026'dan
+  beri ikinci sayfayı ve sakatlık akışını da site otomatik istemcilere 406 ile reddediyor) ve ESPN NBA haber akışı
+  (başlık + özet, 50). Boşluk kalmaması için sık yenilenmeli (``scripts/news_refresh.py``, 2 saatte bir). Her yenilemede yeni olanlar eklenir; haber
   kimliği bağlantısıdır, bir kez saklanır ve bir kez analiz edilir. 21 günden eskiler silinir.
 * **Süzme** (model çağrısından önce, ücretsiz): CBS haberi Yahoo oyuncu havuzundaki bir oyuncuya eşleşmeli ve başlığında
   rol/sakatlık/takas sinyali olmalı (``SIGNAL``; "Scores 30 in loss" gibi maç özetleri analiz edilmez, listede kalır);
@@ -30,7 +30,7 @@ from fdo.config import REPO_ROOT
 
 FILE = "news.json"
 CBS = "https://www.cbssports.com/fantasy/basketball/players/news/{feed}/{page}"
-CBS_PAGES = (("all", 1), ("all", 2), ("injury", 1))     # durağan erişime açık olanlar
+CBS_PAGES = (("all", 1),)     # durağan erişime açık tek sayfa (diğerleri 406)
 ESPN = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/news?limit=50"
 HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
                          "Chrome/120 Safari/537.36", "Accept-Language": "en-US,en;q=0.9"}

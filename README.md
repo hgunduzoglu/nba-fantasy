@@ -1867,10 +1867,12 @@ Yahoo projeksiyonları takım arkadaşı sakatlığına neredeyse tepki vermedi�
 
 ### 13.25 Haber analizi (`fdo.inseason.news`, Haberler sekmesi, `scripts/news_refresh.py`)
 
-- **Kaynaklar**: CBS fantezi oyuncu haberleri (RotoWire notları; genel akışın iki, sakatlık akışının bir sayfası — site
-  daha derin ve pozisyon sayfalarını 406 ile reddediyor, ~4–8 saatlik haber) ve ESPN NBA haber akışı (50 başlık + özet).
+- **Kaynaklar**: CBS fantezi oyuncu haberleri (RotoWire notları; genel akışın ilk sayfası, son 30 not ≈ 4–8 saat — 8
+  Kasım'dan beri ikinci sayfa, sakatlık ve pozisyon akışları otomatik istemciye 406 dönüyor) ve ESPN NBA haber akışı (50
+  başlık + özet, ≈ 1 gün).
   Haber kimliği bağlantısıdır; bir kez saklanır, bir kez analiz edilir, 21 günden eskisi silinir (`news.json`, git dışı).
-  Boşluk kalmaması için birkaç saatte bir yenilenmeli (Görev Zamanlayıcı: `scripts/news_refresh.py`).
+  Boşluk kalmaması için 2 saatte bir yenilenmeli (Görev Zamanlayıcı: `scripts/news_refresh.py`); yenileme ücretsizdir,
+  yalnız yeni ve ilgili haberler modele gider.
 - **Süzme** (ücretsiz, model öncesi): CBS haberi Yahoo oyuncu havuzuna eşleşmeli ve başlığında rol/sakatlık/takas
   sinyali olmalı (maç özetleri listede kalır, analiz edilmez); ESPN haberinde havuzdaki bir oyuncunun tam adı geçmeli.
 - **Model**: `claude-opus-5-5`, efor `low`, JSON şemalı yapılandırılmış çıktı, 30 haberlik partiler, sabit sistem talimatı
@@ -1951,7 +1953,7 @@ Sezon içi araçların yeni arayüzü (31 Ekim 2026). Draft ve auction sayfalar�
 Veri üst çubuktaki "Yahoo'dan güncelle" ile (ya da `scripts\yahoo_sync.py`) tazelenir: Yahoo, CBS sakatlık raporu,
 NBA maç kayıtları ve haberler. Haber analizi için `pip install -e ".[news]"` ve `.env` içinde `ANTHROPIC_API_KEY=...`.
 Önerilen zamanlama (Görev Zamanlayıcı): her sabah ~10:30 `scripts\yahoo_sync.py` (Türkiye 10:00–20:00 arası hafta skoru
-tam "dünküne kadar"dır), gün içinde 3 saatte bir `scripts\news_refresh.py`.
+tam "dünküne kadar"dır), gün içinde 2 saatte bir `scripts\news_refresh.py`.
 
 `run_app.py` arayüz derlenmemişse ya da `frontend/src` değiştiyse önce `npm install` / `npm run build` çalıştırır
 (Node.js gerekir), sonra FastAPI'yi başlatıp tarayıcıyı açar. Sekmeler: Takas Analizi, Takas Önerileri, Çok Takımlı
