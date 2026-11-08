@@ -28,7 +28,7 @@ def needs_build() -> bool:
     if not index.exists():
         return True
     built = index.stat().st_mtime
-    sources = [p for p in (FRONTEND / "src").rglob("*") if p.is_file()]
+    sources = [p for d in ("src", "public") for p in (FRONTEND / d).rglob("*") if p.is_file()]
     sources += [FRONTEND / n for n in ("index.html", "package.json", "vite.config.ts")]
     return any(p.exists() and p.stat().st_mtime > built for p in sources)
 
