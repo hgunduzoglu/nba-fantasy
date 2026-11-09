@@ -239,7 +239,8 @@ def test_deadline_stops_suggestions_and_flags_manual_analysis(eng):
 def test_suggestions_are_bilateral_bounded_and_reproducible(eng):
     # Küçük sentetik ligde tek karşılıklı takas var ve karşı tarafın P(5+)'ı hafif düşüyor: sıralama yalnız
     # kategori beklentisiyle, P(5+) eşiği gevşek.
-    opts = SearchOptions(max_evaluations=250, min_fairness=.1, min_strategy_gain=.00001, min_win_gain=-1, ecw_weight=1)
+    opts = SearchOptions(max_evaluations=250, min_fairness=.1, min_strategy_gain=.00001, min_win_gain=-1, ecw_weight=1,
+                         max_view=0)                       # gevşek eşikler: piyasa gözünde fazla ödeme tavanı da kapalı
     one = suggest_trades(eng, "2", options=opts)
     two = suggest_trades(eng, "2", options=opts)
     assert one.examined <= 250

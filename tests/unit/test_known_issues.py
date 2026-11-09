@@ -13,18 +13,15 @@ import pytest
 from fdo.ingest.yahoo_sync import snapshot
 from fdo.inseason.injuries import match_players
 from fdo.trade import TradeEngine
-from fdo.trade.suggest import CompleteOptions, complete_trade
+from fdo.trade.suggest import PERCEIVED_EVEN, CompleteOptions, complete_trade
 from unit.test_trade import trade_data  # noqa: F401  paylaşılan sentetik lig
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError,
-                   reason="KI-1: tamamlama, karşı tarafın hem modelde hem kendi algısında kaybettiği takası normal öneri "
-                          "olarak listeliyor (gerçek vaka: METU IE, Banchero → Giannis, rakibin gözünde 0,82)")
 def test_ki1_counterpart_needs_a_reason_to_accept(trade_data):  # noqa: F811
     eng = TradeEngine(trade_data, "L", utilization=1, horizon_weeks=4)
     r = complete_trade(eng, "2", "1", ("3",), (), options=CompleteOptions())
     # Rakip için gerekçe: modelde kazanç ya da kendi gözünde (algılanan değer) en az eşit karşılık.
-    unjustified = [s for s in r.suggestions if s.other_strategy_delta < 0 and s.perceived_balance < 1]
+    unjustified = [s for s in r.suggestions if s.other_strategy_delta < 0 and s.perceived_balance < PERCEIVED_EVEN]
     assert not unjustified, [(s.request.give_a, s.request.give_b, round(s.other_strategy_delta, 3),
                               round(s.perceived_balance, 3)) for s in unjustified]
 

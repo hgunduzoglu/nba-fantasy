@@ -4,6 +4,7 @@ import pytest
 from fdo.trade.engine import TradeEngine, TradeError
 from fdo.trade.suggest import CompleteOptions, _extra_sizes, complete_trade
 from unit.test_inseason import data  # noqa: F401  paylaşılan sentetik lig
+from unit.test_trade import trade_data  # noqa: F401  ikinci sentetik lig (KI-1 vakası)
 
 OPEN = CompleteOptions(min_fairness=0.0, min_view=0.0)
 
@@ -53,3 +54,32 @@ def test_complete_rejects_bad_selection(eng):
         complete_trade(eng, "1", "2", ("4",), ())                              # oyuncu kendi kadronda değil
     with pytest.raises(TradeError):
         complete_trade(eng, "1", "1", ("0",), ())
+
+
+def test_counterpart_levels_name_both_reasons():
+    from fdo.trade.suggest import counterpart
+
+    assert counterpart(.1, .3, 1.05) == ("high", ("modelde kazanıyor (+0.30 kategori/hafta)",
+                                                  "kendi gözünde aşağı yukarı eşit ya da fazla alıyor (1.05)"))
+    assert counterpart(-.1, -.2, .96)[0] == "medium" and counterpart(.1, .2, .8)[0] == "medium"
+    level, why = counterpart(-.1, -.49, .82)
+    assert level == "low" and why[0].startswith("modelde kaybediyor") and "daha az" in why[1]
+    assert counterpart(.1, .2, float("nan")) == ("medium", ("modelde kazanıyor (+0.20 kategori/hafta)",))
+
+
+def test_unjustified_packages_are_counted_and_can_be_shown(trade_data):  # noqa: F811
+    eng = TradeEngine(trade_data, "L", utilization=1, horizon_weeks=4)
+    strict = complete_trade(eng, "2", "1", ("3",), ())
+    loose = complete_trade(eng, "2", "1", ("3",), (), options=CompleteOptions(require_reason=False))
+    assert strict.rejected_reason > 0 and loose.rejected_reason == 0
+    assert all(s.acceptability in ("high", "medium") and s.counterpart_reasons for s in strict.suggestions)
+    low = [s for s in loose.suggestions if s.acceptability == "low"]
+    assert low and {s.request.give_b for s in low}.isdisjoint({s.request.give_b for s in strict.suggestions})
+
+
+def test_overpay_in_the_market_is_not_listed(trade_data):  # noqa: F811
+    eng = TradeEngine(trade_data, "L", utilization=1, horizon_weeks=4)
+    loose = complete_trade(eng, "1", "2", ("0",), (), options=CompleteOptions(max_view=0, require_reason=False))
+    strict = complete_trade(eng, "1", "2", ("0",), (), options=CompleteOptions(require_reason=False))
+    assert any(s.perceived_balance > 1.25 for s in loose.suggestions)          # rakip bunları çok ucuza alırdı
+    assert strict.rejected_overpay > 0 and all(s.perceived_balance <= 1.25 for s in strict.suggestions)

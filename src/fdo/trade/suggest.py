@@ -46,6 +46,9 @@ class SearchOptions:
     min_perceived_balance: float = .9
     min_edge: float = 1.0
     min_opponent_view: float = 0.0          # karşılıklı faydada rakibin gözünde en az denge (0 = kapalı)
+    require_reason: bool = True             # rakip için gerekçesiz (modelde de kendi gözünde de kaybeden) paket listelenmez
+    max_view: float = 1.25                  # karşılıklı faydada rakibin gözünde en çok: üstü piyasa gözünde senin fazla
+                                            # ödemen, karşılığında daha fazlası istenebilir (0 = kapalı)
 
     def __post_init__(self):
         if (self.mode not in MODES or self.perceived not in PERCEPTIONS or self.min_perceived_balance < 0
@@ -71,6 +74,8 @@ class Suggestion:
     mode: str = "mutual"
     perceived_balance: float = float("nan")     # rakibin gözünde: aldığı / verdiği algılanan değer
     key_players: tuple[str, ...] = ()            # yanlış fiyatlanan (sat-yüksek / al-düşük) oyuncular
+    acceptability: str = ""                      # rakip için: high / medium / low (``counterpart``; olasılık değil)
+    counterpart_reasons: tuple[str, ...] = ()
 
 
 @dataclass
@@ -81,6 +86,8 @@ class SearchResult:
     rejected_fairness: int = 0
     rejected_view: int = 0                   # karşılıklı faydada rakibin gözünde dengesiz
     rejected_roster: int = 0
+    rejected_reason: int = 0                 # rakip için gerekçesiz (``counterpart``)
+    rejected_overpay: int = 0                # piyasa gözünde senin fazla ödemen (``max_view``)
     limit_reached: bool = False
     opponent_counts: dict[str, int] = field(default_factory=dict)
     message: str = ""
@@ -117,6 +124,28 @@ def _minimal(found: list[Suggestion]) -> list[Suggestion]:
     return kept
 
 
+#: Rakibin kabul edilebilirliği: kalibre edilmiş olasılık değil, gerekçe sayısı.
+ACCEPTABILITY = {"high": "yüksek", "medium": "orta", "low": "düşük"}
+#: Algılanan değer oranı bu kadarsa "aşağı yukarı eşit" sayılır (algının gürültüsü). Başlangıç varsayımı, doğrulanmadı.
+PERCEIVED_EVEN = .95
+
+
+def counterpart(gain: float, strategy_delta: float, view: float) -> tuple[str, tuple[str, ...]]:
+    """Karşı tarafın takası kabul etmek için gerekçesi.
+
+    İki gerekçeye bakılır: modelde kazanç (``gain``: kendi stratejisiyle kalan sezon kategori ve P(5+) karması; tür
+    sınıflandırmasıyla aynı ölçü) ve kendi gözünde (algılanan değer: draft fiyatı + bu sezon) en az eşit karşılık
+    (``view`` ≥ ``PERCEIVED_EVEN``). İkisi de varsa ``high``, biri varsa ``medium``, hiçbiri yoksa ``low``: rakip hem
+    modelde hem kendi algısında kaybediyor, teklif için gerekçe yok. Kabul olasılığı değildir; menajer davranışı
+    modellenmedi."""
+    model = gain > 0
+    seen = bool(np.isfinite(view) and view >= PERCEIVED_EVEN)
+    reasons = [f"modelde {'kazanıyor' if model else 'kaybediyor'} ({strategy_delta:+.2f} kategori/hafta)"]
+    if np.isfinite(view):
+        reasons.append(f"kendi gözünde {'aşağı yukarı eşit ya da fazla' if seen else 'daha az'} alıyor ({view:.2f})")
+    return ("high", "medium", "low")[2 - model - seen], tuple(reasons)
+
+
 def suggest_trades(engine: TradeEngine, team_id: str, *, strategy: Strategy | None = None,
                    opponent_strategies: dict[str, Strategy] | None = None,
                    opponents: tuple[str, ...] | None = None, options: SearchOptions | None = None,
@@ -134,10 +163,8 @@ def suggest_trades(engine: TradeEngine, team_id: str, *, strategy: Strategy | No
         return result
     strategies = opponent_strategies or {}
     mode = options.mode
-    perceived = edge = None
-    if mode != "mutual" or options.min_opponent_view > 0:
-        perceived = perceived_prices(engine, options.perceived)
-        edge = (perceived - engine.market).dropna()
+    perceived = perceived_prices(engine, options.perceived)          # rakibin gözü: eşik ve kabul gerekçesi
+    edge = (perceived - engine.market).dropna()
     sell = list(edge[edge >= options.min_edge].sort_values(ascending=False).index) if mode == "sell_high" else []
     buy = list(edge[edge <= -options.min_edge].sort_values().index) if mode == "buy_low" else []
     own = _shortlist(engine, team_id, strategy, options.shortlist, sell)
@@ -168,21 +195,17 @@ def suggest_trades(engine: TradeEngine, team_id: str, *, strategy: Strategy | No
             req = TradeRequest(team_id, tid, give_a, give_b,
                                auto_drop=options.auto_balance, auto_fill=options.auto_balance)
             fair = engine.fairness(req)
-            balance, keys = float("nan"), ()
+            keys = ()
+            taken = float(perceived.reindex(list(give_b)).fillna(0).sum())
+            balance = float(perceived.reindex(list(give_a)).fillna(0).sum()) / taken if taken > 0 else 0.0
             if mode == "mutual":
                 if fair < options.min_fairness:
                     result.rejected_fairness += 1
                     continue
-                if options.min_opponent_view > 0:
-                    taken = float(perceived.loc[list(give_b)].sum())
-                    balance = float(perceived.loc[list(give_a)].sum()) / taken if taken > 0 else 0.0
-                    if balance < options.min_opponent_view:
-                        result.rejected_view += 1
-                        continue
+                if options.min_opponent_view > 0 and balance < options.min_opponent_view:
+                    result.rejected_view += 1
+                    continue
             else:
-                given = float(perceived.loc[list(give_a)].sum())
-                taken = float(perceived.loc[list(give_b)].sum())
-                balance = given / taken if taken > 0 else 0.0
                 if balance < options.min_perceived_balance:
                     result.rejected_fairness += 1
                     continue
@@ -191,6 +214,10 @@ def suggest_trades(engine: TradeEngine, team_id: str, *, strategy: Strategy | No
                 keys = tuple(p for p in side if sign * float(edge.get(p, 0.0)) >= options.min_edge)
                 if not keys:
                     continue
+            # karşılıklı faydada üst sınır (sat-yüksek / al-düşükte piyasa farkı aranan şeydir, kendi eşiği var)
+            if mode == "mutual" and options.max_view > 0 and balance > options.max_view:
+                result.rejected_overpay += 1             # piyasa gözünde fazla veriyorsun: daha fazlası istenebilir
+                continue
             try:
                 rosters, _, il = engine.resolve(req, {team_id: strategy, tid: os})
             except TradeError:
@@ -215,8 +242,13 @@ def suggest_trades(engine: TradeEngine, team_id: str, *, strategy: Strategy | No
                 if ga <= 0:
                     continue
                 value = ga * min(1.0, balance)
+            level, why = counterpart(gb, o["strategy_delta"], balance)
+            if options.require_reason and level == "low":
+                result.rejected_reason += 1
+                continue
             result.suggestions.append(Suggestion(req, value, m["strategy_delta"], o["strategy_delta"],
-                                                  m["win_delta"], o["win_delta"], fair, os, mode, balance, keys))
+                                                  m["win_delta"], o["win_delta"], fair, os, mode, balance, keys,
+                                                  level, why))
             if len(result.suggestions) > options.max_results * 4:
                 result.suggestions = _minimal(result.suggestions)[:options.max_results * 2]
         active = remaining
@@ -255,11 +287,14 @@ class CompleteOptions:
     perceived: str = "blend"
     auto_balance: bool = True
     ecw_weight: float = .65
+    require_reason: bool = True             # rakip için gerekçesiz paket listelenmez (``counterpart``)
+    max_view: float = 1.25                  # rakibin gözünde en çok: üstü piyasa gözünde senin fazla ödemen (0 = kapalı)
 
     def __post_init__(self):
         if (not 1 <= self.max_side <= 3 or not 1 <= self.max_extra <= 3 or not 2 <= self.shortlist <= 20
                 or self.max_evaluations < 1 or self.max_results < 1 or not 0 <= self.min_fairness <= 1
-                or self.min_view < 0 or self.perceived not in PERCEPTIONS or not 0 <= self.ecw_weight <= 1):
+                or self.min_view < 0 or self.max_view < 0 or self.perceived not in PERCEPTIONS
+                or not 0 <= self.ecw_weight <= 1):
             raise ValueError("Geçersiz tamamlama ayarları")
 
 
@@ -272,6 +307,8 @@ class CompleteResult:
     rejected_fairness: int = 0
     rejected_view: int = 0
     rejected_roster: int = 0
+    rejected_reason: int = 0                 # rakip için gerekçesiz (``counterpart``)
+    rejected_overpay: int = 0                # piyasa gözünde senin fazla ödemen (``max_view``)
     limit_reached: bool = False
     message: str = ""
 
@@ -311,8 +348,9 @@ def _tiered(req: TradeRequest, m: dict, o: dict, ga: float, gb: float, fair: flo
         tier, value = "own", ga * fair
     else:
         tier, value = "loss", ga
+    level, why = counterpart(gb, o["strategy_delta"], view)
     return Suggestion(req, value, m["strategy_delta"], o["strategy_delta"], m["win_delta"], o["win_delta"], fair, sb,
-                      tier, view)
+                      tier, view, (), level, why)
 
 
 def complete_trade(engine: TradeEngine, team_a: str, team_b: str, give_a: tuple[str, ...], give_b: tuple[str, ...], *,
@@ -387,12 +425,19 @@ def complete_trade(engine: TradeEngine, team_a: str, team_b: str, give_a: tuple[
             if options.min_view > 0 and v < options.min_view:
                 result.rejected_view += 1
                 continue
+            if options.max_view > 0 and v > options.max_view:
+                result.rejected_overpay += 1             # piyasa gözünde fazla veriyorsun: daha fazlası istenebilir
+                continue
             try:
                 m, o, ga, gb = _gains(engine, req, sa, sb, w)
             except TradeError:
                 result.rejected_roster += 1
                 continue
-            found.append(_tiered(req, m, o, ga, gb, fair, v, sb))
+            s = _tiered(req, m, o, ga, gb, fair, v, sb)
+            if options.require_reason and s.acceptability == "low":
+                result.rejected_reason += 1              # rakip modelde de kendi gözünde de kaybediyor
+                continue
+            found.append(s)
         if result.limit_reached:
             break
     found.sort(key=lambda s: (TIERS[s.mode], -s.score, len(s.request.give_a) + len(s.request.give_b)))
@@ -418,6 +463,8 @@ def complete_trade(engine: TradeEngine, team_a: str, team_b: str, give_a: tuple[
     result.suggestions = kept
     if not kept:
         result.message = (f"Bu seçimle değer dengesi en az %{options.min_fairness * 100:.0f}"
-                          + (f" ve rakibin gözünde en az {options.min_view:.2f}" if options.min_view > 0 else "")
-                          + " olan bir tamamlama bulunamadı. Başka oyuncu seç ya da eşikleri gevşet.")
+                          + (f", rakibin gözünde en az {options.min_view:.2f}" if options.min_view > 0 else "")
+                          + (f" ve en çok {options.max_view:.2f}" if options.max_view > 0 else "")
+                          + " olan" + (", rakip için de bir gerekçesi bulunan" if options.require_reason else "")
+                          + " bir tamamlama bulunamadı. Başka oyuncu seç ya da eşikleri gevşet.")
     return result
