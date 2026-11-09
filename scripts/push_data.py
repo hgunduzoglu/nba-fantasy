@@ -6,7 +6,8 @@
 Önce bilgisayarda ``scripts/yahoo_sync.py`` ve ``scripts/news_refresh.py`` çalışır; bu betik ``data/real`` altında git'in
 izlemediği uygulama dosyalarını (kadrolar, skorlar, projeksiyonlar, CBS sakatlık raporu, NBA maç kayıtları, haberler)
 tek bir tar.gz olarak ``ssh`` ile gönderir; sunucuda ``scripts/receive_data.py`` yerine koyar. Gönderilmeyen:
-``snapshots/``, yönetici iletişim bilgileri, ham yakalamalar ve README notları. Sunucu yeni dosyaları kendisi fark eder
+``snapshots/`` (arşiv), ``decisions/`` (sunucunun karar günlüğü), referans vakalar ve sonuçları, yönetici iletişim
+bilgileri, ham yakalamalar ve README notları. Sunucu yeni dosyaları kendisi fark eder
 (dosya imzası): yeniden başlatma gerekmez. Kod değiştiyse sunucuda ``git pull``, arayüz derlemesi ve yeniden başlatma.
 """
 
@@ -22,9 +23,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA = "data/real"
-SKIP_DIRS = ("snapshots/",)
+SKIP_DIRS = ("snapshots/",                                         # değiştirilemez arşiv yerelde kalır
+             "decisions/",                                         # sunucunun kendi karar günlüğü ezilmesin
+             "evaluation/")                                        # referans vaka sonuçları (yerel ölçüm)
 SKIP_NAMES = frozenset({"managers.csv", "managers.json",          # iletişim bilgileri; uygulama okumaz
-                        "trade_reports.json"})                      # sunucunun kendi analizleri ezilmesin
+                        "trade_reports.json",                       # sunucunun kendi analizleri ezilmesin
+                        "cases.json"})                              # referans vakalar (yerel ölçüm)
 SKIP_SUFFIXES = (".tmp", ".txt", "_capture.json")
 
 

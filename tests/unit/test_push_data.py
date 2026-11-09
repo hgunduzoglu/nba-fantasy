@@ -14,6 +14,11 @@ def test_keep_skips_snapshots_contacts_and_notes():
     assert not push_data.keep("data/real/snapshots/2026-11-08/rosters.json")
     assert not push_data.keep("data/real/managers.json") and not push_data.keep("data/real/ROSTERS_README.txt")
     assert not push_data.keep("data/real/standings_week1_capture.json") and not push_data.keep("data/real/x.json.tmp")
+    # yerel arşiv nesneleri, karar günlüğü ve referans vaka ölçümleri gitmez; elle kimlik düzeltmeleri gider
+    assert not push_data.keep("data/real/snapshots/objects/ab/abcd.gz")
+    assert not push_data.keep("data/real/decisions/2026-11.jsonl")
+    assert not push_data.keep("data/real/evaluation/cases_x.json") and not push_data.keep("data/real/cases.json")
+    assert push_data.keep("data/real/id_overrides.csv")
 
 
 def test_archive_round_trip_replaces_files_and_keeps_mtime(tmp_path):
