@@ -118,6 +118,10 @@ class AddDropWeekIn(WeeklyIn):
     plan: bool = True
 
 
+class DropIn(WeeklyIn):
+    activate: list[str] | None = None                       # IL'den aktife alınacaklar; None → dönen/dönmek üzere olanlar
+
+
 class WaiverIn(BaseModel):
     team: str
     strategy: StrategyIn | None = None

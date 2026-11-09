@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
+import datetime as dt
+
 import numpy as np
 from fastapi import FastAPI, HTTPException, Query
 
-from fdo.api.schemas import AddDropWeekIn, StrategyIn, StreamIn, SuggestIn, WaiverIn, WeeklyIn
-from fdo.api.serialize import (assumed_strategies, brief, category_deltas, clean, games_delta, player_row,
-                               strategy_from, value_ranks)
+from fdo.api.schemas import AddDropWeekIn, DropIn, StrategyIn, StreamIn, SuggestIn, WaiverIn, WeeklyIn
+from fdo.api.serialize import (assumed_strategies, brief, category_deltas, clean, games_delta, injury_info,
+                               player_row, strategy_from, value_ranks)
 from fdo.api.state import AppState
 from fdo.inseason.adddrop import available_from, critical_categories, critical_strategy, pick_critical
+from fdo.inseason.drops import drop_plan, returning
 from fdo.inseason.fixtures import opponent as fixture_opponent
 from fdo.inseason.history import team_history
 from fdo.inseason.sitstart import plan_week, today_changes
@@ -278,6 +281,51 @@ def register(app: FastAPI, state: AppState) -> None:
                       "waiver_type": eng.league.settings.get("Waiver Type"), "synced": lv is not None,
                       "singles": rows, "plan": plan, "droppable": droppable,
                       "active_roster": [_brief(eng, p) for p in model.active_roster(body.team)]})
+
+    @app.post("/api/leagues/{lid}/adddrop/drops")
+    def adddrop_drops(lid: str, body: DropIn):
+        """Yalnız bırakma: IL'den dönen oyuncuya yer açarken kimi bırakmalı (README §13.26)."""
+        eng, weeks, current, wk, days, fx_opp, opp, model = _week_setup(lid, body)
+        acc_mine, acc_opp, lv = _acc(lid, body, wk, current, opp)
+        lg = eng.league
+        il = [p for p in lg.rosters[body.team] if p in lg.injury_rosters[body.team]]
+        ready = returning(model, body.team, eng.data.as_of)
+        bad = [p for p in body.activate or [] if p not in il]
+        if bad:
+            raise HTTPException(400, f"IL'de olmayan oyuncu: {bad}")
+        plan = drop_plan(model, body.team, opp, days, ready if body.activate is None else list(body.activate),
+                         acc_mine=acc_mine, acc_opp=acc_opp)
+        swaps = drop_ranking(eng, body.team, model.strategy)            # boşta daha iyisi varsa bırakmak bedava
+        better = {r.drop: (r.add, r.score) for r in swaps.itertuples() if r.score > 0} if len(swaps) else {}
+        ranks = value_ranks(eng)
+        nxt = weeks.days(wk + 1) if wk + 1 in weeks.weeks.index else []
+
+        def ret(p):
+            d = model.return_date.get(p)
+            return None if d is None or d == dt.date.max else d
+
+        rows = []
+        for r in plan.rows.itertuples():
+            p = r.player
+            alt = better.get(p)
+            rows.append({"player": {**_brief(eng, p), "injury": injury_info(eng, p), "return_date": ret(p),
+                                    "rank": float(ranks[p]) if p in ranks.index else None},
+                         "returning": r.returning, "ros_loss": r.ros_loss, "ros_d_ecw": r.ros_d_ecw, "ros_dp": r.ros_dp,
+                         "week_loss": r.week_loss, "week_d_expected": r.week_d_expected, "week_d_p5": r.week_d_p5,
+                         "week_dp": r.week_dp, "games": r.games, "games_left": r.games_left,
+                         "games_next": model.games_in(p, nxt), "open_slots": r.open_slots,
+                         "replacement": {"add": _brief(eng, alt[0]), "score": alt[1]} if alt else None})
+        p0, ew0, p50 = plan.week_base
+        return clean({"week": wk, "current_week": current, "weeks": _weeks_list(weeks, current), "days": days,
+                      "opponent": opp, "opponent_name": eng.league.teams[opp], "fixture_opponent": fx_opp,
+                      "objective": model.strategy.name, "capacity": lg.capacity,
+                      "active_count": len(model.active_roster(body.team)),
+                      "il": [{**_brief(eng, p), "injury": injury_info(eng, p), "return_date": ret(p),
+                              "season": model.return_date.get(p) == dt.date.max, "ready": p in ready,
+                              "activated": p in plan.activate} for p in il],
+                      "activate": plan.activate, "need": plan.need, "recommended": plan.recommended,
+                      "base": {"p": list(p0), "expected_wins": ew0, "p5": p50}, "rows": rows,
+                      "synced": lv is not None})
 
     @app.get("/api/leagues/{lid}/history")
     def history(lid: str, team: str, injuries: bool = True):

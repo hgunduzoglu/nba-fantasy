@@ -100,6 +100,35 @@ def test_adddrop_week_modes_and_waiver_dates(client, tmp_path):
     assert kinds.get("16", "W") == "W" and set(kinds.values()) <= {"FA", "W"}
 
 
+def test_drops_ranks_candidates_for_returning_player(client):
+    r = client.post("/api/leagues/L/adddrop/drops", json={"team": "2", "week": 3}).json()
+    assert r["activate"] == ["7"] and r["il"][0]["ready"] and r["il"][0]["activated"] and r["need"] == 0
+    assert {x["player"]["id"] for x in r["rows"]} == {"4", "5", "6", "7"} and len(r["recommended"]) == 1
+    assert next(x for x in r["rows"] if x["player"]["id"] == "7")["returning"]
+    losses = [x["ros_loss"] for x in r["rows"]]
+    assert losses == sorted(losses) and all(x > 0 for x in losses)
+    assert r["recommended"][0] == next(x["player"]["id"] for x in r["rows"] if x["open_slots"] == 0)
+    off = client.post("/api/leagues/L/adddrop/drops", json={"team": "2", "week": 3, "activate": []}).json()
+    assert off["activate"] == [] and {x["player"]["id"] for x in off["rows"]} == {"4", "5", "6"}
+    assert client.post("/api/leagues/L/adddrop/drops", json={"team": "2", "activate": ["4"]}).status_code == 400
+
+
+def test_drops_need_when_roster_is_full(data, tmp_path):  # noqa: F811
+    import dataclasses
+
+    lg = data.leagues["L"]
+    data.leagues["L"] = dataclasses.replace(lg, rosters={**lg.rosters, "1": lg.rosters["1"] + ("16",)},
+                                            injury_rosters={**lg.injury_rosters, "1": frozenset({"16"})})
+    app = create_app(data_dir=tmp_path, frontend_dir=tmp_path / "yok")
+    app.state.fdo.data = lambda injuries=True: data
+    app.state.fdo.signature = lambda: "test"
+    r = TestClient(app).post("/api/leagues/L/adddrop/drops", json={"team": "1", "week": 3}).json()
+    assert r["capacity"] == 4 and r["active_count"] == 4 and r["activate"] == ["16"] and r["need"] == 1
+    assert len(r["rows"]) == 5 and len(r["recommended"]) == 1
+    out = next(x for x in r["rows"] if x["player"]["id"] == "2")                 # "O": bu hafta oynamıyor
+    assert out["games"] == 0 and out["week_loss"] == pytest.approx(0, abs=1e-9)
+
+
 def test_history_without_and_with_results(client, tmp_path):
     assert client.get("/api/leagues/L/history?team=1").json()["weeks"] == []
     t = {"fgm": 40, "fga": 100, "ftm": 8, "fta": 10, "fg3m": 5, "pts": 100, "reb": 30, "ast": 20, "stl": 5, "blk": 3,
