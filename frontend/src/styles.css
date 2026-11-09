@@ -295,6 +295,13 @@ table.data { width: 100%; border-collapse: separate; border-spacing: 0; font-siz
 .complete-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 14px; }
 .complete-card { margin-top: 14px; box-shadow: none; }
 .pkg .chip { padding-right: 10px; }
+.returns { list-style: none; margin: 0; padding: 0; font-size: 13px; }
+.returns li { padding: 3px 0; }
+.report { border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; background: var(--surface-2); }
+.report-headline { font-size: 15px; font-weight: 600; margin: 4px 0 6px; }
+.report-sec ul { margin: 4px 0 0; padding-left: 18px; }
+.report-sec li { margin: 3px 0; line-height: 1.45; }
+.report .m-item { padding-left: 0; padding-right: 0; }
 .catchips { display: inline-flex; gap: 8px; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .dirs { display: flex; flex-wrap: wrap; gap: 8px; }
 .dir { border: 1px solid var(--border); background: var(--surface); border-radius: 10px; padding: 8px 10px; cursor: pointer;

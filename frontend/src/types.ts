@@ -38,6 +38,35 @@ export interface Meta {
   presets: Preset[];
   injury_file: string | null;
   issues: string[];
+  read_only?: boolean;
+  /** Detaylı analiz (README §13.29): anahtar var mı, sunucuda erişim kodu gerekir mi. */
+  report?: { available: boolean; needs_code: boolean };
+}
+
+export interface ReportCounter {
+  give: { id: string; name: string }[];
+  get: { id: string; name: string }[];
+  why: string;
+  valid: boolean;
+}
+
+export interface TradeReportBody {
+  decision: string;
+  confidence: string;
+  headline: string;
+  sections: { title: string; points: string[] }[];
+  counter_offers: ReportCounter[];
+  watch: string[];
+}
+
+export interface ReportRecord {
+  key: string;
+  status: "running" | "done" | "error";
+  error?: string;
+  created_at?: string;
+  model?: string;
+  cost?: number;
+  report?: TradeReportBody;
 }
 
 export interface Injury {
@@ -107,6 +136,43 @@ export interface TradeIn {
   strategy_a?: StrategyIn | null;
   strategy_b?: StrategyIn | null;
   injuries: boolean;
+  /** Kalan sezon oranlarının temeli (README §13.28); varsayılan Yahoo projeksiyonu. */
+  basis?: Basis;
+}
+
+export type Basis = "ros" | "season" | "recent" | "blend";
+
+/** IL dönüş takvimi: kim döner, kim bırakılır (``self_cut``: dönen kadroya girmez). */
+export interface ReturnEvent {
+  returning: { id: string; name: string };
+  date: string | null;
+  dropped: { id: string; name: string } | null;
+  self_cut: boolean;
+  incoming: boolean;
+}
+
+export interface ScenarioSide {
+  ecw_delta: number;
+  win_delta: number;
+  strategy_delta: number;
+  drops: string[];
+  returns: ReturnEvent[];
+}
+
+export interface ScenarioRow {
+  basis: Basis;
+  label: string;
+  fairness: number;
+  mutual: boolean;
+  a: ScenarioSide;
+  b: ScenarioSide;
+}
+
+export type Rates = Partial<Record<CategoryKey | "FGA", number | null>>;
+
+export interface ScenariosOut {
+  bases: ScenarioRow[];
+  players: (BriefPlayer & { side: "a" | "b"; season_gp: number | null; rates: Partial<Record<Basis, Rates>> })[];
 }
 
 export interface CategoryProb {
@@ -142,6 +208,7 @@ export interface TradeSide {
   categories: CategoryProb[];
   adjustments: Record<"drop" | "add" | "move_to_il", { id: string; name: string }[]>;
   ranks: Record<string, RankRow[]>;
+  returns?: ReturnEvent[];
 }
 
 export interface TradeOut {

@@ -1,5 +1,5 @@
 import type {
-  AddDropWeekIn, AddDropWeekOut, CompleteOut, DropIn, DropOut, FixtureTeam, HistoryOut, NewsOut, NewsStatus, Meta, MispricedRow, MultiSeasonOut, MultiSuggestIn, MultiSuggestOut, MultiTradeIn, MultiTradeOut, Perceived, Player,
+  AddDropWeekIn, AddDropWeekOut, CompleteOut, ReportRecord, ScenariosOut, DropIn, DropOut, FixtureTeam, HistoryOut, NewsOut, NewsStatus, Meta, MispricedRow, MultiSeasonOut, MultiSuggestIn, MultiSuggestOut, MultiTradeIn, MultiTradeOut, Perceived, Player,
   RankingsOut, Roster, SeasonOut, SeasonPageOut, SitStartOut, Source, StreamOut, StrategyIn, SuggestIn, SuggestOut, SyncStatus, TradeIn,
   TradeOut, WaiverOut, WeeklyIn, WeeklyOut,
 } from "./types";
@@ -30,6 +30,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 const q = (injuries: boolean) => `injuries=${injuries ? "true" : "false"}`;
 const post = (body: unknown): RequestInit => ({ method: "POST", body: JSON.stringify(body) });
+const codeHeader = (code?: string): Record<string, string> => (code ? { "X-Report-Code": code } : {});
 
 export const api = {
   meta: (injuries: boolean) => request<Meta>(`/api/meta?${q(injuries)}`),
@@ -40,6 +41,12 @@ export const api = {
   analyze: (league: string, body: TradeIn) => request<TradeOut>(`/api/leagues/${league}/trade/analyze`, post(body)),
   season: (league: string, body: TradeIn & { n_sims?: number; strength_sd?: number }) =>
     request<SeasonOut>(`/api/leagues/${league}/trade/season`, post(body)),
+  tradeReport: (league: string, body: TradeIn & { refresh?: boolean }, code?: string) =>
+    request<ReportRecord>(`/api/leagues/${league}/trade/report`, { ...post(body), headers: codeHeader(code) }),
+  tradeReportStatus: (key: string, code?: string) =>
+    request<ReportRecord>(`/api/trade/report/${key}`, { headers: codeHeader(code) }),
+  tradeScenarios: (league: string, body: TradeIn) =>
+    request<ScenariosOut>(`/api/leagues/${league}/trade/scenarios`, post(body)),
   tradeComplete: (league: string, body: TradeIn) =>
     request<CompleteOut>(`/api/leagues/${league}/trade/complete`, post(body)),
   suggest: (league: string, body: SuggestIn) => request<SuggestOut>(`/api/leagues/${league}/trade/suggest`, post(body)),

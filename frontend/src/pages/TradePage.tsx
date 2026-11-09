@@ -6,11 +6,13 @@ import { PlayerPicker } from "../components/PlayerPicker";
 import { RosterTable } from "../components/RosterTable";
 import { BALANCED, StrategyPicker, strategyLabel, toStrategyIn, type StrategyChoice } from "../components/StrategyPicker";
 import { TradeComplete, sameIds } from "../components/TradeComplete";
+import { TradeReport } from "../components/TradeReport";
+import { BASIS_HINT, BASIS_LABELS, BASIS_SHORT, ReturnList, TradeScenarios } from "../components/TradeScenarios";
 import { deltaClass } from "../components/common";
 import { fmtDelta, fmtNum, fmtPct, fmtStat } from "../format";
 import { useIsMobile } from "../hooks";
 import { downloadJson, useScenarios, type NamedId, type Scenario } from "../scenarios";
-import type { CompleteOut, CompleteRow, FixtureTeam, League, Meta, Player, Roster, SeasonOut, Source, TradeIn, TradeOut, TradeSide } from "../types";
+import type { Basis, CompleteOut, CompleteRow, FixtureTeam, League, Meta, Player, Roster, ScenariosOut, SeasonOut, Source, TradeIn, TradeOut, TradeSide } from "../types";
 
 export interface TradeInit {
   opp: string;
@@ -109,6 +111,13 @@ function SideCard({ side, title, scale }: { side: TradeSide; title: string; scal
           <>
             <div className="section-title">Kadro işlemleri</div>
             <div>{moves.map((m) => <span key={m} className="pill" style={{ marginRight: 6 }}>{m}</span>)}</div>
+          </>
+        )}
+        {(side.returns?.length ?? 0) > 0 && (
+          <>
+            <div className="section-title" title="Takastan sonra IL'den dönüşlerde kimin bırakılacağı (stratejiye göre en az değerli olan). Değerlendirme bunu zaten hesaba katar.">
+              IL dönüşleri (takastan sonra)</div>
+            <ReturnList events={side.returns ?? []} />
           </>
         )}
       </div>
@@ -229,6 +238,8 @@ export function TradePage({ meta, league, team, injuries, initial }: Props) {
   const [stratA, setStratA] = useState<StrategyChoice>(initial?.stratA ?? BALANCED);
   const [stratB, setStratB] = useState<StrategyChoice>(initial?.stratB ?? BALANCED);
   const [auto, setAuto] = useState(initial?.auto ?? true);
+  const [basis, setBasis] = useState<Basis>("ros");
+  const [scen, setScen] = useState<{ key: string; data: ScenariosOut | null; busy: boolean } | null>(null);
   const [giveA, setGiveA] = useState<Set<string>>(new Set(initial?.giveA ?? []));
   const [giveB, setGiveB] = useState<Set<string>>(new Set(initial?.giveB ?? []));
   const [dropA, setDropA] = useState<string[]>(initial?.dropA ?? []);
@@ -264,8 +275,8 @@ export function TradePage({ meta, league, team, injuries, initial }: Props) {
     if (!giveA.size || !giveB.size) return null;
     return { team_a: team, team_b: opp, give_a: [...giveA], give_b: [...giveB], drop_a: dropA, drop_b: dropB,
              add_a: addA, add_b: addB, auto_balance: auto, strategy_a: toStrategyIn(stratA), strategy_b: toStrategyIn(stratB),
-             injuries };
-  }, [team, opp, giveA, giveB, dropA, dropB, addA, addB, auto, stratA, stratB, injuries]);
+             injuries, basis };
+  }, [team, opp, giveA, giveB, dropA, dropB, addA, addB, auto, stratA, stratB, injuries, basis]);
   const bodyKey = body ? hash(JSON.stringify({ ...body, league: league.id })) : "";
 
   useEffect(() => {
@@ -297,6 +308,17 @@ export function TradePage({ meta, league, team, injuries, initial }: Props) {
       .catch(() => { if (id === fixSeq.current) setFixtures(null); })
       .finally(() => { if (id === fixSeq.current) setFixBusy(false); });
   }, [result]);   // gövde, sonucu üreten gövdedir
+
+  // Değerlendirme temelleri (README §13.28): seçili temelden bağımsız; aynı takas için bir kez hesaplanır.
+  useEffect(() => {
+    if (!result || !body) return;
+    const key = hash(JSON.stringify({ ...body, basis: null, league: league.id }));
+    if (scen?.key === key) return;
+    setScen({ key, data: null, busy: true });
+    api.tradeScenarios(league.id, { ...body, basis: "ros" })
+      .then((d) => setScen((s) => (s?.key === key ? { key, data: d, busy: false } : s)))
+      .catch(() => setScen((s) => (s?.key === key ? { key, data: null, busy: false } : s)));
+  }, [result]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const runSeason = () => {
     if (!body) return;
@@ -416,6 +438,13 @@ export function TradePage({ meta, league, team, injuries, initial }: Props) {
         <StrategyPicker meta={meta} value={stratA} onChange={setStratA} label="Senin stratejin" />
         <StrategyPicker meta={meta} value={stratB} onChange={setStratB} label="Rakibin stratejisi"
                         autoHint="Rakibin gerçek tercihi bilinmiyor: kategori profilinden en zayıf kategori(ler)i punt ettiği varsayılır." />
+        <div className="field"><span>Değerlendirme</span>
+          <div className="seg" role="group" aria-label="Değerlendirme temeli">
+            {(Object.keys(BASIS_SHORT) as Basis[]).map((b) => (
+              <button key={b} aria-pressed={basis === b} onClick={() => setBasis(b)} title={BASIS_HINT[b]}>{BASIS_SHORT[b]}</button>
+            ))}
+          </div>
+        </div>
         <label className="check" title="Eşit olmayan paketlerde önce sakat oyuncu IL'e, sonra gerekirse en düşük değerli bırakılır; açılan boşluk boştaki oyuncuyla doldurulur. Elle seçtiğin işlemlerden sonra uygulanır.">
           <input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} />
           Kadroyu otomatik dengele
@@ -514,12 +543,29 @@ export function TradePage({ meta, league, team, injuries, initial }: Props) {
                 </span>
                 {result.assessments.deadline && <span className="pill">Son takas tarihi {result.assessments.deadline}</span>}
                 <span className="pill muted" title="Strateji seçimleri">{strategyLabel(stratA)} / {strategyLabel(stratB)}</span>
+                <span className={"pill" + (basis === "ros" ? " muted" : "")} title={BASIS_HINT[basis]}>Temel: {BASIS_LABELS[basis]}</span>
               </div>
 
               <div className="summary-grid">
                 <SideCard side={result.teams.a} title="sen" scale={impactScale} />
                 <SideCard side={result.teams.b} title="karşı taraf" scale={impactScale} />
               </div>
+
+              {meta.report?.available && body && (
+                <>
+                  <div className="section-title">Detaylı analiz</div>
+                  <TradeReport league={league.id} body={{ ...body, basis: "ros" }} needsCode={meta.report.needs_code}
+                               onApply={(give, get) => {
+                                 setGiveA(new Set(give)); setGiveB(new Set(get));
+                                 setDropA((d) => d.filter((x) => !give.includes(x))); setDropB((d) => d.filter((x) => !get.includes(x)));
+                                 window.scrollTo({ top: 0, behavior: "smooth" });
+                               }} />
+                </>
+              )}
+
+              <div className="section-title" title="Aynı takas farklı oran varsayımlarıyla: Yahoo projeksiyonu, bu sezon, son 10 maç, karma">
+                Değerlendirme temelleri: hangi oranlara inanırsan</div>
+              <TradeScenarios data={scen?.data ?? null} busy={scen?.busy ?? false} current={basis} onPick={setBasis} />
 
               <div className="section-title">Playoff ve şampiyonluk etkisi</div>
               {!season && (
