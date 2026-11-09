@@ -34,3 +34,12 @@ def test_disabled_log_and_unknown_kind(tmp_path, monkeypatch):
     with pytest.raises(ValueError):
         DecisionLog(tmp_path, enabled=True, code=CODE).record("guess", "x", "L", {}, {}, data_signature="s",
                                                               data_as_of="d")
+
+
+def test_reported_trade_is_reconciled_against_current_rosters():
+    from fdo.evaluation.decisions import reconcile
+
+    e = {"request": {"team_a": "1", "team_b": "2", "give_a": ["10"], "give_b": ["20", "21"]}}
+    assert reconcile(e, {"1": ("10", "11"), "2": ("20", "21")}) == "pending"
+    assert reconcile(e, {"1": ("11", "20"), "2": ("10", "21")}) == "partial"
+    assert reconcile(e, {"1": ("11", "20", "21"), "2": ("10",)}) == "confirmed"

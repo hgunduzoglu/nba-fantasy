@@ -91,6 +91,18 @@ def test_suggestions_and_scenarios_are_logged_separately(client):
     assert set(scen[0]["result"]["teams"]) == {"a", "b"} and scen[0]["result"]["teams"]["a"]["team_id"] == "1"
 
 
+def test_reported_trade_is_logged_and_reconciled(client):
+    state = client.app.state.fdo
+    state.decisions._code = {"commit": "test", "dirty": False}
+    r = client.post("/api/leagues/L/trade/reported", json={"team_a": "1", "team_b": "2", "give_a": ["0"],
+                                                            "give_b": ["3"]})
+    assert r.status_code == 200 and r.json()["decision_id"]
+    rows = client.get("/api/leagues/L/trade/reported").json()
+    assert len(rows) == 1 and rows[0]["status"] == "pending" and rows[0]["give_a"][0]["name"] == "P0"
+    assert [e["kind"] for e in state.decisions.entries()] == ["user_reported"]   # veri ve kadrolar değişmedi
+    assert client.post("/api/leagues/L/trade/reported", json={"team_a": "1", "team_b": "9", "give_a": ["0"]}).status_code == 404
+
+
 def test_completion_rows_carry_counterpart_reasons(client):
     body = {"team_a": "2", "team_b": "1", "give_a": ["3"]}
     strict = client.post("/api/leagues/L/trade/complete", json=body).json()

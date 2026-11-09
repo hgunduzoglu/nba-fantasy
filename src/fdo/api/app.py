@@ -15,6 +15,7 @@ from fdo.api.serialize import (brief, categories_meta, clean, fixture_changes, p
 from fdo.api.schemas import SeasonIn, TradeIn
 from fdo.api.state import SOURCES, AppState
 from fdo.config import REPO_ROOT
+from fdo.evaluation.decisions import reconcile
 from fdo.ingest.freshness import report as freshness_report
 from fdo.inseason.scenarios import BASES, per_game_rates
 from fdo.trade import TradeError, TradeRequest
@@ -157,6 +158,33 @@ def create_app(data_dir: str | Path | None = None, frontend_dir: str | Path | No
                                                 {"teams": teams, "fairness": out.get("fairness"),
                                                  "perceived_balance": out.get("perceived_balance")})
         return out
+
+    @app.post("/api/leagues/{lid}/trade/reported")
+    def trade_reported(lid: str, body: TradeIn):
+        """Kullanıcı "bu takası yaptım" der: ``user_reported`` olarak günlüğe eklenir; veriyi değiştirmez, bir sonraki
+        içe aktarmada kadrolarla karşılaştırılır (``GET`` aynı yol)."""
+        eng = engine(lid, body.injuries)
+        for tid in (body.team_a, body.team_b):
+            if tid not in eng.league.teams:
+                raise HTTPException(404, "Takım yok")
+        if not body.give_a and not body.give_b:
+            raise HTTPException(400, "Takasta oyuncu yok")
+        names = {p: eng.data.players.loc[p, "name"] for p in [*body.give_a, *body.give_b] if p in eng.data.players.index}
+        did = state.log_decision("user_reported", "trade_done", lid, body.model_dump(), {"names": names})
+        if did is None:
+            raise HTTPException(503, "Karar günlüğü kapalı ya da yazılamadı")
+        return {"decision_id": did}
+
+    @app.get("/api/leagues/{lid}/trade/reported")
+    def trade_reported_list(lid: str, injuries: bool = True):
+        """Bildirilen takaslar (en yeni önce) ve güncel kadrolara göre durumu: confirmed / partial / pending."""
+        eng = engine(lid, injuries)
+        rows = [e for e in state.decisions.entries("user_reported") if e["league_id"] == str(lid)]
+        return [{"decision_id": e["decision_id"], "created_at": e["created_at"], "data_as_of": e["data_as_of"],
+                 "team_a": e["request"]["team_a"], "team_b": e["request"]["team_b"],
+                 "give_a": [{"id": p, "name": e["result"]["names"].get(p, p)} for p in e["request"]["give_a"]],
+                 "give_b": [{"id": p, "name": e["result"]["names"].get(p, p)} for p in e["request"]["give_b"]],
+                 "status": reconcile(e, eng.league.rosters)} for e in reversed(rows[-20:])]
 
     @app.post("/api/leagues/{lid}/trade/scenarios")
     def trade_scenarios(lid: str, body: TradeIn):

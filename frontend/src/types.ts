@@ -57,6 +57,18 @@ export interface FreshnessComponent {
 
 export type DecisionState = "normal" | "conditional" | "hold";
 
+/** Kullanıcının "yaptım" dediği takas ve güncel kadrolara göre durumu. */
+export interface ReportedTrade {
+  decision_id: string;
+  created_at: string;
+  data_as_of: string;
+  team_a: string;
+  team_b: string;
+  give_a: { id: string; name: string }[];
+  give_b: { id: string; name: string }[];
+  status: "confirmed" | "partial" | "pending";
+}
+
 export interface Freshness {
   now: string;
   components: Record<string, FreshnessComponent>;

@@ -68,3 +68,16 @@ class DecisionLog:
                     if kind is None or e["kind"] == kind:
                         out.append(e)
         return out
+
+
+def reconcile(entry: dict, rosters: dict[str, tuple[str, ...]]) -> str:
+    """Kullanıcının bildirdiği takası güncel kadrolarla karşılaştırır (günlük değişmez; durum okurken hesaplanır).
+
+    ``confirmed``: verilen oyuncuların hepsi karşı takımda, alınanların hepsi kullanıcının takımında. ``partial``: bir
+    kısmı. ``pending``: hiçbiri (henüz yeni içe aktarma yok, takas işlenmedi ya da iptal edildi)."""
+    req = entry["request"]
+    a, b = str(req["team_a"]), str(req["team_b"])
+    moved = [p in rosters.get(b, ()) for p in req.get("give_a", [])] + [p in rosters.get(a, ()) for p in req.get("give_b", [])]
+    if moved and all(moved):
+        return "confirmed"
+    return "partial" if any(moved) else "pending"

@@ -13,6 +13,7 @@ import { fmtDelta, fmtNum, fmtPct, fmtStat } from "../format";
 import { useIsMobile } from "../hooks";
 import { downloadJson, useScenarios, type NamedId, type Scenario } from "../scenarios";
 import type { Basis, CompleteOut, CompleteRow, FixtureTeam, League, Meta, Player, Roster, ScenariosOut, SeasonOut, Source, TradeIn, TradeOut, TradeSide } from "../types";
+import { ReportedTrades } from "../components/ReportedTrades";
 
 export interface TradeInit {
   opp: string;
@@ -550,6 +551,8 @@ export function TradePage({ meta, league, team, injuries, initial }: Props) {
                 <SideCard side={result.teams.a} title="sen" scale={impactScale} />
                 <SideCard side={result.teams.b} title="karşı taraf" scale={impactScale} />
               </div>
+
+              <ReportedTrades league={league.id} body={body} />
 
               {meta.report?.available && body && (
                 <>
