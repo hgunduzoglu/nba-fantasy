@@ -9,10 +9,25 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import math
 from dataclasses import dataclass, field
 from pathlib import Path
 
 FILE = "yahoo_live.json"
+
+
+def stat(v) -> float:
+    """Hafta toplamındaki değer; Yahoo'nun \"-\" gösterdiği (henüz maç yok → NaN) ya da eksik değer 0."""
+    try:
+        x = float(v)
+    except (TypeError, ValueError):
+        return 0.0
+    return x if math.isfinite(x) else 0.0
+
+
+def has_stats(totals: dict | None) -> bool:
+    """Toplamlarda en az bir sayı var mı (haftanın ilk maçı oynanmadan Yahoo hepsini \"-\" gösterir)."""
+    return any(isinstance(v, (int, float)) and math.isfinite(v) for v in (totals or {}).values())
 
 
 @dataclass(frozen=True)

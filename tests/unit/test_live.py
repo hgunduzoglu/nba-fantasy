@@ -29,3 +29,18 @@ def test_load_live(tmp_path):
     assert lv.category_wins["1"] == 6
     assert lv.waivers == {"16": dt.date(2026, 11, 2), "17": None}
     assert lv.adds_left("1", 4) == 3 and lv.adds_left("2", 4) is None
+
+
+def test_week_start_dashes_count_as_zero():
+    """Haftanın ilk maçından önce Yahoo bütün toplamları "-" gösterir (NaN): birikmiş skor 0, model NaN üretmez."""
+    import math
+
+    import numpy as np
+
+    from fdo.inseason.live import has_stats
+    from fdo.inseason.weekly import ACC_FIELDS, accumulated_vector
+
+    dashes = {k: math.nan for k in ACC_FIELDS}
+    v = accumulated_vector(dashes)
+    assert np.isfinite(v).all() and not v.any()
+    assert not has_stats(dashes) and not has_stats({"pts": None}) and has_stats({"pts": 0.0})

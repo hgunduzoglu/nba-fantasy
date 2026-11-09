@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from fdo.inseason.live import LiveLeague
+from fdo.inseason.live import LiveLeague, has_stats, stat
 from fdo.trade.strategy import CATEGORIES
 
 COUNTS = {"FG3M": "fg3m", "PTS": "pts", "REB": "reb", "AST": "ast", "STL": "stl", "BLK": "blk", "TOV": "tov"}
@@ -21,7 +21,7 @@ FIELDS = ("fgm", "fga", "ftm", "fta", *COUNTS.values())
 
 
 def category_values(totals: dict[str, float]) -> dict[str, float]:
-    t = {k: float(totals.get(k) or 0) for k in FIELDS}
+    t = {k: stat(totals.get(k)) for k in FIELDS}
     out = {"FG_PCT": t["fgm"] / t["fga"] if t["fga"] else float("nan"),
            "FT_PCT": t["ftm"] / t["fta"] if t["fta"] else float("nan")}
     out.update({c: t[k] for c, k in COUNTS.items()})
@@ -65,9 +65,9 @@ def team_history(directory: str | Path, league_id: str, team_id: str, live: Live
         for t, v in totals.items():
             acc = season.setdefault(t, dict.fromkeys(FIELDS, 0.0))
             for k in FIELDS:
-                acc[k] += float(v.get(k) or 0)
+                acc[k] += stat(v.get(k))
         rows.append(_row(week, totals, team_id, result, partial=False))
-    if live is not None and live.totals and live.week not in weeks:
+    if live is not None and has_stats(live.totals.get(team_id)) and live.week not in weeks:
         opp = live.opponents.get(team_id)
         result = {"opponent": opp, "wins": live.category_wins.get(team_id), "losses": live.category_wins.get(opp),
                   "ties": None} if opp else None

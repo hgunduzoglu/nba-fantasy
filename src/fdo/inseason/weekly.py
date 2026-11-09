@@ -22,6 +22,7 @@ from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
 
+from fdo.inseason.live import stat
 from fdo.inseason.waiver import swap_delta
 from fdo.matchup.ecw import category_corr_matrix, ecw_vs, p_at_least
 from fdo.matchup.player_week import RATIO_OFFSETS, WEEK_DIM, per_game_variance, weekly_vectors
@@ -40,15 +41,15 @@ ACC_FIELDS = ("fgm", "fga", "ftm", "fta", "fg3m", "pts", "reb", "ast", "stl", "b
 
 
 def accumulated_vector(totals: dict[str, float] | None) -> np.ndarray:
-    """Haftanın şu ana kadarki toplamları → yalnızca ortalama bileşenleri dolu 24'lük vektör."""
+    """Haftanın şu ana kadarki toplamları → yalnızca ortalama bileşenleri dolu 24'lük vektör (\"-\"/eksik = 0)."""
     v = np.zeros(WEEK_DIM)
     if not totals:
         return v
     for j, s in enumerate(("fg3m", "pts", "reb", "ast", "stl", "blk", "tov")):
-        v[j] = float(totals.get(s, 0) or 0)
+        v[j] = stat(totals.get(s))
     for key, (mk, at) in {"fg": ("fgm", "fga"), "ft": ("ftm", "fta")}.items():
         o = RATIO_OFFSETS[key]
-        v[o], v[o + 1] = float(totals.get(mk, 0) or 0), float(totals.get(at, 0) or 0)
+        v[o], v[o + 1] = stat(totals.get(mk)), stat(totals.get(at))
     return v
 
 
