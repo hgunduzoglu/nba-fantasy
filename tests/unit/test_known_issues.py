@@ -74,15 +74,12 @@ def _all_bytes(root: Path) -> list[bytes]:
     return out
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError,
-                   reason="KI-4: aynı gün ikinci senkronizasyon o günün anlık görüntüsünün üzerine yazıyor; ham veri "
-                          "değiştirilemez biçimde saklanmıyor")
 def test_ki4_same_day_resync_keeps_the_first_capture(tmp_path):
     day = "2026-11-09"
     first, second = b'{"roster_date": "2026-11-09", "v": 1}', b'{"roster_date": "2026-11-09", "v": 2}'
     (tmp_path / "rosters.json").write_bytes(first)
-    snapshot(tmp_path, day, overwrite=True)               # ilk senkronizasyonun sonu
+    snapshot(tmp_path, day)                               # ilk senkronizasyonun sonu
     snapshot(tmp_path, day)                               # ikinci senkronizasyon: yazmadan önceki yedek
     (tmp_path / "rosters.json").write_bytes(second)
-    snapshot(tmp_path, day, overwrite=True)               # ikinci senkronizasyonun sonu
+    snapshot(tmp_path, day)                               # ikinci senkronizasyonun sonu
     assert first in _all_bytes(tmp_path)                  # anlık görüntü düzeninden bağımsız: ilk hâl bir yerde durmalı

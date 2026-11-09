@@ -7,6 +7,7 @@ import json
 import pandas as pd
 import pytest
 
+from fdo.ingest import archive
 from fdo.ingest import yahoo_html as Y
 from fdo.ingest.yahoo_sync import is_live, sync
 
@@ -164,12 +165,13 @@ def test_sync_writes_snapshots_and_fills_finished_weeks(real_dir):
     now = pd.Timestamp("2026-11-07 09:00", tz="America/New_York")
     res = sync(real_dir, fetch, players=False, now=now)
     assert res.as_of == dt.date(2026, 11, 7) and not res.live
-    # eski dosya üzerine yazılmadan önce yedeklendi
-    old = json.loads((real_dir / "snapshots" / "2026-10-31" / "rosters.json").read_text(encoding="utf-8"))
-    assert old["roster_date"] == "2026-10-31"
+    # eski dosya üzerine yazılmadan önce arşivlendi; yeni hâl ayrı parti
+    before, after = archive.batches(real_dir)
+    assert after["batch_id"] == res.batch_id and after["previous_batch_id"] == before["batch_id"]
+    assert before["files"]["rosters.json"]["source_as_of"] == "2026-10-31" and "yahoo_live.json" not in before["files"]
+    assert after["files"]["rosters.json"]["source_as_of"] == "2026-11-07" and "yahoo_live.json" in after["files"]
     rosters = json.loads((real_dir / "rosters.json").read_text(encoding="utf-8"))
     assert rosters["roster_date"] == "2026-11-07" and len(rosters["leagues"][0]["teams"]) == 2
-    assert (real_dir / "snapshots" / "2026-11-07" / "yahoo_live.json").exists()
     m = json.loads((real_dir / "matchups.json").read_text(encoding="utf-8"))
     done = {x["week"]: x for x in m["matchups"]}
     assert done[1]["result_status"] == "final" and done[1]["team_a_category_wins"] == 5

@@ -10,8 +10,8 @@ bekleyerek çekilir. Yazılanlar (hepsi ``data/real`` altında, git dışı):
 * ``matchups.json`` — biten haftaların kategori sonuçları ve takım toplamları (eksik olanlar çekilir).
 * ``yahoo_live.json`` — içinde bulunulan haftanın takım toplamları, kullanıcının alım hakkı, FAB, waiver listesi.
 
-Üzerine yazmadan önce mevcut dosyalar ``snapshots/<eski roster_date>/`` altına kopyalanır; yeni dosyalar da
-``snapshots/<bugün>/`` altına konur (projeksiyon değişimini sonradan ölçmek için).
+Üzerine yazmadan önce analiz girdilerinin o anki hâli, yazdıktan sonra da yeni hâli değiştirilemez arşive alınır
+(``fdo.ingest.archive``, ``snapshots/`` altında): aynı gün ikinci çekim ilkini silmez, aynı içerik ikinci kez saklanmaz.
 
 Haftanın toplamı çekildiği ana kadardır. ABD Doğu saatiyle 02:00–12:00 arası maç oynanmaz (Türkiye ~10:00–20:00):
 bu aralıkta toplam tam olarak "dünküne kadar"dır. Dışında ``live=True`` işaretlenir (bugünün kısmi skoru dahil).
@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import datetime as dt
 import json
-import shutil
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -30,6 +29,7 @@ from typing import Callable
 import pandas as pd
 
 from fdo.ingest import yahoo_html as Y
+from fdo.ingest.archive import ArchiveResult, archive
 
 BASE = "https://basketball.fantasysports.yahoo.com"
 PAGE_SIZE = 25
@@ -102,6 +102,7 @@ class SyncResult:
     pages: int = 0
     written: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
+    batch_id: str | None = None                  # arşivdeki parti (Yahoo dosyaları yazıldıktan sonra)
 
 
 def _read(path: Path):
@@ -114,16 +115,10 @@ def _write(path: Path, obj) -> None:
     tmp.replace(path)
 
 
-def snapshot(directory: Path, day: str, *, overwrite: bool = False) -> Path:
-    """Senkronizasyon dosyalarının o anki hâlini ``snapshots/<day>/`` altına kopyalar; ``overwrite=False`` iken
-    o günün kopyası varsa dokunmaz (üzerine yazmadan önceki yedek)."""
-    target = directory / "snapshots" / day
-    target.mkdir(parents=True, exist_ok=True)
-    for name in OUTPUTS:
-        src = directory / name
-        if src.exists() and (overwrite or not (target / name).exists()):
-            shutil.copy2(src, target / name)
-    return target
+def snapshot(directory: Path, note: str = "") -> ArchiveResult:
+    """Analiz girdilerinin o anki hâlini değiştirilemez arşive alır (``fdo.ingest.archive``); son partiyle aynıysa
+    yeni parti açılmaz."""
+    return archive(directory, source="yahoo_sync", note=note)
 
 
 def player_pages(fetch: Callable[[str], str], league_id: str, season_year: int, captured: Callable[[], str]
@@ -180,7 +175,7 @@ def sync(directory: str | Path, fetch: Callable[[str], str], *, players: bool = 
         raise FileNotFoundError("rosters.json yok: ilk anlık görüntü (lig listesi, sezon) gerekli.")
     leagues = [(str(lg["league_id"]), lg["league_name"], len(lg["teams"])) for lg in old_rosters["leagues"]]
     season = old_rosters["season"]
-    snapshot(directory, old_rosters["roster_date"])
+    snapshot(directory, f"senkronizasyon öncesi (kadro {old_rosters['roster_date']})")
     roster_leagues, standings, live = [], [], {}
     matchups_doc = _read(directory / "matchups.json")
     for lid, name, n_teams in leagues:
@@ -258,7 +253,7 @@ def sync(directory: str | Path, fetch: Callable[[str], str], *, players: bool = 
     _write(directory / "yahoo_live.json", {"captured_at": res.captured_at, "captured_et": now.isoformat(),
                                            "as_of": as_of.isoformat(), "live": res.live, "leagues": live})
     res.written.append("yahoo_live.json")
-    snapshot(directory, as_of.isoformat(), overwrite=True)
+    res.batch_id = snapshot(directory, f"senkronizasyon sonrası (kadro {as_of.isoformat()})").batch_id
     if res.live:
         res.notes.append("Canlı maç saatinde çekildi: haftalık toplamlara bugünün kısmi skoru dahil olabilir.")
     return res

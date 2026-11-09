@@ -14,6 +14,7 @@ import numpy as np
 import pandas as pd
 
 from fdo.config import Config, REPO_ROOT, load_config
+from fdo.ingest.archive import input_files
 from fdo.types import STATS
 
 MODES = {
@@ -71,16 +72,8 @@ def number(value) -> float:
 
 
 def file_signature(directory: str | Path) -> str:
-    directory = Path(directory)
-    names = ["rosters.json", "league_info.json", "player_stat_pages.json", "matchups.json", "yahoo_live.json"]
-    paths = [directory / n for n in names]
-    paths += list(directory.glob("standings*.csv"))
-    paths += list(directory.glob("players_yahoo_*.csv"))
-    paths += list(directory.glob("projections_yahoo_*.csv"))
-    paths += list(directory.glob("variance*.csv")) + list(directory.glob("schedule*.csv"))
-    paths += list(directory.glob("injuries*.csv")) + list(directory.glob("gamelogs_nba_*.csv"))
-    paths += list(directory.glob("adp_yahoo_*.csv")) + [directory / "draft_results.csv"]
-    paths += list((REPO_ROOT / "config").glob("*.yaml"))
+    """Analiz girdileri (``fdo.ingest.archive.ANALYSIS_INPUTS``) ve yapılandırma değişince değişir (önbellek anahtarı)."""
+    paths = input_files(directory) + list((REPO_ROOT / "config").glob("*.yaml"))
     return hashlib.sha256("|".join(f"{p}:{p.stat().st_mtime_ns}:{p.stat().st_size}"
                                   for p in sorted(paths) if p.exists()).encode()).hexdigest()[:20]
 

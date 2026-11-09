@@ -14,6 +14,7 @@ import argparse
 import sys
 
 from fdo.config import REPO_ROOT
+from fdo.ingest.archive import archive
 from fdo.inseason import news
 from fdo.trade.data import load_trade_data
 
@@ -30,6 +31,8 @@ def main(argv: list[str] | None = None) -> int:
           f"(model {news.model_name()}; toplam maliyet ~${news.cost(store['usage']):.3f})")
     for note in res["notes"]:
         print("Not:", note)
+    batch = archive(args.data, source="news_refresh", note="haber yenileme")
+    print(f"Arşiv: {batch.batch_id}" + ("" if batch.created else " (değişiklik yok)"))
     return 0
 
 

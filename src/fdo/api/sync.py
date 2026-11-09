@@ -12,6 +12,7 @@ from pydantic import BaseModel
 
 from fdo.api.jobs import READ_ONLY_MESSAGE, Job
 from fdo.api.state import AppState
+from fdo.ingest.archive import archive
 from fdo.inseason.injuries import refresh_cbs
 from fdo.inseason.live import load_live
 
@@ -41,8 +42,10 @@ class SyncJob(Job):
         log(refresh_cbs(self.state.data_dir))
         for step in self.after:
             log(step(log))
+        batch = archive(self.state.data_dir, source="yahoo_sync", note="senkronizasyon + sakatlık, maç kaydı, haber")
+        log(f"Arşiv: {batch.batch_id}" + ("" if batch.created else " (değişiklik yok)"))
         return {"as_of": res.as_of.isoformat(), "pages": res.pages, "written": res.written, "notes": res.notes,
-                "live": res.live}
+                "live": res.live, "batch_id": batch.batch_id}
 
     def describe(self, e: Exception) -> str:
         from fdo.ingest.yahoo_sync import NotLoggedIn

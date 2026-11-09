@@ -16,6 +16,7 @@ import sys
 import time
 
 from fdo.config import REPO_ROOT
+from fdo.ingest.archive import archive
 from fdo.ingest.yahoo_sync import Fetcher, NotLoggedIn, sync
 from fdo.ingest.nba_logs import refresh_season
 from fdo.inseason import news
@@ -52,6 +53,8 @@ def main(argv: list[str] | None = None) -> int:
         print(refresh_season(args.out, next(iter(data.leagues.values())).config.league.season))
         res = news.refresh(args.out, data.players, log=print)
         print(f"Haberler: {res['new']} yeni, {res['analyzed']} analiz edildi", *res["notes"])
+    batch = archive(args.out, source="yahoo_sync", note="senkronizasyon + sakatlık, maç kaydı, haber")
+    print(f"Arşiv: {batch.batch_id}" + ("" if batch.created else " (değişiklik yok)"))
     return 0
 
 
