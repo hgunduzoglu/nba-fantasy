@@ -59,6 +59,8 @@ class TradeData:
     issues: tuple[str, ...]
     injuries: pd.DataFrame | None = None     # fdo.inseason.injuries.apply_injuries ile (dönüş tarihleri)
     durability: pd.DataFrame | None = None   # fdo.inseason.durability.apply_durability ile (oynama oranları)
+    adp: pd.Series | None = None             # Yahoo sezon öncesi ADP: oyuncu → ortalama draft sırası
+    draft: pd.DataFrame | None = None        # liglerin kendi draftı: league_id, player_id, pick, cost (açık artırma)
 
 
 def number(value) -> float:
@@ -77,6 +79,7 @@ def file_signature(directory: str | Path) -> str:
     paths += list(directory.glob("projections_yahoo_*.csv"))
     paths += list(directory.glob("variance*.csv")) + list(directory.glob("schedule*.csv"))
     paths += list(directory.glob("injuries*.csv")) + list(directory.glob("gamelogs_nba_*.csv"))
+    paths += list(directory.glob("adp_yahoo_*.csv")) + [directory / "draft_results.csv"]
     paths += list((REPO_ROOT / "config").glob("*.yaml"))
     return hashlib.sha256("|".join(f"{p}:{p.stat().st_mtime_ns}:{p.stat().st_size}"
                                   for p in sorted(paths) if p.exists()).encode()).hexdigest()[:20]
@@ -249,5 +252,26 @@ def load_trade_data(directory: str | Path | None = None) -> TradeData:
         for cat in ("reported_fg_pct", "reported_ft_pct"):
             if cat in frame and ((frame[cat] < 0) | (frame[cat] > 1)).any():
                 issues.append(f"{MODES[mode]}: kaynakta geçersiz {cat}; takım yüzdeleri isabet/denemeden hesaplanır.")
+    adp, draft = draft_market(directory)
     return TradeData(leagues, players, stats, sources, variance, schedule, as_of,
-                     file_signature(directory), tuple(issues))
+                     file_signature(directory), tuple(issues), adp=adp, draft=draft)
+
+
+def draft_market(directory: str | Path) -> tuple[pd.Series | None, pd.DataFrame | None]:
+    """Menajerlerin sezon öncesi fiyatlaması (README §13.30): Yahoo ADP'si (``adp_yahoo_*.csv``) ve liglerin kendi
+    draft sonuçları (``draft_results.csv``: seçim sırası, açık artırmada ödenen fiyat). Dosya yoksa ``None``."""
+    directory = Path(directory)
+    adp = None
+    ap = sorted(directory.glob("adp_yahoo_*.csv"))
+    if ap:
+        a = pd.read_csv(ap[-1], dtype={"player_id": str})
+        a = a.assign(player_id=a["player_id"].str.removeprefix("y_"), adp=pd.to_numeric(a["adp"], errors="coerce"))
+        a = a.dropna(subset=["adp"]).drop_duplicates("player_id")
+        adp = a.set_index("player_id")["adp"] if len(a) else None
+    draft = None
+    dp = directory / "draft_results.csv"
+    if dp.exists():
+        d = pd.read_csv(dp, dtype=str, keep_default_na=False)
+        draft = pd.DataFrame({"league_id": d["league_id"].astype(str), "player_id": d["player_id"].astype(str),
+                              "pick": d["overall_pick"].map(number), "cost": d["draft_cost"].map(number)})
+    return adp, draft

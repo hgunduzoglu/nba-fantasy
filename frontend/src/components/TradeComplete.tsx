@@ -91,8 +91,8 @@ export function TradeComplete({ data, busy, error, base, oppName, labels, mobile
                     <th title="Senin stratejine göre kalan sezon puanı değişimi">Sen Δ</th>
                     <th title="Rakibin stratejisine göre">Rakip Δ</th>
                     <th title="Haftayı kazanma P(5+) değişimi, ortalama rakibe karşı">Sen P(5+)</th>
-                    <th title="Kalan sezon piyasa değeri: küçük paket / büyük paket">Değer dengesi</th>
-                    <th title="Rakibin gözünden (bu sezon + isim değeri): aldığı / verdiği. 1 = eşit görür.">Rakibin gözünde</th>
+                    <th title="Küçük paket / büyük paket: modelin kalan sezon değerinde ya da menajerlerin algıladığı değerde (draft fiyatı + bu sezon), hangisi yüksekse">Değer dengesi</th>
+                    <th title="Rakibin gözünden (bu sezon + isim değeri, yani draft fiyatı): aldığı / verdiği. 1 = eşit görür.">Rakibin gözünde</th>
                     <th className="l" title="Senin kategori kazanma olasılığı değişimi (puan)">Kategoriler</th><th />
                   </tr></thead>
                   <tbody>

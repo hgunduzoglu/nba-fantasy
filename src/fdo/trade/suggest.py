@@ -249,7 +249,8 @@ class CompleteOptions:
     shortlist: int = 10
     max_evaluations: int = 4000
     max_results: int = 12
-    min_fairness: float = .55               # piyasa (ROS) değer dengesi: küçük paket / büyük paket
+    min_fairness: float = .55               # değer dengesi (küçük / büyük paket): modelin (ROS) ya da piyasanın
+                                            # (algılanan) gözünde, hangisi yüksekse (README §13.30)
     min_view: float = .8                    # rakibin gözünde (algılanan) aldığı / verdiği; 0 = kapalı
     perceived: str = "blend"
     auto_balance: bool = True
@@ -348,11 +349,17 @@ def complete_trade(engine: TradeEngine, team_a: str, team_b: str, give_a: tuple[
         taken = float(perceived.reindex(list(gb_)).fillna(0).sum())
         return float(perceived.reindex(list(ga_)).fillna(0).sum()) / taken if taken > 0 else 0.0
 
+    def balance(req: TradeRequest, v: float) -> float:
+        """Değer dengesi: modelin (ROS) ya da piyasanın (algılanan) gözünde, hangisi yüksekse. Piyasanın dengeli
+        gördüğü ama modelin bir tarafı üstün bulduğu takaslar (isim değeriyle sat-yüksek) böylece elenmez."""
+        return max(engine.fairness(req), min(v, 1 / v) if v > 0 else 0.0)
+
     if fixed_a and fixed_b:
         req = TradeRequest(team_a, team_b, fixed_a, fixed_b, auto_drop=auto, auto_fill=auto)
         try:
             m, o, ga, gb = _gains(engine, req, sa, sb, w)
-            result.current = _tiered(req, m, o, ga, gb, engine.fairness(req), view(fixed_a, fixed_b), sb)
+            v = view(fixed_a, fixed_b)
+            result.current = _tiered(req, m, o, ga, gb, balance(req, v), v, sb)
         except TradeError:
             result.current = None
 
@@ -372,11 +379,11 @@ def complete_trade(engine: TradeEngine, team_a: str, team_b: str, give_a: tuple[
             result.examined += 1
             ga_, gb_ = fixed_a + extra_a, fixed_b + extra_b
             req = TradeRequest(team_a, team_b, ga_, gb_, auto_drop=auto, auto_fill=auto)
-            fair = engine.fairness(req)
+            v = view(ga_, gb_)
+            fair = balance(req, v)
             if fair < options.min_fairness:
                 result.rejected_fairness += 1
                 continue
-            v = view(ga_, gb_)
             if options.min_view > 0 and v < options.min_view:
                 result.rejected_view += 1
                 continue

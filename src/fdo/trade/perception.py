@@ -3,8 +3,11 @@
 Menajerler oyuncuya genelde bu sezonun rakamlarıyla (ya da sezon öncesi isim değeriyle) bakar; bizim
 karar ölçümüz kalan sezon projeksiyonudur (ROS). İkisini aynı ölçeğe koymak için:
 
-1. Algılanan sıra: seçilen kaynağın maç başı dengeli z değerine göre (``season_total``'da en az
-   ``min_gp`` maç; daha azı sezon öncesi sırasına düşer). ``blend`` iki sıranın ortalamasıdır.
+1. Algılanan sıra: ``season_total`` bu sezonun maç başı dengeli z değerine göre (en az ``min_gp`` maç; daha azı
+   sezon öncesi sırasına düşer). ``preseason`` isim değeridir: menajerlerin sezon öncesi fiyatlaması, yani ligin
+   kendi draftı (açık artırmada ödenen fiyat, yılan draftta seçim sırası) ile Yahoo ADP'sinin ortalama sırası
+   (README §13.30); draft edilmeyenler arkada, sezon öncesi projeksiyon sırasıyla. Draft verisi yoksa sezon öncesi
+   projeksiyonun z sırası. ``blend`` iki sıranın ortalamasıdır.
 2. Algılanan fiyat: o sıradaki oyuncunun ROS piyasa değeri (``engine.market`` sıralı dizisi). Böylece
    "bu sezon 25. görünen oyuncu" piyasada ROS'un 25. oyuncusu kadar değer görür.
 3. ``edge = algılanan fiyat − ROS değeri`` (piyasa birimi): pozitif = sat-yüksek adayı (olduğundan iyi
@@ -22,7 +25,7 @@ from fdo.trade.engine import TradeEngine
 from fdo.types import STATS
 from fdo.valuation import value_players
 
-PERCEPTIONS = {"season_total": "Bu sezonun rakamları", "preseason": "Sezon öncesi isim değeri",
+PERCEPTIONS = {"season_total": "Bu sezonun rakamları", "preseason": "Sezon öncesi isim değeri (draft sırası)",
                "blend": "İkisinin ortalaması"}
 
 
@@ -38,12 +41,43 @@ def _per_game_rank(engine: TradeEngine, mode: str, ids: list[str], min_gp: float
     return v.rank(ascending=False, method="first").reindex(ids)
 
 
+def draft_rank(engine: TradeEngine, ids: list[str]) -> pd.Series | None:
+    """Sezon öncesi piyasa sırası (küçük = değerli): ligin kendi draftı (fiyat varsa fiyat, yoksa seçim sırası) ve
+    Yahoo ADP'si; ikisi de varsa sıraların ortalaması. Draft verisi yoksa ``None``, draft edilmeyen oyuncu NaN."""
+    ranks = []
+    if engine.data.adp is not None:
+        adp = engine.data.adp.reindex(ids).dropna()
+        if len(adp):
+            ranks.append(adp.rank(method="average"))
+    if engine.data.draft is not None:
+        d = engine.data.draft
+        d = d[d["league_id"] == engine.league.league_id].drop_duplicates("player_id").set_index("player_id")
+        d = d.reindex([p for p in ids if p in d.index])
+        key = -d["cost"].dropna() if d["cost"].notna().any() else d["pick"].dropna()
+        if len(key):
+            ranks.append(key.rank(method="average"))
+    if not ranks:
+        return None
+    return pd.concat(ranks, axis=1).mean(axis=1).reindex(ids)
+
+
+def _preseason_rank(engine: TradeEngine, ids: list[str]) -> pd.Series:
+    proj = _per_game_rank(engine, "preseason", ids)
+    market = draft_rank(engine, ids)
+    if market is None or market.isna().all():
+        return proj
+    drafted = market.notna()
+    rest = proj[~drafted].rank(method="first") + int(drafted.sum())
+    rest = rest.fillna(float(len(ids)))
+    return market[drafted].rank(method="first").reindex(ids).fillna(rest)
+
+
 def perceived_ranks(engine: TradeEngine, basis: str = "season_total", *, min_gp: int = 3) -> pd.Series:
     """Modellenebilen oyuncu → algılanan sıra (1 = en iyi, boşluksuz)."""
     if basis not in PERCEPTIONS:
         raise ValueError(f"basis: {', '.join(PERCEPTIONS)} ({basis!r})")
     ids = [p for p in engine.ids if engine.modeled[engine.index[p]]]
-    pre = _per_game_rank(engine, "preseason", ids)
+    pre = _preseason_rank(engine, ids)
     if basis == "preseason":
         rank = pre
     else:

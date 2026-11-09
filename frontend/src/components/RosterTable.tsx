@@ -122,7 +122,7 @@ export function RosterTable({ title, subtitle, players, categories, selected, on
               {categories.map((c) => header(c.key, c.label, "", `${c.label} — maç başı`))}
               {header("value", "Değer", "", "Kalan sezon dengeli değeri (yedek seviyesine göre); parantezde ligdeki sıra")}
               {perceived && header("perceived", pLabel, "",
-                `${source === "preseason" ? "Sezon öncesi" : "Bu sezonun maç başı"} rakamlarına bakan menajerin gözündeki sıra (parantezde) ve bu sıranın kalan sezon piyasasındaki karşılığı. ▲ olduğundan iyi görünüyor (sat), ▼ olduğundan kötü (al). Tıkla: farka göre sırala.`)}
+                `${source === "preseason" ? "Sezon öncesi isim değerine (ligin draft fiyatı ve Yahoo ADP'si)" : "Bu sezonun maç başı rakamlarına"} bakan menajerin gözündeki sıra (parantezde) ve bu sıranın kalan sezon piyasasındaki karşılığı. ▲ olduğundan iyi görünüyor (sat), ▼ olduğundan kötü (al). Tıkla: farka göre sırala.`)}
             </tr>
           </thead>
           <tbody>

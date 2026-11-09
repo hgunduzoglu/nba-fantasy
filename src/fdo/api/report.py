@@ -49,7 +49,7 @@ def register(app: FastAPI, state: AppState, engine, *, read_only: bool = False) 
         perceived = perceived_prices(eng, "blend")
         taken = float(perceived.reindex(list(gb)).fillna(0).sum())
         view = float(perceived.reindex(list(ga)).fillna(0).sum()) / taken if taken > 0 else 0.0
-        fair = eng.fairness(_request(body))
+        fair = max(eng.fairness(_request(body)), min(view, 1 / view) if view > 0 else 0.0)   # complete_trade ile aynı
         opts = CompleteOptions(max_extra=1, max_results=8, auto_balance=body.auto_balance,
                                min_fairness=min(0.55, 0.9 * fair), min_view=min(0.8, 0.9 * view))
         try:
