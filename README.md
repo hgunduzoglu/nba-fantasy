@@ -2021,7 +2021,7 @@ reproducible and show which data a decision rests on:
 - **Time fields** (`fdo.ingest.timestamps`): per file, the moment the source describes (`source_as_of`: roster date, last
   game day, projection date), the capture moment (`captured_at`, from the file's own record) and the moment it changed on
   disk are kept apart. If the file has no time record, the capture time stays empty; disk time does not stand in for it.
-- **Player identity** (`fdo.ingest.identity`): the CBS injury report, NBA game logs and news are tied to Yahoo ids by one
+- **Player identity** (`fdo.inseason.identity`): the CBS injury report, NBA game logs and news are tied to Yahoo ids by one
   rule set: name + team, name alone (single player in the pool; a team mismatch is reported), initial + surname + team. A
   rule matches only if it leaves **one** candidate. The injury report used to bind a row to the first of two same-name
   players when the team did not match; now the row stays ambiguous. Unmatched and ambiguous rows are listed by name in the

@@ -24,7 +24,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from fdo.ingest.identity import IdentityReport, Resolver, load_overrides
+from fdo.inseason.identity import IdentityReport, Resolver, load_overrides
 from fdo.schedule.calendar import normalize_team
 from fdo.trade.data import ROS, TradeData
 from fdo.types import STATS
@@ -123,7 +123,7 @@ def latest_file(directory: str | Path) -> Path | None:
 
 def match_injuries(inj: pd.DataFrame, players: pd.DataFrame, season_start: dt.date,
                    overrides: pd.DataFrame | None = None) -> tuple[pd.DataFrame, IdentityReport]:
-    """CBS satırlarını oyunculara eşler (``fdo.ingest.identity``: yalnız tek aday kalınca; aynı adlı birden çok aday
+    """CBS satırlarını oyunculara eşler (``fdo.inseason.identity``: yalnız tek aday kalınca; aynı adlı birden çok aday
     karantinada kalır). Dönüş: ``player_id`` index'li tablo ve eşleştirme raporu (eşleşmeyen / belirsiz satırlar)."""
     resolve = Resolver(players, overrides, source="cbs")
     report = IdentityReport("CBS sakatlık raporu")

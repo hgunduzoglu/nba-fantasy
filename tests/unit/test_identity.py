@@ -1,8 +1,8 @@
-"""Oyuncu kimliği eşleştirme (``fdo.ingest.identity``): yalnız tek aday, karantina, elle düzeltme, rapor."""
+"""Oyuncu kimliği eşleştirme (``fdo.inseason.identity``): yalnız tek aday, karantina, elle düzeltme, rapor."""
 import pandas as pd
 import pytest
 
-from fdo.ingest.identity import IdentityReport, Resolver, load_overrides
+from fdo.inseason.identity import IdentityReport, Resolver, load_overrides
 
 POOL = pd.DataFrame({"name": ["Nikola Jokić", "Jaren Jackson Jr.", "Jalen Williams", "Jalen Williams",
                               "N. Alexander-Walker", "Giannis Antetokounmpo", "Gary Trent Jr."],

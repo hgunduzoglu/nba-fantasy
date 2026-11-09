@@ -13,7 +13,7 @@ için kısa vadeli rol önemlidir:
   ``n_W / (n_W + 4)``. Kalan sezon (ROS) maç başına eklenir (negatif olmaz, isabet ≤ deneme, üçlük ≤ isabet).
 * **Geçerlilik**: A'nın en erken bilinen dönüşüne kadar (hariç); bilinmiyorsa bugünden 14 gün.
 
-Eşleştirme: ``fdo.ingest.identity`` (ad + takım, yalnız ad, baş harf + soyad + takım; yalnız tek aday kalınca).
+Eşleştirme: ``fdo.inseason.identity`` (ad + takım, yalnız ad, baş harf + soyad + takım; yalnız tek aday kalınca).
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from fdo.ingest.identity import Resolver
+from fdo.inseason.identity import Resolver
 from fdo.schedule.calendar import normalize_team
 from fdo.trade.data import ROS, TradeData
 from fdo.types import STATS
@@ -62,7 +62,7 @@ def load_logs(directory: str | Path, season: str) -> pd.DataFrame | None:
 
 
 def resolver(players: pd.DataFrame, overrides: pd.DataFrame | None = None):
-    """Ad (+ NBA takımı) → Yahoo oyuncu kimliği ya da ``None`` (``fdo.ingest.identity``: yalnız tek aday kalınca)."""
+    """Ad (+ NBA takımı) → Yahoo oyuncu kimliği ya da ``None`` (``fdo.inseason.identity``: yalnız tek aday kalınca)."""
     return Resolver(players, overrides).player_id
 
 

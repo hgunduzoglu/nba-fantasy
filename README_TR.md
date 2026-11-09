@@ -2011,7 +2011,7 @@ Yahoo API erişimi olmadan, veri elle (kendi oturumunla "Yahoo'dan güncelle") �
 - **Zaman alanları** (`fdo.ingest.timestamps`): her dosya için kaynağın anlattığı an (`source_as_of`: kadro tarihi, son
   maç günü, projeksiyon tarihi), çekim anı (`captured_at`, dosyanın kendi kaydından) ve diskte değiştiği an ayrı tutulur.
   Dosyada zaman kaydı yoksa çekim zamanı boş kalır; disk zamanı onun yerine geçmez.
-- **Oyuncu kimliği** (`fdo.ingest.identity`): CBS sakatlık raporu, NBA maç kayıtları ve haberler Yahoo kimliğine tek
+- **Oyuncu kimliği** (`fdo.inseason.identity`): CBS sakatlık raporu, NBA maç kayıtları ve haberler Yahoo kimliğine tek
   kuralla bağlanır: ad + takım, yalnız ad (havuzda tek oyuncu; takım tutmuyorsa raporlanır), baş harf + soyad + takım. Bir
   kural yalnız **tek** aday bırakırsa eşleşir. Önceden sakatlık raporunda aynı adlı iki oyuncu varken ve takım tutmazken
   satır ilk adaya bağlanıyordu; şimdi belirsiz kalır. Eşleşmeyen ve belirsiz satırlar veri notlarında adıyla listelenir.
