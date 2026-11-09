@@ -74,3 +74,4 @@ frontend/dist/
 .env.*
 /data/real/gamelogs_nba_2026-27.csv
 /data/real/news*.json
+/data/real/trade_reports*.json

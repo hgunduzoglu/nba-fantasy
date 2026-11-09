@@ -23,7 +23,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DATA = "data/real"
 SKIP_DIRS = ("snapshots/",)
-SKIP_NAMES = frozenset({"managers.csv", "managers.json"})          # iletişim bilgileri; uygulama okumaz
+SKIP_NAMES = frozenset({"managers.csv", "managers.json",          # iletişim bilgileri; uygulama okumaz
+                        "trade_reports.json"})                      # sunucunun kendi analizleri ezilmesin
 SKIP_SUFFIXES = (".tmp", ".txt", "_capture.json")
 
 
