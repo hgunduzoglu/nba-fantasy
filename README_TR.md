@@ -1,5 +1,7 @@
 # Fantasy Trade Lab / Fantasy Draft Optimizer (FDO)
 
+İngilizce sürüm: [README.md](README.md).
+
 Trade Lab'in kapsamı, veri denetimi, model formülleri, testleri ve açık sınırlamaları:
 [Claude / geliştirici devir raporu](docs/TRADE_LAB_HANDOFF.md).
 
@@ -2029,6 +2031,29 @@ sıralamalar, `multi.py` çok takımlı takas), `frontend/` (Vite + React + Type
 `styles.css` tasarım belirteçleri, açık/koyu tema). Geliştirme: `uvicorn` ile API'yi (8000) ve `npm run dev` ile
 arayüzü (5173, `/api` 8000'e yönlendirilir) ayrı çalıştır. `frontend/node_modules` ve `frontend/dist` git'e girmez.
 CI arayüzü tip kontrolüyle derler; API testleri `tests/integration/test_api*.py`.
+
+### 14.2 Sunucuda salt okunur çalıştırma (9 Kasım 2026)
+
+Uygulama bir sunucuda salt okunur çalışabilir: veri bilgisayarda çekilir ve gönderilir, sunucu yalnızca gösterir.
+Sunucu yapılandırması (servis, ters vekil, sertifika, alan adı) depoda tutulmaz; yalnızca sunucuda durur.
+
+- **Salt okunur mod**: `FDO_READ_ONLY=1` ile `POST /api/sync` ve `POST /api/news/refresh` 403 döner; arayüzde
+  "Yahoo'dan güncelle" ve "Haberleri yenile" yerine sunucudaki son veriyi yeniden yükleyen "Yenile" düğmesi.
+  Çalıştırma: `PYTHONPATH=src FDO_READ_ONLY=1 python -m uvicorn fdo.api.app:create_app --factory --port 8610`
+  (önce `npm run build`).
+- **Veri gönderme** (bilgisayarda, güncellemeden sonra):
+
+  ```powershell
+  .venv\Scripts\python.exe scripts\yahoo_sync.py                    # kadrolar, skorlar, CBS, NBA maç kayıtları, haberler
+  .venv\Scripts\python.exe scripts\news_refresh.py                  # gün içinde 2 saatte bir
+  .venv\Scripts\python.exe scripts\push_data.py --host <ssh-host>   # ya da $env:FDO_PUSH_HOST
+  ```
+
+  `push_data.py`, `data/real` altındaki git dışı dosyaları tek tar.gz olarak `ssh` ile gönderir (`--app`, varsayılan
+  `/srv/fantasy/app`); sunucuda `scripts/receive_data.py` her dosyayı geçici dizinden `os.replace` ile yerine koyar.
+  `snapshots/`, yönetici iletişim bilgileri ve ham yakalamalar gitmez. **Yeniden başlatma gerekmez**: uygulama dosya
+  imzası değişince veriyi kendisi yeniden yükler (ilk istek birkaç saniye). Kod değişince sunucuda `git pull`, arayüz
+  derlemesi ve servis yeniden başlatma gerekir.
 
 ## 15. Sözlük
 
