@@ -2087,6 +2087,14 @@ Effect (9 November data, reference cases): for Banchero, completion with The Las
 are out. The default mutual-benefit suggestions are kept. 0.95 and 1.25 are starting assumptions, not validated; they
 should be tuned as real offer and response records accumulate.
 
+**Shared waiver pool** (`TradeEngine.joint_waiver`): in the trade comparison each team is assumed to make its free waiver
+moves before and after the trade. These were solved team by team; on the 9 November data, in all 62 trade scenarios
+examined both sides "took" the same free agents (Daniss Jenkins, Miles McBride). Now the teams in the trade pick from one
+pool in turn: the proposing team first (it moves first), then the other side, in the same order before and after. The
+suggestion lists changed noticeably; for Banchero, packages where both sides gain appeared (Banchero → Ty Jerome + Dylan
+Cardwell: you +0.08, other side +0.11, 1.08 in the opponent's eyes). The cheap pre-screen of multi-team trades keeps the
+per-team approximation; the detailed calculation of a chosen package uses the shared pool.
+
 ### 13.8 V3 candidates
 
 Beam search and H-score weight optimization; fitting the profile mix; covariance of game counts between

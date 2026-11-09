@@ -2074,6 +2074,14 @@ kendi gözünde 0,97), Ty Jerome ve Zion; Giannis, Mobley (0,94) ve fazla ödeme
 elendi. Varsayılan karşılıklı fayda önerileri korunuyor. 0,95 ve 1,25 başlangıç varsayımıdır, doğrulanmadı; gerçek teklif
 ve cevap kayıtları biriktikçe ayarlanmalı.
 
+**Ortak waiver havuzu** (`TradeEngine.joint_waiver`): takas karşılaştırmasında her takım takas öncesi ve sonrası
+bedava waiver hamlelerini yapmış sayılır. Bu hamleler takım takım bağımsız çözülüyordu; 9 Kasım verisinde incelenen 62
+takas senaryosunun hepsinde iki taraf aynı boştaki oyuncuyu (Daniss Jenkins, Miles McBride) birlikte "alıyordu". Artık
+takastaki takımlar ortak havuzdan sırayla seçer: takası öneren önce (hamleyi ilk o yapar), sonra karşı taraf; takas
+öncesi ve sonrası aynı sıra. Öneri listeleri belirgin değişti; Banchero için iki tarafın da kazandığı paketler çıktı
+(Banchero → Ty Jerome + Dylan Cardwell: sen +0,08, rakip +0,11, rakibin gözünde 1,08). Çok takımlı takasın ucuz ön
+taraması takım başına yaklaşımla kalır; seçilen paketin ayrıntılı hesabı ortak havuzla yapılır.
+
 ### 13.8 V3 adayları
 
 Beam search ve H-score ağırlık optimizasyonu; profil karışımı uyumu; oyuncular arası maç sayısı
