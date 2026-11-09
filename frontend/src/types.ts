@@ -187,6 +187,42 @@ export interface BriefPlayer {
   status: string;
 }
 
+/** Takas ekranındaki seçimi tamamla/dengele (README §13.27). */
+export interface CompletePlayer extends BriefPlayer {
+  added: boolean;
+}
+
+export type CompleteTier = "mutual" | "own" | "loss";
+
+export interface CompleteRow {
+  give_a: CompletePlayer[];
+  give_b: CompletePlayer[];
+  tier: CompleteTier;
+  score: number;
+  own_delta: number;
+  other_delta: number;
+  own_win: number;
+  other_win: number;
+  fairness: number;
+  perceived_view: number;
+  my_categories: Record<string, number>;
+  adjustments: Record<string, { drop: string[]; add: string[]; move_to_il: string[] }>;
+}
+
+export interface CompleteOut {
+  kind: "get" | "give" | "balance";
+  suggestions: CompleteRow[];
+  current: CompleteRow | null;
+  examined: number;
+  rejected_balance: number;
+  rejected_view: number;
+  rejected_roster: number;
+  limit_reached: boolean;
+  min_fairness: number;
+  min_view: number;
+  message: string;
+}
+
 export type SuggestMode = "mutual" | "sell_high" | "buy_low";
 export type Perceived = "season_total" | "preseason" | "blend";
 

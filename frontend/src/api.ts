@@ -1,5 +1,5 @@
 import type {
-  AddDropWeekIn, AddDropWeekOut, DropIn, DropOut, FixtureTeam, HistoryOut, NewsOut, NewsStatus, Meta, MispricedRow, MultiSeasonOut, MultiSuggestIn, MultiSuggestOut, MultiTradeIn, MultiTradeOut, Perceived, Player,
+  AddDropWeekIn, AddDropWeekOut, CompleteOut, DropIn, DropOut, FixtureTeam, HistoryOut, NewsOut, NewsStatus, Meta, MispricedRow, MultiSeasonOut, MultiSuggestIn, MultiSuggestOut, MultiTradeIn, MultiTradeOut, Perceived, Player,
   RankingsOut, Roster, SeasonOut, SeasonPageOut, SitStartOut, Source, StreamOut, StrategyIn, SuggestIn, SuggestOut, SyncStatus, TradeIn,
   TradeOut, WaiverOut, WeeklyIn, WeeklyOut,
 } from "./types";
@@ -40,6 +40,8 @@ export const api = {
   analyze: (league: string, body: TradeIn) => request<TradeOut>(`/api/leagues/${league}/trade/analyze`, post(body)),
   season: (league: string, body: TradeIn & { n_sims?: number; strength_sd?: number }) =>
     request<SeasonOut>(`/api/leagues/${league}/trade/season`, post(body)),
+  tradeComplete: (league: string, body: TradeIn) =>
+    request<CompleteOut>(`/api/leagues/${league}/trade/complete`, post(body)),
   suggest: (league: string, body: SuggestIn) => request<SuggestOut>(`/api/leagues/${league}/trade/suggest`, post(body)),
   multiAnalyze: (league: string, body: MultiTradeIn) =>
     request<MultiTradeOut>(`/api/leagues/${league}/trade/multi/analyze`, post(body)),

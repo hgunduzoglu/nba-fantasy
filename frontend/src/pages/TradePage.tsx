@@ -5,10 +5,12 @@ import { FixtureImpact } from "../components/FixtureImpact";
 import { PlayerPicker } from "../components/PlayerPicker";
 import { RosterTable } from "../components/RosterTable";
 import { BALANCED, StrategyPicker, strategyLabel, toStrategyIn, type StrategyChoice } from "../components/StrategyPicker";
+import { TradeComplete, sameIds } from "../components/TradeComplete";
 import { deltaClass } from "../components/common";
 import { fmtDelta, fmtNum, fmtPct, fmtStat } from "../format";
+import { useIsMobile } from "../hooks";
 import { downloadJson, useScenarios, type NamedId, type Scenario } from "../scenarios";
-import type { FixtureTeam, League, Meta, Player, Roster, SeasonOut, Source, TradeIn, TradeOut, TradeSide } from "../types";
+import type { CompleteOut, CompleteRow, FixtureTeam, League, Meta, Player, Roster, SeasonOut, Source, TradeIn, TradeOut, TradeSide } from "../types";
 
 export interface TradeInit {
   opp: string;
@@ -247,6 +249,9 @@ export function TradePage({ meta, league, team, injuries, initial }: Props) {
   const seq = useRef(0);
   const fixSeq = useRef(0);
   const scenarios = useScenarios();
+  const mobile = useIsMobile();
+  const [complete, setComplete] = useState<{ data: CompleteOut | null; busy: boolean; error: string | null; base: string } | null>(null);
+  const completeSeq = useRef(0);
 
   const mine = useRoster(league.id, team, source, injuries);
   const theirs = useRoster(league.id, opp, source, injuries);
@@ -357,6 +362,34 @@ export function TradePage({ meta, league, team, injuries, initial }: Props) {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  useEffect(() => { completeSeq.current++; setComplete(null); }, [opp, team, league.id]);
+
+  /** Seçimden tamamlama/dengeleme önerisi (README §13.27): yalnız sen → ondan, yalnız o → senden, ikisi → dengele. */
+  const runComplete = () => {
+    const id = ++completeSeq.current;
+    const base = `${[...giveA].map(name).join(", ") || "—"} ⇄ ${[...giveB].map(name).join(", ") || "—"}`;
+    setComplete({ data: null, busy: true, error: null, base });
+    api.tradeComplete(league.id, {
+      team_a: team, team_b: opp, give_a: [...giveA], give_b: [...giveB], drop_a: [], drop_b: [], add_a: [], add_b: [],
+      auto_balance: auto, strategy_a: toStrategyIn(stratA), strategy_b: toStrategyIn(stratB), injuries,
+    })
+      .then((d) => { if (id === completeSeq.current) setComplete({ data: d, busy: false, error: null, base }); })
+      .catch((e: Error) => { if (id === completeSeq.current) setComplete({ data: null, busy: false, error: e.message, base }); });
+  };
+  const applyComplete = (r: CompleteRow) => {
+    const a = r.give_a.map((p) => p.id), b = r.give_b.map((p) => p.id);
+    setGiveA(new Set(a));
+    setGiveB(new Set(b));
+    setDropA((d) => d.filter((x) => !a.includes(x)));
+    setDropB((d) => d.filter((x) => !b.includes(x)));
+  };
+  const completeLabel = giveA.size && !giveB.size ? "Karşılığında ne isteyebilirim?"
+    : !giveA.size ? "Karşılığında ne verebilirim?" : "Takası dengele / tamamla";
+  const completeHint = giveA.size && !giveB.size ? `Verdiğin oyuncular karşılığında ${teamName(opp)} kadrosundan 1–3 oyunculuk paketler`
+    : !giveA.size ? "Aldığın oyuncular karşılığında senin kadrondan 1–3 oyunculuk paketler"
+    : "İki tarafa oyuncu ekleyerek en çok 3'e 3 dengeli paketler (ör. 2'ye 1 → 2'ye 2, 3'e 2)";
+  const tooBig = giveA.size > 3 || giveB.size > 3;
+
   const clearAll = () => {
     setGiveA(new Set()); setGiveB(new Set()); setDropA([]); setDropB([]); setAddA([]); setAddB([]);
   };
@@ -429,6 +462,22 @@ export function TradePage({ meta, league, team, injuries, initial }: Props) {
               {!giveB.size && <span className="muted">Sağdaki kadrodan oyuncu seç</span>}
             </div>
           </div>
+
+          {(giveA.size > 0 || giveB.size > 0) && (
+            <div className="complete-bar">
+              <button className="btn primary" onClick={runComplete} disabled={complete?.busy || tooBig}
+                      title={tooBig ? "Tamamlama en çok 3 oyunculu paketlerle çalışır" : completeHint}>
+                {complete?.busy ? <><span className="spinner" /> Aranıyor…</> : <>⇄ {completeLabel}</>}
+              </button>
+              <span className="hint" style={{ marginTop: 0 }}>{tooBig ? "En çok 3 oyunculu paketler" : completeHint}</span>
+            </div>
+          )}
+          {complete && (
+            <TradeComplete data={complete.data} busy={complete.busy} error={complete.error} base={complete.base}
+                           oppName={teamName(opp)} labels={Object.fromEntries(meta.categories.map((c) => [c.key, c.label]))}
+                           mobile={mobile} isApplied={(r) => sameIds(giveA, r.give_a.map((p) => p.id)) && sameIds(giveB, r.give_b.map((p) => p.id))}
+                           onApply={applyComplete} onClose={() => { completeSeq.current++; setComplete(null); }} />
+          )}
 
           <details open={showMoves} onToggle={(e) => setShowMoves((e.target as HTMLDetailsElement).open)} style={{ marginTop: 12 }}>
             <summary>Ek kadro işlemleri (isteğe bağlı): bırak / boştan al
