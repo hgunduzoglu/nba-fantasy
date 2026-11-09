@@ -1927,6 +1927,55 @@ the same or better tier with the same result is already listed (the added player
 auto-dropped). "Uygula" (Apply) moves the package into the selection and opens the full analysis; the list stays open.
 API: `POST /api/leagues/{lid}/trade/complete`.
 
+### 13.28 Evaluation bases and the IL return timeline (`fdo.inseason.scenarios`, "Takas Analizi", 9 November 2026)
+
+Trade math works on "rest-of-season per-game rate × remaining games". Until now the rates were only Yahoo's
+rest-of-season projection, which updates slowly and reflects role changes late (a rookie with a bigger role than
+expected, a veteran moved to the bench). There are now four bases. The remaining game count (durability included) is
+always Yahoo's, and the whole league (opponents, free agents, replacement level, who is cut at an IL return) is valued on
+the same basis:
+
+- **Yahoo projection** (default).
+- **This season's rates**: actual per-game averages (at least 3 games; otherwise Yahoo).
+- **Last 10 games**: from the NBA game logs (at least 3 games; otherwise this season, then Yahoo).
+- **Blend**: between Yahoo and this season, weighted by games played, `n / (n + 10)`.
+
+In "Takas Analizi" (Trade Analysis), the "Değerlendirme" (Evaluation) selector runs the whole analysis (category impact,
+season simulation, fixtures) on that basis. The "Değerlendirme temelleri" (Evaluation bases) table shows the same trade on
+all four bases side by side (if they agree the conclusion is robust; if they diverge it depends on which rates you
+believe) and expands the players' per-game rates on each basis.
+
+**IL return timeline** (`TradeEngine.crunch_plan`, the same rule the evaluation uses): after the trade, in order of return,
+who comes back from IL and who is cut. A returning player worth less than the weakest active player displaces nobody
+("does not make the roster"); a player received in the trade who is cut at a return is flagged (he only contributes until
+then). Return dates come from the CBS injury report.
+
+9 November, tsg fentezi, Acuff → Garland + McCollum: Yahoo +0.36 categories/week, this season's rates −0.26, last 10
+games −0.25, blend +0.03. Neither incoming player is cut at the December returns on any basis.
+
+### 13.29 Detailed analysis (Claude; `fdo.inseason.trade_report`, "Takas Analizi", 9 November 2026)
+
+"Detaylı analiz yaz" (Write a detailed analysis) in "Takas Analizi": the app builds a data packet and Claude
+(`claude-opus-5-5`, effort `medium`, JSON schema) writes a structured evaluation in Turkish: a decision (accept / counter /
+reject / wait) with confidence, sections, counter offers ("Takas ekranında aç" (Open in the trade screen) moves one into the
+selection) and things to watch. The packet (~8k tokens):
+
+- Per player: this season, Yahoo rest of season and preseason per-game values, value and perceived rank, durability,
+  last-5 average and the last 10 games one by one (minutes, points, shooting), playoff-week games.
+- Role on the NBA team: the rotation over the last 5 games (minutes, shots, points) and injured teammates (return date,
+  games played this season: e.g. all of Garland's games came without Ingram and Beal).
+- Model results on the four bases and the IL return timeline (§13.28), both rosters and category ranks, the last 14 days
+  of news, and counter-offer candidates (from the §13.27 completion tool, thresholds relative to the offer's own balance;
+  with Yahoo and this season's rates).
+
+The model uses only the packet; general basketball knowledge (age, career norms) only when it doesn't contradict the data,
+and it says so. Generation runs in the background (~1 min; Cloudflare's 100 s limit) and the UI polls
+(`POST /api/leagues/{lid}/trade/report`, `GET /api/trade/report/{key}`). Reports are saved in
+`data/real/trade_reports.json` (git-ignored; not sent to the server) keyed by data signature + trade + strategies, so the
+same trade on the same data reopens at no cost. Cost is ~$0.13 per report (9 November run: 13k input, 3.7k output tokens,
+70 s). The key is `ANTHROPIC_API_KEY` in `.env` (§13.25). On a read-only server it works only when `FDO_REPORT_CODE` is
+set, and the UI asks once for the access code (the address is public; the paid call is protected).
+
 ### 13.8 V3 candidates
 
 Beam search and H-score weight optimization; fitting the profile mix; covariance of game counts between
@@ -2078,6 +2127,9 @@ The server configuration (service, reverse proxy, certificate, domain name) is n
   `snapshots/`, manager contact details and raw captures are not sent. **No restart is needed**: the app reloads the data itself
   when the file signature changes (the first request takes a few seconds). When the code changes, the server needs a `git pull`, an interface
   build and a service restart.
+- **Detailed analysis on the server** (optional, paid): a `.env` in the repo root on the server
+  (`ANTHROPIC_API_KEY=...`, readable by the service user) and an `FDO_REPORT_CODE=<code>` environment variable on the
+  service; the UI asks for the code once. Without a code it is off on the server.
 
 ## 15. Glossary
 

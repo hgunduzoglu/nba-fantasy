@@ -1921,6 +1921,52 @@ isim değeri dengeli görünür), **sen kaybedersin**. Aynı ya da daha iyi tür
 sonucu veren (eklenen oyuncu değer katmayan, ör. otomatik bırakılan) paketler çıkarılır. "Uygula" paketi seçime
 taşır ve tam analizi açar; liste açık kalır. API: `POST /api/leagues/{lid}/trade/complete`.
 
+### 13.28 Değerlendirme temelleri ve IL dönüş takvimi (`fdo.inseason.scenarios`, Takas Analizi, 9 Kasım 2026)
+
+Takas hesapları "kalan sezon maç başı oran × kalan maç" üzerinden yapılır. Önceden oranlar yalnız Yahoo'nun kalan sezon
+projeksiyonuydu; Yahoo projeksiyonu yavaş güncellenir ve rol değişimini (çaylağın beklenenden büyük rolü, yedeğe düşen
+veteran) geç yansıtır. Artık dört temel var; kalan maç sayısı (dayanıklılık dahil) hep Yahoo'nunkidir, bütün lig
+(rakipler, boştakiler, yerine koyma düzeyi, IL dönüşünde kimin bırakılacağı) aynı temelle değerlenir:
+
+- **Yahoo projeksiyonu** (varsayılan).
+- **Bu sezonki oranlar**: gerçekleşen maç başı ortalamalar (en az 3 maç; yoksa Yahoo).
+- **Son 10 maç**: NBA maç kayıtlarından (en az 3 maç; yoksa bu sezon, o da yoksa Yahoo).
+- **Karma**: Yahoo ile bu sezon arasında oynanan maça göre ağırlık `n / (n + 10)`.
+
+Takas Analizi'nde "Değerlendirme" seçimi bütün analizi (kategori etkisi, sezon simülasyonu, fikstür) o temelle yapar;
+"Değerlendirme temelleri" tablosu aynı takası dört temelde yan yana gösterir (temeller aynı yönü gösteriyorsa karar
+sağlam; ayrışıyorsa hangi orana inandığına bağlı) ve oyuncuların her temeldeki maç başı oranlarını açar.
+
+**IL dönüş takvimi** (`TradeEngine.crunch_plan`, değerlendirmenin kullandığı kuralla aynı): takastan sonra IL'den
+dönüş sırasıyla kim döner, kim bırakılır. Dönen oyuncu en zayıf aktif oyuncudan değersizse kimseyi yerinden etmez
+("kadroya girmez"); takasla gelen oyuncu bir dönüşte bırakılıyorsa işaretlenir (katkısı yalnız o tarihe kadar).
+Dönüş tarihi CBS sakatlık raporundan.
+
+9 Kasım, tsg fentezi Acuff → Garland + McCollum: Yahoo +0,36 kategori/hafta, bu sezonki oranlar −0,26, son 10 maç −0,25,
+karma +0,03. Gelen iki oyuncu da hiçbir temelde Aralık dönüşlerinde bırakılmıyor.
+
+### 13.29 Detaylı analiz (Claude; `fdo.inseason.trade_report`, Takas Analizi, 9 Kasım 2026)
+
+Takas Analizi'nde "Detaylı analiz yaz": uygulama bir veri paketi kurar ve Claude (`claude-opus-5-5`, efor `medium`,
+JSON şema) Türkçe yapılandırılmış bir değerlendirme yazar: karar (kabul et / karşı teklif ver / reddet / bekle) ve güven,
+bölümler, karşı teklifler ("Takas ekranında aç" ile seçime taşınır) ve izlenecekler. Paket (~8 bin token):
+
+- Oyuncu başına bu sezon, Yahoo kalan sezon ve sezon öncesi maç başı değerleri, değer ve algılanan sıra, dayanıklılık,
+  son 5 maç ortalaması ve son 10 maç tek tek (dakika, sayı, isabet), playoff haftası maçları.
+- NBA takımındaki rol: son 5 maçta rotasyon (dakika, şut, sayı) ve sakat takım arkadaşları (dönüş tarihi, bu sezon
+  oynadığı maç: ör. Garland'ın bütün maçları Ingram ve Beal yokken).
+- Dört temelde model sonuçları ve IL dönüş takvimi (§13.28), iki takımın kadrosu ve kategori sıraları, son 14 günün
+  haberleri, karşı teklif adayları (§13.27 tamamlama aracıyla, eşikler teklifin kendi dengesine göre; Yahoo ve bu sezonki
+  oranlarla).
+
+Model yalnız paketteki verileri kullanır; genel basketbol bilgisi (yaş, kariyer normları) veriyle çelişmediği sürece ve
+belirtilerek. Üretim arka planda çalışır (~1 dk; Cloudflare 100 sn sınırı), arayüz durumu sorar
+(`POST /api/leagues/{lid}/trade/report`, `GET /api/trade/report/{key}`). Raporlar `data/real/trade_reports.json`'da
+(git dışı; sunucuya gönderilmez) veri imzası + takas + stratejiler anahtarıyla saklanır: aynı veriyle aynı takas yeniden
+ücret ödemeden açılır. Maliyet rapor başı ~0,13 $ (9 Kasım denemesi: 13 bin girdi, 3,7 bin çıktı token, 70 sn).
+Anahtar `.env`'deki `ANTHROPIC_API_KEY` (§13.25). Salt okunur sunucuda yalnız `FDO_REPORT_CODE` ayarlıysa çalışır ve
+arayüz bir kez erişim kodu ister (adres herkese açık; ücretli çağrı korunur).
+
 ### 13.8 V3 adayları
 
 Beam search ve H-score ağırlık optimizasyonu; profil karışımı uyumu; oyuncular arası maç sayısı
@@ -2072,6 +2118,9 @@ Sunucu yapılandırması (servis, ters vekil, sertifika, alan adı) depoda tutul
   `snapshots/`, yönetici iletişim bilgileri ve ham yakalamalar gitmez. **Yeniden başlatma gerekmez**: uygulama dosya
   imzası değişince veriyi kendisi yeniden yükler (ilk istek birkaç saniye). Kod değişince sunucuda `git pull`, arayüz
   derlemesi ve servis yeniden başlatma gerekir.
+- **Detaylı analiz sunucuda** (isteğe bağlı, ücretli): sunucudaki repo kökünde `.env` (`ANTHROPIC_API_KEY=...`, servis
+  kullanıcısı okuyabilmeli) ve servise `FDO_REPORT_CODE=<kod>` ortam değişkeni; arayüz bu kodu bir kez sorar. Kod yoksa
+  sunucuda kapalıdır.
 
 ## 15. Sözlük
 
