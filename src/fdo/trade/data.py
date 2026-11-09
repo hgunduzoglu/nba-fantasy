@@ -234,20 +234,47 @@ def load_trade_data(directory: str | Path | None = None) -> TradeData:
     variance = pd.read_csv(vp[-1], dtype={"player_id": str}) if vp else None
     if variance is not None:
         variance["player_id"] = variance["player_id"].str.removeprefix("y_")
-    issues = []
-    for mode, frame in stats.items():
-        missing = ~frame[["gp", *STATS]].notna().all(axis=1)
-        bad = (frame[list(STATS)] < 0).any(axis=1) | (frame["fgm"] > frame["fga"]) | (frame["ftm"] > frame["fta"])
-        if missing.any():
-            issues.append(f"{MODES[mode]}: {int(missing.sum())} oyuncuda eksik sayısal alan; ham veri korunur.")
-        if bad.any():
-            issues.append(f"{MODES[mode]}: {int(bad.sum())} oyuncuda tutarsız şut/sayım verisi.")
-        for cat in ("reported_fg_pct", "reported_ft_pct"):
-            if cat in frame and ((frame[cat] < 0) | (frame[cat] > 1)).any():
-                issues.append(f"{MODES[mode]}: kaynakta geçersiz {cat}; takım yüzdeleri isabet/denemeden hesaplanır.")
+    issues = [msg for mode, frame in stats.items() for msg in quality_issues(frame, MODES[mode], players["name"])]
     adp, draft = draft_market(directory)
     return TradeData(leagues, players, stats, sources, variance, schedule, as_of,
                      file_signature(directory), tuple(issues), adp=adp, draft=draft)
+
+
+#: Sayı tutarlılığında yuvarlama payı: kaynak toplamları bir ondalıkla verir (ör. 0,2 + 0,1 → 0,4 görünen sayı).
+POINTS_TOLERANCE = (1.0, .03)               # mutlak, göreli: |PTS − (2·FGM + 3PM + FTM)| bunların büyüğünü aşarsa
+
+
+def quality_issues(frame: pd.DataFrame, label: str, names: pd.Series | None = None, limit: int = 5) -> list[str]:
+    """Bir istatistik kaynağının (dönem toplamları) tutarlılık sorunları. Ham veri değiştirilmez; yalnız raporlanır.
+
+    Eksik alan (sıfır sayılmaz), negatif sayım, isabet > deneme (FG, FT), 3PM > FGM, sayı şut bileşenleriyle
+    uyuşmuyor (``POINTS_TOLERANCE``), maç yokken istatistik var, kaynaktaki yüzde [0, 1] dışında."""
+    def who(mask) -> str:
+        ids = list(frame.index[mask.fillna(False).to_numpy()])
+        shown = [str(names.get(i, i)) if names is not None else str(i) for i in ids[:limit]]
+        return ", ".join(shown) + (f" ve {len(ids) - limit} diğer" if len(ids) > limit else "")
+    out = []
+    missing = ~frame[["gp", *STATS]].notna().all(axis=1)
+    if missing.any():
+        out.append(f"{label}: {int(missing.sum())} oyuncuda eksik sayısal alan; ham veri korunur.")
+    bad = (frame[list(STATS)] < 0).any(axis=1) | (frame["fgm"] > frame["fga"]) | (frame["ftm"] > frame["fta"])
+    if bad.any():
+        out.append(f"{label}: {int(bad.sum())} oyuncuda tutarsız şut/sayım verisi ({who(bad)}).")
+    three = frame["fg3m"] > frame["fgm"]
+    if three.any():
+        out.append(f"{label}: {int(three.sum())} oyuncuda 3PM > FGM ({who(three)}).")
+    calc = 2 * frame["fgm"] + frame["fg3m"] + frame["ftm"]
+    absolute, relative = POINTS_TOLERANCE
+    points = (frame["pts"] - calc).abs() > np.maximum(absolute, relative * frame["pts"].abs())
+    if points.any():
+        out.append(f"{label}: {int(points.sum())} oyuncuda sayı, şut bileşenleriyle uyuşmuyor ({who(points)}).")
+    ghost = (frame["gp"] == 0) & (frame[list(STATS)].abs().sum(axis=1) > 0)
+    if ghost.any():
+        out.append(f"{label}: {int(ghost.sum())} oyuncu maç oynamadan istatistik üretmiş görünüyor ({who(ghost)}).")
+    for cat in ("reported_fg_pct", "reported_ft_pct"):
+        if cat in frame and ((frame[cat] < 0) | (frame[cat] > 1)).any():
+            out.append(f"{label}: kaynakta geçersiz {cat}; takım yüzdeleri isabet/denemeden hesaplanır.")
+    return out
 
 
 def draft_market(directory: str | Path) -> tuple[pd.Series | None, pd.DataFrame | None]:
