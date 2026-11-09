@@ -1658,7 +1658,7 @@ Three separate types in "Takas Önerileri" (Trade Suggestions) (`SearchOptions.m
 - **Mutual benefit** (`mutual`, the previous behavior): both teams' rest-of-season strategy gain and the package's
   market (ROS) balance.
 - **Perceived value**: the value the opponent looks at — this season's numbers (per-game z; fewer than 3 games falls back
-  to preseason), preseason name value, or the average rank of the two (default). The perceived rank is
+  to preseason), preseason name value (the league's draft and Yahoo ADP, §13.30), or the average rank of the two (default). The perceived rank is
   converted to the price of the same rank on the ROS market value ladder; `edge = perceived − ROS`. Ratios are
   not used (they blow up meaninglessly at replacement level).
 - **Sell high** (`sell_high`): a player with `edge ≥ min_edge` in the package you give; balance in the opponent's eyes
@@ -1919,8 +1919,8 @@ selected players stay fixed:
 
 Single-player additions scan the whole roster; larger ones scan 10 candidates per side (strategy fit + market value);
 at most 4000 packages (0.2–2.5 s on real data). Every package is scored exactly like the trade analysis (selected
-strategies, automatic roster balancing). The thresholds model acceptability: value balance (rest-of-season market
-value, smaller/larger package) of at least 55% and an opponent's view (perceived value: received/given) of at least
+strategies, automatic roster balancing). The thresholds model acceptability: value balance (smaller/larger package, on
+the model's rest-of-season value or the market's perceived value, whichever is higher, §13.30) of at least 55% and an opponent's view (perceived value: received/given) of at least
 0.80. Order: **both win** (both teams' scores rise; the mutual-benefit score of `suggest_trades`), **you win** (the
 opponent loses in the model but the names look balanced), **you lose**. A package is dropped when a smaller package of
 the same or better tier with the same result is already listed (the added player adds no value, e.g. it is
@@ -1975,6 +1975,34 @@ and it says so. Generation runs in the background (~1 min; Cloudflare's 100 s li
 same trade on the same data reopens at no cost. Cost is ~$0.13 per report (9 November run: 13k input, 3.7k output tokens,
 70 s). The key is `ANTHROPIC_API_KEY` in `.env` (§13.25). On a read-only server it works only when `FDO_REPORT_CODE` is
 set, and the UI asks once for the access code (the address is public; the paid call is protected).
+
+### 13.30 Perceived value: the draft market (`fdo.trade.perception`, 9 November 2026)
+
+The "preseason name value" component of the opponent's view used to be the 9-category z rank of Yahoo's preseason
+projection, i.e. it assumed the opponent does the same math as the model. Managers instead know a player by what he cost
+in the draft. Example (METU IE, 9 November): Banchero is #107 per game in 9 categories (turnovers, free throws, steals)
+and #136 on his preseason projection, but his Yahoo ADP is 35.7 and he went for $22 in the league's auction (Clingan $28,
+Jaren Jackson Jr. $21). The old view ranked Banchero #142 and read "Banchero + Jackson → Clingan" as 0.87 in the
+opponent's eyes (short for the opponent); in managers' eyes it is 1.53, a clear overpay.
+
+The name-value rank is now:
+
+- The league's own draft (`draft_results.csv`): the auction price (higher = more valuable), or the pick in a snake
+  draft.
+- Yahoo ADP (`adp_yahoo_*.csv`).
+- The average of the two ranks when both exist; undrafted players behind the drafted ones, in preseason projection
+  order. Without draft data it is the projection rank, as before.
+
+"This season's numbers" (at least 3 games) and the default average are unchanged. The change reaches everything that
+uses perceived value: the opponent's view, mispricing (sell high / buy low), suggestions, completion, the detailed
+analysis.
+
+**Value balance in completion** (§13.27): it used to be measured only on the model's rest-of-season value (smaller /
+larger package), so trades the model finds lopsided but managers see as balanced (selling high on name value) were cut
+at the threshold. Balance is now in the eyes of the model or the market (perceived value), whichever is higher; the
+opponent's-view threshold (0.80) is unchanged. In the same example completion used to find only Gobert and Jalen Smith
+for Banchero (both losses for you); it now finds Banchero → Clingan (you +0.33 / +0.16 / +0.28 categories/week, Yahoo /
+this season / blend; 0.97 in the opponent's eyes) and → Mobley (+0.25 / +0.20 / +0.24; 0.94).
 
 ### 13.8 V3 candidates
 

@@ -1657,7 +1657,7 @@ Takas Önerileri'nde üç ayrı tür (`SearchOptions.mode`), her biri kendi eşi
 - **Karşılıklı fayda** (`mutual`, önceki davranış): iki takımın da kalan sezon strateji kazancı ve paket
   piyasa (ROS) dengesi.
 - **Algılanan değer**: rakibin baktığı değer — bu sezonun rakamları (maç başı z; 3 maçtan azı sezon
-  öncesine düşer), sezon öncesi isim değeri ya da ikisinin sıra ortalaması (varsayılan). Algılanan sıra,
+  öncesine düşer), sezon öncesi isim değeri (ligin draftı ve Yahoo ADP'si, §13.30) ya da ikisinin sıra ortalaması (varsayılan). Algılanan sıra,
   ROS piyasa değer merdivenindeki aynı sıranın fiyatına çevrilir; `edge = algılanan − ROS`. Oran
   kullanılmaz (yedek seviyesinde anlamsız büyür).
 - **Sat yüksek** (`sell_high`): verdiğin pakette `edge ≥ min_edge` oyuncu; rakibin gözünde denge
@@ -1914,8 +1914,8 @@ Takas Analizi'nde oyuncu seçtikten sonra tek düğme; seçili oyuncular sabit k
 
 Tek oyunculuk eklemelerde bütün kadro, daha büyüklerde taraf başına 10 aday (strateji uyumu + piyasa değeri) taranır;
 en çok 4000 paket (gerçek veride 0,2–2,5 sn). Her paket takas analiziyle aynı şekilde puanlanır (seçilen stratejiler,
-otomatik kadro dengeleme). Eşikler kabul edilebilirlik içindir: değer dengesi (kalan sezon piyasa değeri, küçük/büyük
-paket) en az %55 ve rakibin gözünde (algılanan değer: aldığı/verdiği) en az 0.80. Sıra: **ikisi de kazanır** (iki
+otomatik kadro dengeleme). Eşikler kabul edilebilirlik içindir: değer dengesi (küçük/büyük
+paket; modelin kalan sezon değerinde ya da piyasanın algıladığı değerde, hangisi yüksekse, §13.30) en az %55 ve rakibin gözünde (algılanan değer: aldığı/verdiği) en az 0.80. Sıra: **ikisi de kazanır** (iki
 tarafın puanı artar; `suggest_trades`'teki karşılıklı fayda puanı), **sen kazanırsın** (rakip modelde kaybeder ama
 isim değeri dengeli görünür), **sen kaybedersin**. Aynı ya da daha iyi türde daha küçük paketi listede olan ve aynı
 sonucu veren (eklenen oyuncu değer katmayan, ör. otomatik bırakılan) paketler çıkarılır. "Uygula" paketi seçime
@@ -1966,6 +1966,33 @@ belirtilerek. Üretim arka planda çalışır (~1 dk; Cloudflare 100 sn sınır�
 ücret ödemeden açılır. Maliyet rapor başı ~0,13 $ (9 Kasım denemesi: 13 bin girdi, 3,7 bin çıktı token, 70 sn).
 Anahtar `.env`'deki `ANTHROPIC_API_KEY` (§13.25). Salt okunur sunucuda yalnız `FDO_REPORT_CODE` ayarlıysa çalışır ve
 arayüz bir kez erişim kodu ister (adres herkese açık; ücretli çağrı korunur).
+
+### 13.30 Algılanan değer: draft piyasası (`fdo.trade.perception`, 9 Kasım 2026)
+
+Rakibin gözündeki değerin "sezon öncesi isim değeri" bileşeni önceden Yahoo'nun sezon öncesi projeksiyonunun 9
+kategori z sırasıydı; yani rakibin de modelle aynı hesabı yaptığı varsayılıyordu. Menajerler ise oyuncuyu draftta
+ödedikleri fiyatla tanır. Örnek (METU IE, 9 Kasım): Banchero 9 kategoride maç başı #107 (top kaybı, serbest atış,
+top çalma), sezon öncesi projeksiyonuyla #136; ama Yahoo ADP 35,7, ligin açık artırmasında 22 $ (Clingan 28 $, Jaren
+Jackson Jr. 21 $). Eski algı Banchero'yu #142 görüyor ve "Banchero + Jackson → Clingan"ı rakibin gözünde 0,87 (rakip
+için az) sanıyordu; menajerlerin gözünde 1,53, yani açık bir fazla ödeme.
+
+Artık isim değeri sırası:
+
+- Ligin kendi draftı (`draft_results.csv`): açık artırmada ödenen fiyat (yüksek = değerli), yılan draftta seçim
+  sırası.
+- Yahoo ADP'si (`adp_yahoo_*.csv`).
+- İkisi de varsa sıraların ortalaması; draft edilmeyenler draft edilenlerin arkasında, sezon öncesi projeksiyon
+  sırasıyla. Draft verisi yoksa eskisi gibi projeksiyon sırası.
+
+"Bu sezonun rakamları" (en az 3 maç) ve varsayılan ortalama aynı kalır. Değişiklik algılanan değeri kullanan her şeye
+yansır: rakibin gözünde denge, yanlış fiyatlama (sat-yüksek / al-düşük), öneriler, tamamlama, detaylı analiz.
+
+**Tamamlamada değer dengesi** (§13.27): önceden yalnız modelin kalan sezon değeriyle (küçük / büyük paket) ölçülüyordu;
+modelin bir tarafı çok üstün bulduğu ama menajerlerin dengeli gördüğü takaslar (isim değeriyle sat-yüksek) eşikte
+eleniyordu. Artık denge modelin ya da piyasanın (algılanan değer) gözünde, hangisi yüksekse; rakibin gözünde eşiği
+(0,80) aynı. Aynı örnekte tamamlama önceden Banchero karşılığında yalnız Gobert ve Jalen Smith'i (ikisi de senin
+kaybın) buluyordu; şimdi Banchero → Clingan (sen +0,33 / +0,16 / +0,28 kategori/hafta, Yahoo / bu sezon / karma;
+rakibin gözünde 0,97), → Mobley (+0,25 / +0,20 / +0,24; 0,94).
 
 ### 13.8 V3 adayları
 
