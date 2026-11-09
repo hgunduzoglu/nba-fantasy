@@ -382,9 +382,10 @@ komutta özellikle çalıştırılmaz.
    gösterilir, üç kaynak birleştirilip tek optimizasyon skoru yapılmaz.
 6. **İşlem uygulanabilirliği:** Waiver, Can't Cut, kalan alım hakkı, güncel IL
    uygunluğu ve inceleme sırasında lig takviminin değişmesi otomatik doğrulanmıyor.
-7. **Veri yaşam döngüsü:** Manuel snapshot dosyaları var; düzenleme/import sihirbazı,
-   snapshot arşivi ve kalıcı senaryo deposu yok. `as_of` roster tarihinden gelir;
-   farklı tarihlerde güncellenmiş dosyaların uyumunu operatör sağlamalıdır.
+7. **Veri yaşam döngüsü:** Girdiler her senkronizasyonda içerik özetiyle değiştirilemez
+   arşive alınır, bileşen bazında güncellik ve karar günlüğü var (README §13.31). Düzenleme/import
+   sihirbazı yok. `as_of` roster tarihinden gelir; güncellik raporu farklı zamanlarda
+   güncellenmiş bileşenleri gösterir ama uyumlarını otomatik çözmez.
 8. **Format:** Mevcut H2H dokuz kategori ve Yahoo şeması hedefleniyor. Points,
    roto veya farklı kategori setleri için ayrıca çalışma gerekir. Kadro dışı
    oyuncuların takım/durum metadatası eski master'dan geliyorsa güncelliği sınırlı olabilir.

@@ -1793,8 +1793,8 @@ Resmi API yolu kapalı kaldığı için (§13.7) lig sayfaları kullanıcının 
   (`W (Nov 9)` → serbest kalma günü), sezon toplamı ve kalan sezon projeksiyonu sayfaları (30 + 30 sayfa, isteğe bağlı).
   Biten haftaların sonuçları yalnız eksikse çekilir (`matchups.json`'a takım toplamlarıyla). Ardından CBS sakatlık raporu.
 - **Yazılanlar** mevcut biçimdedir (`rosters.json`, `player_stat_pages.json`), `load_trade_data` değişmeden okur; ek
-  olarak `standings_live.csv` ve `yahoo_live.json`. Bir sayfa okunamazsa hiçbir dosya yazılmaz. Üzerine yazmadan önce
-  dosyalar `snapshots/<eski tarih>/`, sonra `snapshots/<bugün>/` altına kopyalanır. Hepsi git dışı.
+  olarak `standings_live.csv` ve `yahoo_live.json`. Bir sayfa okunamazsa hiçbir dosya yazılmaz. Yazmadan önceki ve
+  sonraki girdiler değiştirilemez arşive alınır (§13.31). Hepsi git dışı.
 - **Tarih**: `roster_date` ABD Doğu saatine göre bugündür. Hafta toplamı çekildiği ana kadardır; ABD Doğu 02:00–12:00
   (Türkiye ~10:00–20:00) arası maç oynanmadığından bu aralıkta toplam tam "dünküne kadar"dır. Dışında `live` işaretlenir
   (bugünün kısmi skoru dahil; uyarı gösterilir). Eşleşme sayfasının takım tablosu tarih seçilse de hafta toplamını verir,
@@ -1993,6 +1993,59 @@ eleniyordu. Artık denge modelin ya da piyasanın (algılanan değer) gözünde,
 (0,80) aynı. Aynı örnekte tamamlama önceden Banchero karşılığında yalnız Gobert ve Jalen Smith'i (ikisi de senin
 kaybın) buluyordu; şimdi Banchero → Clingan (sen +0,33 / +0,16 / +0,28 kategori/hafta, Yahoo / bu sezon / karma;
 rakibin gözünde 0,97), → Mobley (+0,25 / +0,20 / +0,24; 0,94).
+
+### 13.31 Veri arşivi, kimlik eşleştirme, güncellik ve karar günlüğü (`fdo.ingest`, `fdo.evaluation`, 10 Kasım 2026)
+
+Yahoo API erişimi olmadan, veri elle (kendi oturumunla "Yahoo'dan güncelle") çekilirken aynı analizin tekrar
+üretilebilmesi ve kararın hangi veriye dayandığının görülmesi için:
+
+- **Değiştirilemez arşiv** (`fdo.ingest.archive`, `scripts/archive_data.py`): her senkronizasyonun ve haber yenilemenin
+  sonunda analiz girdileri (`rosters.json`, oyuncu sayfaları, lig ayarları, sakatlık raporu, NBA maç kayıtları, takvim,
+  projeksiyon, ADP, draft, fikstür; ayrıca haberler ve işlem geçmişi) içerik özetiyle (sha256) saklanır:
+  `snapshots/objects/` (gzip, aynı içerik bir kez) ve `snapshots/batches/<parti>.json` (dosya → özet, zamanlar, eksik
+  dosyalar, önceki parti). Önceden aynı gün ikinci senkronizasyon o günün kopyasının üzerine yazıyordu; artık her çekim ayrı
+  parti, değişmeyen girdiler yeni parti açmaz. Önce nesneler, en son manifest yazılır: yarıda kalan arşivleme parti
+  bırakmaz. `--legacy` eski `snapshots/<gün>/` klasörlerini (eksik) parti olarak içe alır; `--verify` özetleri doğrular,
+  `--restore` bir partiyi boş dizine çıkarır. Arşiv git dışında kalır, sunucuya gönderilmez. İlk tam parti 33 dosya,
+  sıkıştırılmış 2,1 MB.
+- **Zaman alanları** (`fdo.ingest.timestamps`): her dosya için kaynağın anlattığı an (`source_as_of`: kadro tarihi, son
+  maç günü, projeksiyon tarihi), çekim anı (`captured_at`, dosyanın kendi kaydından) ve diskte değiştiği an ayrı tutulur.
+  Dosyada zaman kaydı yoksa çekim zamanı boş kalır; disk zamanı onun yerine geçmez.
+- **Oyuncu kimliği** (`fdo.ingest.identity`): CBS sakatlık raporu, NBA maç kayıtları ve haberler Yahoo kimliğine tek
+  kuralla bağlanır: ad + takım, yalnız ad (havuzda tek oyuncu; takım tutmuyorsa raporlanır), baş harf + soyad + takım. Bir
+  kural yalnız **tek** aday bırakırsa eşleşir. Önceden sakatlık raporunda aynı adlı iki oyuncu varken ve takım tutmazken
+  satır ilk adaya bağlanıyordu; şimdi belirsiz kalır. Eşleşmeyen ve belirsiz satırlar veri notlarında adıyla listelenir.
+  Elle düzeltme: `data/real/id_overrides.csv` (`source, name, nba_team, player_id, note`; git dışı). 9 Kasım verisinde
+  davranış değişmedi: CBS 96/96, NBA kayıtları 3.294/3.294 satır eşleşiyor.
+- **Kalite kontrolleri** (`fdo.trade.data.quality_issues`): eksik alan, negatif sayım, isabet > deneme yanında artık
+  3PM > FGM, sayının şut bileşenleriyle (2·FGM + 3PM + FTM) uyuşmaması (kaynağın bir ondalıklı yuvarlaması için pay: en az
+  1 sayı ya da %3) ve maç oynamadan istatistik. Ham veri değiştirilmez, yalnız raporlanır.
+- **Güncellik** (`fdo.ingest.freshness`, `GET /api/freshness`): tek "son güncelleme" yerine bileşen bazında yaş (kadro,
+  oyuncu istatistikleri, bu hafta, sakatlık, haber, NBA kayıtları, lig ayarları...). Karar türüne göre durum: **normal**,
+  **koşullu** (sonuç gösterilir, hangi verinin eski olduğu söylenir) ya da **bekletilir** (önce şu bileşen yenilenmeli).
+  Üst çubuktaki "Veri: …" tıklanınca açılır; Add/Drop sayfası durum normal değilse uyarır ("oyuncu hâlâ boştaysa
+  geçerli"). Eşikler (ör. add/drop için kadro 12 saate kadar normal, 36 saate kadar koşullu) **başlangıç varsayımıdır**,
+  ölçülerek doğrulanmadı; `config/freshness.yaml` ile değiştirilir.
+- **Karar günlüğü** (`fdo.evaluation.decisions`): takas önerileri ve tamamlama (`recommendation`) ile Takas Analizi'nde
+  incelenen takaslar (`scenario`) ayrı türlerde `data/real/decisions/<ay>.jsonl` dosyasına yalnız eklenerek yazılır: istek,
+  sonucun özeti, veri imzası (içerik özeti; dosya yolu ve zamanından bağımsız), arşivdeki son parti, kod sürümü.
+  `FDO_DECISION_LOG=0` kapatır. Senaryo gerçek kadroyu değiştirmez.
+- **Veri sağlayıcıları** (`fdo.ingest.provider`): analiz verinin nereden geldiğini bilmez; elle alınan güncel dosyalar
+  (`ManualSnapshotProvider`), arşiv partisi (`ArchivedSnapshotProvider`) ve kapalı `YahooApiProvider` aynı dosya
+  sözleşmesini verir. Yahoo API onayı hiçbir özelliğin ön koşulu değil; onay gelirse yalnız okuma varsayılır.
+- **Referans vakalar** (`fdo.evaluation.cases`, `scripts/run_cases.py`): hatalı bulunan öneriler `data/real/cases.json`
+  (git dışı) içinde sabit API istekleri ve "bu paket listelenmemeli" türü beklentilerle tutulur; sonuçlar
+  `data/real/evaluation/` altına kod sürümü ve veri imzasıyla yazılır. `--batch <parti>` aynı vakaları arşivdeki girdilerle
+  çalıştırır (replay), `--compare` iki kaydın farkını verir. 9 Kasım arşiv partisiyle replay, güncel dosyalarla birebir
+  aynı önerileri üretti.
+- **Bilinen sorunlar** (`tests/unit/test_known_issues.py`): doğrulanmış hatalar sentetik vakalar olarak; düzeltilmemişler
+  `xfail(strict=True)`. Açık olan: tamamlama, karşı tarafın hem modelde hem kendi algısında kaybettiği takası normal öneri
+  olarak listeliyor (gerçek vaka: Banchero → Giannis, rakibin gözünde 0,82).
+
+**Kimlik bilgileri ve kapalı özellikler**: Yahoo için API anahtarı yok; senkronizasyon `scripts/yahoo_login.py` ile bir
+kez giriş yapılmış Chrome profilini kullanır (yoksa güncelleme çalışmaz, mevcut dosyalarla analiz sürer). `ANTHROPIC_API_KEY`
+(`.env`) yalnız haber analizi ve detaylı analiz içindir; yoksa bu ikisi kapalıdır, takas, add/drop ve sezon hesapları
+LLM'siz çalışır.
 
 ### 13.8 V3 adayları
 

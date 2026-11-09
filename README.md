@@ -1794,8 +1794,8 @@ Since the official API path remains closed (§13.7), the league pages are read u
   (`W (Nov 9)` → the day the player clears), and the season totals and rest-of-season projection pages (30 + 30 pages, optional).
   Results of finished weeks are fetched only if missing (into `matchups.json` with team totals). Then the CBS injury report.
 - **What is written** is in the existing format (`rosters.json`, `player_stat_pages.json`), which `load_trade_data` reads unchanged; in
-  addition, `standings_live.csv` and `yahoo_live.json`. If a page cannot be read, no file is written. Before overwriting,
-  the files are copied under `snapshots/<eski tarih>/`, then `snapshots/<bugün>/`. All outside git.
+  addition, `standings_live.csv` and `yahoo_live.json`. If a page cannot be read, no file is written. The inputs before and
+  after writing go into the immutable archive (§13.31). All outside git.
 - **Date**: `roster_date` is today in US Eastern time. The week total is as of the moment it was fetched; since no games are played between
   02:00–12:00 US Eastern (~10:00–20:00 Turkey time), within this window the total is exactly "through yesterday". Outside it, it is flagged `live`
   (today's partial score included; a warning is shown). The matchup page's team table gives the week total even if a date is selected;
@@ -2003,6 +2003,59 @@ at the threshold. Balance is now in the eyes of the model or the market (perceiv
 opponent's-view threshold (0.80) is unchanged. In the same example completion used to find only Gobert and Jalen Smith
 for Banchero (both losses for you); it now finds Banchero → Clingan (you +0.33 / +0.16 / +0.28 categories/week, Yahoo /
 this season / blend; 0.97 in the opponent's eyes) and → Mobley (+0.25 / +0.20 / +0.24; 0.94).
+
+### 13.31 Data archive, identity matching, freshness and decision log (`fdo.ingest`, `fdo.evaluation`, 10 November 2026)
+
+Without Yahoo API access, with data pulled by hand (your own session, "Yahoo'dan güncelle"), these make the same analysis
+reproducible and show which data a decision rests on:
+
+- **Immutable archive** (`fdo.ingest.archive`, `scripts/archive_data.py`): at the end of every sync and news refresh the
+  analysis inputs (`rosters.json`, player pages, league settings, injury report, NBA game logs, schedule, projections, ADP,
+  draft, fixtures; also news and transaction history) are stored by content hash (sha256): `snapshots/objects/` (gzip,
+  each content once) and `snapshots/batches/<batch>.json` (file → hash, times, missing files, previous batch). A second
+  sync on the same day used to overwrite that day's copy; now every capture is its own batch and unchanged inputs open no
+  new batch. Objects are written first and the manifest last, so an interrupted archive leaves no batch. `--legacy`
+  imports the old `snapshots/<day>/` folders as (incomplete) batches; `--verify` checks hashes, `--restore` extracts a batch
+  into an empty directory. The archive stays outside git and is not sent to the server. The first full batch is 33 files,
+  2.1 MB compressed.
+- **Time fields** (`fdo.ingest.timestamps`): per file, the moment the source describes (`source_as_of`: roster date, last
+  game day, projection date), the capture moment (`captured_at`, from the file's own record) and the moment it changed on
+  disk are kept apart. If the file has no time record, the capture time stays empty; disk time does not stand in for it.
+- **Player identity** (`fdo.ingest.identity`): the CBS injury report, NBA game logs and news are tied to Yahoo ids by one
+  rule set: name + team, name alone (single player in the pool; a team mismatch is reported), initial + surname + team. A
+  rule matches only if it leaves **one** candidate. The injury report used to bind a row to the first of two same-name
+  players when the team did not match; now the row stays ambiguous. Unmatched and ambiguous rows are listed by name in the
+  data notes. Manual fixes: `data/real/id_overrides.csv` (`source, name, nba_team, player_id, note`; outside git). On the
+  9 November data nothing changed: CBS 96/96 and NBA logs 3,294/3,294 rows match.
+- **Quality checks** (`fdo.trade.data.quality_issues`): besides missing fields, negative counts and makes > attempts, now
+  3PM > FGM, points not matching shot components (2·FGM + 3PM + FTM; tolerance for the source's one-decimal rounding: at
+  least 1 point or 3%) and stats without games. Raw data is not changed, only reported.
+- **Freshness** (`fdo.ingest.freshness`, `GET /api/freshness`): instead of one "last updated", an age per component
+  (rosters, player stats, this week, injuries, news, NBA logs, league settings...). A state per decision type: **normal**,
+  **conditional** (the result is shown, saying which data is old) or **hold** (refresh this component first). It opens
+  from "Veri: …" in the top bar; the Add/Drop page warns when the state is not normal ("valid if the player is still
+  free"). The thresholds (e.g. for add/drop, rosters normal up to 12 hours, conditional up to 36) are **starting
+  assumptions**, not validated by measurement; change them with `config/freshness.yaml`.
+- **Decision log** (`fdo.evaluation.decisions`): trade suggestions and completion (`recommendation`) and trades inspected
+  on the trade page (`scenario`) are appended as separate kinds to `data/real/decisions/<month>.jsonl`: request, result
+  summary, data signature (content hash; independent of file paths and times), the latest archive batch, code version.
+  `FDO_DECISION_LOG=0` turns it off. A scenario does not change the real roster.
+- **Data providers** (`fdo.ingest.provider`): the analysis does not know where data comes from; current hand-pulled files
+  (`ManualSnapshotProvider`), an archive batch (`ArchivedSnapshotProvider`) and the disabled `YahooApiProvider` deliver the
+  same file contract. Yahoo API approval is a prerequisite for nothing; if it comes, read-only access is assumed.
+- **Reference cases** (`fdo.evaluation.cases`, `scripts/run_cases.py`): suggestions found wrong are kept in
+  `data/real/cases.json` (outside git) as fixed API requests with expectations such as "this package must not be listed";
+  results go to `data/real/evaluation/` with code version and data signature. `--batch <batch>` runs the same cases on the
+  archived inputs (replay), `--compare` diffs two records. Replay with the 9 November batch produced exactly the same
+  suggestions as the current files.
+- **Known issues** (`tests/unit/test_known_issues.py`): verified bugs as synthetic cases; unfixed ones are
+  `xfail(strict=True)`. Open: completion lists, as a normal suggestion, a trade the other side loses both in the model and in
+  its own perception (real case: Banchero → Giannis, 0.82 in the opponent's eyes).
+
+**Credentials and disabled features**: there is no Yahoo API key; sync uses a Chrome profile logged in once with
+`scripts/yahoo_login.py` (without it, updating does not work and analysis continues on the existing files).
+`ANTHROPIC_API_KEY` (`.env`) is only for news analysis and the detailed analysis; without it those two are off, and trade,
+add/drop and season calculations run without an LLM.
 
 ### 13.8 V3 candidates
 
