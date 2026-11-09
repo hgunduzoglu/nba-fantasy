@@ -130,6 +130,7 @@ button, select, input { font: inherit; color: inherit; }
 .sync-pop { position: absolute; top: calc(100% + 8px); right: 0; width: min(420px, 90vw); padding: 12px; z-index: 30; }
 .fresh-dec { display: grid; gap: 6px; margin-bottom: 10px; font-size: 13px; }
 .fresh-tab { width: 100%; font-size: 12px; margin-bottom: 6px; }
+.fresh-tab td { padding: 4px 6px; }
 .fresh .hint { margin: 4px 0 8px; }
 .sync-log { margin: 0 0 10px; padding-left: 18px; font-size: 12px; color: var(--muted); max-height: 220px; overflow: auto; }
 .field { display: flex; flex-direction: column; gap: 2px; }

@@ -41,7 +41,8 @@ def test_decision_states_follow_their_own_thresholds(d):
     assert any("Oyuncu istatistikleri" in r and "yok" in r for r in out["adddrop"]["reasons"])
     assert any("Bu haftanın skoru" in r and "36 saatlik" in r for r in out["adddrop"]["reasons"])
     lineup = out["lineup"]
-    assert lineup["state"] == "hold" and lineup["refresh"]                # canlı hafta 36 sa > 24 sa
+    assert lineup["state"] == "hold" and lineup["short"] == "lineup"     # canlı hafta 36 sa > 24 sa
+    assert lineup["refresh"] == ["Yahoo'dan güncelle (Bu haftanın skoru, alım hakkı, waiver listesi)"]
     custom = {"lineup": {"rosters": (6, 24), "live_week": (6, 48)}}
     assert assess(ages(components(d, "2026-27"), NOW), custom)["lineup"]["state"] == "conditional"
 

@@ -42,6 +42,7 @@ LABELS = {"rosters": "Kadrolar", "player_stats": "Oyuncu istatistikleri ve kalan
           "player_master": "Oyuncu listesi", "adp": "Yahoo ADP", "draft": "Lig draftı", "schedule": "NBA takvimi",
           "variance": "Tarihsel varyans", "fixtures": "Lig fikstürü", "transactions": "İşlem geçmişi"}
 DECISIONS = {"trade": "Takas", "adddrop": "Add/drop", "lineup": "Kadro (lineup)", "season": "Sezon görünümü"}
+SHORT = {"trade": "takas", "adddrop": "add/drop", "lineup": "lineup", "season": "sezon"}
 REFRESH = {"rosters": "Yahoo'dan güncelle", "player_stats": "Yahoo'dan güncelle (projeksiyonlar açık)",
            "live_week": "Yahoo'dan güncelle", "results": "Yahoo'dan güncelle", "standings": "Yahoo'dan güncelle",
            "injuries": "Yahoo'dan güncelle (CBS raporu da çekilir)", "nba_logs": "Yahoo'dan güncelle",
@@ -113,7 +114,7 @@ def assess(aged: dict[str, dict], rule_set: dict | None = None, read_only: bool 
     rank = {"normal": 0, "conditional": 1, "hold": 2}
     out = {}
     for decision, comps in rule_set.items():
-        state, reasons, refresh = "normal", [], []
+        state, reasons, actions = "normal", [], {}
         for comp, (ok_h, cond_h) in comps.items():
             c = aged.get(comp)
             label = LABELS.get(comp, comp)
@@ -129,15 +130,16 @@ def assess(aged: dict[str, dict], rule_set: dict | None = None, read_only: bool 
                 s, why = "hold", f"{label} {c['age_hours']:.0f} saatlik (koşullu ≤ {cond_h:.0f} sa)"
             if s != "normal":
                 reasons.append(why)
-                action = REFRESH.get(comp, "dosyayı yenile")
-                refresh.append(f"{label}: " + (f"bilgisayarda {action[0].lower() + action[1:]}, sonra veriyi gönder"
-                                               if read_only else action))
+                actions.setdefault(REFRESH.get(comp, "Dosyayı yenile"), []).append(label)
                 if c is not None and c.get("basis") == "file":
                     reasons[-1] += " — kaynak zamanı bilinmiyor, dosya zamanına göre"
             if rank[s] > rank[state]:
                 state = s
-        out[decision] = {"state": state, "label": DECISIONS.get(decision, decision), "reasons": reasons,
-                         "refresh": refresh}
+        # aynı eylem bir kez: "Yahoo'dan güncelle (Kadrolar, Sakatlık raporu)"
+        refresh = [(f"bilgisayarda {a[0].lower() + a[1:]}, sonra veriyi gönder" if read_only else a)
+                   + f" ({', '.join(labels)})" for a, labels in actions.items()]
+        out[decision] = {"state": state, "label": DECISIONS.get(decision, decision), "short": SHORT.get(decision, decision),
+                         "reasons": reasons, "refresh": refresh}
     return out
 
 

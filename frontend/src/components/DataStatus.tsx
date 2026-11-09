@@ -22,9 +22,9 @@ export function DataStatus({ asOf, inline = false }: { asOf: string; inline?: bo
   const [data, setData] = useState<Freshness | null>(null);
   const [open, setOpen] = useState(inline);
   useEffect(() => { api.freshness().then(setData).catch(() => setData(null)); }, [asOf]);
-  const worst: DecisionState | null = data
-    ? (["hold", "conditional", "normal"] as DecisionState[]).find((s) => Object.values(data.decisions).some((d) => d.state === s)) ?? null
-    : null;
+  const decisions = data ? Object.values(data.decisions) : [];
+  const worst = (["hold", "conditional"] as DecisionState[]).find((s) => decisions.some((d) => d.state === s));
+  const flagged = worst ? decisions.filter((d) => d.state === worst).map((d) => d.short).join(", ") : "";
   const panel = data && (
     <div className={inline ? "fresh" : "fresh sync-pop card"}>
       <div className="fresh-dec">
@@ -42,7 +42,7 @@ export function DataStatus({ asOf, inline = false }: { asOf: string; inline?: bo
             const c = data.components[k];
             return (
               <tr key={k} title={`${c.file}${BASIS[c.basis] ?? ""}`}>
-                <td className="l">{c.label}</td>
+                <td className="l wrap">{c.label}</td>
                 <td>{age(c.age_hours)}</td>
                 <td className="l muted">{c.as_of ? fmtStamp(c.as_of) : "–"}{c.basis === "file" ? " *" : ""}</td>
               </tr>
@@ -59,7 +59,7 @@ export function DataStatus({ asOf, inline = false }: { asOf: string; inline?: bo
     <div className="sync">
       <button className="link-btn muted" style={{ fontSize: 12, fontWeight: 400 }} onClick={() => setOpen((x) => !x)}
               title="Bileşen bazında veri güncelliği">
-        Veri: {asOf}{worst && worst !== "normal" && <span className={"badge " + STATE[worst].cls}>{STATE[worst].label}</span>}
+        Veri: {asOf}{worst && <span className={"badge " + STATE[worst].cls}>{flagged}: {STATE[worst].label}</span>}
       </button>
       {open && panel}
     </div>

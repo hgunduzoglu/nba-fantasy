@@ -60,7 +60,7 @@ export type DecisionState = "normal" | "conditional" | "hold";
 export interface Freshness {
   now: string;
   components: Record<string, FreshnessComponent>;
-  decisions: Record<string, { state: DecisionState; label: string; reasons: string[]; refresh: string[] }>;
+  decisions: Record<string, { state: DecisionState; label: string; short: string; reasons: string[]; refresh: string[] }>;
   assumption: string;
 }
 
