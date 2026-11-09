@@ -19,6 +19,7 @@ from fdo.inseason.fixtures import load_fixtures
 from fdo.inseason.injuries import latest_file, with_injuries
 from fdo.inseason.live import LiveLeague, load_live
 from fdo.inseason.roles import RoleBoost, load_logs, role_boosts
+from fdo.inseason.scenarios import basis_data
 from fdo.inseason.season import SeasonResult, SeasonSim
 from fdo.inseason.standings import league_standings, load_standings
 from fdo.inseason.weekly import WeekModel
@@ -67,8 +68,20 @@ class AppState:
             return self._get(("data_dur", sig), lambda: apply_durability(base))
         return self._get(("data_inj", sig), lambda: apply_durability(with_injuries(base, self.data_dir)))
 
-    def engine(self, league_id: str, injuries: bool = True) -> TradeEngine:
-        data = self.data(injuries)
+    def basis_data(self, injuries: bool = True, basis: str = "ros") -> TradeData:
+        """``data`` + kalan sezon oranlarının temeli (``fdo.inseason.scenarios``; ``ros`` = Yahoo projeksiyonu)."""
+        base = self.data(injuries)
+        if basis == "ros":
+            return base
+
+        def build():
+            season = next(iter(base.leagues.values())).config.league.season
+            logs = load_logs(self.data_dir, season) if basis == "recent" else None
+            return basis_data(base, basis, logs)
+        return self._get(("data_basis", base.fingerprint, injuries, basis), build)
+
+    def engine(self, league_id: str, injuries: bool = True, basis: str = "ros") -> TradeEngine:
+        data = self.basis_data(injuries, basis)
         if str(league_id) not in data.leagues:
             raise KeyError(f"Lig yok: {league_id}")
         return self._get(("engine", data.fingerprint, str(league_id)), lambda: TradeEngine(data, str(league_id)))
@@ -85,8 +98,8 @@ class AppState:
         return self._get(("roles", data.fingerprint), lambda: role_boosts(data, load_logs(self.data_dir, season)))
 
     def week_model(self, league_id: str, injuries: bool = True, strategy: Strategy | None = None,
-                   out_statuses: tuple[str, ...] | None = None) -> WeekModel:
-        eng = self.engine(league_id, injuries)
+                   out_statuses: tuple[str, ...] | None = None, basis: str = "ros") -> WeekModel:
+        eng = self.engine(league_id, injuries, basis)
         s = strategy or Strategy()
         kwargs = {} if out_statuses is None else {"out_statuses": out_statuses}
         return self._get(("week_model", eng.data.fingerprint, str(league_id), s, out_statuses),
@@ -103,8 +116,8 @@ class AppState:
     def fixtures(self) -> pd.DataFrame:
         return self._get(("fixtures", self.signature()), lambda: load_fixtures(self.data_dir))
 
-    def season_sim(self, league_id: str, injuries: bool = True) -> SeasonSim | None:
-        eng = self.engine(league_id, injuries)
+    def season_sim(self, league_id: str, injuries: bool = True, basis: str = "ros") -> SeasonSim | None:
+        eng = self.engine(league_id, injuries, basis)
 
         def build():
             fx = self.fixtures()
@@ -112,15 +125,16 @@ class AppState:
                 return None
             standings = league_standings(load_standings(self.data_dir), league_id, eng.league.teams)
             lv = self.live(league_id, injuries)
-            return SeasonSim(self.week_model(league_id, injuries), self.weeks(league_id, injuries), fx, standings,
-                             eng.data.as_of, realized=lv.totals if lv else None)
+            return SeasonSim(self.week_model(league_id, injuries, basis=basis), self.weeks(league_id, injuries), fx,
+                             standings, eng.data.as_of, realized=lv.totals if lv else None)
         return self._get(("season_sim", eng.data.fingerprint, str(league_id)), build)
 
-    def season_base(self, league_id: str, injuries: bool, n_sims: int, sd: float, seed: int = 1) -> SeasonResult | None:
-        sim = self.season_sim(league_id, injuries)
+    def season_base(self, league_id: str, injuries: bool, n_sims: int, sd: float, seed: int = 1,
+                    basis: str = "ros") -> SeasonResult | None:
+        sim = self.season_sim(league_id, injuries, basis)
         if sim is None:
             return None
-        eng = self.engine(league_id, injuries)
+        eng = self.engine(league_id, injuries, basis)
         return self._get(("season_base", eng.data.fingerprint, str(league_id), n_sims, round(sd, 4), seed),
                          lambda: sim.run(n_sims=n_sims, seed=seed, strength_sd=sd))
 

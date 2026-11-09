@@ -239,37 +239,61 @@ class TradeEngine:
             u = self._utility_cache[strategy] = self._z_arr @ strategy.normalized
         return u
 
-    def crunch_vector(self, roster, il, strategy: Strategy | None = None) -> np.ndarray:
-        """IL'den dönen oyunculara aktif kadroda yer açmanın haftalık bedeli (takım vektöründen düşülür).
+    def return_day(self, pid: str) -> dt.date | None:
+        """Sakatlık raporundaki bilinen dönüş tarihi (CBS ``out_until``); yoksa ``None``."""
+        inj = getattr(self.data, "injuries", None)
+        if inj is None or pid not in inj.index:
+            return None
+        row = inj.loc[pid]
+        if row["kind"] == "out_until" and not pd.isna(row["return_date"]):
+            return pd.Timestamp(row["return_date"]).date()
+        return None
 
-        Dönüş sırasıyla (erken dönen önce): boş aktif yer varsa bedelsiz; yoksa aktifler ve dönen oyuncu arasında
-        stratejiye göre en düşük faydalı olan bırakılır. Aktif oyuncu bırakılırsa dönüş sonrası payı
-        (``pay × v``), dönen oyuncunun kendisi bırakılırsa tüm katkısı (yalnız dönüşten sonra oynar) kaybedilir.
-        ROS'u eksik oyuncu bırakma adayı değildir (değeri bilinmiyor)."""
+    def crunch_plan(self, roster, il, strategy: Strategy | None = None) -> list[tuple[str, str | None]]:
+        """IL'den dönüş sırasıyla (erken dönen önce) ``(dönen, bırakılan)``: boş aktif yer varsa bırakılan ``None``;
+        yoksa aktifler ve dönen oyuncu arasında stratejiye göre en düşük faydalı olan (dönenin kendisi olabilir).
+        ROS'u eksik oyuncu bırakma adayı değildir (değeri bilinmiyor). ``crunch_vector`` ve ekrandaki dönüş takvimi
+        aynı planı kullanır."""
         members = set(roster)
         back = [p for p in il if p in members and self.modeled[self.index[p]] and self.return_share(p) > 0]
         if not back:
+            return []
+        u = self._utility_array(strategy or Strategy())
+        active = [p for p in roster if p not in il]
+        free = self.league.capacity - len(active)
+        pool = sorted((p for p in active if self.modeled[self.index[p]]), key=lambda p: u[self.index[p]])
+        plan: list[tuple[str, str | None]] = []
+        for r in sorted(back, key=lambda p: -self.return_share(p)):
+            if free > 0:
+                free -= 1
+                plan.append((r, None))
+            elif not pool or u[self.index[r]] <= u[self.index[pool[0]]]:
+                plan.append((r, r))
+                continue
+            else:
+                plan.append((r, pool.pop(0)))
+            pool.append(r)
+            pool.sort(key=lambda p: u[self.index[p]])
+        return plan
+
+    def crunch_vector(self, roster, il, strategy: Strategy | None = None) -> np.ndarray:
+        """IL'den dönen oyunculara aktif kadroda yer açmanın haftalık bedeli (takım vektöründen düşülür;
+        ``crunch_plan``). Aktif oyuncu bırakılırsa dönüş sonrası payı (``pay × v``), dönen oyuncunun kendisi
+        bırakılırsa tüm katkısı (yalnız dönüşten sonra oynar) kaybedilir."""
+        members = set(roster)
+        if not any(p in members and self.modeled[self.index[p]] and self.return_share(p) > 0 for p in il):
             return _ZERO
         s = strategy or Strategy()
         key = (tuple(sorted(roster)), tuple(sorted(il)), s)
         cached = self._crunch_cache.get(key)
         if cached is not None:
             return cached
-        u = self._utility_array(s)
-        active = [p for p in roster if p not in il]
-        free = self.league.capacity - len(active)
-        pool = sorted((p for p in active if self.modeled[self.index[p]]), key=lambda p: u[self.index[p]])
         out = np.zeros(WEEK_DIM)
-        for r in sorted(back, key=lambda p: -self.return_share(p)):
-            if free > 0:
-                free -= 1
-            elif not pool or u[self.index[r]] <= u[self.index[pool[0]]]:
+        for r, d in self.crunch_plan(roster, il, s):
+            if d == r:
                 out += self.vecs[self.index[r]]
-                continue
-            else:
-                out += self.return_share(r) * self.vecs[self.index[pool.pop(0)]]
-            pool.append(r)
-            pool.sort(key=lambda p: u[self.index[p]])
+            elif d is not None:
+                out += self.return_share(r) * self.vecs[self.index[d]]
         if len(self._crunch_cache) > 20_000:
             self._crunch_cache.clear()
         self._crunch_cache[key] = out
