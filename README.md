@@ -2093,7 +2093,9 @@ examined both sides "took" the same free agents (Daniss Jenkins, Miles McBride).
 pool in turn: the proposing team first (it moves first), then the other side, in the same order before and after. The
 suggestion lists changed noticeably; for Banchero, packages where both sides gain appeared (Banchero → Ty Jerome + Dylan
 Cardwell: you +0.08, other side +0.11, 1.08 in the opponent's eyes). The cheap pre-screen of multi-team trades keeps the
-per-team approximation; the detailed calculation of a chosen package uses the shared pool.
+per-team approximation; the detailed calculation of a chosen package uses the shared pool. The trade page shows these
+free moves for each side and the expected category change they bring alone ("Takassız da yapılabilir"): the trade's
+difference is the gain on top of that, so an improvement available without trading is seen first.
 
 ### 13.8 V3 candidates
 

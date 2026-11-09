@@ -2080,7 +2080,9 @@ takas senaryosunun hepsinde iki taraf aynı boştaki oyuncuyu (Daniss Jenkins, M
 takastaki takımlar ortak havuzdan sırayla seçer: takası öneren önce (hamleyi ilk o yapar), sonra karşı taraf; takas
 öncesi ve sonrası aynı sıra. Öneri listeleri belirgin değişti; Banchero için iki tarafın da kazandığı paketler çıktı
 (Banchero → Ty Jerome + Dylan Cardwell: sen +0,08, rakip +0,11, rakibin gözünde 1,08). Çok takımlı takasın ucuz ön
-taraması takım başına yaklaşımla kalır; seçilen paketin ayrıntılı hesabı ortak havuzla yapılır.
+taraması takım başına yaklaşımla kalır; seçilen paketin ayrıntılı hesabı ortak havuzla yapılır. Takas Analizi her taraf
+için bu bedava hamleleri ve tek başına getirdikleri beklenen kategori değişimini "takassız da yapılabilir" diye gösterir:
+takasın farkı bunun üstündeki kazançtır; aynı iyileşme takassız mümkünse önce o görülür.
 
 ### 13.8 V3 adayları
 
