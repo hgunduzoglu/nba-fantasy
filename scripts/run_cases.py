@@ -26,6 +26,8 @@ def main() -> int:
     ap.add_argument("--out-dir", default=None, help="varsayılan: <data>/evaluation")
     ap.add_argument("--compare", nargs=2, metavar=("ESKI", "YENI"))
     args = ap.parse_args()
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")      # Windows konsolu (cp1254)
     if args.compare:
         old, new = (json.loads(Path(p).read_text(encoding="utf-8")) for p in args.compare)
         print("\n".join(compare(old, new)))
@@ -53,7 +55,7 @@ def main() -> int:
         state_txt = f"HTTP {c['status']}" if c["status"] != 200 else f"{c['result']['n_suggestions']} öneri"
         print(f"[{c['id']}] {state_txt}; beklenti {len(checks) - len(bad)}/{len(checks)}")
         for e in bad:
-            print(f"    ✗ {e.get('reason', e)}")
+            print(f"    x {e.get('reason', e)}")
     print(f"→ {path}")
     return 1 if failed else 0
 
