@@ -164,8 +164,8 @@ main { padding: 18px 20px 60px; max-width: 1680px; margin: 0 auto; }
 .chip button { border: 0; background: none; cursor: pointer; color: var(--muted); padding: 0 4px; font-size: 15px; line-height: 1; }
 
 /* ---------------------------------------------------------------- kadro tabloları */
-.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-@media (max-width: 1280px) { .grid-2 { grid-template-columns: 1fr; } }
+.grid-2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+@media (max-width: 1280px) { .grid-2 { grid-template-columns: minmax(0, 1fr); } }
 .table-wrap { overflow-x: auto; }
 table.roster { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12.5px; }
 .roster th { position: sticky; top: 0; background: var(--surface-2); color: var(--muted); font-weight: 600; text-align: right; padding: 7px 6px; border-bottom: 1px solid var(--border); cursor: pointer; white-space: nowrap; user-select: none; }
