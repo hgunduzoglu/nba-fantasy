@@ -11,6 +11,7 @@ import { SuggestPage } from "./pages/SuggestPage";
 import { TradePage, type TradeInit } from "./pages/TradePage";
 import { WeeklyPage } from "./pages/WeeklyPage";
 import { Icon, Sheet } from "./components/Mobile";
+import { DataStatus } from "./components/DataStatus";
 import { SyncButton } from "./components/SyncButton";
 import { useIsMobile } from "./hooks";
 import type { League, Meta } from "./types";
@@ -204,7 +205,7 @@ export default function App() {
                     onClick={() => setTheme(theme === "auto" ? "light" : theme === "light" ? "dark" : "auto")}>
               {THEME_LABEL[theme]}
             </button>
-            <span className="muted" style={{ fontSize: 12 }}>Veri: {meta.as_of}</span>
+            <DataStatus key={version} asOf={meta.as_of} />
           </header>
           <nav className="tabs" role="tablist">
             {TABS.map((t) => (
@@ -290,6 +291,7 @@ function SettingsSheet({ meta, league, leagueSelect, teamSelect, injuryToggle, s
       </div>
       <p className="sheet-note">Veri tarihi {meta.as_of} · {league.teams.length} takım
         {league.trade_deadline ? ` · takas son gün ${league.trade_deadline}` : ""}</p>
+      <DataStatus asOf={meta.as_of} inline />
       <button className="btn block" onClick={onClose}>Tamam</button>
     </Sheet>
   );

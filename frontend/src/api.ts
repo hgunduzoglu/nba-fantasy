@@ -1,5 +1,5 @@
 import type {
-  AddDropWeekIn, AddDropWeekOut, CompleteOut, ReportRecord, ScenariosOut, DropIn, DropOut, FixtureTeam, HistoryOut, NewsOut, NewsStatus, Meta, MispricedRow, MultiSeasonOut, MultiSuggestIn, MultiSuggestOut, MultiTradeIn, MultiTradeOut, Perceived, Player,
+  AddDropWeekIn, AddDropWeekOut, CompleteOut, Freshness, ReportRecord, ScenariosOut, DropIn, DropOut, FixtureTeam, HistoryOut, NewsOut, NewsStatus, Meta, MispricedRow, MultiSeasonOut, MultiSuggestIn, MultiSuggestOut, MultiTradeIn, MultiTradeOut, Perceived, Player,
   RankingsOut, Roster, SeasonOut, SeasonPageOut, SitStartOut, Source, StreamOut, StrategyIn, SuggestIn, SuggestOut, SyncStatus, TradeIn,
   TradeOut, WaiverOut, WeeklyIn, WeeklyOut,
 } from "./types";
@@ -34,6 +34,7 @@ const codeHeader = (code?: string): Record<string, string> => (code ? { "X-Repor
 
 export const api = {
   meta: (injuries: boolean) => request<Meta>(`/api/meta?${q(injuries)}`),
+  freshness: () => request<Freshness>("/api/freshness"),
   roster: (league: string, team: string, source: Source, injuries: boolean) =>
     request<Roster>(`/api/leagues/${league}/roster/${team}?source=${source}&${q(injuries)}`),
   freeAgents: (league: string, source: Source, injuries: boolean) =>

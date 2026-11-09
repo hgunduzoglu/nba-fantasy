@@ -64,3 +64,13 @@ def test_auto_punt_strategy_and_manual_roster_moves(client):
     assert taken.status_code == 400
     bad = client.post("/api/leagues/L/trade/analyze", json={**body, "strategy_b": {"auto_punt": 3}})
     assert bad.status_code == 422
+
+
+def test_freshness_reports_components_and_decision_states(client):
+    r = client.get("/api/freshness")
+    assert r.status_code == 200
+    body = r.json()
+    assert set(body["decisions"]) >= {"trade", "adddrop", "lineup", "season"} and "varsayım" in body["assumption"]
+    # sentetik ligin veri dizini boş: hiçbir bileşen yok, kararlar bekletilir ve neyin eksik olduğu söylenir
+    assert body["components"] == {} and body["decisions"]["trade"]["state"] == "hold"
+    assert any("Kadrolar yok" in x for x in body["decisions"]["trade"]["reasons"])

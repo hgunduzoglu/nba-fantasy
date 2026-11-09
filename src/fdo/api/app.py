@@ -15,6 +15,7 @@ from fdo.api.serialize import (brief, categories_meta, clean, fixture_changes, p
 from fdo.api.schemas import SeasonIn, TradeIn
 from fdo.api.state import SOURCES, AppState
 from fdo.config import REPO_ROOT
+from fdo.ingest.freshness import report as freshness_report
 from fdo.inseason.scenarios import BASES, per_game_rates
 from fdo.trade import TradeError, TradeRequest
 from fdo.trade.perception import perceived_prices
@@ -204,6 +205,13 @@ def create_app(data_dir: str | Path | None = None, frontend_dir: str | Path | No
     @app.get("/api/sources")
     def sources():
         return SOURCES
+
+    @app.get("/api/freshness")
+    def freshness():
+        """Bileşen bazında veri güncelliği ve karar türüne göre durum (normal / koşullu / bekletilir)."""
+        data = state.data()
+        season = next(iter(data.leagues.values())).config.league.season if data.leagues else None
+        return clean(freshness_report(state.data_dir, season=season, read_only=read_only))
 
     from fdo.api import inseason, multi, news, sync
     inseason.register(app, state)

@@ -43,6 +43,27 @@ export interface Meta {
   report?: { available: boolean; needs_code: boolean };
 }
 
+/** Bileşen bazında veri güncelliği (``/api/freshness``). ``basis``: yaşın dayanağı — ``captured`` dosyadaki çekim
+ *  zamanı, ``captured_on`` / ``source`` gün (gün sonu varsayılır), ``file`` disk zamanı (kaynak zamanı bilinmiyor). */
+export interface FreshnessComponent {
+  label: string;
+  file: string;
+  basis: "captured" | "captured_on" | "source" | "file";
+  as_of: string | null;
+  age_hours: number | null;
+  source_as_of: string | null;
+  captured_at: string | null;
+}
+
+export type DecisionState = "normal" | "conditional" | "hold";
+
+export interface Freshness {
+  now: string;
+  components: Record<string, FreshnessComponent>;
+  decisions: Record<string, { state: DecisionState; label: string; reasons: string[]; refresh: string[] }>;
+  assumption: string;
+}
+
 export interface ReportCounter {
   give: { id: string; name: string }[];
   get: { id: string; name: string }[];

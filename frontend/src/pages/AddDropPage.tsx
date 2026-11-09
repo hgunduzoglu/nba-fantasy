@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { FreshnessBanner } from "../components/DataStatus";
 import type { League, Meta } from "../types";
 import { DropPage } from "./DropPage";
 import { FreeAgentsPage } from "./FreeAgentsPage";
@@ -25,6 +26,7 @@ export function AddDropPage(props: { meta: Meta; league: League; team: string; i
   };
   return (
     <div className="stack">
+      <FreshnessBanner decision="adddrop" />
       <div className="seg seg-main" role="group" aria-label="Add/drop menüsü">
         <button aria-pressed={menu === "ros"} onClick={() => pick("ros")}>Kalan sezon</button>
         <button aria-pressed={menu === "week"} onClick={() => pick("week")}>Bu hafta</button>
