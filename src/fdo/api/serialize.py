@@ -186,6 +186,9 @@ def return_timeline(eng: TradeEngine, roster, il, strategy, incoming=()) -> list
 def trade_result(eng: TradeEngine, result: TradeResult, *, perceived: pd.Series | None = None) -> dict:
     a, b = result.request.team_a, result.request.team_b
     names = eng.data.players["name"]
+    # Takassız alternatif: takas öncesi tabanın bedava waiver hamleleri (ortak havuz) ve tek başına kazancı.
+    free = eng.joint_waiver([(t, eng.league.rosters[t], eng._il(t, eng.league.rosters[t]), result.strategies[t])
+                             for t in (a, b)])
     teams = {}
     for side, tid in (("a", a), ("b", b)):
         i = eng.team_index[tid]
@@ -207,6 +210,9 @@ def trade_result(eng: TradeEngine, result: TradeResult, *, perceived: pd.Series 
                               "rank_before": r["sıra önce"], "rank_after": r["sıra sonra"]}
                              for c, r in category_changes(result, mode, tid).iterrows()] for mode in MODES},
         }
+        base = float(eng.baseline_p[i, keep].mean(axis=0).sum())
+        teams[side]["free"] = {"moves": [{"drop": names[d] if d else None, "add": names[f]} for d, f in free[tid][1]],
+                               "ecw_gain": float(pb.sum()) - base}
     req = result.request
     balance = None
     if perceived is not None:

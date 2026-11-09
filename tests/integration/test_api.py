@@ -112,3 +112,19 @@ def test_completion_rows_carry_counterpart_reasons(client):
     assert any(r["acceptability"] == "low" for r in loose["suggestions"])
     s = client.post("/api/leagues/L/trade/suggest", json={"team": "1", "max_evaluations": 400}).json()
     assert "rejected_reason" in s and all(r["acceptability"] in ("high", "medium") for r in s["suggestions"])
+
+
+def test_analysis_shows_the_free_moves_available_without_the_trade(client):
+    import dataclasses
+    import math
+
+    state = client.app.state.fdo
+    data = state.data()
+    lg = data.leagues["L"]
+    data.leagues["L"] = dataclasses.replace(lg, rosters={**lg.rosters, "1": lg.rosters["1"][:2]})   # boş aktif yer
+    out = client.post("/api/leagues/L/trade/analyze", json={"team_a": "1", "team_b": "2", "give_a": ["0"],
+                                                            "give_b": ["3"]}).json()
+    free = out["teams"]["a"]["free"]
+    assert free["moves"] and free["moves"][0]["drop"] is None and math.isfinite(free["ecw_gain"])
+    assert free["ecw_gain"] > 0                                          # boş yeri bedava doldurmak takassız kazanç
+    assert out["teams"]["b"]["free"]["moves"] == [] or out["teams"]["b"]["free"]["moves"][0]["add"] != free["moves"][0]["add"]

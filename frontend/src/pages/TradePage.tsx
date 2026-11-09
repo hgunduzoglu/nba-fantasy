@@ -106,6 +106,12 @@ function SideCard({ side, title, scale }: { side: TradeSide; title: string; scal
           <Metric k="Stratejiye göre puan" before={side.strategy_before} after={side.strategy_after}
                   delta={side.strategy_delta} fmt={(v) => fmtNum(v, 2)} dfmt={(v) => fmtDelta(v, 3)} />
         </div>
+        {side.free && side.free.moves.length > 0 && (
+          <p className="hint" title="Takas öncesi taban bu hamleleri zaten yapmış sayılır; yukarıdaki fark bunun üstündeki takas kazancıdır.">
+            Takassız da yapılabilir: {side.free.moves.map((m) => (m.drop ? `${m.drop} yerine ${m.add}` : `boş yere ${m.add}`)).join(", ")}
+            {" "}(beklenen kategori {fmtDelta(side.free.ecw_gain, 3)} / hafta). Yukarıdaki fark bunun üstündeki takas kazancı.
+          </p>
+        )}
         <div className="section-title">Kategori kazanma olasılığı değişimi (puan)</div>
         <CategoryImpact rows={side.categories} scale={scale} />
         {moves.length > 0 && (

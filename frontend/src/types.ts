@@ -227,6 +227,8 @@ export interface RankRow {
 }
 
 export interface TradeSide {
+  /** Takassız alternatif: takas öncesi tabanın bedava waiver hamleleri (ortak havuz) ve tek başına kategori kazancı. */
+  free?: { moves: { drop: string | null; add: string }[]; ecw_gain: number };
   team_id: string;
   team: string;
   strategy: string;
