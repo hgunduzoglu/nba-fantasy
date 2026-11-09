@@ -13,7 +13,7 @@ için kısa vadeli rol önemlidir:
   ``n_W / (n_W + 4)``. Kalan sezon (ROS) maç başına eklenir (negatif olmaz, isabet ≤ deneme, üçlük ≤ isabet).
 * **Geçerlilik**: A'nın en erken bilinen dönüşüne kadar (hariç); bilinmiyorsa bugünden 14 gün.
 
-Eşleştirme: NBA adı ``normalize_name`` + takım kısaltması; takımda tek eşleşme yoksa adla tek eşleşme.
+Eşleştirme: ``fdo.ingest.identity`` (ad + takım, yalnız ad, baş harf + soyad + takım; yalnız tek aday kalınca).
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from fdo.ingest.load import normalize_name
+from fdo.ingest.identity import Resolver
 from fdo.schedule.calendar import normalize_team
 from fdo.trade.data import ROS, TradeData
 from fdo.types import STATS
@@ -61,31 +61,9 @@ def load_logs(directory: str | Path, season: str) -> pd.DataFrame | None:
     return df
 
 
-def _initial(n: str) -> str:
-    """``"nickeil alexander walker"`` → ``"n alexander walker"`` (Yahoo'nun kısaltılmış adlarıyla eşleşme)."""
-    parts = n.split()
-    return " ".join([parts[0][0], *parts[1:]]) if len(parts) > 1 else n
-
-
-def resolver(players: pd.DataFrame):
-    """Ad (+ NBA takımı) → Yahoo oyuncu kimliği; önce ad + takım, sonra yalnız ad, sonra baş harf + soyad + takım
-    ("N. Alexander-Walker"); tek eşleşme yoksa ``None``."""
-    key = players.assign(n=players["name"].map(normalize_name),
-                         t=players["nba_team"].map(lambda t: normalize_team(t) if isinstance(t, str) and t else ""))
-    key["i"] = key["n"].map(_initial)
-    key = key.rename_axis("player_id").reset_index()
-    by_both = key.groupby(["n", "t"])["player_id"].agg(list).to_dict()
-    by_name = key.groupby("n")["player_id"].agg(list).to_dict()
-    by_initial = key.groupby(["i", "t"])["player_id"].agg(list).to_dict()
-
-    def one(name, team: str = "") -> str | None:
-        n = normalize_name(name)
-        t = normalize_team(team) if team else ""
-        for hit in (by_both.get((n, t)), by_name.get(n), by_initial.get((_initial(n), t))):
-            if hit and len(hit) == 1:
-                return hit[0]
-        return None
-    return one
+def resolver(players: pd.DataFrame, overrides: pd.DataFrame | None = None):
+    """Ad (+ NBA takımı) → Yahoo oyuncu kimliği ya da ``None`` (``fdo.ingest.identity``: yalnız tek aday kalınca)."""
+    return Resolver(players, overrides).player_id
 
 
 def match_ids(logs: pd.DataFrame, players: pd.DataFrame) -> pd.Series:

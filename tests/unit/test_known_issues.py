@@ -38,8 +38,6 @@ def _cbs(name, team):
                           "injury": "Knee", "updated": "Sun, Nov 9"}])
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError,
-                   reason="KI-2: aynı adlı iki oyuncu varken ve takım tutmazken CBS satırı ilk adaya bağlanıyor")
 def test_ki2_ambiguous_injury_name_is_not_assigned():
     players = _players([("10", "Jalen Williams", "OKC"), ("11", "Jalen Williams", "DEN")])
     matched = match_players(_cbs("Jalen Williams", "LAL"), players, dt.date(2026, 10, 20))
@@ -52,8 +50,6 @@ def test_unique_injury_name_still_matches():
     assert list(matched.index) == ["10"]
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError,
-                   reason="KI-3: eşleşmeyen sakatlık satırları sessizce düşüyor; kapsam raporu yok")
 def test_ki3_unmatched_injury_rows_are_reported(tmp_path, trade_data):  # noqa: F811
     from fdo.inseason.injuries import with_injuries
 

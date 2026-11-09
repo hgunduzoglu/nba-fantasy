@@ -24,7 +24,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from fdo.ingest.load import normalize_name
+from fdo.ingest.identity import IdentityReport, Resolver, load_overrides
 from fdo.schedule.calendar import normalize_team
 from fdo.trade.data import ROS, TradeData
 from fdo.types import STATS
@@ -121,35 +121,30 @@ def latest_file(directory: str | Path) -> Path | None:
     return files[-1] if files else None
 
 
-def match_players(inj: pd.DataFrame, players: pd.DataFrame, season_start: dt.date) -> pd.DataFrame:
-    """CBS satırlarını oyunculara eşler (ad + gerekirse takım). Dönüş: ``player_id`` index'li tablo."""
-    by_name: dict[str, list[str]] = {}
-    for pid, nm in players["name"].items():
-        by_name.setdefault(normalize_name(nm), []).append(str(pid))
-    team = players["nba_team"].map(lambda t: normalize_team(t) if isinstance(t, str) and t else "")
-    # yedek: aynı takım + aynı soyad + aynı ilk harf (ör. CBS "Nicolas Claxton" = Yahoo "Nic Claxton")
-    by_last: dict[tuple[str, str, str], list[str]] = {}
-    for pid, nm in players["name"].items():
-        parts = normalize_name(nm).split()
-        if len(parts) >= 2:
-            by_last.setdefault((team.get(pid, ""), parts[-1], parts[0][:1]), []).append(str(pid))
+def match_injuries(inj: pd.DataFrame, players: pd.DataFrame, season_start: dt.date,
+                   overrides: pd.DataFrame | None = None) -> tuple[pd.DataFrame, IdentityReport]:
+    """CBS satırlarını oyunculara eşler (``fdo.ingest.identity``: yalnız tek aday kalınca; aynı adlı birden çok aday
+    karantinada kalır). Dönüş: ``player_id`` index'li tablo ve eşleştirme raporu (eşleşmeyen / belirsiz satırlar)."""
+    resolve = Resolver(players, overrides, source="cbs")
+    report = IdentityReport("CBS sakatlık raporu")
     out = []
     for r in inj.itertuples():
-        cands = by_name.get(normalize_name(r.name), [])
-        if len(cands) > 1:
-            cands = [p for p in cands if team.get(p, "") == normalize_team(r.nba_team)] or cands[:1]
-        if not cands:
-            parts = normalize_name(r.name).split()
-            if len(parts) >= 2:
-                hit = by_last.get((normalize_team(r.nba_team), parts[-1], parts[0][:1]), [])
-                cands = hit if len(hit) == 1 else []
-        if not cands:
+        m = resolve(r.name, r.nba_team)
+        report.add(f"{r.name} ({r.nba_team})", m)
+        if m.player_id is None:
             continue
         kind, ret = interpret(r.status_text, season_start)
-        out.append({"player_id": cands[0], "cbs_name": r.name, "kind": kind, "return_date": ret,
-                    "status_text": r.status_text, "injury": r.injury, "updated": r.updated})
-    df = pd.DataFrame(out, columns=["player_id", "cbs_name", "kind", "return_date", "status_text", "injury", "updated"])
-    return df.drop_duplicates("player_id").set_index("player_id")
+        out.append({"player_id": m.player_id, "cbs_name": r.name, "kind": kind, "return_date": ret,
+                    "status_text": r.status_text, "injury": r.injury, "updated": r.updated, "match": m.method})
+    cols = ["player_id", "cbs_name", "kind", "return_date", "status_text", "injury", "updated", "match"]
+    df = pd.DataFrame(out, columns=cols)
+    return df.drop_duplicates("player_id").set_index("player_id"), report
+
+
+def match_players(inj: pd.DataFrame, players: pd.DataFrame, season_start: dt.date,
+                  overrides: pd.DataFrame | None = None) -> pd.DataFrame:
+    """``match_injuries`` tablosu (rapor olmadan)."""
+    return match_injuries(inj, players, season_start, overrides)[0]
 
 
 def team_games_from(schedule: pd.DataFrame) -> dict[str, list[dt.date]]:
@@ -202,7 +197,9 @@ def with_injuries(data: TradeData, directory: str | Path) -> TradeData:
         return data
     raw = pd.read_csv(path, dtype=str, keep_default_na=False)
     start = pd.to_datetime(data.schedule["game_date"]).min().date() if data.schedule is not None else data.as_of
-    matched = match_players(raw, data.players, start)
+    matched, report = match_injuries(raw, data.players, start, load_overrides(directory))
+    note = f"{report.note()} ({path.name})"
     if matched.empty:
-        return data
-    return apply_injuries(data, matched, source=f"{SOURCE_URL} ({path.name})")
+        return dataclasses.replace(data, issues=(*data.issues, note))
+    out = apply_injuries(data, matched, source=f"{SOURCE_URL} ({path.name})")
+    return dataclasses.replace(out, issues=(*out.issues, note))

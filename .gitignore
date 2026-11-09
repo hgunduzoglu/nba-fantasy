@@ -78,3 +78,5 @@ frontend/dist/
 # Referans vakalar ve sonuçları (kişisel lig kimlikleri)
 /data/real/cases*.json
 /data/real/evaluation/
+# Elle oyuncu kimliği düzeltmeleri (fdo.ingest.identity)
+/data/real/id_overrides.csv
