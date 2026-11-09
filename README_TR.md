@@ -2025,11 +2025,15 @@ Yahoo API erişimi olmadan, veri elle (kendi oturumunla "Yahoo'dan güncelle") �
   **koşullu** (sonuç gösterilir, hangi verinin eski olduğu söylenir) ya da **bekletilir** (önce şu bileşen yenilenmeli).
   Üst çubuktaki "Veri: …" tıklanınca açılır; Add/Drop sayfası durum normal değilse uyarır ("oyuncu hâlâ boştaysa
   geçerli"). Eşikler (ör. add/drop için kadro 12 saate kadar normal, 36 saate kadar koşullu) **başlangıç varsayımıdır**,
-  ölçülerek doğrulanmadı; `config/freshness.yaml` ile değiştirilir.
+  ölçülerek doğrulanmadı; `config/freshness.yaml` ile değiştirilir. Oyuncu sayfalarının kapsamı da gösterilir: boştaki
+  havuzu Yahoo sıralamasında ilk ~750 oyuncudur, "en iyi boştaki" yüklenen havuzda en iyidir.
 - **Karar günlüğü** (`fdo.evaluation.decisions`): takas önerileri ve tamamlama (`recommendation`) ile Takas Analizi'nde
   incelenen takaslar (`scenario`) ayrı türlerde `data/real/decisions/<ay>.jsonl` dosyasına yalnız eklenerek yazılır: istek,
   sonucun özeti, veri imzası (içerik özeti; dosya yolu ve zamanından bağımsız), arşivdeki son parti, kod sürümü.
-  `FDO_DECISION_LOG=0` kapatır. Senaryo gerçek kadroyu değiştirmez.
+  `FDO_DECISION_LOG=0` kapatır. Senaryo gerçek kadroyu değiştirmez. Takas Analizi'ndeki "Bu takası yaptım" üçüncü türü
+  (`user_reported`) yazar: veri ve kadrolar değişmez; durum her okumada güncel kadrolarla karşılaştırılır (kadrolarda /
+  kısmen / bekliyor), yani bir sonraki Yahoo güncellemesinde kendiliğinden uzlaşır. Sunucunun günlüğü veri gönderimiyle
+  ezilmez.
 - **Veri sağlayıcıları** (`fdo.ingest.provider`): analiz verinin nereden geldiğini bilmez; elle alınan güncel dosyalar
   (`ManualSnapshotProvider`), arşiv partisi (`ArchivedSnapshotProvider`) ve kapalı `YahooApiProvider` aynı dosya
   sözleşmesini verir. Yahoo API onayı hiçbir özelliğin ön koşulu değil; onay gelirse yalnız okuma varsayılır.

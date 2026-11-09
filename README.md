@@ -2035,11 +2035,16 @@ reproducible and show which data a decision rests on:
   **conditional** (the result is shown, saying which data is old) or **hold** (refresh this component first). It opens
   from "Veri: …" in the top bar; the Add/Drop page warns when the state is not normal ("valid if the player is still
   free"). The thresholds (e.g. for add/drop, rosters normal up to 12 hours, conditional up to 36) are **starting
-  assumptions**, not validated by measurement; change them with `config/freshness.yaml`.
+  assumptions**, not validated by measurement; change them with `config/freshness.yaml`. The reach of the player pages is
+  shown too: the free-agent pool is the top ~750 players in Yahoo's ranking, so "best free agent" means best in the loaded
+  pool.
 - **Decision log** (`fdo.evaluation.decisions`): trade suggestions and completion (`recommendation`) and trades inspected
   on the trade page (`scenario`) are appended as separate kinds to `data/real/decisions/<month>.jsonl`: request, result
   summary, data signature (content hash; independent of file paths and times), the latest archive batch, code version.
-  `FDO_DECISION_LOG=0` turns it off. A scenario does not change the real roster.
+  `FDO_DECISION_LOG=0` turns it off. A scenario does not change the real roster. "Bu takası yaptım" on the trade page
+  writes the third kind (`user_reported`): data and rosters do not change; the status is compared with the current rosters on
+  every read (in rosters / partial / pending), so it reconciles by itself at the next Yahoo update. The server's log is not
+  overwritten by the data push.
 - **Data providers** (`fdo.ingest.provider`): the analysis does not know where data comes from; current hand-pulled files
   (`ManualSnapshotProvider`), an archive batch (`ArchivedSnapshotProvider`) and the disabled `YahooApiProvider` deliver the
   same file contract. Yahoo API approval is a prerequisite for nothing; if it comes, read-only access is assumed.
