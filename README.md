@@ -1885,6 +1885,22 @@ Yahoo projeksiyonları takım arkadaşı sakatlığına neredeyse tepki vermedi�
 - **Maliyet**: her çağrının token kullanımı kaydedilir. İlk yenileme (8 Kasım): 70 haber, 42'si analiz edildi, ~$0.15
   (haber başına ~$0.0036); günde 40–80 ilgili haberle ayda ~$6–10.
 
+### 13.26 Sadece bırak: IL dönüşünde kimi bırakmalı (`fdo.inseason.drops`, Add/Drop → Sadece bırak, 9 Kasım 2026)
+
+Sakatlıktan dönen oyuncu aktif kadroya alınırken yer açmak için. IL'deki oyunculardan dönenler işaretlenir (varsayılan:
+dönüş tarihi 2 gün içinde ya da tarih yok ve durum artık "oynamaz" değil; elle değiştirilebilir). Adaylar aktif
+oyuncular ve dönenlerin kendisidir; bırakılması gereken sayı `aktif + dönen − kadro kapasitesi`. Her aday için:
+
+- **Kalan sezon**: aday çıkınca kadronun tipik hafta vektörü (kalan IL'liler dönüş bedeliyle) ligdeki diğer takımlara
+  karşı; stratejiyle `9·Σ w_c·ΔP_c`. Ekranda önerilen seçeneğe göre haftalık ek kayıp ve en çok kaybedilen kategoriler.
+- **Bu hafta**: kalan günlerde eşleşmeye etkisi (beklenen kategori, P(5+)); dönen, dönüş gününden itibaren oynar.
+- Maç sayısı (bu hafta / gelecek hafta), ligdeki değer sırası (yüksekse bırakılınca başkası alabilir), boşta ondan iyi
+  oyuncu varsa adı (§13.13 `drop_ranking`), bırakınca doldurulamayan aktif pozisyon uyarısı.
+
+Öneri: pozisyonu bozmayan adaylar arasında kalan sezon kaybı en düşük oyuncu(lar); değişim kalıcı olduğu için varsayılan
+sıra kalan sezondur, "Bu hafta" sıralaması yalnızca eşleşmeye bakar. 9 Kasım: Kekstra'da Jaylon Tyson dönüyor
+(14/13); öneri Robert Williams III, Collin Sexton neredeyse eşit (haftada 0.006 kategori).
+
 ### 13.8 V3 adayları
 
 Beam search ve H-score ağırlık optimizasyonu; profil karışımı uyumu; oyuncular arası maç sayısı
@@ -1957,7 +1973,7 @@ tam "dünküne kadar"dır), gün içinde 2 saatte bir `scripts\news_refresh.py`.
 
 `run_app.py` arayüz derlenmemişse ya da `frontend/src` değiştiyse önce `npm install` / `npm run build` çalıştırır
 (Node.js gerekir), sonra FastAPI'yi başlatıp tarayıcıyı açar. Sekmeler: Takas Analizi, Takas Önerileri, Çok Takımlı
-Takas, Bu Hafta, Sit/Start (§13.21), Add/Drop (kalan sezon + bu hafta, §13.22), Haberler (§13.24–13.25), Performans
+Takas, Bu Hafta, Sit/Start (§13.21), Add/Drop (kalan sezon + bu hafta, §13.22; sadece bırak, §13.26), Haberler (§13.24–13.25), Performans
 (§13.23), Sezon Simülasyonu, Lig Sıralamaları. Lig, takım, sakatlık dönüş tarihleri, renk skalası
 (yeşil↔kırmızı ya da renk körlüğüne uygun mavi↔kırmızı) ve tema üst çubuktadır.
 
