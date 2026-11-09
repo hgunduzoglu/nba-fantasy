@@ -323,6 +323,7 @@ export interface SyncStatus {
   error: string | null;
   result: { as_of: string; pages: number; written: string[]; notes: string[]; live: boolean } | null;
   last_sync: string | null;
+  read_only?: boolean;
 }
 
 export interface WeeklyIn {
@@ -746,6 +747,7 @@ export interface NewsStatus {
   analyzed: number;
   model: string;
   has_key: boolean;
+  read_only?: boolean;
   cost_7d: number;
   cost_total: number;
 }

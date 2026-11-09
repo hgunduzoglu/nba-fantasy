@@ -132,10 +132,10 @@ export function NewsPage({ league, team, injuries }: Props) {
             {mobile ? "" : ` · ${status.model}`} · son 7 gün ~${status.cost_7d.toFixed(2)}
           </span>
         )}
-        <button className="btn" onClick={refresh} disabled={status?.running || !status?.has_key}
+        {!status?.read_only && <button className="btn" onClick={refresh} disabled={status?.running || !status?.has_key}
                 title={status?.has_key ? "CBS ve ESPN'den yeni haberleri çek ve analiz et" : "ANTHROPIC_API_KEY yok (.env)"}>
           {status?.running ? <><span className="spinner" /> Yenileniyor…</> : "↻ Haberleri yenile"}
-        </button>
+        </button>}
       </div>
       {status?.error && <div className="banner err">{status.error}</div>}
       <ErrorBanner error={error} />

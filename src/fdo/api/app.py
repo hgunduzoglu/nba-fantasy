@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query
@@ -18,6 +19,12 @@ from fdo.trade import TradeError, TradeRequest
 from fdo.trade.perception import perceived_prices
 
 FRONTEND_DIST = REPO_ROOT / "frontend" / "dist"
+#: Sunucu kurulumu (README §14.2): veri bilgisayardan gönderilir; Yahoo senkronizasyonu ve haber yenileme kapalı.
+READ_ONLY_ENV = "FDO_READ_ONLY"
+
+
+def read_only_env() -> bool:
+    return os.environ.get(READ_ONLY_ENV, "").strip().lower() in ("1", "true", "yes", "on")
 
 
 def _request(t: TradeIn) -> TradeRequest:
@@ -34,7 +41,10 @@ def _strategies(eng, body: TradeIn):
             strategy_from(body.strategy_b and body.strategy_b.model_dump(), eng, body.team_b))
 
 
-def create_app(data_dir: str | Path | None = None, frontend_dir: str | Path | None = None) -> FastAPI:
+def create_app(data_dir: str | Path | None = None, frontend_dir: str | Path | None = None, *,
+               read_only: bool | None = None) -> FastAPI:
+    """``read_only`` (varsayılan ``FDO_READ_ONLY`` ortam değişkeni): güncelleme uç noktaları 403 döner."""
+    read_only = read_only_env() if read_only is None else read_only
     state = AppState(data_dir)
     app = FastAPI(title="Fantasy Trade Lab", version="1.0")
     app.state.fdo = state
@@ -62,7 +72,7 @@ def create_app(data_dir: str | Path | None = None, frontend_dir: str | Path | No
                       "sources": {"ros": "Kalan sezon projeksiyonu", "season": "Bu sezon",
                                   "preseason": "Sezon öncesi projeksiyon"},
                       "presets": presets(), "injury_file": inj.name if inj else None,
-                      "issues": list(data.issues)})
+                      "issues": list(data.issues), "read_only": read_only})
 
     @app.get("/api/leagues/{lid}/roster/{tid}")
     def roster(lid: str, tid: str, source: str = Query("ros", pattern="^(ros|season|preseason)$"),
@@ -143,9 +153,9 @@ def create_app(data_dir: str | Path | None = None, frontend_dir: str | Path | No
     from fdo.api import inseason, multi, news, sync
     inseason.register(app, state)
     multi.register(app, state)
-    app.state.news = news.register(app, state)
+    app.state.news = news.register(app, state, read_only=read_only)
     after = [lambda log: news.refresh_logs(state), lambda log: news.refresh_news(state, log)]
-    app.state.sync = sync.register(app, state, sync.SyncJob(state, after=after))
+    app.state.sync = sync.register(app, state, sync.SyncJob(state, after=after), read_only=read_only)
 
     frontend = Path(frontend_dir) if frontend_dir else FRONTEND_DIST
     if (frontend / "index.html").exists():

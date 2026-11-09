@@ -8,7 +8,7 @@ from typing import Callable
 
 from fastapi import FastAPI, HTTPException
 
-from fdo.api.jobs import Job
+from fdo.api.jobs import READ_ONLY_MESSAGE, Job
 from fdo.api.serialize import clean
 from fdo.api.state import AppState
 from fdo.ingest.nba_logs import refresh_season
@@ -30,7 +30,7 @@ def refresh_logs(state: AppState) -> str:
     return refresh_season(state.data_dir, season)
 
 
-def register(app: FastAPI, state: AppState) -> Job:
+def register(app: FastAPI, state: AppState, *, read_only: bool = False) -> Job:
     job = Job()
 
     @app.get("/api/news/status")
@@ -41,10 +41,12 @@ def register(app: FastAPI, state: AppState) -> Job:
         return clean({**job.status(), "fetched_at": store.get("fetched_at"), "items": len(store["items"]),
                       "analyzed": sum(1 for i in items if i.get("analysis")), "model": news.model_name(),
                       "has_key": news.load_env_key(), "cost_7d": news.cost(store["usage"], week_ago),
-                      "cost_total": news.cost(store["usage"])})
+                      "cost_total": news.cost(store["usage"]), "read_only": read_only})
 
     @app.post("/api/news/refresh")
     def news_refresh():
+        if read_only:
+            raise HTTPException(403, READ_ONLY_MESSAGE)
         if not job.start(lambda log: {"summary": refresh_news(state, log)}):
             raise HTTPException(409, "Haber yenileme zaten sürüyor")
         return job.status()

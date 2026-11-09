@@ -10,7 +10,7 @@ from typing import Callable
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-from fdo.api.jobs import Job
+from fdo.api.jobs import READ_ONLY_MESSAGE, Job
 from fdo.api.state import AppState
 from fdo.inseason.injuries import refresh_cbs
 from fdo.inseason.live import load_live
@@ -54,17 +54,19 @@ class SyncJob(Job):
         return {**super().status(), "last_sync": max((lv.captured_at for lv in live.values()), default=None)}
 
 
-def register(app: FastAPI, state: AppState, job: SyncJob | None = None) -> SyncJob:
+def register(app: FastAPI, state: AppState, job: SyncJob | None = None, *, read_only: bool = False) -> SyncJob:
     job = job or SyncJob(state)
 
     @app.get("/api/sync")
     def sync_status():
-        return job.status()
+        return {**job.status(), "read_only": read_only}
 
     @app.post("/api/sync")
     def sync_start(body: SyncIn):
+        if read_only:
+            raise HTTPException(403, READ_ONLY_MESSAGE)
         if not job.begin(body.players):
             raise HTTPException(409, "Senkronizasyon zaten sürüyor")
-        return job.status()
+        return {**job.status(), "read_only": read_only}
 
     return job

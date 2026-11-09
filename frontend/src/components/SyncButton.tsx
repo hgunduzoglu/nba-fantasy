@@ -5,7 +5,8 @@ import type { SyncStatus } from "../types";
 import { Icon, Sheet } from "./Mobile";
 
 /** Üst çubuk: son Yahoo senkronizasyonu ve "Yahoo'dan güncelle" (bitince ``onDone`` veriyi yeniden yükletir).
- *  ``compact`` (telefon): ikon düğmesi, ayrıntılar alttan açılan panelde. */
+ *  ``compact`` (telefon): ikon düğmesi, ayrıntılar alttan açılan panelde. Salt okunur sunucuda (veri bilgisayardan
+ *  gönderilir) güncelleme yok: düğme yalnızca sunucudaki son veriyi yeniden yükler. */
 export function SyncButton({ onDone, compact = false }: { onDone: () => void; compact?: boolean }) {
   const [status, setStatus] = useState<SyncStatus | null>(null);
   const [players, setPlayers] = useState(true);
@@ -30,6 +31,10 @@ export function SyncButton({ onDone, compact = false }: { onDone: () => void; co
     api.syncStart(players).then((s) => { setStatus(s); poll(); })
       .catch((e: Error) => setStatus((s) => s && { ...s, error: e.message }));
   };
+  const reload = () => {
+    api.syncStatus().then(setStatus).catch(() => undefined);
+    onDone();
+  };
   const running = status?.running ?? false;
   const last = status?.last_sync ? `Yahoo: ${fmtStamp(status.last_sync)}` : "Yahoo: hiç";
   const outcome = status && (
@@ -43,6 +48,20 @@ export function SyncButton({ onDone, compact = false }: { onDone: () => void; co
       {status.log.length > 0 && <ul className="sync-log">{status.log.map((l, i) => <li key={i}>{l}</li>)}</ul>}
     </>
   );
+
+  if (status?.read_only) {
+    const note = `Son veri: ${status.last_sync ? fmtStamp(status.last_sync) : "yok"} · bilgisayardan gönderiliyor`;
+    return compact ? (
+      <button className="m-icon" aria-label="Veriyi yeniden yükle" title={note} onClick={reload}>
+        <Icon name="sync" size={20} />
+      </button>
+    ) : (
+      <div className="sync">
+        <button className="btn" onClick={reload} title="Sunucudaki son veriyi yeniden yükle">↻ Yenile</button>
+        <span className="muted" style={{ fontSize: 12 }}>{note}</span>
+      </div>
+    );
+  }
 
   if (compact) {
     return (

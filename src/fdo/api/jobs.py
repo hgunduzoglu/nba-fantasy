@@ -6,6 +6,9 @@ import datetime as dt
 import threading
 from typing import Callable
 
+#: Salt okunur sunucuda güncelleme uç noktalarının yanıtı (README §14.2).
+READ_ONLY_MESSAGE = "Sunucu salt okunur: veriler bilgisayardan gönderiliyor (scripts/push_data.py)."
+
 
 def now_iso() -> str:
     return dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")

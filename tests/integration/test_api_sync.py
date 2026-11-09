@@ -56,3 +56,14 @@ def test_sync_error_leaves_files_and_second_start_is_refused(real_dir, monkeypat
     s = _wait(c)
     assert "dokunulmadı" in s["error"] and s["result"] is None
     assert not (real_dir / "yahoo_live.json").exists()
+
+
+def test_read_only_server_refuses_updates(real_dir, monkeypatch):  # noqa: F811
+    monkeypatch.setenv("FDO_READ_ONLY", "1")
+    c = TestClient(create_app(data_dir=real_dir, frontend_dir=real_dir / "yok"))
+    assert c.get("/api/sync").json()["read_only"] is True
+    assert c.post("/api/sync", json={}).status_code == 403
+    assert c.post("/api/news/refresh").status_code == 403
+    assert c.get("/api/news/status").json()["read_only"] is True
+    monkeypatch.delenv("FDO_READ_ONLY")
+    assert TestClient(create_app(data_dir=real_dir, frontend_dir=real_dir / "yok")).get("/api/sync").json()["read_only"] is False
