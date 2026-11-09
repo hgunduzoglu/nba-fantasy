@@ -2039,13 +2039,36 @@ Yahoo API erişimi olmadan, veri elle (kendi oturumunla "Yahoo'dan güncelle") �
   çalıştırır (replay), `--compare` iki kaydın farkını verir. 9 Kasım arşiv partisiyle replay, güncel dosyalarla birebir
   aynı önerileri üretti.
 - **Bilinen sorunlar** (`tests/unit/test_known_issues.py`): doğrulanmış hatalar sentetik vakalar olarak; düzeltilmemişler
-  `xfail(strict=True)`. Açık olan: tamamlama, karşı tarafın hem modelde hem kendi algısında kaybettiği takası normal öneri
-  olarak listeliyor (gerçek vaka: Banchero → Giannis, rakibin gözünde 0,82).
+  `xfail(strict=True)`. Rakip için gerekçesiz takas önerisi (Banchero → Giannis) §13.32 ile giderildi.
 
 **Kimlik bilgileri ve kapalı özellikler**: Yahoo için API anahtarı yok; senkronizasyon `scripts/yahoo_login.py` ile bir
 kez giriş yapılmış Chrome profilini kullanır (yoksa güncelleme çalışmaz, mevcut dosyalarla analiz sürer). `ANTHROPIC_API_KEY`
 (`.env`) yalnız haber analizi ve detaylı analiz içindir; yoksa bu ikisi kapalıdır, takas, add/drop ve sezon hesapları
 LLM'siz çalışır.
+
+### 13.32 Rakip için gerekçe ve piyasa bandı (`fdo.trade.suggest.counterpart`, 10 Kasım 2026)
+
+Önceden tamamlama, rakibin hem modelde hem kendi gözünde kaybettiği takası "sen kazanırsın" türünde normal öneri olarak
+listeliyordu (METU IE, Banchero → Giannis: rakip −0,24, rakibin gözünde 0,82). Rakibin gözündeki eşik (≥ 0,80) bir
+kabul ölçüsü değil, yalnız "çok dengesiz değil" filtresiydi. Şimdi her öneri rakip için iki gerekçeye bakar:
+
+- **Modelde kazanç**: rakip kendi stratejisiyle kalan sezonda kazanıyor mu (tür sınıflandırmasıyla aynı ölçü).
+- **Kendi gözünde**: algılanan değerle (draft fiyatı + bu sezon) aldığı / verdiği ≥ 0,95 ("aşağı yukarı eşit";
+  algının gürültüsü için pay).
+
+İkisi de varsa kabul gerekçesi **yüksek**, biri varsa **orta**, hiçbiri yoksa **düşük**: düşükler listelenmez, sayısı
+gösterilir (`require_reason=false` ile görülebilir). Bu bir kabul olasılığı değildir; menajer davranışı modellenmedi,
+yüzde gösterilmez. Rozet ve gerekçeler tamamlama ve öneri tablolarında "Kabul gerekçesi" sütununda.
+
+**Piyasa bandı**: rakibin gözündeki oran 1,25'i (= 1 / 0,80) aşarsa piyasa gözünde sen fazla ödüyorsun, karşılığında daha
+fazlası istenebilir; tamamlamada ve karşılıklı faydada bu paketler de listelenmez (`max_view`, 0 = kapalı). Sat-yüksek /
+al-düşükte piyasa farkı zaten aranan şey olduğu için uygulanmaz. Örnek: Banchero + Jackson → Clingan rakibin gözünde 1,53,
+yani ilk şikâyetteki fazla ödeme; artık listede yok, yerine Clingan + Ausar Thompson (0,97).
+
+Etki (9 Kasım verisi, referans vakalar): Banchero karşılığında The Last Führer'den önerilenler Clingan (sen +0,33, rakip
+kendi gözünde 0,97), Ty Jerome ve Zion; Giannis, Mobley (0,94) ve fazla ödeme olanlar (Castle 1,49, LaVine 1,57)
+elendi. Varsayılan karşılıklı fayda önerileri korunuyor. 0,95 ve 1,25 başlangıç varsayımıdır, doğrulanmadı; gerçek teklif
+ve cevap kayıtları biriktikçe ayarlanmalı.
 
 ### 13.8 V3 adayları
 

@@ -2049,13 +2049,38 @@ reproducible and show which data a decision rests on:
   archived inputs (replay), `--compare` diffs two records. Replay with the 9 November batch produced exactly the same
   suggestions as the current files.
 - **Known issues** (`tests/unit/test_known_issues.py`): verified bugs as synthetic cases; unfixed ones are
-  `xfail(strict=True)`. Open: completion lists, as a normal suggestion, a trade the other side loses both in the model and in
-  its own perception (real case: Banchero → Giannis, 0.82 in the opponent's eyes).
+  `xfail(strict=True)`. The suggestion with no reason for the other side (Banchero → Giannis) is fixed in §13.32.
 
 **Credentials and disabled features**: there is no Yahoo API key; sync uses a Chrome profile logged in once with
 `scripts/yahoo_login.py` (without it, updating does not work and analysis continues on the existing files).
 `ANTHROPIC_API_KEY` (`.env`) is only for news analysis and the detailed analysis; without it those two are off, and trade,
 add/drop and season calculations run without an LLM.
+
+### 13.32 A reason for the other side and a market band (`fdo.trade.suggest.counterpart`, 10 November 2026)
+
+Completion used to list, as a normal "you win" suggestion, a trade the other side loses both in the model and in its own
+eyes (METU IE, Banchero → Giannis: other side −0.24, 0.82 in the opponent's eyes). The opponent's-view threshold
+(≥ 0.80) was not a measure of acceptance, only a "not too lopsided" filter. Now every suggestion checks two reasons for
+the other side:
+
+- **Model gain**: does the other side gain over the rest of the season with its own strategy (the same measure as the
+  tier).
+- **In its own eyes**: received / given perceived value (draft price + this season) ≥ 0.95 ("roughly even"; a margin for
+  the noise in perception).
+
+Both → acceptability **high**, one → **medium**, none → **low**: low ones are not listed and their count is shown (they
+can be seen with `require_reason=false`). This is not an acceptance probability; manager behaviour is not modelled and
+no percentage is shown. The badge and reasons are in the "Kabul gerekçesi" column of the completion and suggestion tables.
+
+**Market band**: if the opponent's-view ratio exceeds 1.25 (= 1 / 0.80) you overpay in the market's eyes and could ask
+for more; in completion and mutual-benefit search those packages are not listed either (`max_view`, 0 = off). It does not
+apply to sell-high / buy-low, where the market gap is the point. Example: Banchero + Jackson → Clingan is 1.53 in the
+opponent's eyes, the overpay of the first complaint; it is gone, replaced by Clingan + Ausar Thompson (0.97).
+
+Effect (9 November data, reference cases): for Banchero, completion with The Last Führer now offers Clingan (you +0.33,
+0.97 in the opponent's eyes), Ty Jerome and Zion; Giannis, Mobley (0.94) and the overpays (Castle 1.49, LaVine 1.57)
+are out. The default mutual-benefit suggestions are kept. 0.95 and 1.25 are starting assumptions, not validated; they
+should be tuned as real offer and response records accumulate.
 
 ### 13.8 V3 candidates
 
