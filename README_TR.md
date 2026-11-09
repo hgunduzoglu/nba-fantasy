@@ -1903,6 +1903,24 @@ oyuncular ve dönenlerin kendisidir; bırakılması gereken sayı `aktif + döne
 sıra kalan sezondur, "Bu hafta" sıralaması yalnızca eşleşmeye bakar. 9 Kasım: Kekstra'da Jaylon Tyson dönüyor
 (14/13); öneri Robert Williams III, Collin Sexton neredeyse eşit (haftada 0.006 kategori).
 
+### 13.27 Seçimden takas tamamlama ve dengeleme (`fdo.trade.suggest.complete_trade`, Takas Analizi, 9 Kasım 2026)
+
+Takas Analizi'nde oyuncu seçtikten sonra tek düğme; seçili oyuncular sabit kalır, öneri onların etrafında kurulur:
+
+- **Yalnız senin oyuncuların seçili** → "Karşılığında ne isteyebilirim?": karşı takımdan 1–3 oyunculuk paketler.
+- **Yalnız onun oyuncuları seçili** → "Karşılığında ne verebilirim?": senin kadrondan 1–3 oyunculuk paketler.
+- **İki taraf da seçili** → "Takası dengele / tamamla": iki tarafa toplam en çok 3 oyuncu eklenir, paket en çok 3'e 3
+  (ör. 2'ye 1 → 2'ye 2, 3'e 2, 3'e 3). Üstte şu anki seçimin değerlendirmesi (neden dengesiz olduğu) gösterilir.
+
+Tek oyunculuk eklemelerde bütün kadro, daha büyüklerde taraf başına 10 aday (strateji uyumu + piyasa değeri) taranır;
+en çok 4000 paket (gerçek veride 0,2–2,5 sn). Her paket takas analiziyle aynı şekilde puanlanır (seçilen stratejiler,
+otomatik kadro dengeleme). Eşikler kabul edilebilirlik içindir: değer dengesi (kalan sezon piyasa değeri, küçük/büyük
+paket) en az %55 ve rakibin gözünde (algılanan değer: aldığı/verdiği) en az 0.80. Sıra: **ikisi de kazanır** (iki
+tarafın puanı artar; `suggest_trades`'teki karşılıklı fayda puanı), **sen kazanırsın** (rakip modelde kaybeder ama
+isim değeri dengeli görünür), **sen kaybedersin**. Aynı ya da daha iyi türde daha küçük paketi listede olan ve aynı
+sonucu veren (eklenen oyuncu değer katmayan, ör. otomatik bırakılan) paketler çıkarılır. "Uygula" paketi seçime
+taşır ve tam analizi açar; liste açık kalır. API: `POST /api/leagues/{lid}/trade/complete`.
+
 ### 13.8 V3 adayları
 
 Beam search ve H-score ağırlık optimizasyonu; profil karışımı uyumu; oyuncular arası maç sayısı
@@ -1975,7 +1993,7 @@ tam "dünküne kadar"dır), gün içinde 2 saatte bir `scripts\news_refresh.py`.
 
 `run_app.py` arayüz derlenmemişse ya da `frontend/src` değiştiyse önce `npm install` / `npm run build` çalıştırır
 (Node.js gerekir), sonra FastAPI'yi başlatıp tarayıcıyı açar. Sekmeler: Takas Analizi, Takas Önerileri, Çok Takımlı
-Takas, Bu Hafta, Sit/Start (§13.21), Add/Drop (kalan sezon + bu hafta, §13.22; sadece bırak, §13.26), Haberler (§13.24–13.25), Performans
+Takas, Bu Hafta, Sit/Start (§13.21), Add/Drop (kalan sezon + bu hafta, §13.22; sadece bırak, §13.26), takasta seçimden tamamlama/dengeleme (§13.27), Haberler (§13.24–13.25), Performans
 (§13.23), Sezon Simülasyonu, Lig Sıralamaları. Lig, takım, sakatlık dönüş tarihleri, renk skalası
 (yeşil↔kırmızı ya da renk körlüğüne uygun mavi↔kırmızı) ve tema üst çubuktadır.
 

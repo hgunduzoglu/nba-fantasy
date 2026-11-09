@@ -1904,6 +1904,29 @@ Suggestion: among the candidates that do not break positions, the player(s) with
 sort is rest of season, while the "Bu hafta" (This week) sort looks only at the matchup. 9 November: at Kekstra, Jaylon Tyson is returning
 (14/13); the suggestion is Robert Williams III, with Collin Sexton almost equal (0.006 categories per week).
 
+### 13.27 Completing and balancing a trade from a selection (`fdo.trade.suggest.complete_trade`, "Takas Analizi", 9 November 2026)
+
+After selecting players in "Takas Analizi" (Trade Analysis), one button builds suggestions around the selection; the
+selected players stay fixed:
+
+- **Only your players selected** → "Karşılığında ne isteyebilirim?" (What can I ask for in return?): packages of 1–3
+  players from the other team.
+- **Only their players selected** → "Karşılığında ne verebilirim?" (What can I give in return?): packages of 1–3 players
+  from your roster.
+- **Both sides selected** → "Takası dengele / tamamla" (Balance / complete the trade): up to 3 players in total are added
+  to either side, up to a 3-for-3 package (e.g. 2-for-1 → 2-for-2, 3-for-2, 3-for-3). The current selection's
+  evaluation (why it is unbalanced) is shown on top.
+
+Single-player additions scan the whole roster; larger ones scan 10 candidates per side (strategy fit + market value);
+at most 4000 packages (0.2–2.5 s on real data). Every package is scored exactly like the trade analysis (selected
+strategies, automatic roster balancing). The thresholds model acceptability: value balance (rest-of-season market
+value, smaller/larger package) of at least 55% and an opponent's view (perceived value: received/given) of at least
+0.80. Order: **both win** (both teams' scores rise; the mutual-benefit score of `suggest_trades`), **you win** (the
+opponent loses in the model but the names look balanced), **you lose**. A package is dropped when a smaller package of
+the same or better tier with the same result is already listed (the added player adds no value, e.g. it is
+auto-dropped). "Uygula" (Apply) moves the package into the selection and opens the full analysis; the list stays open.
+API: `POST /api/leagues/{lid}/trade/complete`.
+
 ### 13.8 V3 candidates
 
 Beam search and H-score weight optimization; fitting the profile mix; covariance of game counts between
@@ -1976,7 +1999,7 @@ is exactly "through yesterday"), and `scripts\news_refresh.py` every 2 hours dur
 
 If the interface has not been built or `frontend/src` has changed, `run_app.py` first runs `npm install` / `npm run build`
 (requires Node.js), then starts FastAPI and opens the browser. Tabs: "Takas Analizi" (Trade Analysis), "Takas Önerileri" (Trade Suggestions), "Çok Takımlı
-Takas" (Multi-team Trade), "Bu Hafta" (This Week), Sit/Start (§13.21), Add/Drop (rest of season + this week, §13.22; "Sadece bırak" (Drop only), §13.26), "Haberler" (News) (§13.24–13.25), "Performans" (Performance)
+Takas" (Multi-team Trade), "Bu Hafta" (This Week), Sit/Start (§13.21), Add/Drop (rest of season + this week, §13.22; "Sadece bırak" (Drop only), §13.26; completing/balancing a trade from a selection, §13.27), "Haberler" (News) (§13.24–13.25), "Performans" (Performance)
 (§13.23), "Sezon Simülasyonu" (Season Simulation), "Lig Sıralamaları" (League Rankings). League, team, injury return dates, color scale
 (green↔red or colorblind-friendly blue↔red) and theme are in the top bar.
 
