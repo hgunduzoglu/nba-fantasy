@@ -231,3 +231,186 @@ def suggest_trades(engine: TradeEngine, team_id: str, *, strategy: Strategy | No
                           f"Bu aralıkta '{MODES[mode]}' koşullarını sağlayan takas bulunamadı. Yanlış fiyatlama "
                           "eşiğini ya da rakibin gözündeki denge eşiğini gevşetmeyi dene.")
     return result
+
+
+# ----------------------------------------------------------------- seçili oyunculardan tamamlama
+#: Tamamlama önerisinin türü (sıralamada önce gelen): iki taraf da kazanır / yalnız sen / sen kaybedersin.
+TIERS = {"mutual": 0, "own": 1, "loss": 2}
+
+
+@dataclass(frozen=True)
+class CompleteOptions:
+    """Seçili oyuncular sabit; eklenen oyuncularla paket en çok ``max_side``'a ``max_side`` olur. Tek taraf seçiliyse
+    yalnız karşı taraf doldurulur; iki taraf seçiliyse iki tarafa toplam en çok ``max_extra`` oyuncu eklenir
+    (dengeleme). Tek oyunculuk eklemelerde bütün kadro, daha büyüklerde taraf başına ``shortlist`` aday taranır."""
+
+    max_side: int = 3
+    max_extra: int = 3
+    shortlist: int = 10
+    max_evaluations: int = 4000
+    max_results: int = 12
+    min_fairness: float = .55               # piyasa (ROS) değer dengesi: küçük paket / büyük paket
+    min_view: float = .8                    # rakibin gözünde (algılanan) aldığı / verdiği; 0 = kapalı
+    perceived: str = "blend"
+    auto_balance: bool = True
+    ecw_weight: float = .65
+
+    def __post_init__(self):
+        if (not 1 <= self.max_side <= 3 or not 1 <= self.max_extra <= 3 or not 2 <= self.shortlist <= 20
+                or self.max_evaluations < 1 or self.max_results < 1 or not 0 <= self.min_fairness <= 1
+                or self.min_view < 0 or self.perceived not in PERCEPTIONS or not 0 <= self.ecw_weight <= 1):
+            raise ValueError("Geçersiz tamamlama ayarları")
+
+
+@dataclass
+class CompleteResult:
+    suggestions: list[Suggestion] = field(default_factory=list)
+    current: Suggestion | None = None        # yalnız seçili oyuncularla takas (iki taraf da seçiliyse)
+    kind: str = "balance"                    # get: karşılığında ne alırım · give: ne veririm · balance: dengele
+    examined: int = 0
+    rejected_fairness: int = 0
+    rejected_view: int = 0
+    rejected_roster: int = 0
+    limit_reached: bool = False
+    message: str = ""
+
+
+def _extra_sizes(n_a: int, n_b: int, max_side: int, max_extra: int) -> list[tuple[int, int]]:
+    """Eklenecek oyuncu sayıları ``(senden, ondan)``, küçük paketten büyüğe."""
+    out = []
+    for total in range(1, 2 * max_side + 1):
+        for ka in range(total + 1):
+            kb = total - ka
+            if n_a + ka > max_side or n_b + kb > max_side:
+                continue
+            if not n_b and (ka or not kb):          # yalnız senin oyuncuların seçili: karşılığı ondan
+                continue
+            if not n_a and (kb or not ka):          # yalnız onun oyuncuları seçili: karşılığı senden
+                continue
+            if n_a and n_b and total > max_extra:
+                continue
+            out.append((ka, kb))
+    return out
+
+
+def _gains(engine: TradeEngine, req: TradeRequest, sa: Strategy, sb: Strategy, w: float):
+    rosters, _, il = engine.resolve(req, {req.team_a: sa, req.team_b: sb})
+    _, metrics = engine.score(rosters, req.team_a, req.team_b, sa, sb, il)
+    m, o = metrics[req.team_a], metrics[req.team_b]
+    ga = w * m["strategy_delta"] / 9 + (1 - w) * m["win_delta"]
+    gb = w * o["strategy_delta"] / 9 + (1 - w) * o["win_delta"]
+    return m, o, ga, gb
+
+
+def _tiered(req: TradeRequest, m: dict, o: dict, ga: float, gb: float, fair: float, view: float,
+            sb: Strategy) -> Suggestion:
+    if ga > 0 and gb > 0:
+        tier, value = "mutual", (min(ga, gb) + float(np.sqrt(ga * gb))) * (.5 + .5 * fair)
+    elif ga > 0:
+        tier, value = "own", ga * fair
+    else:
+        tier, value = "loss", ga
+    return Suggestion(req, value, m["strategy_delta"], o["strategy_delta"], m["win_delta"], o["win_delta"], fair, sb,
+                      tier, view)
+
+
+def complete_trade(engine: TradeEngine, team_a: str, team_b: str, give_a: tuple[str, ...], give_b: tuple[str, ...], *,
+                   strategy_a: Strategy | None = None, strategy_b: Strategy | None = None,
+                   options: CompleteOptions | None = None, analysis_date: dt.date | None = None) -> CompleteResult:
+    """Seçili oyuncularla başlayan takası tamamlar ya da dengeler (README §13.27).
+
+    Yalnız senin oyuncuların seçiliyse karşılığında ondan istenebilecekler, yalnız onunkiler seçiliyse senden
+    verilebilecekler, iki taraf da seçiliyse iki tarafa oyuncu eklenerek dengeli paketler (ör. 2'ye 1 → 2'ye 2, 3'e 2,
+    3'e 3). Eşikler değer dengesi ve rakibin gözündeki dengedir (kabul edilebilirlik). Sıra: iki taraf da kazanır,
+    yalnız sen kazanırsın, sen kaybedersin; tür içinde ``suggest_trades``'teki puan. Aynı ya da daha iyi türde daha
+    küçük paketi listede olan takas (değer katmayan ek oyuncu) çıkarılır."""
+    options = options or CompleteOptions()
+    sa, sb = strategy_a or Strategy(), strategy_b or Strategy()
+    rosters = engine.league.rosters
+    if team_a == team_b or team_a not in engine.team_index or team_b not in engine.team_index:
+        raise TradeError("Tamamlama için ligdeki iki farklı takım seçilmeli")
+    fixed_a, fixed_b = tuple(dict.fromkeys(give_a)), tuple(dict.fromkeys(give_b))
+    if not fixed_a and not fixed_b:
+        raise TradeError("Önce en az bir oyuncu seç")
+    if not set(fixed_a) <= set(rosters[team_a]) or not set(fixed_b) <= set(rosters[team_b]):
+        raise TradeError("Seçilen oyuncu o takımın kadrosunda değil")
+    if len(fixed_a) > options.max_side or len(fixed_b) > options.max_side:
+        raise TradeError(f"Tamamlama en çok {options.max_side} oyunculu paketlerle çalışır")
+    result = CompleteResult(kind="get" if not fixed_b else "give" if not fixed_a else "balance")
+    if engine.deadline(analysis_date)[1]:
+        result.message = "Lig takas son tarihi geçmiş; öneri üretilmedi."
+        return result
+    perceived = perceived_prices(engine, options.perceived)
+    w, auto = options.ecw_weight, options.auto_balance
+
+    def view(ga_: tuple[str, ...], gb_: tuple[str, ...]) -> float:
+        """Rakibin gözünde: aldığı (senin verdiğin) / verdiği algılanan değer."""
+        taken = float(perceived.reindex(list(gb_)).fillna(0).sum())
+        return float(perceived.reindex(list(ga_)).fillna(0).sum()) / taken if taken > 0 else 0.0
+
+    if fixed_a and fixed_b:
+        req = TradeRequest(team_a, team_b, fixed_a, fixed_b, auto_drop=auto, auto_fill=auto)
+        try:
+            m, o, ga, gb = _gains(engine, req, sa, sb, w)
+            result.current = _tiered(req, m, o, ga, gb, engine.fairness(req), view(fixed_a, fixed_b), sb)
+        except TradeError:
+            result.current = None
+
+    def pool(tid: str, fixed: tuple[str, ...], strategy: Strategy, k: int) -> list[str]:
+        if k == 1:
+            return [p for p in rosters[tid] if p not in fixed and engine.modeled[engine.index[p]]]
+        return [p for p in _shortlist(engine, tid, strategy, options.shortlist + len(fixed)) if p not in fixed]
+
+    found: list[Suggestion] = []
+    for ka, kb in _extra_sizes(len(fixed_a), len(fixed_b), options.max_side, options.max_extra):
+        combos = itertools.product(itertools.combinations(pool(team_a, fixed_a, sa, ka), ka),
+                                   itertools.combinations(pool(team_b, fixed_b, sb, kb), kb))
+        for extra_a, extra_b in combos:
+            if result.examined >= options.max_evaluations:
+                result.limit_reached = True
+                break
+            result.examined += 1
+            ga_, gb_ = fixed_a + extra_a, fixed_b + extra_b
+            req = TradeRequest(team_a, team_b, ga_, gb_, auto_drop=auto, auto_fill=auto)
+            fair = engine.fairness(req)
+            if fair < options.min_fairness:
+                result.rejected_fairness += 1
+                continue
+            v = view(ga_, gb_)
+            if options.min_view > 0 and v < options.min_view:
+                result.rejected_view += 1
+                continue
+            try:
+                m, o, ga, gb = _gains(engine, req, sa, sb, w)
+            except TradeError:
+                result.rejected_roster += 1
+                continue
+            found.append(_tiered(req, m, o, ga, gb, fair, v, sb))
+        if result.limit_reached:
+            break
+    found.sort(key=lambda s: (TIERS[s.mode], -s.score, len(s.request.give_a) + len(s.request.give_b)))
+    sets = {id(s): (frozenset(s.request.give_a), frozenset(s.request.give_b)) for s in found}
+
+    def inside(small: Suggestion, big: Suggestion) -> bool:
+        (sa_, sb_), (ba, bb) = sets[id(small)], sets[id(big)]
+        return small is not big and sa_ <= ba and sb_ <= bb
+
+    def bloated(s: Suggestion) -> bool:
+        """Aynı sonucu veren daha küçük paket var: eklenen oyuncu değer katmıyor (ör. otomatik bırakılan)."""
+        return any(inside(t, s) and TIERS[t.mode] <= TIERS[s.mode]
+                   and abs(t.own_strategy_delta - s.own_strategy_delta) < .01
+                   and abs(t.other_strategy_delta - s.other_strategy_delta) < .01 for t in found)
+
+    kept: list[Suggestion] = []
+    for s in found:
+        if any(inside(k, s) and TIERS[k.mode] <= TIERS[s.mode] for k in kept) or bloated(s):
+            continue
+        kept.append(s)
+        if len(kept) >= options.max_results:
+            break
+    result.suggestions = kept
+    if not kept:
+        result.message = (f"Bu seçimle değer dengesi en az %{options.min_fairness * 100:.0f}"
+                          + (f" ve rakibin gözünde en az {options.min_view:.2f}" if options.min_view > 0 else "")
+                          + " olan bir tamamlama bulunamadı. Başka oyuncu seç ya da eşikleri gevşet.")
+    return result

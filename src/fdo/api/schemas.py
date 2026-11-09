@@ -37,6 +37,16 @@ class SeasonIn(TradeIn):
     strength_sd: float = 0.06
 
 
+class CompleteIn(TradeIn):
+    """Takas ekranındaki seçimi tamamla/dengele: ``give_a``/``give_b`` sabit, en az biri dolu (README §13.27)."""
+
+    min_fairness: float = Field(default=.55, ge=0, le=1)
+    min_view: float = Field(default=.8, ge=0, le=3)
+    perceived: str = Field(default="blend", pattern="^(season_total|preseason|blend)$")
+    max_extra: int = Field(default=3, ge=1, le=3)
+    max_evaluations: int = Field(default=4000, ge=100, le=20000)
+
+
 class SuggestIn(BaseModel):
     team: str
     mode: str = "mutual"

@@ -243,3 +243,15 @@ def test_trade_fixture_changes_for_both_sides(client):
     m = client.post("/api/leagues/L/trade/multi/fixtures", json=multi).json()
     assert [t["team_id"] for t in m["teams"]] == ["1", "2", "3"]
     assert client.post("/api/leagues/L/trade/fixtures", json={**body, "give_b": []}).status_code == 400
+
+
+def test_trade_complete_endpoint(client):
+    body = {"team_a": "1", "team_b": "2", "give_a": ["0"], "give_b": [], "min_fairness": 0, "min_view": 0}
+    r = client.post("/api/leagues/L/trade/complete", json=body).json()
+    assert r["kind"] == "get" and r["current"] is None and r["suggestions"]
+    s = r["suggestions"][0]
+    assert [p["added"] for p in s["give_a"]] == [False] and all(p["added"] for p in s["give_b"])
+    assert set(s["my_categories"]) and s["tier"] in ("mutual", "own", "loss")
+    both = client.post("/api/leagues/L/trade/complete", json={**body, "give_b": ["4"]}).json()
+    assert both["kind"] == "balance" and both["current"] is not None
+    assert client.post("/api/leagues/L/trade/complete", json={**body, "give_a": []}).status_code == 400

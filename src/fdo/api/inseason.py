@@ -7,7 +7,7 @@ import datetime as dt
 import numpy as np
 from fastapi import FastAPI, HTTPException, Query
 
-from fdo.api.schemas import AddDropWeekIn, DropIn, StrategyIn, StreamIn, SuggestIn, WaiverIn, WeeklyIn
+from fdo.api.schemas import AddDropWeekIn, CompleteIn, DropIn, StrategyIn, StreamIn, SuggestIn, WaiverIn, WeeklyIn
 from fdo.api.serialize import (assumed_strategies, brief, category_deltas, clean, games_delta, injury_info,
                                player_row, strategy_from, value_ranks)
 from fdo.api.state import AppState
@@ -23,7 +23,7 @@ from fdo.trade import Strategy, TradeError
 from fdo.trade.data import MODES, ROS
 from fdo.trade.perception import mispricing, perceived_prices
 from fdo.trade.strategy import CATEGORIES
-from fdo.trade.suggest import SearchOptions, suggest_trades
+from fdo.trade.suggest import CompleteOptions, SearchOptions, complete_trade, suggest_trades
 from fdo.types import CATEGORY_LABELS
 
 
@@ -110,6 +110,42 @@ def register(app: FastAPI, state: AppState) -> None:
                       "rejected_balance": found.rejected_fairness, "rejected_view": found.rejected_view,
                       "rejected_roster": found.rejected_roster,
                       "limit_reached": found.limit_reached, "message": found.message})
+
+    @app.post("/api/leagues/{lid}/trade/complete")
+    def complete(lid: str, body: CompleteIn):
+        """Takas ekranındaki seçimi tamamla ya da dengele (README §13.27)."""
+        eng = engine(lid, body.injuries)
+        team_check(eng, body.team_a)
+        team_check(eng, body.team_b)
+        sa, sb = _strategy(body.strategy_a, eng, body.team_a), _strategy(body.strategy_b, eng, body.team_b)
+        try:
+            opts = CompleteOptions(max_extra=body.max_extra, max_evaluations=body.max_evaluations,
+                                   min_fairness=body.min_fairness, min_view=body.min_view, perceived=body.perceived,
+                                   auto_balance=body.auto_balance)
+            found = complete_trade(eng, body.team_a, body.team_b, tuple(body.give_a), tuple(body.give_b),
+                                   strategy_a=sa, strategy_b=sb, options=opts)
+        except (ValueError, TradeError) as e:
+            raise HTTPException(400, str(e)) from e
+        fixed = set(body.give_a) | set(body.give_b)
+        pair = {body.team_a: sa, body.team_b: sb}
+
+        def row(s):
+            r = s.request
+            rosters, adj, il = eng.resolve(r, pair)
+            p, _ = eng.score(rosters, r.team_a, r.team_b, sa, sb, il)
+            return {"give_a": [{**_brief(eng, x), "added": x not in fixed} for x in r.give_a],
+                    "give_b": [{**_brief(eng, x), "added": x not in fixed} for x in r.give_b],
+                    "tier": s.mode, "score": s.score, "own_delta": s.own_strategy_delta,
+                    "other_delta": s.other_strategy_delta, "own_win": s.own_win_delta, "other_win": s.other_win_delta,
+                    "fairness": s.fairness, "perceived_view": s.perceived_balance,
+                    "my_categories": category_deltas(eng, p, r.team_a, pair),
+                    "adjustments": {t: {k: [eng.data.players.loc[x, "name"] for x in v] for k, v in a.items()}
+                                    for t, a in adj.items()}}
+        return clean({"kind": found.kind, "suggestions": [row(s) for s in found.suggestions],
+                      "current": row(found.current) if found.current else None, "examined": found.examined,
+                      "rejected_balance": found.rejected_fairness, "rejected_view": found.rejected_view,
+                      "rejected_roster": found.rejected_roster, "limit_reached": found.limit_reached,
+                      "min_fairness": opts.min_fairness, "min_view": opts.min_view, "message": found.message})
 
     @app.get("/api/leagues/{lid}/trade/mispricing")
     def mispriced(lid: str, team: str, perceived: str = Query("blend", pattern="^(season_total|preseason|blend)$"),
