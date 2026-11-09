@@ -255,3 +255,49 @@ def test_trade_complete_endpoint(client):
     both = client.post("/api/leagues/L/trade/complete", json={**body, "give_b": ["4"]}).json()
     assert both["kind"] == "balance" and both["current"] is not None
     assert client.post("/api/leagues/L/trade/complete", json={**body, "give_a": []}).status_code == 400
+
+
+def test_trade_scenarios_and_basis(client):
+    body = {"team_a": "1", "team_b": "2", "give_a": ["0"], "give_b": ["4"]}
+    s = client.post("/api/leagues/L/trade/scenarios", json=body).json()
+    assert [b["basis"] for b in s["bases"]] == ["ros", "season", "recent", "blend"]
+    assert {p["id"] for p in s["players"]} == {"0", "4"} and set(s["players"][0]["rates"]) == {"ros", "season", "recent", "blend"}
+    a = client.post("/api/leagues/L/trade/analyze", json={**body, "basis": "season"}).json()
+    assert a["basis"] == "season" and isinstance(a["teams"]["a"]["returns"], list)
+    assert client.post("/api/leagues/L/trade/analyze", json={**body, "basis": "uydurma"}).status_code == 422
+
+
+def test_trade_report_background_and_access(client, tmp_path, monkeypatch):
+    import time
+
+    import fdo.api.report as report_api
+    import fdo.inseason.trade_report as tr
+    from unit.test_trade_report import REPORT
+
+    monkeypatch.setattr(report_api, "available", lambda: True)
+    monkeypatch.setattr(tr, "generate", lambda packet, **kw: (REPORT, {"model": "claude-opus-5-5", "input": 1, "output": 1,
+                                                                       "cache_read": 0, "cache_write": 0}, None))
+    body = {"team_a": "1", "team_b": "2", "give_a": ["0"], "give_b": ["4"]}
+    assert client.post("/api/leagues/L/trade/report", json={**body, "give_b": []}).status_code == 400
+    r = client.post("/api/leagues/L/trade/report", json=body).json()
+    for _ in range(100):
+        if r["status"] != "running":
+            break
+        time.sleep(0.05)
+        r = client.get(f"/api/trade/report/{r['key']}").json()
+    assert r["status"] == "done" and r["report"]["decision"] == "karşı teklif ver"
+    c = r["report"]["counter_offers"][0]
+    assert c["valid"] and c["give"][0]["id"] == "0" and c["get"][0]["id"] == "4"
+    assert client.post("/api/leagues/L/trade/report", json=body).json()["status"] == "done"     # kayıttan, ücretsiz
+    assert (tmp_path / "trade_reports.json").exists()
+
+    ro = TestClient(create_app(data_dir=tmp_path, frontend_dir=tmp_path / "yok", read_only=True))
+    ro.app.state.fdo.data = client.app.state.fdo.data
+    ro.app.state.fdo.signature = lambda: "test"
+    monkeypatch.delenv("FDO_REPORT_CODE", raising=False)
+    assert ro.get("/api/meta").json()["report"] == {"available": False, "needs_code": False}
+    assert ro.post("/api/leagues/L/trade/report", json=body).status_code == 403
+    monkeypatch.setenv("FDO_REPORT_CODE", "gizli")
+    assert ro.post("/api/leagues/L/trade/report", json=body).status_code == 401
+    ok = ro.post("/api/leagues/L/trade/report", json=body, headers={"X-Report-Code": "gizli"})
+    assert ok.status_code == 200 and ok.json()["status"] == "done"

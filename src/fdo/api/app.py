@@ -10,22 +10,32 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from fdo.api.serialize import (categories_meta, clean, fixture_changes, player_row, presets, strategy_from,
-                               trade_result, value_ranks)
+from fdo.api.serialize import (brief, categories_meta, clean, fixture_changes, player_row, presets,
+                               return_timeline, strategy_from, trade_result, value_ranks)
 from fdo.api.schemas import SeasonIn, TradeIn
 from fdo.api.state import SOURCES, AppState
 from fdo.config import REPO_ROOT
+from fdo.inseason.scenarios import BASES, per_game_rates
 from fdo.trade import TradeError, TradeRequest
 from fdo.trade.perception import perceived_prices
 
 FRONTEND_DIST = REPO_ROOT / "frontend" / "dist"
 #: Sunucu kurulumu (README §14.2): veri bilgisayardan gönderilir; Yahoo senkronizasyonu ve haber yenileme kapalı.
 READ_ONLY_ENV = "FDO_READ_ONLY"
+#: Salt okunur sunucuda detaylı analiz (ücretli) için erişim kodu; yoksa kapalı.
+REPORT_CODE_ENV = "FDO_REPORT_CODE"
 
 
 def read_only_env() -> bool:
     return os.environ.get(READ_ONLY_ENV, "").strip().lower() in ("1", "true", "yes", "on")
 
+
+
+def report_status(read_only: bool) -> dict:
+    """Detaylı analiz (README §13.29): anahtar var mı; salt okunur sunucuda erişim kodu gerekir."""
+    from fdo.inseason.trade_report import available
+    code = bool(os.environ.get(REPORT_CODE_ENV, "").strip())
+    return {"available": available() and (not read_only or code), "needs_code": read_only and code}
 
 def _request(t: TradeIn) -> TradeRequest:
     return TradeRequest(t.team_a, t.team_b, tuple(t.give_a), tuple(t.give_b), tuple(t.drop_a), tuple(t.drop_b),
@@ -41,6 +51,32 @@ def _strategies(eng, body: TradeIn):
             strategy_from(body.strategy_b and body.strategy_b.model_dump(), eng, body.team_b))
 
 
+def scenario_rows(engine_for, body: TradeIn) -> tuple[list[dict], dict[str, dict]]:
+    """Takası her istatistik temelinde değerlendirir (README §13.28). ``engine_for(basis)`` o temelin motorunu verir.
+    Dönüş: temel başına iki tarafın farkları ve IL dönüş takvimi; oyuncu başına temellerdeki maç başı oranlar."""
+    bases, players = [], {p: {} for p in [*body.give_a, *body.give_b]}
+    for basis, label in BASES.items():
+        eng = engine_for(basis)
+        try:
+            sa, sb = _strategies(eng, body)
+            req = _request(body)
+            result = eng.analyze(req, strategy_a=sa, strategy_b=sb)
+            _, _, il = eng.resolve(req, {body.team_a: sa, body.team_b: sb})
+        except (TradeError, ValueError) as e:
+            raise HTTPException(400, str(e)) from e
+        side = {}
+        for k, tid, st, inc in (("a", body.team_a, sa, body.give_b), ("b", body.team_b, sb, body.give_a)):
+            m = result.metrics.loc[tid]
+            side[k] = {"ecw_delta": m.ecw_delta, "win_delta": m.win_delta, "strategy_delta": m.strategy_delta,
+                       "drops": [eng.data.players.loc[x, "name"] for x in result.adjustments[tid]["drop"]],
+                       "returns": return_timeline(eng, result.rosters_after[tid], il[tid], st, inc)}
+        bases.append({"basis": basis, "label": label, "fairness": result.assessments["fairness_ratio"],
+                      "mutual": result.assessments["mutual_benefit"], **side})
+        for x in players:
+            players[x][basis] = per_game_rates(eng.data, x)
+    return bases, players
+
+
 def create_app(data_dir: str | Path | None = None, frontend_dir: str | Path | None = None, *,
                read_only: bool | None = None) -> FastAPI:
     """``read_only`` (varsayılan ``FDO_READ_ONLY`` ortam değişkeni): güncelleme uç noktaları 403 döner."""
@@ -51,9 +87,9 @@ def create_app(data_dir: str | Path | None = None, frontend_dir: str | Path | No
     app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
                        allow_methods=["*"], allow_headers=["*"])
 
-    def engine(lid: str, injuries: bool):
+    def engine(lid: str, injuries: bool, basis: str = "ros"):
         try:
-            return state.engine(lid, injuries)
+            return state.engine(lid, injuries, basis)
         except KeyError as e:
             raise HTTPException(404, str(e)) from e
 
@@ -72,7 +108,8 @@ def create_app(data_dir: str | Path | None = None, frontend_dir: str | Path | No
                       "sources": {"ros": "Kalan sezon projeksiyonu", "season": "Bu sezon",
                                   "preseason": "Sezon öncesi projeksiyon"},
                       "presets": presets(), "injury_file": inj.name if inj else None,
-                      "issues": list(data.issues), "read_only": read_only})
+                      "issues": list(data.issues), "read_only": read_only,
+                      "report": report_status(read_only)})
 
     @app.get("/api/leagues/{lid}/roster/{tid}")
     def roster(lid: str, tid: str, source: str = Query("ros", pattern="^(ros|season|preseason)$"),
@@ -102,18 +139,36 @@ def create_app(data_dir: str | Path | None = None, frontend_dir: str | Path | No
 
     @app.post("/api/leagues/{lid}/trade/analyze")
     def analyze(lid: str, body: TradeIn):
-        eng = engine(lid, body.injuries)
+        eng = engine(lid, body.injuries, body.basis)
         try:
             sa, sb = _strategies(eng, body)
             result = eng.analyze(_request(body), strategy_a=sa, strategy_b=sb)
+            _, _, il = eng.resolve(_request(body), {body.team_a: sa, body.team_b: sb})
         except (TradeError, ValueError) as e:
             raise HTTPException(400, str(e)) from e
-        return trade_result(eng, result, perceived=perceived_prices(eng, "blend"))
+        out = trade_result(eng, result, perceived=perceived_prices(eng, "blend"))
+        for side, tid, s, inc in (("a", body.team_a, sa, body.give_b), ("b", body.team_b, sb, body.give_a)):
+            out["teams"][side]["returns"] = clean(return_timeline(eng, result.rosters_after[tid], il[tid], s, inc))
+        out["basis"] = body.basis
+        return out
+
+    @app.post("/api/leagues/{lid}/trade/scenarios")
+    def trade_scenarios(lid: str, body: TradeIn):
+        """Aynı takas dört istatistik temelinde (README §13.28): Yahoo projeksiyonu, bu sezonki oranlar, son 10 maç,
+        karma. Her temelde bütün lig o oranlarla değerlenir; IL dönüşünde takasla gelen oyuncunun bırakılıp
+        bırakılmadığı da."""
+        bases, players = scenario_rows(lambda b: engine(lid, body.injuries, b), body)
+        eng = engine(lid, body.injuries)
+        season = eng.data.stats["season_total"]
+        return clean({"bases": bases, "players": [
+            {**brief(eng, p), "side": "a" if p in body.give_a else "b",
+             "season_gp": float(season.loc[p, "gp"]) if p in season.index else None, "rates": r}
+            for p, r in players.items()]})
 
     @app.post("/api/leagues/{lid}/trade/season")
     def trade_season(lid: str, body: SeasonIn):
-        eng = engine(lid, body.injuries)
-        sim = state.season_sim(lid, body.injuries)
+        eng = engine(lid, body.injuries, body.basis)
+        sim = state.season_sim(lid, body.injuries, body.basis)
         if sim is None:
             raise HTTPException(409, "Bu lig için fikstür yok; sezon simülasyonu yapılamıyor.")
         n, sd = max(200, min(body.n_sims, 10_000)), max(0.0, min(body.strength_sd, 0.3))
@@ -122,7 +177,7 @@ def create_app(data_dir: str | Path | None = None, frontend_dir: str | Path | No
             rosters, _, il = eng.resolve(_request(body), {body.team_a: sa, body.team_b: sb})
         except (TradeError, ValueError) as e:
             raise HTTPException(400, str(e)) from e
-        base = state.season_base(lid, body.injuries, n, sd)
+        base = state.season_base(lid, body.injuries, n, sd, basis=body.basis)
         after = sim.run(rosters, n_sims=n, seed=1, strength_sd=sd, injuries=il)
         out = {}
         for side, tid in (("a", body.team_a), ("b", body.team_b)):
@@ -135,8 +190,8 @@ def create_app(data_dir: str | Path | None = None, frontend_dir: str | Path | No
     @app.post("/api/leagues/{lid}/trade/fixtures")
     def trade_fixtures(lid: str, body: TradeIn):
         """Fikstürdeki her hafta için kazanma olasılığı: takassız / takaslı (iki taraf)."""
-        eng = engine(lid, body.injuries)
-        sim = state.season_sim(lid, body.injuries)
+        eng = engine(lid, body.injuries, body.basis)
+        sim = state.season_sim(lid, body.injuries, body.basis)
         if sim is None:
             raise HTTPException(409, "Bu lig için fikstür yok.")
         try:
@@ -154,6 +209,8 @@ def create_app(data_dir: str | Path | None = None, frontend_dir: str | Path | No
     inseason.register(app, state)
     multi.register(app, state)
     app.state.news = news.register(app, state, read_only=read_only)
+    from fdo.api import report
+    app.state.reports = report.register(app, state, engine, read_only=read_only)
     after = [lambda log: news.refresh_logs(state), lambda log: news.refresh_news(state, log)]
     app.state.sync = sync.register(app, state, sync.SyncJob(state, after=after), read_only=read_only)
 

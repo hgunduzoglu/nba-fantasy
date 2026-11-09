@@ -170,6 +170,19 @@ def value_ranks(eng: TradeEngine) -> pd.Series:
     return eng.market.loc[modeled].rank(ascending=False, method="first")
 
 
+def return_timeline(eng: TradeEngine, roster, il, strategy, incoming=()) -> list[dict]:
+    """IL dönüş takvimi (``TradeEngine.crunch_plan``): kim döner, kim bırakılır. ``self_cut``: dönen oyuncu kadroya
+    girecek kadar değerli değil (kimseyi yerinden etmez); ``incoming``: bırakılan, takasla gelen oyuncu."""
+    names = eng.data.players["name"]
+    gelen = set(incoming)
+    out = []
+    for r, d in eng.crunch_plan(roster, il, strategy):
+        out.append({"returning": {"id": r, "name": names[r]}, "date": eng.return_day(r),
+                    "dropped": {"id": d, "name": names[d]} if d else None, "self_cut": d == r,
+                    "incoming": bool(d) and d in gelen})
+    return out
+
+
 def trade_result(eng: TradeEngine, result: TradeResult, *, perceived: pd.Series | None = None) -> dict:
     a, b = result.request.team_a, result.request.team_b
     names = eng.data.players["name"]

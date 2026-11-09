@@ -30,6 +30,11 @@ class TradeIn(BaseModel):
     strategy_a: StrategyIn | None = None
     strategy_b: StrategyIn | None = None
     injuries: bool = True
+    basis: str = Field(default="ros", pattern="^(ros|season|recent|blend)$")   # kalan sezon oranları (§13.28)
+
+
+class ReportIn(TradeIn):
+    refresh: bool = False                        # kayıtlı raporu yeniden üret (ücretli)
 
 
 class SeasonIn(TradeIn):
