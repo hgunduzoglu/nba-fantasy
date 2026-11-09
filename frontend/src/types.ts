@@ -433,6 +433,58 @@ export interface AddDropWeekIn extends WeeklyIn {
   used: number | null;
 }
 
+export interface DropIn extends WeeklyIn {
+  activate: string[] | null;
+}
+
+export interface DropPlayer extends BriefPlayer {
+  injury: Injury | null;
+  return_date: string | null;
+  rank?: number | null;
+}
+
+export interface DropIL extends DropPlayer {
+  season: boolean;
+  ready: boolean;
+  activated: boolean;
+}
+
+export interface DropRow {
+  player: DropPlayer;
+  returning: boolean;
+  ros_loss: number;
+  ros_d_ecw: number;
+  ros_dp: Record<string, number>;
+  week_loss: number;
+  week_d_expected: number;
+  week_d_p5: number;
+  week_dp: Record<string, number>;
+  games: number;
+  games_left: number;
+  games_next: number;
+  open_slots: number;
+  replacement: { add: BriefPlayer; score: number } | null;
+}
+
+export interface DropOut {
+  week: number;
+  current_week: number;
+  weeks: WeekInfo[];
+  days: string[];
+  opponent: string;
+  opponent_name: string;
+  objective: string;
+  capacity: number;
+  active_count: number;
+  il: DropIL[];
+  activate: string[];
+  need: number;
+  recommended: string[];
+  base: { p: number[]; expected_wins: number; p5: number };
+  rows: DropRow[];
+  synced: boolean;
+}
+
 export interface SeasonTeamRow {
   team_id: string;
   team: string;
