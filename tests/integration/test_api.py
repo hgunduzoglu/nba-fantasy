@@ -74,3 +74,19 @@ def test_freshness_reports_components_and_decision_states(client):
     # sentetik ligin veri dizini boş: hiçbir bileşen yok, kararlar bekletilir ve neyin eksik olduğu söylenir
     assert body["components"] == {} and body["decisions"]["trade"]["state"] == "hold"
     assert any("Kadrolar yok" in x for x in body["decisions"]["trade"]["reasons"])
+
+
+def test_suggestions_and_scenarios_are_logged_separately(client):
+    from fastapi.testclient import TestClient  # noqa: F401  (istemci zaten hazır)
+
+    state = client.app.state.fdo
+    state.decisions._code = {"commit": "test", "dirty": False}
+    c = client.post("/api/leagues/L/trade/complete", json={"team_a": "1", "team_b": "2", "give_a": ["0"],
+                                                           "min_fairness": 0, "min_view": 0}).json()
+    a = client.post("/api/leagues/L/trade/analyze", json={"team_a": "1", "team_b": "2", "give_a": ["0"],
+                                                          "give_b": ["3"]}).json()
+    rec, scen = state.decisions.entries("recommendation"), state.decisions.entries("scenario")
+    assert [e["decision_id"] for e in rec] == [c["decision_id"]] and [e["decision_id"] for e in scen] == [a["decision_id"]]
+    assert rec[0]["action"] == "trade_complete" and rec[0]["request"]["give_a"] == ["0"]
+    assert rec[0]["result"]["n_suggestions"] == len(c["suggestions"]) and rec[0]["data_signature"] == "test"
+    assert set(scen[0]["result"]["teams"]) == {"a", "b"} and scen[0]["result"]["teams"]["a"]["team_id"] == "1"

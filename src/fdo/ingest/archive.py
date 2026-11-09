@@ -97,8 +97,14 @@ def batches(directory: str | Path) -> list[dict]:
 
 
 def latest(directory: str | Path) -> dict | None:
-    b = batches(directory)
-    return b[-1] if b else None
+    """Son parti. Parti adları giriş zamanıyla başladığından yalnız en yeni saniyedeki manifestler okunur."""
+    d = root(directory) / "batches"
+    names = sorted(p.name for p in d.glob("*.json")) if d.exists() else []
+    if not names:
+        return None
+    prefix = names[-1].split("-")[0]
+    tail = [json.loads((d / n).read_text(encoding="utf-8")) for n in names if n.startswith(prefix)]
+    return max(tail, key=lambda m: m["sequence"])
 
 
 def get(directory: str | Path, batch_id: str) -> dict:

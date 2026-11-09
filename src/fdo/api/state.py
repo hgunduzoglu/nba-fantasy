@@ -14,6 +14,8 @@ from typing import Callable
 import pandas as pd
 
 from fdo.config import REPO_ROOT
+from fdo.evaluation.decisions import DecisionLog
+from fdo.ingest.archive import latest as latest_batch
 from fdo.inseason.durability import apply_durability
 from fdo.inseason.fixtures import load_fixtures
 from fdo.inseason.injuries import latest_file, with_injuries
@@ -41,6 +43,17 @@ class AppState:
         self._lock = threading.RLock()
         self._cache: OrderedDict[tuple, object] = OrderedDict()
         self.max_items = max_items
+        self.decisions = DecisionLog(self.data_dir)
+
+    def log_decision(self, kind: str, action: str, league_id: str, request: dict, result: dict) -> str | None:
+        """Karar günlüğüne ekler (``fdo.evaluation.decisions``); günlük yazılamazsa analiz yine döner."""
+        try:
+            last = latest_batch(self.data_dir)
+            return self.decisions.record(kind, action, league_id, request, result, data_signature=self.signature(),
+                                         data_as_of=str(self.data().as_of),
+                                         batch_id=last["batch_id"] if last else None)
+        except (OSError, ValueError, KeyError):
+            return None
 
     def _get(self, key: tuple, build: Callable[[], object]):
         with self._lock:

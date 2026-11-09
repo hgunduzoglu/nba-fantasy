@@ -151,6 +151,11 @@ def create_app(data_dir: str | Path | None = None, frontend_dir: str | Path | No
         for side, tid, s, inc in (("a", body.team_a, sa, body.give_b), ("b", body.team_b, sb, body.give_a)):
             out["teams"][side]["returns"] = clean(return_timeline(eng, result.rosters_after[tid], il[tid], s, inc))
         out["basis"] = body.basis
+        teams = {side: {k: t.get(k) for k in ("team_id", "strategy", "ecw_delta", "win_delta", "strategy_delta")}
+                 for side, t in out["teams"].items()}
+        out["decision_id"] = state.log_decision("scenario", "trade_analyze", lid, body.model_dump(),
+                                                {"teams": teams, "fairness": out.get("fairness"),
+                                                 "perceived_balance": out.get("perceived_balance")})
         return out
 
     @app.post("/api/leagues/{lid}/trade/scenarios")

@@ -11,6 +11,7 @@ from fdo.api.schemas import AddDropWeekIn, CompleteIn, DropIn, StrategyIn, Strea
 from fdo.api.serialize import (assumed_strategies, brief, category_deltas, clean, games_delta, injury_info,
                                player_row, strategy_from, value_ranks)
 from fdo.api.state import AppState
+from fdo.evaluation.cases import summarize
 from fdo.inseason.adddrop import available_from, critical_categories, critical_strategy, pick_critical
 from fdo.inseason.drops import drop_plan, returning
 from fdo.inseason.fixtures import opponent as fixture_opponent
@@ -105,11 +106,14 @@ def register(app: FastAPI, state: AppState) -> None:
                          "other_weights": list(s.other_strategy.weights),
                          "adjustments": {t: {k: [eng.data.players.loc[p, "name"] for p in v] for k, v in a.items()}
                                          for t, a in adj.items()}})
-        return clean({"suggestions": rows, "strategy": {"name": strategy.name, "weights": list(strategy.weights)},
-                      "examined": found.examined, "eligible": found.eligible,
-                      "rejected_balance": found.rejected_fairness, "rejected_view": found.rejected_view,
-                      "rejected_roster": found.rejected_roster,
-                      "limit_reached": found.limit_reached, "message": found.message})
+        out = clean({"suggestions": rows, "strategy": {"name": strategy.name, "weights": list(strategy.weights)},
+                     "examined": found.examined, "eligible": found.eligible,
+                     "rejected_balance": found.rejected_fairness, "rejected_view": found.rejected_view,
+                     "rejected_roster": found.rejected_roster,
+                     "limit_reached": found.limit_reached, "message": found.message})
+        out["decision_id"] = state.log_decision("recommendation", "trade_suggest", lid, body.model_dump(),
+                                                summarize(out))
+        return out
 
     @app.post("/api/leagues/{lid}/trade/complete")
     def complete(lid: str, body: CompleteIn):
@@ -141,11 +145,14 @@ def register(app: FastAPI, state: AppState) -> None:
                     "my_categories": category_deltas(eng, p, r.team_a, pair),
                     "adjustments": {t: {k: [eng.data.players.loc[x, "name"] for x in v] for k, v in a.items()}
                                     for t, a in adj.items()}}
-        return clean({"kind": found.kind, "suggestions": [row(s) for s in found.suggestions],
-                      "current": row(found.current) if found.current else None, "examined": found.examined,
-                      "rejected_balance": found.rejected_fairness, "rejected_view": found.rejected_view,
-                      "rejected_roster": found.rejected_roster, "limit_reached": found.limit_reached,
-                      "min_fairness": opts.min_fairness, "min_view": opts.min_view, "message": found.message})
+        out = clean({"kind": found.kind, "suggestions": [row(s) for s in found.suggestions],
+                     "current": row(found.current) if found.current else None, "examined": found.examined,
+                     "rejected_balance": found.rejected_fairness, "rejected_view": found.rejected_view,
+                     "rejected_roster": found.rejected_roster, "limit_reached": found.limit_reached,
+                     "min_fairness": opts.min_fairness, "min_view": opts.min_view, "message": found.message})
+        out["decision_id"] = state.log_decision("recommendation", "trade_complete", lid, body.model_dump(),
+                                                summarize(out))
+        return out
 
     @app.get("/api/leagues/{lid}/trade/mispricing")
     def mispriced(lid: str, team: str, perceived: str = Query("blend", pattern="^(season_total|preseason|blend)$"),

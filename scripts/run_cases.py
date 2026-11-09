@@ -40,6 +40,7 @@ def main() -> int:
     cases = load_cases(args.cases or data / "cases.json")
     app = create_app(data_dir=data, frontend_dir=data / "_no_frontend")
     state = app.state.fdo
+    state.decisions.enabled = False              # ölçüm çalıştırması gerçek karar değildir; günlüğe yazılmaz
     results = run(TestClient(app), cases)
     rec = record(results, data_signature=state.signature(), as_of=str(state.data().as_of))
     out_dir = Path(args.out_dir) if args.out_dir else data / "evaluation"
