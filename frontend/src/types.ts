@@ -53,6 +53,8 @@ export interface FreshnessComponent {
   age_hours: number | null;
   source_as_of: string | null;
   captured_at: string | null;
+  /** Oyuncu sayfaları: tür → satır (Yahoo sıralamasında ilk N oyuncu, sahipli dahil). */
+  coverage?: Record<string, number>;
 }
 
 export type DecisionState = "normal" | "conditional" | "hold";

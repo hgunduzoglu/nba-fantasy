@@ -41,7 +41,7 @@ export function DataStatus({ asOf, inline = false }: { asOf: string; inline?: bo
           {ORDER.filter((k) => data.components[k]).map((k) => {
             const c = data.components[k];
             return (
-              <tr key={k} title={`${c.file}${BASIS[c.basis] ?? ""}`}>
+              <tr key={k} title={`${c.file}${BASIS[c.basis] ?? ""}${c.coverage ? ` · kapsam: Yahoo sıralamasında ilk ${Math.max(...Object.values(c.coverage))} oyuncu (sahipli dahil); altındakiler boştaki havuzunda yok` : ""}`}>
                 <td className="l wrap">{c.label}</td>
                 <td>{age(c.age_hours)}</td>
                 <td className="l muted">{c.as_of ? fmtStamp(c.as_of) : "–"}{c.basis === "file" ? " *" : ""}</td>

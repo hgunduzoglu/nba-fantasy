@@ -61,7 +61,11 @@ def file_times(path: str | Path) -> dict:
         elif comp == "player_stats":
             pages = _json(path)
             stamps = [p.get("captured_at") for p in pages if p.get("captured_at")]
-            out.update(captured_at=max(stamps) if stamps else None, rows=sum(len(p["table"]["rows"]) for p in pages))
+            kinds: dict[str, int] = {}
+            for page in pages:
+                kinds[page.get("kind", "?")] = kinds.get(page.get("kind", "?"), 0) + len(page["table"]["rows"])
+            # Kapsam: Yahoo sıralamasındaki ilk N oyuncu (sahipli dahil); altındakiler boştaki havuzunda görünmez.
+            out.update(captured_at=max(stamps) if stamps else None, rows=sum(kinds.values()), coverage=kinds)
         elif comp == "live_week":
             d = _json(path)
             out.update(source_as_of=d.get("as_of"), captured_at=d.get("captured_at"))

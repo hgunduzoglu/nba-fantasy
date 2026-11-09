@@ -48,7 +48,9 @@ export function FreeAgentsPage({ meta, league, team, injuries }: { meta: Meta; l
 
   return (
     <div className="stack">
-      <p className="desc">Kalan sezon için her boştaki oyuncu ve kadrondan en iyi bırakma eşi. Pozisyon kuralı korunur; IL'dekiler bırakılmaz.</p>
+      <p className="desc">Kalan sezon için her boştaki oyuncu ve kadrondan en iyi bırakma eşi. Pozisyon kuralı korunur; IL'dekiler bırakılmaz.
+        Havuz, yüklenen oyuncu sayfalarındakilerdir (Yahoo sıralamasında ilk ~750): "en iyi" yüklenen havuzda en iyidir; oyuncu
+        hâlâ boştaysa ve waiver'da değilse geçerli.</p>
       {data && <WaiverInfo data={data} />}
       <div className="toolbar" style={{ marginBottom: 0 }}>
         <StrategyPicker meta={meta} value={strategy} onChange={setStrategy} label="Senin stratejin" />

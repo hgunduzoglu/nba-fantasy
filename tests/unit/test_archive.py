@@ -88,6 +88,15 @@ def test_failed_archive_leaves_no_batch(d, monkeypatch):
     assert A.batches(d) == [] and A.latest(d) is None
 
 
+def test_player_pages_report_their_coverage(tmp_path):
+    p = tmp_path / "player_stat_pages.json"
+    page = lambda kind, n: {"kind": kind, "captured_at": "2026-11-09T12:00:00Z", "table": {"rows": [{}] * n}}
+    p.write_text(json.dumps([page("season_total", 25), page("season_total", 5), page("remaining_games_projection", 25)]),
+                 encoding="utf-8")
+    t = file_times(p)
+    assert t["coverage"] == {"season_total": 30, "remaining_games_projection": 25} and t["rows"] == 55
+
+
 def test_file_times_by_component(tmp_path):
     p = tmp_path / "gamelogs_nba_2026-27.csv"
     p.write_text("name,game_date\nA,2026-11-07\nB,2026-11-08\n", encoding="utf-8")
