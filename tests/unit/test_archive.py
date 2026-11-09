@@ -122,3 +122,16 @@ def test_restored_real_batch_reproduces_the_analysis(tmp_path):
     a, b = TradeEngine(live, lid), TradeEngine(replay, lid)
     np.testing.assert_array_equal(a.market.to_numpy(), b.market.to_numpy())
     np.testing.assert_array_equal(a.league_probabilities().to_numpy(), b.league_probabilities().to_numpy())
+
+
+def test_content_signature_ignores_paths_and_times(d):
+    import os
+
+    sig = A.content_signature(d)
+    bid = A.archive(d, source="manual", now=T0).batch_id
+    A.restore(d, bid, d / "replay")
+    assert A.content_signature(d / "replay") == sig
+    os.utime(d / "rosters.json", (1, 1))
+    assert A.content_signature(d) == sig
+    (d / "rosters.json").write_text("{}", encoding="utf-8")
+    assert A.content_signature(d) != sig

@@ -77,8 +77,6 @@ def test_freshness_reports_components_and_decision_states(client):
 
 
 def test_suggestions_and_scenarios_are_logged_separately(client):
-    from fastapi.testclient import TestClient  # noqa: F401  (istemci zaten hazır)
-
     state = client.app.state.fdo
     state.decisions._code = {"commit": "test", "dirty": False}
     c = client.post("/api/leagues/L/trade/complete", json={"team_a": "1", "team_b": "2", "give_a": ["0"],
@@ -88,5 +86,6 @@ def test_suggestions_and_scenarios_are_logged_separately(client):
     rec, scen = state.decisions.entries("recommendation"), state.decisions.entries("scenario")
     assert [e["decision_id"] for e in rec] == [c["decision_id"]] and [e["decision_id"] for e in scen] == [a["decision_id"]]
     assert rec[0]["action"] == "trade_complete" and rec[0]["request"]["give_a"] == ["0"]
-    assert rec[0]["result"]["n_suggestions"] == len(c["suggestions"]) and rec[0]["data_signature"] == "test"
+    assert rec[0]["result"]["n_suggestions"] == len(c["suggestions"])
+    assert rec[0]["data_signature"] == state.content_signature()                 # içerik özeti, yol/zamandan bağımsız
     assert set(scen[0]["result"]["teams"]) == {"a", "b"} and scen[0]["result"]["teams"]["a"]["team_id"] == "1"

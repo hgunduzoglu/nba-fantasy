@@ -15,7 +15,7 @@ import pandas as pd
 
 from fdo.config import REPO_ROOT
 from fdo.evaluation.decisions import DecisionLog
-from fdo.ingest.archive import latest as latest_batch
+from fdo.ingest.archive import content_signature, latest as latest_batch
 from fdo.inseason.durability import apply_durability
 from fdo.inseason.fixtures import load_fixtures
 from fdo.inseason.injuries import latest_file, with_injuries
@@ -49,7 +49,8 @@ class AppState:
         """Karar günlüğüne ekler (``fdo.evaluation.decisions``); günlük yazılamazsa analiz yine döner."""
         try:
             last = latest_batch(self.data_dir)
-            return self.decisions.record(kind, action, league_id, request, result, data_signature=self.signature(),
+            return self.decisions.record(kind, action, league_id, request, result,
+                                         data_signature=self.content_signature(),
                                          data_as_of=str(self.data().as_of),
                                          batch_id=last["batch_id"] if last else None)
         except (OSError, ValueError, KeyError):
@@ -69,6 +70,10 @@ class AppState:
     # ------------------------------------------------------------- veri ve motorlar
     def signature(self) -> str:
         return file_signature(self.data_dir)
+
+    def content_signature(self) -> str:
+        """Girdilerin içerik özeti (``fdo.ingest.archive.content_signature``); dosyalar değişmedikçe bir kez hesaplanır."""
+        return self._get(("content_sig", self.signature()), lambda: content_signature(self.data_dir))
 
     def injury_file(self) -> Path | None:
         return latest_file(self.data_dir)

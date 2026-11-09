@@ -53,6 +53,13 @@ def archive_files(directory: str | Path) -> list[Path]:
     return _glob(Path(directory), ANALYSIS_INPUTS + ARCHIVE_EXTRA)
 
 
+def content_signature(directory: str | Path) -> str:
+    """Analiz girdilerinin içerik özeti (ad + sha256): dosya yolu ve zamanından bağımsız, aynı girdiler → aynı imza
+    (geri yüklenmiş arşiv partisi dahil)."""
+    parts = [f"{p.name}:{sha256(p)}" for p in input_files(directory)]
+    return hashlib.sha256("|".join(parts).encode()).hexdigest()[:20]
+
+
 def root(directory: str | Path) -> Path:
     return Path(directory) / "snapshots"
 
