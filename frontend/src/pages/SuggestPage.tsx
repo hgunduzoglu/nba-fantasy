@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
-import { CategoryChips, ErrorBanner, Loading, PlayerName, deltaClass } from "../components/common";
+import { AcceptBadge, CategoryChips, ErrorBanner, Loading, PlayerName, deltaClass } from "../components/common";
 import { BALANCED, StrategyPicker, strategyLabel, toStrategyIn, type StrategyChoice } from "../components/StrategyPicker";
 import { fmtDelta, fmtNum, fmtPct } from "../format";
 import type { League, Meta, MispricedRow, Perceived, SuggestMode, SuggestOut, Suggestion } from "../types";
@@ -221,6 +221,8 @@ export function SuggestPage({ meta, league, team, injuries, onOpen }: Props) {
   const total = (d: DirId) => results[d]?.suggestions.length ?? 0;
   const examined = found.reduce((a, d) => a + results[d]!.examined, 0);
   const rejectedView = found.reduce((a, d) => a + (results[d]!.rejected_view ?? 0), 0);
+  const rejectedReason = found.reduce((a, d) => a + (results[d]!.rejected_reason ?? 0), 0);
+  const rejectedOverpay = found.reduce((a, d) => a + (results[d]!.rejected_overpay ?? 0), 0);
 
   return (
     <div className="stack">
@@ -364,6 +366,7 @@ export function SuggestPage({ meta, league, team, injuries, onOpen }: Props) {
                   <th title="Fantezi playoff haftalarında kadronun toplam NBA maçı farkı (otomatik bırak/ekle dahil)">PO maç</th>
                   <th title="Kalan sezon değeri: küçük paket / büyük paket">Değer dengesi</th>
                   <th title="Rakibin gözünden (bu sezon + isim değeri): aldığı / verdiği. 1 = eşit görür.">Rakibin gözünde</th>
+                  <th title="Rakip için kabul gerekçesi: modelde kazanıyor mu, kendi gözünde eşit ya da fazla alıyor mu. İkisi yüksek, biri orta. Olasılık değil.">Kabul gerekçesi</th>
                   <th title="Playoff olasılığı değişimi (puan)">Playoff</th><th title="Şampiyonluk olasılığı değişimi (puan)">Şamp.</th>
                   <th title="Rakibin playoff olasılığı değişimi">Rakip PO</th><th />
                 </tr></thead>
@@ -394,6 +397,7 @@ export function SuggestPage({ meta, league, team, injuries, onOpen }: Props) {
                           {s.playoff_games === null ? "—" : fmtDelta(s.playoff_games, 0)}</td>
                         <td>{fmtPct(s.fairness)}</td>
                         <td>{fmtNum(s.perceived_view, 2)}</td>
+                        <td><AcceptBadge level={s.acceptability} reasons={s.counterpart_reasons} /></td>
                         <td className={e && e !== "err" ? deltaClass(e.me_playoff, 0.1) : ""}>{e === "err" ? "—" : e ? fmtDelta(e.me_playoff * 100, 1) : ""}</td>
                         <td className={e && e !== "err" ? deltaClass(e.me_champion, 0.05) : ""}>{e === "err" ? "—" : e ? fmtDelta(e.me_champion * 100, 1) : ""}</td>
                         <td>{e === "err" ? "—" : e ? fmtDelta(e.opp_playoff * 100, 1) : ""}</td>
@@ -410,7 +414,10 @@ export function SuggestPage({ meta, league, team, injuries, onOpen }: Props) {
             Δ: rakip başına haftalık beklenen kategori değişimi (kalan sezon). Sağlamlık: takas senin için kaç yönde kazançlı; yüksekse
             takas stratejin değişse de iyi kalır. Etiketler: {DIRECTIONS.map((d) => `${d.tag} = ${d.label}`).join(" · ")}. PO maç:
             playoff haftalarında kadronun toplam maç farkı (otomatik bırak/ekle ve sakatlık dönüşü dahil). Playoff etkisi aynı çekilişlerle takassız/takaslı sezon
-            simülasyonudur (1000 simülasyon). Kabul olasılığı ölçülmez; olasılıklar kalibre edilmedi.
+            simülasyonudur (1000 simülasyon). Kabul gerekçesi: rakip modelde kazanıyor mu, kendi gözünde eşit ya da fazla alıyor mu;
+            ikisi de yoksa paket listelenmez{rejectedReason ? ` (${rejectedReason} paket elendi)` : ""}. Karşılıklı faydada rakibin gözünde
+            1,25'ten fazla alıyorsa (piyasa gözünde senin fazla ödemen) de listelenmez{rejectedOverpay ? ` (${rejectedOverpay} paket)` : ""}.
+            Kabul olasılığı ölçülmez; olasılıklar kalibre edilmedi.
           </div>
         </div>
       )}

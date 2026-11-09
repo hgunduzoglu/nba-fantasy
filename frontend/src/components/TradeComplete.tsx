@@ -1,4 +1,4 @@
-import { CategoryChips, ErrorBanner, deltaClass } from "./common";
+import { AcceptBadge, CategoryChips, ErrorBanner, deltaClass } from "./common";
 import { fmtDelta, fmtNum, fmtPct } from "../format";
 import type { CompleteOut, CompletePlayer, CompleteRow, CompleteTier } from "../types";
 
@@ -11,7 +11,7 @@ const TITLES: Record<CompleteOut["kind"], string> = {
 const TIER: Record<CompleteTier, { label: string; cls: string; tip: string }> = {
   mutual: { label: "ikisi de kazanır", cls: "fa", tip: "Seçilen stratejilerle iki takımın da kalan sezon puanı artıyor" },
   own: { label: "sen kazanırsın", cls: "q",
-         tip: "Model rakibin kaybettiğini söylüyor; ama değer ve rakibin gözündeki denge eşikleri geçtiği için kabul edebilir" },
+         tip: "Model rakibin kaybettiğini söylüyor; rakip kendi gözünde (draft fiyatı + bu sezon) eşit ya da fazla aldığı için kabul edebilir" },
   loss: { label: "sen kaybedersin", cls: "out", tip: "Bu eşiklerde senin puanın artmıyor" },
 };
 
@@ -61,6 +61,7 @@ export function TradeComplete({ data, busy, error, base, oppName, labels, mobile
                 Şu anki seçim: <Tier t={data.current.tier} /> · sen <b className={sign(data.current.own_delta)}>{fmtDelta(data.current.own_delta, 3)}</b>
                 {" "}· {oppName} <b className={sign(data.current.other_delta)}>{fmtDelta(data.current.other_delta, 3)}</b>
                 {" "}· değer dengesi <b>{fmtPct(data.current.fairness)}</b> · rakibin gözünde <b>{fmtNum(data.current.perceived_view, 2)}</b>
+                {" "}· rakip için gerekçe <AcceptBadge level={data.current.acceptability} reasons={data.current.counterpart_reasons} />
               </div>
             )}
             {data.message && <div className="banner">{data.message}</div>}
@@ -78,6 +79,7 @@ export function TradeComplete({ data, busy, error, base, oppName, labels, mobile
                       <span className="m-kv">rakip <b className={sign(r.other_delta)}>{fmtDelta(r.other_delta, 3)}</b></span>
                       <span className="m-kv">denge <b>{fmtPct(r.fairness)}</b></span>
                       <span className="m-kv">gözünde <b>{fmtNum(r.perceived_view, 2)}</b></span>
+                      <span className="m-kv">kabul <AcceptBadge level={r.acceptability} reasons={r.counterpart_reasons} /></span>
                     </div>
                     <div className="m-line"><CategoryChips deltas={r.my_categories} labels={labels} /></div>
                   </li>
@@ -93,6 +95,7 @@ export function TradeComplete({ data, busy, error, base, oppName, labels, mobile
                     <th title="Haftayı kazanma P(5+) değişimi, ortalama rakibe karşı">Sen P(5+)</th>
                     <th title="Küçük paket / büyük paket: modelin kalan sezon değerinde ya da menajerlerin algıladığı değerde (draft fiyatı + bu sezon), hangisi yüksekse">Değer dengesi</th>
                     <th title="Rakibin gözünden (bu sezon + isim değeri, yani draft fiyatı): aldığı / verdiği. 1 = eşit görür.">Rakibin gözünde</th>
+                    <th title="Rakip için kabul gerekçesi: modelde kazanıyor mu, kendi gözünde eşit ya da fazla alıyor mu. İkisi yüksek, biri orta. Olasılık değil.">Kabul gerekçesi</th>
                     <th className="l" title="Senin kategori kazanma olasılığı değişimi (puan)">Kategoriler</th><th />
                   </tr></thead>
                   <tbody>
@@ -106,6 +109,7 @@ export function TradeComplete({ data, busy, error, base, oppName, labels, mobile
                         <td>{fmtDelta(r.own_win * 100, 1)}</td>
                         <td>{fmtPct(r.fairness)}</td>
                         <td>{fmtNum(r.perceived_view, 2)}</td>
+                        <td><AcceptBadge level={r.acceptability} reasons={r.counterpart_reasons} /></td>
                         <td className="l"><CategoryChips deltas={r.my_categories} labels={labels} /></td>
                         <td>{isApplied(r) ? <span className="muted">seçili</span>
                           : <button className="btn" onClick={() => onApply(r)}>Uygula</button>}</td>
@@ -116,8 +120,11 @@ export function TradeComplete({ data, busy, error, base, oppName, labels, mobile
               </div>
             )}
             <p className="hint">
-              {data.examined} paket incelendi; değer dengesi en az %{Math.round(data.min_fairness * 100)} ve rakibin gözünde en az
-              {" "}{fmtNum(data.min_view, 2)} olanlar listelenir (kabul edilebilirlik). Yeşil "+" oyuncular öneriyle eklenenler.
+              {data.examined} paket incelendi; değer dengesi en az %{Math.round(data.min_fairness * 100)} ve rakibin gözünde
+              {" "}{fmtNum(data.min_view, 2)}–{fmtNum(data.max_view, 2)} arası olanlar listelenir (kabul edilebilirlik; üstü
+              piyasa gözünde senin fazla ödemen{data.rejected_overpay ? `, ${data.rejected_overpay} paket` : ""}). Rakibin hem
+              modelde hem kendi gözünde kaybettiği paketler (rakip için gerekçe yok) gösterilmez{data.rejected_reason ? ` (${data.rejected_reason} paket)` : ""}.
+              Yeşil "+" oyuncular öneriyle eklenenler.
               "Uygula" paketi yukarıya taşır ve tam analizi açar; liste açık kalır, başka seçeneği de deneyebilirsin.
               {data.limit_reached ? " Tarama sınırına ulaşıldı." : ""}
             </p>

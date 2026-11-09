@@ -1,5 +1,5 @@
 import { fmtDate } from "../format";
-import type { Availability, BriefPlayer } from "../types";
+import type { Acceptability, Availability, BriefPlayer } from "../types";
 
 export function PlayerName({ p, sub = true }: { p: BriefPlayer; sub?: boolean }) {
   return (
@@ -18,6 +18,18 @@ export function AvailBadge({ a }: { a?: Availability | null }) {
   if (!a) return null;
   if (a.kind === "FA") return <span className="badge fa" title="Serbest oyuncu: hemen alınabilir">FA</span>;
   return <span className="badge w" title="Waiver'da: bu günden itibaren kadroya girer (FAB ligde teklif gerekir)">W → {fmtDate(a.from)}</span>;
+}
+
+const ACCEPT: Record<Acceptability, { label: string; cls: string }> = {
+  high: { label: "yüksek", cls: "fa" }, medium: { label: "orta", cls: "q" }, low: { label: "düşük", cls: "out" },
+};
+
+/** Rakip için kabul gerekçesi (kalibre olasılık değil): rozet + üstüne gelince gerekçeler. */
+export function AcceptBadge({ level, reasons }: { level?: Acceptability; reasons?: string[] }) {
+  if (!level) return null;
+  const a = ACCEPT[level];
+  return <span className={"badge " + a.cls} style={{ marginLeft: 0 }}
+               title={`Rakip için gerekçe: ${(reasons ?? []).join(" · ")}. Kabul olasılığı değildir.`}>{a.label}</span>;
 }
 
 export function ErrorBanner({ error }: { error: string | null }) {

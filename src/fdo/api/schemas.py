@@ -47,6 +47,8 @@ class CompleteIn(TradeIn):
 
     min_fairness: float = Field(default=.55, ge=0, le=1)
     min_view: float = Field(default=.8, ge=0, le=3)
+    require_reason: bool = True                  # rakip için gerekçesiz paketleri listeleme
+    max_view: float = Field(default=1.25, ge=0, le=10)   # rakibin gözünde en çok (üstü senin fazla ödemen); 0 = kapalı
     perceived: str = Field(default="blend", pattern="^(season_total|preseason|blend)$")
     max_extra: int = Field(default=3, ge=1, le=3)
     max_evaluations: int = Field(default=4000, ge=100, le=20000)
@@ -61,6 +63,8 @@ class SuggestIn(BaseModel):
     min_balance: float = 0.9
     min_edge: float = 1.0
     min_view: float = 0.8                           # karşılıklı faydada rakibin gözünde en az denge
+    require_reason: bool = True                     # rakip için gerekçesiz paketleri listeleme
+    max_view: float = 1.25                          # rakibin gözünde en çok (üstü senin fazla ödemen); 0 = kapalı
     packages: list[str] = Field(default_factory=lambda: ["1x1", "2x1", "1x2", "2x2"])
     shortlist: int = 8
     max_evaluations: int = 4000

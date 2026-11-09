@@ -89,3 +89,14 @@ def test_suggestions_and_scenarios_are_logged_separately(client):
     assert rec[0]["result"]["n_suggestions"] == len(c["suggestions"])
     assert rec[0]["data_signature"] == state.content_signature()                 # içerik özeti, yol/zamandan bağımsız
     assert set(scen[0]["result"]["teams"]) == {"a", "b"} and scen[0]["result"]["teams"]["a"]["team_id"] == "1"
+
+
+def test_completion_rows_carry_counterpart_reasons(client):
+    body = {"team_a": "2", "team_b": "1", "give_a": ["3"]}
+    strict = client.post("/api/leagues/L/trade/complete", json=body).json()
+    loose = client.post("/api/leagues/L/trade/complete", json={**body, "require_reason": False}).json()
+    assert strict["rejected_reason"] > 0 and loose["rejected_reason"] == 0
+    assert all(r["acceptability"] in ("high", "medium") and r["counterpart_reasons"] for r in strict["suggestions"])
+    assert any(r["acceptability"] == "low" for r in loose["suggestions"])
+    s = client.post("/api/leagues/L/trade/suggest", json={"team": "1", "max_evaluations": 400}).json()
+    assert "rejected_reason" in s and all(r["acceptability"] in ("high", "medium") for r in s["suggestions"])

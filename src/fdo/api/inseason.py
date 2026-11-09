@@ -76,7 +76,8 @@ def register(app: FastAPI, state: AppState) -> None:
             opts = SearchOptions(sizes, body.shortlist, int(body.max_evaluations), 20, body.min_fairness,
                                  body.min_gain, body.min_win / 100, body.auto_balance, body.ecw_weight,
                                  body.mode, body.perceived, body.min_balance, body.min_edge,
-                                 body.min_view if body.mode == "mutual" else 0.0)
+                                 body.min_view if body.mode == "mutual" else 0.0, body.require_reason,
+                                 body.max_view)
             strategy = _strategy(body.strategy, eng, body.team)
             found = suggest_trades(eng, body.team, strategy=strategy, opponent_strategies=opp_strats,
                                    opponents=opps, options=opts)
@@ -102,6 +103,7 @@ def register(app: FastAPI, state: AppState) -> None:
                          "own_delta": s.own_strategy_delta, "other_delta": s.other_strategy_delta,
                          "own_win": s.own_win_delta, "other_win": s.other_win_delta, "fairness": s.fairness,
                          "perceived_balance": s.perceived_balance, "score": s.score, "mode": s.mode,
+                         "acceptability": s.acceptability, "counterpart_reasons": list(s.counterpart_reasons),
                          "key_players": list(s.key_players), "other_strategy": s.other_strategy.name,
                          "other_weights": list(s.other_strategy.weights),
                          "adjustments": {t: {k: [eng.data.players.loc[p, "name"] for p in v] for k, v in a.items()}
@@ -109,7 +111,8 @@ def register(app: FastAPI, state: AppState) -> None:
         out = clean({"suggestions": rows, "strategy": {"name": strategy.name, "weights": list(strategy.weights)},
                      "examined": found.examined, "eligible": found.eligible,
                      "rejected_balance": found.rejected_fairness, "rejected_view": found.rejected_view,
-                     "rejected_roster": found.rejected_roster,
+                     "rejected_roster": found.rejected_roster, "rejected_reason": found.rejected_reason,
+                     "rejected_overpay": found.rejected_overpay,
                      "limit_reached": found.limit_reached, "message": found.message})
         out["decision_id"] = state.log_decision("recommendation", "trade_suggest", lid, body.model_dump(),
                                                 summarize(out))
@@ -125,7 +128,8 @@ def register(app: FastAPI, state: AppState) -> None:
         try:
             opts = CompleteOptions(max_extra=body.max_extra, max_evaluations=body.max_evaluations,
                                    min_fairness=body.min_fairness, min_view=body.min_view, perceived=body.perceived,
-                                   auto_balance=body.auto_balance)
+                                   auto_balance=body.auto_balance, require_reason=body.require_reason,
+                                   max_view=body.max_view)
             found = complete_trade(eng, body.team_a, body.team_b, tuple(body.give_a), tuple(body.give_b),
                                    strategy_a=sa, strategy_b=sb, options=opts)
         except (ValueError, TradeError) as e:
@@ -142,13 +146,16 @@ def register(app: FastAPI, state: AppState) -> None:
                     "tier": s.mode, "score": s.score, "own_delta": s.own_strategy_delta,
                     "other_delta": s.other_strategy_delta, "own_win": s.own_win_delta, "other_win": s.other_win_delta,
                     "fairness": s.fairness, "perceived_view": s.perceived_balance,
+                    "acceptability": s.acceptability, "counterpart_reasons": list(s.counterpart_reasons),
                     "my_categories": category_deltas(eng, p, r.team_a, pair),
                     "adjustments": {t: {k: [eng.data.players.loc[x, "name"] for x in v] for k, v in a.items()}
                                     for t, a in adj.items()}}
         out = clean({"kind": found.kind, "suggestions": [row(s) for s in found.suggestions],
                      "current": row(found.current) if found.current else None, "examined": found.examined,
                      "rejected_balance": found.rejected_fairness, "rejected_view": found.rejected_view,
-                     "rejected_roster": found.rejected_roster, "limit_reached": found.limit_reached,
+                     "rejected_roster": found.rejected_roster, "rejected_reason": found.rejected_reason,
+                     "rejected_overpay": found.rejected_overpay, "max_view": opts.max_view,
+                     "limit_reached": found.limit_reached,
                      "min_fairness": opts.min_fairness, "min_view": opts.min_view, "message": found.message})
         out["decision_id"] = state.log_decision("recommendation", "trade_complete", lid, body.model_dump(),
                                                 summarize(out))

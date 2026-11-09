@@ -293,6 +293,9 @@ export interface CompleteRow {
   other_win: number;
   fairness: number;
   perceived_view: number;
+  /** Rakip için kabul gerekçesi: high (modelde kazanç + kendi gözünde ≥ 1), medium (biri), low (hiçbiri). Olasılık değil. */
+  acceptability: Acceptability;
+  counterpart_reasons: string[];
   my_categories: Record<string, number>;
   adjustments: Record<string, { drop: string[]; add: string[]; move_to_il: string[] }>;
 }
@@ -305,6 +308,9 @@ export interface CompleteOut {
   rejected_balance: number;
   rejected_view: number;
   rejected_roster: number;
+  rejected_reason: number;
+  rejected_overpay: number;
+  max_view: number;
   limit_reached: boolean;
   min_fairness: number;
   min_view: number;
@@ -312,6 +318,7 @@ export interface CompleteOut {
 }
 
 export type SuggestMode = "mutual" | "sell_high" | "buy_low";
+export type Acceptability = "high" | "medium" | "low";
 export type Perceived = "season_total" | "preseason" | "blend";
 
 export interface SuggestIn {
@@ -359,6 +366,8 @@ export interface Suggestion {
   position_gap: number;
   /** Rakibin gözünden (algılanan değer): aldığı / verdiği. */
   perceived_view: number | null;
+  acceptability: Acceptability;
+  counterpart_reasons: string[];
   adjustments: Record<string, Record<"drop" | "add" | "move_to_il", string[]>>;
 }
 
@@ -370,6 +379,8 @@ export interface SuggestOut {
   rejected_balance: number;
   rejected_view?: number;
   rejected_roster: number;
+  rejected_reason?: number;
+  rejected_overpay?: number;
   limit_reached: boolean;
   message: string;
 }
