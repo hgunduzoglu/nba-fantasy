@@ -76,3 +76,22 @@ def test_ki4_same_day_resync_keeps_the_first_capture(tmp_path):
     (tmp_path / "rosters.json").write_bytes(second)
     snapshot(tmp_path, day)                               # ikinci senkronizasyonun sonu
     assert first in _all_bytes(tmp_path)                  # anlık görüntü düzeninden bağımsız: ilk hâl bir yerde durmalı
+
+
+def test_ki6_two_teams_do_not_take_the_same_free_agent(trade_data):  # noqa: F811
+    import dataclasses
+
+    from fdo.trade.strategy import Strategy
+
+    lg = trade_data.leagues["L"]
+    rosters = {**lg.rosters, "1": lg.rosters["1"][:2], "2": lg.rosters["2"][:2]}   # ikisinde de boş aktif yer
+    trade_data.leagues["L"] = dataclasses.replace(lg, rosters=rosters)
+    eng = TradeEngine(trade_data, "L", utilization=1, horizon_weeks=4)
+    s = Strategy()
+    alone = [{f for _, f in eng.waiver_best(rosters[t], frozenset(), s)[1]} for t in ("1", "2")]
+    assert alone[0] & alone[1]                                       # bağımsız çözümde aynı oyuncu ikisine gider
+    joint = eng.joint_waiver([("1", rosters["1"], frozenset(), s), ("2", rosters["2"], frozenset(), s)])
+    assert not {f for _, f in joint["1"][1]} & {f for _, f in joint["2"][1]}
+    assert {f for _, f in joint["1"][1]} == alone[0]                 # takası öneren takım önce
+    _, m = eng.score_many(dict(rosters), {"1": s, "2": s})           # kadro değişmedi: fark sıfır
+    assert abs(m["1"]["ecw_delta"]) < 1e-12 and abs(m["2"]["ecw_delta"]) < 1e-12
