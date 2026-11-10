@@ -2097,6 +2097,33 @@ per-team approximation; the detailed calculation of a chosen package uses the sh
 free moves for each side and the expected category change they bring alone ("Takassız da yapılabilir"): the trade's
 difference is the gain on top of that, so an improvement available without trading is seen first.
 
+### 13.33 Season effect of suggestions and a shadow ranking (`SeasonSim.effect`, `/trade/season/many`, 10 November 2026)
+
+The suggestion score mixes weekly measures (strategy-weighted expected categories + P(5+), §13.17). The league's goal is
+to make the playoffs and win the title, which depend on the regular-season standings and the playoff bracket. Since the
+score is an unvalidated proxy for that goal, suggestions can also be evaluated with the season simulation (§13.14):
+
+- **Paired difference**: the season without and with the trade is simulated with the same random draws; in every
+  simulation, whether the team makes the playoffs and wins the title is compared between the two scenarios. The difference
+  is the mean of that series and the **error margin** its standard error (`PairedDelta.se`). If |Δ| < 2·SE the difference
+  does not stand out from the simulation noise: the table shows it faded with "≈", and it should count as a tie when
+  ranking. The margin is only simulation noise; it does not include the uncertainty of the rest-of-season projection, of
+  injuries or of `strength_sd`.
+- **Interface**: "Sezon etkisi" in the completion list on the trade page and "Sezon etkisini hesapla (ilk 25)" on the
+  suggestions page (2000 simulations). Once computed, the order can be "Model puanı" (default), "Δ playoff" or
+  "Δ şampiyonluk". The default order did not change: the season simulation keeps rosters fixed for the season, the team
+  strength uncertainty is not calibrated and the measure has not been checked against past results.
+- **Shadow measurement**: `scripts/run_cases.py --season 2000` also evaluates every reference case's suggestions with the
+  season simulation and records the per-suggestion differences and, per case, how the two orders agree (Spearman rank
+  correlation, where the model's first suggestion lands in the season order). Whether to change the ranking measure
+  should be decided as these records accumulate.
+
+First measurement (9 November data, METU IE, 2000 simulations): the two orders agree weakly. In the Banchero completion,
+the model's first suggestion (Banchero → Ty Jerome + Dylan Cardwell, both sides gain) raises the playoff probability by
++1.7 points (±1.4), while Banchero → Clingan raises it by +21.9 points (±1.9) and the title probability by +3.2 points
+(±1.4); it is third in the model order. The default suggestion list agrees better (Spearman playoff +0.51, title +0.63).
+Most title differences are within the noise at 2000 simulations (±1.2 points); the playoff difference separates better.
+
 ### 13.8 V3 candidates
 
 Beam search and H-score weight optimization; fitting the profile mix; covariance of game counts between

@@ -2084,6 +2084,31 @@ taraması takım başına yaklaşımla kalır; seçilen paketin ayrıntılı hes
 için bu bedava hamleleri ve tek başına getirdikleri beklenen kategori değişimini "takassız da yapılabilir" diye gösterir:
 takasın farkı bunun üstündeki kazançtır; aynı iyileşme takassız mümkünse önce o görülür.
 
+### 13.33 Önerilerin sezon etkisi ve gölge sıralama (`SeasonSim.effect`, `/trade/season/many`, 10 Kasım 2026)
+
+Öneri puanı haftalık ölçülerin karışımıdır (strateji ağırlıklı kategori beklentisi + P(5+), §13.17). Lig hedefi ise
+playoff'a girmek ve şampiyon olmak; bu iki ölçü normal sezon puan durumuna ve playoff braketine bağlı. Puan bu hedefin
+doğrulanmamış bir vekili olduğu için öneriler sezon simülasyonuyla (§13.14) da değerlendirilebilir:
+
+- **Eşleşmeli fark**: takassız ve takaslı sezon aynı rastgele çekilişlerle simüle edilir; her simülasyonda takımın
+  playoff'a girip girmediği ve şampiyon olup olmadığı iki senaryoda karşılaştırılır. Fark bu dizinin ortalaması,
+  **hata payı** standart hatası (`PairedDelta.se`). |Δ| < 2·SE ise fark simülasyon gürültüsünden ayrılmıyor: tabloda
+  soluk ve "≈" ile gösterilir, sıralamada eşit sayılmalıdır. Hata payı yalnız simülasyon gürültüsüdür; kalan sezon
+  projeksiyonunun, sakatlıkların ve `strength_sd`'nin belirsizliğini içermez.
+- **Arayüz**: Takas Analizi'ndeki tamamlama listesinde "Sezon etkisi", Takas Önerileri'nde "Sezon etkisini hesapla (ilk
+  25)" düğmesi (2000 simülasyon). Hesaplandıktan sonra sıra "Model puanı" (varsayılan), "Δ playoff" ya da
+  "Δ şampiyonluk" seçilebilir. Varsayılan sıra değişmedi: sezon simülasyonu kadroları sezon boyu sabit tutar, takım
+  gücü belirsizliği kalibre edilmedi ve ölçüm henüz geçmiş sonuçlarla doğrulanmadı.
+- **Gölge ölçüm**: `scripts/run_cases.py --season 2000` her referans vakanın önerilerini sezon simülasyonuyla da
+  değerlendirir, öneri başına farkları ve vaka başına iki sıranın uyumunu (Spearman sıra korelasyonu, modelin ilk
+  önerisinin sezon sırasındaki yeri) kayda yazar. Sıralama ölçüsünü değiştirme kararı bu kayıtlar biriktikçe verilmeli.
+
+İlk ölçüm (9 Kasım verisi, METU IE, 2000 simülasyon): iki sıra zayıf uyuşuyor. Banchero tamamlamasında modelin ilk
+önerisi (Banchero → Ty Jerome + Dylan Cardwell, iki taraf da kazanır) playoff olasılığını +1,7 puan (±1,4) artırırken
+Banchero → Clingan +21,9 puan (±1,9) ve şampiyonluğu +3,2 puan (±1,4) artırıyor; model sırasında üçüncü. Varsayılan
+öneri listesinde uyum daha iyi (Spearman playoff +0,51, şampiyonluk +0,63). Şampiyonluk farklarının çoğu 2000
+simülasyonda gürültü içinde (±1,2 puan); playoff farkı daha ayırt edici.
+
 ### 13.8 V3 adayları
 
 Beam search ve H-score ağırlık optimizasyonu; profil karışımı uyumu; oyuncular arası maç sayısı
