@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
-import { AcceptBadge, CategoryChips, ErrorBanner, Loading, PlayerName, deltaClass } from "../components/common";
+import { AcceptBadge, CategoryChips, ErrorBanner, Loading, PlayerName, SeasonDeltaCell, deltaClass } from "../components/common";
 import { BALANCED, StrategyPicker, strategyLabel, toStrategyIn, type StrategyChoice } from "../components/StrategyPicker";
 import { fmtDelta, fmtNum, fmtPct } from "../format";
-import type { League, Meta, MispricedRow, Perceived, SuggestMode, SuggestOut, Suggestion } from "../types";
+import type { League, Meta, MispricedRow, Perceived, SeasonEffect, SuggestMode, SuggestOut, Suggestion } from "../types";
 
 import type { TradeInit } from "./TradePage";
 
@@ -51,7 +51,9 @@ const DIRECTIONS: Direction[] = [
 ];
 const DEFAULT_DIRS: DirId[] = ["balanced", "punt1", "revive1", "win"];
 
-type Effect = { me_playoff: number; me_champion: number; opp_playoff: number } | "err";
+type Effect = { me: SeasonEffect; opp: SeasonEffect } | "err";
+const SEASON_SIMS = 2000;
+const SEASON_CHUNK = 5;          // istek başına takas (ilerleme göstermek için parça parça)
 type Row = { key: string; s: Suggestion; dirs: DirId[]; best: DirId };
 
 const tradeKey = (s: Suggestion) =>
@@ -106,7 +108,7 @@ export function SuggestPage({ meta, league, team, injuries, onOpen }: Props) {
   const [mis, setMis] = useState<{ sell_high: MispricedRow[]; buy_low: MispricedRow[] } | null>(null);
   const [effects, setEffects] = useState<Record<string, Effect>>({});
   const [effBusy, setEffBusy] = useState<{ done: number; total: number } | null>(null);
-  const [sortBy, setSortBy] = useState<"score" | "robust" | "ecw" | "playoff">("score");
+  const [sortBy, setSortBy] = useState<"score" | "robust" | "ecw" | "playoff" | "champion">("score");
   const busy = progress !== null;
   const catKeys = meta.categories.map((c) => c.key);
   const labels = Object.fromEntries(meta.categories.map((c) => [c.key, c.label]));
@@ -180,31 +182,41 @@ export function SuggestPage({ meta, league, team, injuries, onOpen }: Props) {
   const rows: Row[] = view === "all" ? [...combined]
     : (results[view]?.suggestions ?? []).map((s) => ({ key: tradeKey(s), s, dirs: [view], best: view }));
   const ecwOf = (s: Suggestion) => Object.values(s.my_categories).reduce((a, b) => a + b, 0);
-  const effVal = (k: string) => { const e = effects[k]; return e && e !== "err" ? e.me_champion + e.me_playoff : -9; };
-  if (sortBy === "playoff") rows.sort((a, b) => effVal(b.key) - effVal(a.key));
+  const effVal = (k: string, which: "playoff" | "champion") => {
+    const e = effects[k];
+    const d = e && e !== "err" ? e.me[which] : undefined;
+    return d ? d.delta : -9;
+  };
+  if (sortBy === "playoff" || sortBy === "champion") rows.sort((a, b) => effVal(b.key, sortBy) - effVal(a.key, sortBy));
   else if (sortBy === "ecw") rows.sort((a, b) => ecwOf(b.s) - ecwOf(a.s));
   else if (sortBy === "robust") rows.sort((a, b) => robustness(b.s).n - robustness(a.s).n || b.s.score - a.s.score);
   else if (view === "all") rows.sort((a, b) => b.dirs.length - a.dirs.length || b.s.score - a.s.score);
 
+  /** İlk 25 önerinin sezon etkisi: takassız ve takaslı sezon aynı çekilişlerle (eşleşmeli fark + hata payı). */
   const runEffects = async () => {
     const list = rows.slice(0, 25).filter((r) => !effects[r.key]);
     setEffBusy({ done: 0, total: list.length });
-    for (let i = 0; i < list.length; i++) {
-      const { key, s, best } = list[i];
+    for (let i = 0; i < list.length; i += SEASON_CHUNK) {
+      const part = list.slice(i, i + SEASON_CHUNK);
+      const found: Record<string, Effect> = {};
       try {
-        const r = await api.season(league.id, {
-          team_a: team, team_b: s.team_b, give_a: s.give_a.map((p) => p.id), give_b: s.give_b.map((p) => p.id),
-          auto_balance: true, strategy_a: toStrategyIn(dirInfo(best).strategy),
-          strategy_b: { name: s.other_strategy, weights: s.other_weights }, injuries, n_sims: 1000,
+        const out = await api.seasonMany(league.id, {
+          injuries, n_sims: SEASON_SIMS,
+          trades: part.map(({ s, best }) => ({
+            team_a: team, team_b: s.team_b, give_a: s.give_a.map((p) => p.id), give_b: s.give_b.map((p) => p.id),
+            drop_a: [], drop_b: [], add_a: [], add_b: [], auto_balance: true, injuries,
+            strategy_a: toStrategyIn(dirInfo(best).strategy), strategy_b: { name: s.other_strategy, weights: s.other_weights },
+          })),
         });
-        const e: Effect = { me_playoff: r.teams.a.playoff_after - r.teams.a.playoff_before,
-                            me_champion: r.teams.a.champion_after - r.teams.a.champion_before,
-                            opp_playoff: r.teams.b.playoff_after - r.teams.b.playoff_before };
-        setEffects((x) => ({ ...x, [key]: e }));
+        part.forEach(({ key }, j) => {
+          const r = out.trades.find((t) => t.index === j);
+          found[key] = r && "teams" in r ? { me: r.teams.a, opp: r.teams.b } : "err";
+        });
       } catch {
-        setEffects((x) => ({ ...x, [key]: "err" }));
+        part.forEach(({ key }) => { found[key] = "err"; });
       }
-      setEffBusy({ done: i + 1, total: list.length });
+      setEffects((x) => ({ ...x, ...found }));
+      setEffBusy({ done: Math.min(i + SEASON_CHUNK, list.length), total: list.length });
     }
     setEffBusy(null);
   };
@@ -338,10 +350,13 @@ export function SuggestPage({ meta, league, team, injuries, onOpen }: Props) {
                           title="Kaç yönde senin kazancın pozitif">Sağlamlık</button>
                   <button aria-pressed={sortBy === "ecw"} onClick={() => setSortBy("ecw")}>Senin ΔECW</button>
                   <button aria-pressed={sortBy === "playoff"} onClick={() => setSortBy("playoff")}
-                          disabled={!Object.keys(effects).length}>Playoff + şampiyonluk</button>
+                          disabled={!Object.keys(effects).length}>Δ playoff</button>
+                  <button aria-pressed={sortBy === "champion"} onClick={() => setSortBy("champion")}
+                          disabled={!Object.keys(effects).length}>Δ şampiyonluk</button>
                 </div>
-                <button className="btn" onClick={runEffects} disabled={effBusy !== null}>
-                  {effBusy ? <><span className="spinner" /> {effBusy.done}/{effBusy.total}</> : "Playoff etkisini hesapla (ilk 25)"}
+                <button className="btn" onClick={runEffects} disabled={effBusy !== null}
+                        title="Kalan normal sezon ve playoff braketi, takassız ve takaslı, aynı çekilişlerle simüle edilir">
+                  {effBusy ? <><span className="spinner" /> {effBusy.done}/{effBusy.total}</> : "Sezon etkisini hesapla (ilk 25)"}
                 </button>
               </>
             )}
@@ -398,9 +413,9 @@ export function SuggestPage({ meta, league, team, injuries, onOpen }: Props) {
                         <td>{fmtPct(s.fairness)}</td>
                         <td>{fmtNum(s.perceived_view, 2)}</td>
                         <td><AcceptBadge level={s.acceptability} reasons={s.counterpart_reasons} /></td>
-                        <td className={e && e !== "err" ? deltaClass(e.me_playoff, 0.1) : ""}>{e === "err" ? "—" : e ? fmtDelta(e.me_playoff * 100, 1) : ""}</td>
-                        <td className={e && e !== "err" ? deltaClass(e.me_champion, 0.05) : ""}>{e === "err" ? "—" : e ? fmtDelta(e.me_champion * 100, 1) : ""}</td>
-                        <td>{e === "err" ? "—" : e ? fmtDelta(e.opp_playoff * 100, 1) : ""}</td>
+                        <SeasonDeltaCell d={e === "err" ? "err" : e?.me.playoff} />
+                        <SeasonDeltaCell d={e === "err" ? "err" : e?.me.champion} scale={0.05} />
+                        <SeasonDeltaCell d={e === "err" ? "err" : e?.opp.playoff} />
                         <td><button className="link-btn" onClick={() => open(r)}>Takas ekranında aç →</button></td>
                       </tr>
                     );
@@ -413,8 +428,8 @@ export function SuggestPage({ meta, league, team, injuries, onOpen }: Props) {
           <div className="hint" style={{ padding: "0 14px 12px" }}>
             Δ: rakip başına haftalık beklenen kategori değişimi (kalan sezon). Sağlamlık: takas senin için kaç yönde kazançlı; yüksekse
             takas stratejin değişse de iyi kalır. Etiketler: {DIRECTIONS.map((d) => `${d.tag} = ${d.label}`).join(" · ")}. PO maç:
-            playoff haftalarında kadronun toplam maç farkı (otomatik bırak/ekle ve sakatlık dönüşü dahil). Playoff etkisi aynı çekilişlerle takassız/takaslı sezon
-            simülasyonudur (1000 simülasyon). Kabul gerekçesi: rakip modelde kazanıyor mu, kendi gözünde eşit ya da fazla alıyor mu;
+            playoff haftalarında kadronun toplam maç farkı (otomatik bırak/ekle ve sakatlık dönüşü dahil). Sezon etkisi aynı çekilişlerle takassız/takaslı sezon
+            simülasyonudur ({SEASON_SIMS} simülasyon); "≈" farkın simülasyon hata payı (±2 standart hata) içinde kaldığını gösterir. Kabul gerekçesi: rakip modelde kazanıyor mu, kendi gözünde eşit ya da fazla alıyor mu;
             ikisi de yoksa paket listelenmez{rejectedReason ? ` (${rejectedReason} paket elendi)` : ""}. Karşılıklı faydada rakibin gözünde
             1,25'ten fazla alıyorsa (piyasa gözünde senin fazla ödemen) de listelenmez{rejectedOverpay ? ` (${rejectedOverpay} paket)` : ""}.
             Kabul olasılığı ölçülmez; olasılıklar kalibre edilmedi.

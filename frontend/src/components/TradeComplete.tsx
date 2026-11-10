@@ -1,6 +1,7 @@
-import { AcceptBadge, CategoryChips, ErrorBanner, deltaClass } from "./common";
+import { useEffect, useState } from "react";
+import { AcceptBadge, CategoryChips, ErrorBanner, SeasonDeltaCell, deltaClass } from "./common";
 import { fmtDelta, fmtNum, fmtPct } from "../format";
-import type { CompleteOut, CompletePlayer, CompleteRow, CompleteTier } from "../types";
+import type { CompleteOut, CompletePlayer, CompleteRow, CompleteTier, SeasonEffect, SeasonManyOut } from "../types";
 
 const TITLES: Record<CompleteOut["kind"], string> = {
   get: "Karşılığında ne isteyebilirsin",
@@ -33,12 +34,44 @@ function Tier({ t }: { t: CompleteTier }) {
   return <span className={"badge " + TIER[t].cls} title={TIER[t].tip}>{TIER[t].label}</span>;
 }
 
-/** Takas ekranındaki seçimden tamamlama/dengeleme önerileri; "Uygula" paketi takas ekranına taşır. */
-export function TradeComplete({ data, busy, error, base, oppName, labels, mobile, isApplied, onApply, onClose }: {
+type Order = "score" | "playoff" | "champion";
+
+/** Takas ekranındaki seçimden tamamlama/dengeleme önerileri; "Uygula" paketi takas ekranına taşır. ``onSeason``
+ * verilirse öneriler sezon simülasyonuyla (playoff, şampiyonluk) da değerlendirilip ona göre sıralanabilir. */
+export function TradeComplete({ data, busy, error, base, oppName, labels, mobile, isApplied, onApply, onClose, onSeason }: {
   data: CompleteOut | null; busy: boolean; error: string | null; base: string; oppName: string;
   labels: Record<string, string>; mobile: boolean; isApplied: (r: CompleteRow) => boolean;
   onApply: (r: CompleteRow) => void; onClose: () => void;
+  onSeason?: (rows: CompleteRow[]) => Promise<SeasonManyOut>;
 }) {
+  const [season, setSeason] = useState<{ effects: (SeasonEffect | "err")[]; n: number } | null>(null);
+  const [seasonBusy, setSeasonBusy] = useState(false);
+  const [seasonErr, setSeasonErr] = useState<string | null>(null);
+  const [order, setOrder] = useState<Order>("score");
+  useEffect(() => { setSeason(null); setSeasonErr(null); setOrder("score"); }, [data]);
+  const runSeason = () => {
+    if (!data || !onSeason) return;
+    setSeasonBusy(true);
+    setSeasonErr(null);
+    onSeason(data.suggestions)
+      .then((out) => setSeason({ n: out.n_sims, effects: data.suggestions.map((_, i) => {
+        const r = out.trades.find((t) => t.index === i);
+        return r && "teams" in r ? r.teams.a : "err";
+      }) }))
+      .catch((e: Error) => setSeasonErr(e.message))
+      .finally(() => setSeasonBusy(false));
+  };
+  const eff = (i: number): SeasonEffect | "err" | undefined => season?.effects[i];
+  const part = (i: number, k: "playoff" | "champion") => {
+    const e = eff(i);
+    return e === "err" ? "err" : e?.[k];
+  };
+  const key = (i: number) => {
+    const d = part(i, order === "playoff" ? "playoff" : "champion");
+    return d && d !== "err" ? d.delta : -9;
+  };
+  const shown = data ? data.suggestions.map((r, i) => ({ r, i })) : [];
+  if (season && order !== "score") shown.sort((x, y) => key(y.i) - key(x.i));
   const sign = (d: number) => (d > 0.005 ? "good" : d < -0.005 ? "bad" : "");
   const extras = (r: CompleteRow) => Object.values(r.adjustments).flatMap((a) => [
     ...a.move_to_il.map((x) => `${x} → IL`), ...a.drop.map((x) => `${x} bırakılır`), ...a.add.map((x) => `${x} boştan`)]);
@@ -49,10 +82,25 @@ export function TradeComplete({ data, busy, error, base, oppName, labels, mobile
         <span className="muted">{base}</span>
         <span className="spacer" style={{ flex: 1 }} />
         {busy && <span className="spinner" aria-label="aranıyor" />}
+        {season && (
+          <div className="seg" role="group" aria-label="Sıralama">
+            <button aria-pressed={order === "score"} onClick={() => setOrder("score")}
+                    title="Kalan sezon kategori kazancı + haftalık galibiyet (varsayılan sıra)">Model puanı</button>
+            <button aria-pressed={order === "playoff"} onClick={() => setOrder("playoff")}>Δ playoff</button>
+            <button aria-pressed={order === "champion"} onClick={() => setOrder("champion")}>Δ şampiyonluk</button>
+          </div>
+        )}
+        {onSeason && data && data.suggestions.length > 0 && !season && (
+          <button className="btn" onClick={runSeason} disabled={seasonBusy}
+                  title="Her öneri için kalan sezon ve playoff braketi simüle edilir (aynı çekilişlerle takassız/takaslı)">
+            {seasonBusy ? <><span className="spinner" /> Simüle ediliyor…</> : "Sezon etkisi"}
+          </button>
+        )}
         <button className="btn" onClick={onClose}>Kapat</button>
       </div>
       <div className="card-b">
         <ErrorBanner error={error} />
+        <ErrorBanner error={seasonErr} />
         {!data && busy && <div className="muted">Paketler taranıyor…</div>}
         {data && (
           <>
@@ -67,7 +115,7 @@ export function TradeComplete({ data, busy, error, base, oppName, labels, mobile
             {data.message && <div className="banner">{data.message}</div>}
             {mobile ? (
               <ul className="m-list">
-                {data.suggestions.map((r, i) => (
+                {shown.map(({ r, i }) => (
                   <li key={i} className="m-item">
                     <div className="m-line"><Tier t={r.tier} /><span className="spacer" />
                       {isApplied(r) ? <span className="muted">seçili</span>
@@ -80,6 +128,12 @@ export function TradeComplete({ data, busy, error, base, oppName, labels, mobile
                       <span className="m-kv">denge <b>{fmtPct(r.fairness)}</b></span>
                       <span className="m-kv">gözünde <b>{fmtNum(r.perceived_view, 2)}</b></span>
                       <span className="m-kv">kabul <AcceptBadge level={r.acceptability} reasons={r.counterpart_reasons} /></span>
+                      {(() => {
+                        const po = part(i, "playoff"), ch = part(i, "champion");
+                        if (!ch || ch === "err") return null;
+                        return <span className="m-kv">playoff <b>{po && po !== "err" ? fmtDelta(po.delta * 100, 1) : "—"}</b>
+                          {" "}şamp. <b>{fmtDelta(ch.delta * 100, 1)}</b></span>;
+                      })()}
                     </div>
                     <div className="m-line"><CategoryChips deltas={r.my_categories} labels={labels} /></div>
                   </li>
@@ -96,10 +150,12 @@ export function TradeComplete({ data, busy, error, base, oppName, labels, mobile
                     <th title="Küçük paket / büyük paket: modelin kalan sezon değerinde ya da menajerlerin algıladığı değerde (draft fiyatı + bu sezon), hangisi yüksekse">Değer dengesi</th>
                     <th title="Rakibin gözünden (bu sezon + isim değeri, yani draft fiyatı): aldığı / verdiği. 1 = eşit görür.">Rakibin gözünde</th>
                     <th title="Rakip için kabul gerekçesi: modelde kazanıyor mu, kendi gözünde eşit ya da fazla alıyor mu. İkisi yüksek, biri orta. Olasılık değil.">Kabul gerekçesi</th>
+                    {season && <th title="Senin playoff olasılığı değişimi (puan), sezon simülasyonu">Playoff</th>}
+                    {season && <th title="Senin şampiyonluk olasılığı değişimi (puan), sezon simülasyonu">Şamp.</th>}
                     <th className="l" title="Senin kategori kazanma olasılığı değişimi (puan)">Kategoriler</th><th />
                   </tr></thead>
                   <tbody>
-                    {data.suggestions.map((r, i) => (
+                    {shown.map(({ r, i }) => (
                       <tr key={i} className={isApplied(r) ? "rec" : ""} title={extras(r).join(" · ") || undefined}>
                         <td className="l"><Tier t={r.tier} /></td>
                         <td className="l wrap"><Pkg players={r.give_a} /></td>
@@ -110,6 +166,8 @@ export function TradeComplete({ data, busy, error, base, oppName, labels, mobile
                         <td>{fmtPct(r.fairness)}</td>
                         <td>{fmtNum(r.perceived_view, 2)}</td>
                         <td><AcceptBadge level={r.acceptability} reasons={r.counterpart_reasons} /></td>
+                        {season && <SeasonDeltaCell d={part(i, "playoff")} />}
+                        {season && <SeasonDeltaCell d={part(i, "champion")} scale={0.05} />}
                         <td className="l"><CategoryChips deltas={r.my_categories} labels={labels} /></td>
                         <td>{isApplied(r) ? <span className="muted">seçili</span>
                           : <button className="btn" onClick={() => onApply(r)}>Uygula</button>}</td>
@@ -127,6 +185,8 @@ export function TradeComplete({ data, busy, error, base, oppName, labels, mobile
               Yeşil "+" oyuncular öneriyle eklenenler.
               "Uygula" paketi yukarıya taşır ve tam analizi açar; liste açık kalır, başka seçeneği de deneyebilirsin.
               {data.limit_reached ? " Tarama sınırına ulaşıldı." : ""}
+              {season && ` Sezon etkisi: ${season.n} simülasyon, takassız ve takaslı sezon aynı çekilişlerle; "≈" farkın simülasyon
+              hata payı içinde kaldığını gösterir. Kadrolar sezon boyu sabit, olasılıklar kalibre edilmedi; varsayılan sıra model puanıdır.`}
             </p>
           </>
         )}

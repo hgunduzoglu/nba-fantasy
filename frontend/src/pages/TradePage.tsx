@@ -512,7 +512,14 @@ export function TradePage({ meta, league, team, injuries, initial }: Props) {
             <TradeComplete data={complete.data} busy={complete.busy} error={complete.error} base={complete.base}
                            oppName={teamName(opp)} labels={Object.fromEntries(meta.categories.map((c) => [c.key, c.label]))}
                            mobile={mobile} isApplied={(r) => sameIds(giveA, r.give_a.map((p) => p.id)) && sameIds(giveB, r.give_b.map((p) => p.id))}
-                           onApply={applyComplete} onClose={() => { completeSeq.current++; setComplete(null); }} />
+                           onApply={applyComplete} onClose={() => { completeSeq.current++; setComplete(null); }}
+                           onSeason={(rows) => api.seasonMany(league.id, {
+                             trades: rows.map((r) => ({
+                               team_a: team, team_b: opp, give_a: r.give_a.map((p) => p.id), give_b: r.give_b.map((p) => p.id),
+                               drop_a: [], drop_b: [], add_a: [], add_b: [], auto_balance: auto,
+                               strategy_a: toStrategyIn(stratA), strategy_b: toStrategyIn(stratB), injuries,
+                             })), injuries,
+                           })} />
           )}
 
           <details open={showMoves} onToggle={(e) => setShowMoves((e.target as HTMLDetailsElement).open)} style={{ marginTop: 12 }}>

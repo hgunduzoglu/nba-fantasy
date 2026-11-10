@@ -1,6 +1,6 @@
 import type {
   AddDropWeekIn, AddDropWeekOut, CompleteOut, Freshness, ReportedTrade, ReportRecord, ScenariosOut, DropIn, DropOut, FixtureTeam, HistoryOut, NewsOut, NewsStatus, Meta, MispricedRow, MultiSeasonOut, MultiSuggestIn, MultiSuggestOut, MultiTradeIn, MultiTradeOut, Perceived, Player,
-  RankingsOut, Roster, SeasonOut, SeasonPageOut, SitStartOut, Source, StreamOut, StrategyIn, SuggestIn, SuggestOut, SyncStatus, TradeIn,
+  RankingsOut, Roster, SeasonManyOut, SeasonOut, SeasonPageOut, SitStartOut, Source, StreamOut, StrategyIn, SuggestIn, SuggestOut, SyncStatus, TradeIn,
   TradeOut, WaiverOut, WeeklyIn, WeeklyOut,
 } from "./types";
 
@@ -44,6 +44,8 @@ export const api = {
   analyze: (league: string, body: TradeIn) => request<TradeOut>(`/api/leagues/${league}/trade/analyze`, post(body)),
   season: (league: string, body: TradeIn & { n_sims?: number; strength_sd?: number }) =>
     request<SeasonOut>(`/api/leagues/${league}/trade/season`, post(body)),
+  seasonMany: (league: string, body: { trades: TradeIn[]; n_sims?: number; strength_sd?: number; injuries: boolean; basis?: string }) =>
+    request<SeasonManyOut>(`/api/leagues/${league}/trade/season/many`, post(body)),
   tradeReport: (league: string, body: TradeIn & { refresh?: boolean }, code?: string) =>
     request<ReportRecord>(`/api/leagues/${league}/trade/report`, { ...post(body), headers: codeHeader(code) }),
   tradeReportStatus: (key: string, code?: string) =>

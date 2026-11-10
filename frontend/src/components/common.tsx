@@ -1,5 +1,5 @@
-import { fmtDate } from "../format";
-import type { Acceptability, Availability, BriefPlayer } from "../types";
+import { fmtDate, fmtDelta } from "../format";
+import type { Acceptability, Availability, BriefPlayer, SeasonDelta } from "../types";
 
 export function PlayerName({ p, sub = true }: { p: BriefPlayer; sub?: boolean }) {
   return (
@@ -77,6 +77,20 @@ export function CategoryChips({ deltas, labels, k = 3 }: {
         <span key={x.c} className={x.d > 0 ? "good" : "bad"}>{labels[x.c] ?? x.c} {x.d > 0 ? "+" : "−"}{Math.abs(x.d).toFixed(0)}</span>
       ))}
     </span>
+  );
+}
+
+/** Sezon simülasyonu farkı (puan): gürültüden ayrılmayan fark (|Δ| < 2·SE) soluk ve "≈" ile gösterilir. */
+export function SeasonDeltaCell({ d, scale = 0.1 }: { d?: SeasonDelta | null | "err"; scale?: number }) {
+  if (d === "err") return <td className="muted">—</td>;
+  if (!d) return <td />;
+  const pts = (x: number) => (x * 100).toFixed(1);
+  const tip = `önce %${pts(d.before)} → sonra %${pts(d.after)} · simülasyon hata payı ±${pts(2 * d.se)} puan` +
+    (d.clear ? "" : " (fark bu payın içinde: takassızdan ayırt edilemiyor)");
+  return (
+    <td className={d.clear ? deltaClass(d.delta, scale) : "muted"} title={tip}>
+      {d.clear ? "" : "≈"}{fmtDelta(d.delta * 100, 1)}
+    </td>
   );
 }
 

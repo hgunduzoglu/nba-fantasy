@@ -274,12 +274,39 @@ export interface SeasonSide {
   champion_after: number;
   seed_before: number;
   seed_after: number;
+  effect?: SeasonEffect;
 }
 
 export interface SeasonOut {
   n_sims: number;
   strength_sd: number;
   teams: { a: SeasonSide; b: SeasonSide };
+  notes: string[];
+}
+
+/** Takassız ve takaslı sezonun aynı çekilişlerle farkı; ``se`` simülasyon gürültüsü, ``clear`` |Δ| ≥ 2·SE. */
+export interface SeasonDelta {
+  before: number;
+  after: number;
+  delta: number;
+  se: number;
+  clear: boolean;
+}
+
+export interface SeasonEffect {
+  playoff?: SeasonDelta;
+  champion: SeasonDelta;
+  seed: SeasonDelta;
+}
+
+export type SeasonManyRow =
+  | { index: number; give_a: string[]; give_b: string[]; teams: { a: SeasonEffect & { team_id: string }; b: SeasonEffect & { team_id: string } } }
+  | { index: number; error: string };
+
+export interface SeasonManyOut {
+  n_sims: number;
+  strength_sd: number;
+  trades: SeasonManyRow[];
   notes: string[];
 }
 
