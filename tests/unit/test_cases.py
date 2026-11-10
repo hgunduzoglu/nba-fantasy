@@ -69,6 +69,51 @@ def test_compare_lists_check_flips_and_package_changes():
     assert any("Uyarı" in x for x in compare(old, new))
 
 
+def test_shadow_compares_the_model_order_with_the_season_order():
+    from fdo.evaluation.cases import shadow
+    same = shadow([.03, .02, .01])
+    assert same["spearman"] == pytest.approx(1) and same["model_top_season_rank"] == 1
+    flipped = shadow([.01, .02, .03, None])
+    assert flipped["spearman"] == pytest.approx(-1) and flipped["model_top_season_rank"] == 3 and flipped["n"] == 3
+    assert shadow([None, .01])["spearman"] is None
+    assert shadow([.02, None, .01])["model_top_season_rank"] == 1
+
+
+def test_season_trades_keep_the_teams_and_strategies():
+    from fdo.evaluation.cases import season_trades
+    comp = season_trades("/api/leagues/L/trade/complete",
+                         {"team_a": "1", "team_b": "2", "strategy_b": {"preset": "x"}}, [_row(["1"], ["9"])])
+    assert comp == [{"team_a": "1", "team_b": "2", "strategy_a": None, "strategy_b": {"preset": "x"},
+                     "give_a": ["1"], "give_b": ["9"], "auto_balance": True, "injuries": True}]
+    sug = season_trades("/api/leagues/L/trade/suggest", {"team": "1"},
+                        [_row(["1"], ["9"], team_b="3", other_strategy="P", other_weights=[1] * 9)])
+    assert sug[0]["team_b"] == "3" and sug[0]["strategy_b"] == {"name": "P", "weights": [1] * 9}
+
+
+def test_run_with_season_adds_effects_and_shadow():
+    class SeasonClient(FakeClient):
+        def post(self, path, json):
+            if not path.endswith("/season/many"):
+                return super().post(path, json)
+            eff = lambda d: {"playoff": {"before": .5, "after": .5 + d, "delta": d, "se": .01, "clear": True},
+                             "champion": {"before": .1, "after": .1, "delta": 0, "se": 0, "clear": False}}
+
+            class R:
+                status_code = 200
+
+                def json(_):
+                    return {"trades": [{"index": 0, "teams": {"a": eff(.01), "b": eff(0)}},
+                                       {"index": 1, "error": "çözülemedi"}]}
+            return R()
+
+    case = {"id": "c", "path": "/api/leagues/L/trade/complete", "body": {"team_a": "1", "team_b": "2"}}
+    e = run(SeasonClient(), [case], season_sims=300)[0]
+    rows = e["result"]["suggestions"]
+    assert rows[0]["season"]["playoff"] == {"delta": .01, "se": .01, "clear": True}
+    assert rows[1]["season"] == {"error": "çözülemedi"} and e["shadow"]["playoff"]["n"] == 1
+    assert "shadow" not in run(FakeClient(), [case])[0]
+
+
 def test_case_ids_must_be_unique(tmp_path):
     p = tmp_path / "cases.json"
     p.write_text(json.dumps([{"id": "a", "path": "/x"}, {"id": "a", "path": "/y"}]), encoding="utf-8")

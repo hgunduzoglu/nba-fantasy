@@ -20,6 +20,8 @@ import json
 import subprocess
 from pathlib import Path
 
+import numpy as np
+
 from fdo.config import REPO_ROOT
 
 #: Kayıtta tutulan öneri alanları (varsa).
@@ -57,8 +59,43 @@ def summarize(response: dict, top: int = 15) -> dict:
     return {"n_suggestions": len(response.get("suggestions") or []), "suggestions": rows, **meta}
 
 
-def run(client, cases: list[dict]) -> list[dict]:
-    """``client``: FastAPI ``TestClient`` (ya da ``post``/``get`` sağlayan nesne)."""
+def season_trades(path: str, body: dict, rows: list[dict]) -> list[dict]:
+    """Tamamlama (``/trade/complete``) ya da öneri (``/trade/suggest``) cevabındaki paketleri ``/trade/season/many``
+    istek gövdesine çevirir (aynı takımlar ve stratejilerle)."""
+    ids = lambda side: [str(x["id"]) if isinstance(x, dict) else str(x) for x in side or ()]
+    out = []
+    for r in rows:
+        if path.endswith("/trade/complete"):
+            t = {"team_a": body["team_a"], "team_b": body["team_b"], "strategy_a": body.get("strategy_a"),
+                 "strategy_b": body.get("strategy_b")}
+        else:
+            t = {"team_a": body["team"], "team_b": r["team_b"], "strategy_a": body.get("strategy"),
+                 "strategy_b": {"name": r.get("other_strategy"), "weights": r.get("other_weights")}}
+        out.append({**t, "give_a": ids(r.get("give_a")), "give_b": ids(r.get("give_b")),
+                    "auto_balance": body.get("auto_balance", True), "injuries": body.get("injuries", True)})
+    return out
+
+
+def _ranks(x) -> np.ndarray:
+    return np.argsort(np.argsort(np.asarray(x, dtype=float), kind="stable"), kind="stable").astype(float)
+
+
+def shadow(deltas: list[float | None]) -> dict:
+    """Model sırası (listedeki sıra) ile sezon simülasyonu sırasının uyumu (gölge karşılaştırma): Spearman sıra
+    korelasyonu ve modelin ilk önerisinin sezon sıralamasındaki yeri. Sezon farkı hesaplanamayan satırlar dışarıda."""
+    pts = [(i, d) for i, d in enumerate(deltas) if d is not None]
+    if len(pts) < 2:
+        return {"n": len(pts), "spearman": None, "model_top_season_rank": None}
+    pos, d = zip(*pts)
+    a, b = _ranks([-p for p in pos]), _ranks(d)
+    rho = float(np.corrcoef(a, b)[0, 1]) if a.std() > 0 and b.std() > 0 else None
+    order = sorted(range(len(d)), key=lambda k: -d[k])
+    return {"n": len(pts), "spearman": rho, "model_top_season_rank": order.index(0) + 1 if pos[0] == 0 else None}
+
+
+def run(client, cases: list[dict], *, season_sims: int = 0) -> list[dict]:
+    """``client``: FastAPI ``TestClient`` (ya da ``post``/``get`` sağlayan nesne). ``season_sims`` > 0: öneri listesi
+    sezon simülasyonuyla da değerlendirilir (her öneriye ``season``, vakaya ``shadow`` eklenir); sıra değişmez."""
     out = []
     for case in cases:
         method = case.get("method", "POST").upper()
@@ -72,8 +109,27 @@ def run(client, cases: list[dict]) -> list[dict]:
             body = res.json()
             entry["result"] = summarize(body)
             entry["checks"] = [{**e, "ok": check(e, body)} for e in case.get("expect", [])]
+            rows = entry["result"]["suggestions"]
+            if season_sims and rows and method == "POST":
+                _season(client, case, body, rows, entry, season_sims)
         out.append(entry)
     return out
+
+
+def _season(client, case: dict, body: dict, rows: list[dict], entry: dict, n_sims: int) -> None:
+    lid = case["path"].split("/leagues/")[1].split("/")[0]
+    trades = season_trades(case["path"], case.get("body", {}), (body.get("suggestions") or [])[:len(rows)])
+    res = client.post(f"/api/leagues/{lid}/trade/season/many", json={
+        "trades": trades, "n_sims": n_sims, "injuries": case.get("body", {}).get("injuries", True)})
+    if res.status_code != 200:
+        entry["season_error"] = res.text[:300]
+        return
+    by = {t["index"]: t for t in res.json()["trades"]}
+    for i, r in enumerate(rows):
+        t = by.get(i, {})
+        r["season"] = ({k: {f: v[f] for f in ("delta", "se", "clear")} for k, v in t["teams"]["a"].items()
+                        if isinstance(v, dict)} if "teams" in t else {"error": t.get("error")})
+    entry["shadow"] = {k: shadow([r["season"].get(k, {}).get("delta") for r in rows]) for k in ("playoff", "champion")}
 
 
 def code_version(root: Path = REPO_ROOT) -> dict:
