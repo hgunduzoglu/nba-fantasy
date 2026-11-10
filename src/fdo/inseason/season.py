@@ -54,6 +54,29 @@ def playoff_teams(settings: dict[str, str]) -> int:
     return int(m.group(1)) if m else 0
 
 
+@dataclass(frozen=True)
+class PairedDelta:
+    """İki senaryonun aynı çekilişlerle (aynı ``seed`` ve simülasyon sayısı) farkı. ``se``: farkın Monte Carlo standart
+    hatası (simülasyon başına fark dizisinden); kalan sezon modelinin kendi hatasını içermez."""
+
+    before: float
+    after: float
+    delta: float
+    se: float
+
+    @property
+    def clear(self) -> bool:
+        """Fark simülasyon gürültüsünden ayrılıyor mu (|Δ| ≥ 2·SE). Ayrılmıyorsa sıralamada eşit sayılmalı."""
+        return bool(self.se == self.se and abs(self.delta) >= 2 * self.se and self.delta != 0)
+
+
+def paired(before: np.ndarray, after: np.ndarray) -> PairedDelta:
+    b, a = np.asarray(before, dtype=float), np.asarray(after, dtype=float)
+    d = a - b
+    se = float(d.std(ddof=1) / np.sqrt(len(d))) if len(d) > 1 else float("nan")
+    return PairedDelta(float(b.mean()), float(a.mean()), float(d.mean()), se)
+
+
 @dataclass
 class SeasonResult:
     table: pd.DataFrame              # index team_id: takım, mevcut ve beklenen kayıt, sıra, olasılıklar
@@ -273,6 +296,19 @@ class SeasonSim:
         sched = self.fixture_outlook(team, rosters, injuries) if team is not None else pd.DataFrame()
         notes = list(self.notes) + [f"Takım gücü belirsizliği: sezonluk ±%{100 * strength_sd:.0f} (kalibre edilmedi)."]
         return SeasonResult(table, sched, seeds, champion, start, S, n, notes)
+
+    def effect(self, base: SeasonResult, after: SeasonResult, team: str) -> dict[str, PairedDelta]:
+        """Bir senaryonun takıma etkisi: ``playoff`` (playoff varsa), ``champion``, ``seed`` (ortalama sıra). İki koşu
+        aynı ``seed`` ve simülasyon sayısıyla yapılmış olmalı; fark simülasyon simülasyon eşleşir."""
+        if base.n_sims != after.n_sims or base.seeds.shape != after.seeds.shape:
+            raise ValueError("Eşleşmeli fark için iki koşu aynı simülasyon sayısıyla yapılmalı")
+        i = self.tix[team]
+        out = {"champion": paired(base.champion[:, i], after.champion[:, i]),
+               "seed": paired(base.seeds[:, i], after.seeds[:, i])}
+        if base.playoff_size:
+            n = base.playoff_size
+            out["playoff"] = paired(base.seeds[:, i] <= n, after.seeds[:, i] <= n)
+        return out
 
     def _playoffs(self, rosters, seeds: np.ndarray, rng: np.random.Generator, S: int, lam: np.ndarray,
                   il: dict[str, frozenset[str]]) -> np.ndarray:

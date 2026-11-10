@@ -245,6 +245,24 @@ def test_trade_fixture_changes_for_both_sides(client):
     assert client.post("/api/leagues/L/trade/fixtures", json={**body, "give_b": []}).status_code == 400
 
 
+def test_season_effect_of_many_trades_is_paired_with_the_single_trade(client):
+    one = {"team_a": "1", "team_b": "2", "give_a": ["0"], "give_b": ["4"]}
+    single = client.post("/api/leagues/L/trade/season", json={**one, "n_sims": 300}).json()
+    body = {"trades": [one, {**one, "give_b": []}, {**one, "give_a": ["1"]}], "n_sims": 300}
+    r = client.post("/api/leagues/L/trade/season/many", json=body)
+    assert r.status_code == 200
+    rows = r.json()["trades"]
+    assert [x["index"] for x in rows] == [0, 1, 2] and "en az bir" in rows[1]["error"]
+    a = rows[0]["teams"]["a"]
+    assert a["team_id"] == "1" and {"champion", "seed"} <= set(a)
+    assert a["champion"]["delta"] == pytest.approx(a["champion"]["after"] - a["champion"]["before"])
+    assert a["champion"]["delta"] == pytest.approx(single["teams"]["a"]["effect"]["champion"]["delta"])
+    assert a["champion"]["se"] >= 0 and isinstance(a["champion"]["clear"], bool)
+    assert client.post("/api/leagues/L/trade/season/many", json={"trades": []}).status_code == 422
+    logged = [e for e in client.app.state.fdo.decisions.entries("scenario") if e["action"] == "trade_season_many"]
+    assert logged and logged[-1]["result"]["trades"][1]["error"]
+
+
 def test_trade_complete_endpoint(client):
     body = {"team_a": "1", "team_b": "2", "give_a": ["0"], "give_b": [], "min_fairness": 0, "min_view": 0}
     r = client.post("/api/leagues/L/trade/complete", json=body).json()

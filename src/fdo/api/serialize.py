@@ -112,6 +112,12 @@ def fixture_changes(sim, teams, rosters: dict, injuries: dict) -> list[dict]:
     return out
 
 
+def season_effect(sim, base, after, team: str) -> dict:
+    """``SeasonSim.effect`` → JSON: ölçü başına önce, sonra, eşleşmeli fark, standart hata, gürültüden ayrılıyor mu."""
+    return {k: {"before": d.before, "after": d.after, "delta": d.delta, "se": d.se, "clear": d.clear}
+            for k, d in sim.effect(base, after, team).items()}
+
+
 def presets() -> list[dict]:
     return [{"name": n, "weights": list(Strategy.preset(n).weights)} for n in PRESETS]
 

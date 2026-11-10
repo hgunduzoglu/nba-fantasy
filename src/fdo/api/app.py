@@ -11,8 +11,8 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from fdo.api.serialize import (brief, categories_meta, clean, fixture_changes, player_row, presets,
-                               return_timeline, strategy_from, trade_result, value_ranks)
-from fdo.api.schemas import SeasonIn, TradeIn
+                               return_timeline, season_effect, strategy_from, trade_result, value_ranks)
+from fdo.api.schemas import SeasonIn, SeasonManyIn, TradeIn
 from fdo.api.state import SOURCES, AppState
 from fdo.config import REPO_ROOT
 from fdo.evaluation.decisions import reconcile
@@ -218,8 +218,41 @@ def create_app(data_dir: str | Path | None = None, frontend_dir: str | Path | No
             b, a = base.table.loc[tid], after.table.loc[tid]
             out[side] = {"team_id": tid, "playoff_before": b.p_playoff, "playoff_after": a.p_playoff,
                          "champion_before": b.p_champion, "champion_after": a.p_champion,
-                         "seed_before": b.mean_seed, "seed_after": a.mean_seed}
+                         "seed_before": b.mean_seed, "seed_after": a.mean_seed,
+                         "effect": season_effect(sim, base, after, tid)}
         return clean({"n_sims": n, "strength_sd": sd, "teams": out, "notes": after.notes})
+
+    @app.post("/api/leagues/{lid}/trade/season/many")
+    def trade_season_many(lid: str, body: SeasonManyIn):
+        """Öneri listesindeki takasların sezon etkisi: iki takımın P(playoff), P(şampiyon) ve ortalama sıra farkı,
+        takassız sezona göre aynı çekilişlerle (eşleşmeli) ve Monte Carlo standart hatasıyla. Sıralamayı değiştirmez;
+        model puanının yanında gösterilir (gölge). Çözülemeyen takas ``error`` ile döner, diğerleri etkilenmez."""
+        eng = engine(lid, body.injuries, body.basis)
+        sim = state.season_sim(lid, body.injuries, body.basis)
+        if sim is None:
+            raise HTTPException(409, "Bu lig için fikstür yok; sezon simülasyonu yapılamıyor.")
+        n, sd = max(200, min(body.n_sims, 5000)), max(0.0, min(body.strength_sd, 0.3))
+        base = state.season_base(lid, body.injuries, n, sd, basis=body.basis)
+        rows = []
+        for i, t in enumerate(body.trades):
+            try:
+                sa, sb = _strategies(eng, t)
+                rosters, _, il = eng.resolve(_request(t), {t.team_a: sa, t.team_b: sb})
+            except (TradeError, ValueError, HTTPException) as e:
+                rows.append({"index": i, "error": getattr(e, "detail", None) or str(e)})
+                continue
+            after = sim.run(rosters, n_sims=n, seed=1, strength_sd=sd, injuries=il)
+            rows.append({"index": i, "give_a": list(t.give_a), "give_b": list(t.give_b),
+                         "teams": {side: {"team_id": tid, **season_effect(sim, base, after, tid)}
+                                   for side, tid in (("a", t.team_a), ("b", t.team_b))}})
+        out = clean({"n_sims": n, "strength_sd": sd, "trades": rows,
+                     "notes": base.notes + ["Takas sonrası kadrolar sezon boyu sabit; fark kalan normal sezon ve playoff "
+                                            "braketinin simülasyonundan. Hata payı yalnız simülasyon gürültüsü."]})
+        summary = [{"give_a": r.get("give_a"), "give_b": r.get("give_b"), "error": r.get("error"),
+                    "a": {k: v["delta"] for k, v in r["teams"]["a"].items() if isinstance(v, dict)}
+                    if "teams" in r else None} for r in out["trades"]]
+        state.log_decision("scenario", "trade_season_many", lid, body.model_dump(), {"n_sims": n, "trades": summary})
+        return out
 
     @app.post("/api/leagues/{lid}/trade/fixtures")
     def trade_fixtures(lid: str, body: TradeIn):

@@ -42,6 +42,17 @@ class SeasonIn(TradeIn):
     strength_sd: float = 0.06
 
 
+class SeasonManyIn(BaseModel):
+    """Birden çok takasın sezon etkisi (öneri listelerini sezon simülasyonuyla sıralamak için). Her takas kendi
+    takımları, oyuncuları ve stratejileriyle; ``injuries``, ``basis``, simülasyon ayarları hepsi için ortak."""
+
+    trades: list[TradeIn] = Field(min_length=1, max_length=20)
+    n_sims: int = 2000
+    strength_sd: float = 0.06
+    injuries: bool = True
+    basis: str = Field(default="ros", pattern="^(ros|season|recent|blend)$")
+
+
 class CompleteIn(TradeIn):
     """Takas ekranındaki seçimi tamamla/dengele: ``give_a``/``give_b`` sabit, en az biri dolu (README §13.27)."""
 

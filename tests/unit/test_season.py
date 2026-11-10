@@ -75,6 +75,28 @@ def test_same_seed_is_reproducible_and_rosters_matter(sim, data):  # noqa: F811
     assert not np.array_equal(a.seeds, c.seeds)
 
 
+def test_paired_effect_is_zero_for_the_same_rosters_and_carries_an_error(sim, data):  # noqa: F811
+    from fdo.inseason.season import paired
+
+    base = sim.run(n_sims=400, seed=4)
+    same = sim.run(n_sims=400, seed=4)
+    e = sim.effect(base, same, "1")
+    assert set(e) == {"playoff", "champion", "seed"}
+    assert all(d.delta == 0 and d.se == 0 and not d.clear for d in e.values())      # ortak çekiliş: gürültü yok
+    rosters = dict(data.leagues["L"].rosters)
+    rosters["4"], rosters["1"] = rosters["1"], rosters["4"]
+    after = sim.run(rosters, n_sims=400, seed=4)
+    for t in ("1", "4"):
+        p = sim.effect(base, after, t)["playoff"]
+        assert p.before == pytest.approx(base.table.loc[t, "p_playoff"])
+        assert p.after == pytest.approx(after.table.loc[t, "p_playoff"])
+        assert p.delta == pytest.approx(p.after - p.before) and p.se > 0
+    with pytest.raises(ValueError):
+        sim.effect(base, sim.run(n_sims=200, seed=4), "1")
+    d = paired(np.array([0, 0, 1, 1]), np.array([1, 1, 1, 1]))
+    assert d.delta == .5 and d.se == pytest.approx(np.std([1, 1, 0, 0], ddof=1) / 2)
+
+
 def test_strength_uncertainty_softens_extremes(sim):
     sharp = sim.run(n_sims=600, seed=2, strength_sd=0.0).table
     soft = sim.run(n_sims=600, seed=2, strength_sd=0.5).table
