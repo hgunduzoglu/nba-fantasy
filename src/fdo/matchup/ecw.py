@@ -53,29 +53,47 @@ def _prob(mean: np.ndarray, var: np.ndarray) -> np.ndarray:
     return np.where(pos, p, degenerate)
 
 
+def _count_plan(config: Config) -> tuple[list[int], np.ndarray, np.ndarray, np.ndarray]:
+    """Sayım kategorilerinin çıktı sırası, ``COUNT_STATS`` indeksleri ve yön işareti (önbellekli)."""
+    key = id(config)
+    hit = _PLAN_CACHE.get(key)
+    if hit is None or hit[0] is not config:
+        specs = category_specs(config)
+        pos = [c for c, sp in enumerate(specs) if sp.kind == "count"]
+        idx = np.array([specs[c].index for c in pos], dtype=int)
+        sign = np.array([-1.0 if specs[c].lower_better else 1.0 for c in pos])
+        ratios = [(c, sp) for c, sp in enumerate(specs) if sp.kind != "count"]
+        hit = _PLAN_CACHE[key] = (config, specs, pos, idx, sign, ratios)
+    return hit[1:]
+
+
+_PLAN_CACHE: dict[int, tuple] = {}
+
+
 def p_win(a: np.ndarray, b: np.ndarray, config: Config) -> np.ndarray:
-    """A'nın B'yi kategori başına yenme olasılığı; ``(..., 24)`` girdiler yayınlanır → ``(..., n_cat)``."""
+    """A'nın B'yi kategori başına yenme olasılığı; ``(..., 24)`` girdiler yayınlanır → ``(..., n_cat)``. Sayım
+    kategorileri tek seferde (vektörel), oran kategorileri ayrı hesaplanır."""
     a = np.asarray(a, dtype=float)
     b = np.asarray(b, dtype=float)
-    out = []
-    for spec in category_specs(config):
-        if spec.kind == "count":
-            j = spec.index
-            d = a[..., j] - b[..., j]
-            v = a[..., N_COUNT + j] + b[..., N_COUNT + j]
-        else:
-            o = RATIO_OFFSETS[spec.key]
-            makes = a[..., o] + b[..., o]
-            att = a[..., o + 1] + b[..., o + 1]
-            r = np.divide(makes, att, out=np.zeros(np.broadcast(makes, att).shape), where=att > 0)
-            ea, va = ratio_mean_var(a, spec.key, r)
-            eb, vb = ratio_mean_var(b, spec.key, r)
-            d = ea - eb
-            v = va + vb
+    specs, pos, idx, sign, ratios = _count_plan(config)
+    shape = np.broadcast_shapes(a.shape[:-1], b.shape[:-1])
+    out = np.empty(shape + (len(specs),))
+    if len(pos):
+        d = (a[..., idx] - b[..., idx]) * sign
+        v = a[..., N_COUNT + idx] + b[..., N_COUNT + idx]
+        out[..., pos] = _prob(d, v)
+    for c, spec in ratios:
+        o = RATIO_OFFSETS[spec.key]
+        makes = a[..., o] + b[..., o]
+        att = a[..., o + 1] + b[..., o + 1]
+        r = np.divide(makes, att, out=np.zeros(np.broadcast(makes, att).shape), where=att > 0)
+        ea, va = ratio_mean_var(a, spec.key, r)
+        eb, vb = ratio_mean_var(b, spec.key, r)
+        d = ea - eb
         if spec.lower_better:
             d = -d
-        out.append(_prob(d, v))
-    return np.stack(np.broadcast_arrays(*out), axis=-1)
+        out[..., c] = _prob(d, va + vb)
+    return out
 
 
 def p_outcomes(a: np.ndarray, b: np.ndarray, config: Config) -> tuple[np.ndarray, np.ndarray]:
