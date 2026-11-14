@@ -2156,6 +2156,19 @@ Bulunamayanlar raporun altında yerleri ve çevreleriyle listelenir; bu bir hata
 toplamı da olabilir), kontrol edilmesi gereken yerleri gösterir. Denetim yeni yazılan raporlarda çalışır; eski kayıtlarda
 paket saklanmadığı için yoktur.
 
+### 13.37 Kadro sonrası değer dengesi (`TradeEngine.roster_values`, 10 Kasım 2026)
+
+"Değer dengesi" iki paketin kalan sezon piyasa değeri toplamlarını karşılaştırır. Takasın kadroya etkisini görmez: 2'ye
+1'de fazla oyuncu alan taraf birini bırakmak zorundadır, az alan taraf boştan oyuncu ekler; IL'deki bir oyuncuyu vermek
+aktif yer açmaz. Takas analizi artık her taraf için **net kazancı** da hesaplar: aldıkları − kadroya sığmadığı için
+bıraktıkları + boştan eklenenler (piyasa değeri 0'ın altına inmez). İki net kazancın oranı "Kadro sonrası denge" olarak,
+doğrusal dengeden belirgin farklıysa (≥ 3 puan) gösterilir; üstüne gelince iki taraf ayrı ayrı görülür.
+
+Örnek (9 Kasım, METU IE): Banchero → Ty Jerome doğrusal 0,39, kadro sonrası 0,78. Banchero sakat (kalan sezon 2,52):
+rakip onu IL'e koyup boşalan yere boştan oyuncu alır; Banchero senin IL'inde olduğu için Jerome'a yer açmak üzere sen
+birini bırakırsın. Öneri filtreleri ve sıralama değişmedi; kadro sonrası denge açıklamadır. Fayda tarafı (kategori
+beklentisi, P(5+)) zaten kadro çözümüyle hesaplanıyor.
+
 ### 13.8 V3 adayları
 
 Beam search ve H-score ağırlık optimizasyonu; profil karışımı uyumu; oyuncular arası maç sayısı

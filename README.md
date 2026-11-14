@@ -2172,6 +2172,20 @@ are not checked. Numbers not found are listed under the report with where they a
 proof of an error (it can be a difference or a sum of two values), it shows what to check. The check runs on newly
 written reports; old records have no stored packet.
 
+### 13.37 Value balance after roster moves (`TradeEngine.roster_values`, 10 November 2026)
+
+"Değer dengesi" (value balance) compares the rest-of-season market value totals of the two packages. It does not see the
+trade's effect on rosters: in a 2-for-1 the side getting more players must drop one, the side getting fewer adds a free
+agent; giving away a player on IL frees no active spot. The trade analysis now also computes each side's **net gain**:
+what it receives − what it drops because it does not fit + free agents added (market value floored at 0). The ratio of
+the two net gains is shown as "Kadro sonrası denge" (balance after roster moves) when it differs clearly (≥ 3 points)
+from the linear balance; hovering shows the two sides separately.
+
+Example (9 November, METU IE): Banchero → Ty Jerome is 0.39 linear and 0.78 after roster moves. Banchero is injured
+(rest of season 2.52): the other side puts him on IL and adds a free agent in the freed spot; since Banchero is on your
+IL, you drop someone to make room for Jerome. Suggestion filters and ranking did not change; the post-roster balance is
+an explanation. The benefit side (expected categories, P(5+)) is already computed with the roster resolution.
+
 ### 13.8 V3 candidates
 
 Beam search and H-score weight optimization; fitting the profile mix; covariance of game counts between
