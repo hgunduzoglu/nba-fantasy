@@ -2367,6 +2367,22 @@ kadroları, projeksiyonu ve CBS raporu) modelin tahmini, NBA maç kayıtlarında
 
 Karar günlüğü biriktikçe aynı ölçüm gerçekten verilmiş önerilere de uygulanacak. Şu an günlükte birkaç günlük kayıt var.
 
+### 13.47 Finalist öneriler günlük kadroyla sıralanır (15 Kasım 2026)
+
+Hızlı takas puanı sezonluk ortalama kategori olasılığıdır: pozisyon ve maç çakışması yüzünden bench'te kalan maçları
+görmez. İleriye dönük testte (§13.46) takas puanının işaret uyumu ham oyuncu tahmininin gerisindeydi. Tartışmalı bir
+takasta hızlı puan ≈ 0 iken günlük kadroyla −0,14 kategori/hafta çıktı. Bu yüzden öneri araması artık iki aşamalı:
+- Arama hızlı puanla 40 finalist seçer (süzgeçler aynı).
+- Her finalist kalan normal sezon haftalarında haftalık modelin günlük kadro atamasıyla yeniden ölçülür
+  (`SeasonSim.lineup_profile`, `fdo.inseason.lineup_rank`). Simülasyon yoktur ve sonuç gürültüsüzdür. Kadrolar, bedava
+  hamleler ve alım hakkı sezon simülasyonuyla aynıdır; profilin toplamı sezon simülasyonunun `ecw` değeridir.
+- Finalistler senin stratejinin ağırlıklarıyla hesaplanan bu farka göre sıralanır ve ilk 20'si döner.
+
+Satırlarda `lineup_delta` (ağırlıklı, sıralama ölçüsü) ve `lineup_ecw_delta` (ağırlıksız, "Günlük kadro Δ" sütunu)
+bulunur. Hızlı puanda kazanç olup günlük kadroda kayıp olan öneri "⚠ günlük kadro" diye işaretlenir. `lineup_rank: false`
+eski sıralamayı verir. Finalist başına maliyet 0,1–0,8 sn'dir. Fikstürü olmayan ligde hızlı puan sırası kalır
+(`ranked_by`). Takas tamamlama ve çok takımlı arama henüz hızlı puanla sıralanır.
+
 ### 13.8 V3 adayları
 
 Beam search ve H-score ağırlık optimizasyonu; profil karışımı uyumu; oyuncular arası maç sayısı

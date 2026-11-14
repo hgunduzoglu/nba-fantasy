@@ -2396,6 +2396,23 @@ October → 13 November (14 days, METU IE, 481 players):
 As the decision log grows the same measurement will be applied to suggestions actually given. The log currently holds a
 few days of entries.
 
+### 13.47 Finalist suggestions are ranked with daily lineups (15 November 2026)
+
+The fast trade score is a season-average category probability. It does not see games left on the bench because of
+position or schedule clashes. In the forward test (§13.46) the trade score's sign agreement trailed the raw player
+forecast. On a disputed trade the fast score was ≈ 0 while daily lineups gave −0.14 categories/week. So the suggestion
+search now has two stages:
+- The search picks 40 finalists by the fast score (same filters).
+- Each finalist is re-measured over the remaining regular-season weeks with the weekly model's daily lineup assignment
+  (`SeasonSim.lineup_profile`, `fdo.inseason.lineup_rank`). There is no simulation and no noise. Rosters, free moves
+  and the add budget match the season simulation, and the profile sums to its `ecw`.
+- Finalists are ranked by this difference weighted with your strategy, and the top 20 are returned.
+
+Rows carry `lineup_delta` (weighted, the ranking measure) and `lineup_ecw_delta` (unweighted, the "daily lineup Δ"
+column). A suggestion that gains on the fast score but loses with daily lineups is flagged "⚠ günlük kadro".
+`lineup_rank: false` gives the old order. The cost is 0.1–0.8 s per finalist. A league without fixtures keeps the fast
+order (`ranked_by`). Trade completion and multi-team search are still ranked by the fast score.
+
 ### 13.8 V3 candidates
 
 Beam search and H-score weight optimization; fitting the profile mix; covariance of game counts between
