@@ -78,6 +78,32 @@ def p_win(a: np.ndarray, b: np.ndarray, config: Config) -> np.ndarray:
     return np.stack(np.broadcast_arrays(*out), axis=-1)
 
 
+def p_outcomes(a: np.ndarray, b: np.ndarray, config: Config) -> tuple[np.ndarray, np.ndarray]:
+    """Kategori başına (kesin kazanç, beraberlik) olasılığı. Sayım kategorilerinde haftalık toplamlar tam sayıdır:
+    fark Normal yaklaşımla, süreklilik düzeltmesiyle kazanç ``P(D > 0.5)``, beraberlik ``P(|D| < 0.5)``. Oran
+    kategorilerinde (FG%, FT%) beraberlik 0, kazanç ``p_win``. ``p_win`` beraberliği yok sayar (``P(D > 0)``)."""
+    a = np.asarray(a, dtype=float)
+    b = np.asarray(b, dtype=float)
+    win = p_win(a, b, config)
+    tie = np.zeros_like(win)
+    for c, spec in enumerate(category_specs(config)):
+        if spec.kind != "count":
+            continue
+        j = spec.index
+        d = a[..., j] - b[..., j]
+        if spec.lower_better:
+            d = -d
+        s = np.sqrt(np.maximum(a[..., N_COUNT + j] + b[..., N_COUNT + j], 1e-12))
+        win[..., c] = ndtr((d - 0.5) / s)
+        tie[..., c] = ndtr((0.5 - d) / s) - ndtr((-0.5 - d) / s)
+    return win, tie
+
+
+def p_tie(a: np.ndarray, b: np.ndarray, config: Config) -> np.ndarray:
+    """Kategori başına beraberlik olasılığı (``p_outcomes``)."""
+    return p_outcomes(a, b, config)[1]
+
+
 def ecw_vs(team: np.ndarray, opponents: np.ndarray, config: Config) -> np.ndarray:
     """``team (..., 24)`` vs ``opponents (..., K, 24)`` → ``P (..., K, n_cat)``."""
     return p_win(np.asarray(team)[..., None, :], opponents, config)

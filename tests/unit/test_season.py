@@ -61,6 +61,7 @@ def test_season_totals_and_probabilities(sim):
     np.testing.assert_allclose(t["exp_wins"] + t["exp_losses"] + t["exp_ties"], games)
     assert t["p_playoff"].sum() == pytest.approx(2) and t["p_champion"].sum() == pytest.approx(1)
     assert t.loc["1", "p_playoff"] > t.loc["2", "p_playoff"]                   # 7-2 başlayan, 2-7'den önde
+    assert t["exp_ties"].sum() > 0                                               # sayım kategorilerinde beraberlik
     assert set(r.schedule["week"]) == set(range(2, 20)) and r.schedule["p_win"].between(0, 1).all()
 
 
@@ -168,3 +169,11 @@ def test_current_week_past_days_use_the_realized_totals(data):  # noqa: F811
                         realized={k: v for k, v in totals.items() if k != "4"})
     assert not np.allclose(partial._past("2", w), accumulated_vector(totals["2"]))
     assert any("bilinmediği" in n for n in partial.notes)
+
+
+def test_playoff_tie_on_categories_goes_to_the_higher_seed(sim, monkeypatch):
+    # bütün kategoriler berabere: her turu üst sıradaki kazanır → şampiyon hep 1. sıra
+    monkeypatch.setattr(sim, "_outcomes", lambda a, b, rng: (np.zeros(a.shape[:-1], int), np.full(a.shape[:-1], 9)))
+    r = sim.run(n_sims=50, seed=1)
+    first = r.seeds.argmin(axis=1)
+    assert r.champion[np.arange(50), first].all() and r.table["exp_ties"].min() > 0

@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from factories import proj_frame, proj_row, varied_projections
-from fdo.matchup.ecw import ecw_from_p, ecw_matrix, ecw_vs, p_at_least, p_win, team_ecw
+from fdo.matchup.ecw import ecw_from_p, ecw_matrix, ecw_vs, p_at_least, p_outcomes, p_win, team_ecw
 from fdo.matchup.fill import fill_table_from_picks
 from fdo.matchup.player_week import (
     WEEK_DIM,
@@ -48,6 +48,21 @@ def test_adding_positive_player_increases_p(config):
     b = team(base_roster("b"), config)
     boost = team([proj_row("x", reb=12.0, fgm=0.0, fga=0.0, ftm=0.0, fta=0.0, fg3m=0.0)], config)
     assert p_win(a + boost, b, config)[cat("REB")] > p_win(a, b, config)[cat("REB")]
+
+
+def test_ties_only_in_counting_categories_and_they_come_from_both_sides(config):
+    a = team(base_roster(), config)
+    b = team(base_roster("b"), config)
+    win, tie = p_outcomes(a, b, config)
+    lose, tie_b = p_outcomes(b, a, config)
+    np.testing.assert_allclose(tie, tie_b)                                         # simetrik
+    np.testing.assert_allclose(win + tie + lose, 1.0, atol=1e-9)
+    assert tie[cat("FG_PCT")] == 0 and tie[cat("FT_PCT")] == 0
+    assert tie[cat("STL")] > tie[cat("PTS")] > 0                                    # küçük sayılarda beraberlik sık
+    full = p_win(a, b, config)
+    assert np.all(win <= full + 1e-12)
+    w, t = p_outcomes(a, a, config)
+    np.testing.assert_allclose(w[[cat("STL"), cat("TOV")]] * 2 + t[[cat("STL"), cat("TOV")]], 1.0)   # eşit takım
 
 
 def test_turnover_direction(config):

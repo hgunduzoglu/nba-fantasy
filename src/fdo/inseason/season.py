@@ -11,8 +11,11 @@
 * **İçinde bulunulan hafta**: yalnız veri tarihinden itibaren kalan günler senaryonun (takas sonrası) kadrosuyla
   oynanır. Geçmiş günler Yahoo senkronizasyonunun gerçek hafta toplamıdır (``realized``, §13.20); yoksa takas öncesi
   gerçek kadronun beklenen katkısı. İkisi de her senaryoda aynıdır (``_past``); takas geçmiş günleri değiştirmez.
-* **Eşleşme**: kategori olasılıkları ``p_win``; birlikte çekiliş Gauss kopulası (``category_corr``).
-  Kategori beraberliği yok sayılır (9 tek sayı → eşleşmede beraberlik yok).
+* **Eşleşme**: kategori olasılıkları ``p_win``; birlikte çekiliş Gauss kopulası (``category_corr``). Sayım
+  kategorilerinde (STL, BLK...) haftalık toplam eşit olabilir: beraberlik olasılığı ``p_tie`` (Normal yaklaşım,
+  süreklilik düzeltmesi) ``p_win``'in iki yanından alınır; kategori W-L-T'ye T yazılır. Normal sezonda eşleşmenin
+  sonucu yalnız kategori sayılarıdır. Playoff turunda kategori galibiyeti eşitse (ör. 4-4-1) üst sıradaki (seed)
+  takım tur atlar (Yahoo kuralı varsayıldı, ligde doğrulanmadı).
 * **Sıralama**: (W + T/2) / (W+L+T), eşitlikte rastgele. **Playoff**: ilk ``n`` takım; braket ``2^tur``
   boyutunda, boş koltuklar bay. ``Playoff Reseeding: Yes`` ise her turda en yüksek – en düşük eşleşir,
   değilse standart sabit braket. Playoff haftaları kendi takvimiyle (son tur iki takvim haftası olabilir).
@@ -35,7 +38,7 @@ from scipy.special import ndtri
 
 from fdo.inseason.weekly import Stint, WeekModel, accumulated_vector
 from fdo.inseason.weeks import LeagueWeeks
-from fdo.matchup.ecw import ecw_vs, p_at_least, p_win
+from fdo.matchup.ecw import ecw_vs, p_at_least, p_outcomes
 from fdo.matchup.player_week import WEEK_DIM
 from fdo.trade.strategy import Strategy
 
@@ -238,12 +241,17 @@ class SeasonSim:
         return out
 
     # ------------------------------------------------------------- simülasyon
-    def _wins(self, p: np.ndarray, rng: np.random.Generator) -> np.ndarray:
-        """``p (S, M, C)`` → ``(S, M)`` A tarafının kazandığı kategori sayısı (kopula)."""
-        C = p.shape[-1]
+    def _outcomes(self, a: np.ndarray, b: np.ndarray, rng: np.random.Generator) -> tuple[np.ndarray, np.ndarray]:
+        """Haftalık vektörler ``a, b (..., 24)`` → A'nın kazandığı ve berabere kalan kategori sayısı (kopula). Aynı
+        gizil çekiliş: ``z < Φ⁻¹(P(kazanç))`` kazanç, sonraki ``P(beraberlik)`` dilimi beraberlik."""
+        win, tie = p_outcomes(a, b, self.engine.config)
+        tie = np.clip(tie, 0, 1 - win)
+        C = win.shape[-1]
         L = np.linalg.cholesky(self.corr) if self.corr is not None else np.eye(C)
-        z = rng.standard_normal(p.shape) @ L.T
-        return (z < ndtri(np.clip(p, 1e-12, 1 - 1e-12))).sum(axis=-1)
+        z = rng.standard_normal(win.shape) @ L.T
+        lo = ndtri(np.clip(win, 1e-12, 1 - 1e-12))
+        hi = ndtri(np.clip(win + tie, 1e-12, 1 - 1e-12))
+        return (z < lo).sum(axis=-1), ((z >= lo) & (z < hi)).sum(axis=-1)
 
     def run(self, rosters: dict[str, tuple[str, ...]] | None = None, *, n_sims: int = 2000, seed: int = 0,
             team: str | None = None, strength_sd: float = 0.06,
@@ -270,12 +278,14 @@ class SeasonSim:
             V = self.week_vectors(rosters, w, il)
             a = np.array([x for x, _ in pairs])
             b = np.array([y for _, y in pairs])
-            ps = p_win(lam[:, a, None] * V[a][None], lam[:, b, None] * V[b][None], self.engine.config)  # (S, M, C)
-            k = self._wins(ps, rng)                                                       # (S, M)
+            k, t = self._outcomes(lam[:, a, None] * V[a][None], lam[:, b, None] * V[b][None], rng)   # (S, M)
+            lost = len(self.engine.config.categories) - k - t
             np.add.at(W, (slice(None), a), k)
-            np.add.at(L_, (slice(None), a), 9 - k)
-            np.add.at(W, (slice(None), b), 9 - k)
+            np.add.at(L_, (slice(None), a), lost)
+            np.add.at(Tie, (slice(None), a), t)
+            np.add.at(W, (slice(None), b), lost)
             np.add.at(L_, (slice(None), b), k)
+            np.add.at(Tie, (slice(None), b), t)
         pct = (W + 0.5 * Tie) / np.maximum(W + L_ + Tie, 1)
         order = np.argsort(-(pct + 1e-9 * rng.random((S, T))), axis=1, kind="stable")    # eşitlikte rastgele
         seeds = np.empty((S, T), dtype=int)
@@ -338,12 +348,10 @@ class SeasonSim:
             bye_a, bye_b = ta < 0, tb < 0
             ia, ib = np.maximum(ta, 0), np.maximum(tb, 0)
             sims = np.arange(S)[:, None]
-            pa = p_win(lam[sims, ia][..., None] * V[ia], lam[sims, ib][..., None] * V[ib], self.engine.config)  # (S, g, C)
-            C = pa.shape[-1]
-            Lc = np.linalg.cholesky(self.corr) if self.corr is not None else np.eye(C)
-            z = rng.standard_normal(pa.shape) @ Lc.T
-            wins = (z < ndtri(np.clip(pa, 1e-12, 1 - 1e-12))).sum(axis=-1)
-            a_wins = np.where(bye_b, True, np.where(bye_a, False, wins >= 5))
+            wins, ties = self._outcomes(lam[sims, ia][..., None] * V[ia], lam[sims, ib][..., None] * V[ib], rng)
+            losses = len(self.engine.config.categories) - wins - ties
+            ahead = (wins > losses) | ((wins == losses) & (hi < lo))         # eşitlikte üst sıradaki
+            a_wins = np.where(bye_b, True, np.where(bye_a, False, ahead))
             cur = np.where(a_wins, hi, lo)
         final = np.take_along_axis(by_seed, cur[:, :1] - 1, axis=1)[:, 0]
         ok = final >= 0
