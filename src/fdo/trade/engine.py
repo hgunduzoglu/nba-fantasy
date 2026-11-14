@@ -567,6 +567,24 @@ class TradeEngine:
         b = float(self._market_arr[[self.index[p] for p in request.give_b]].sum())
         return min(a, b) / max(a, b) if max(a, b) > 0 else 0.0
 
+    def roster_values(self, request: TradeRequest, adjustments: dict) -> dict[str, float]:
+        """Kadro sonrası net piyasa kazancı: aldıkları − kadroya sığmadığı için bıraktıkları + boştan eklenenler (piyasa
+        değeri 0'ın altına inmez: yedek seviyesindeki oyuncunun gidişi kayıp sayılmaz). 2'ye 1'de alan tarafın
+        bırakmak zorunda kaldığı oyuncu buradan düşer; ``fairness`` yalnız iki paketin toplamını karşılaştırır."""
+        def value(ids) -> float:
+            return float(np.clip(self._market_arr[[self.index[p] for p in ids]], 0, None).sum()) if ids else 0.0
+        out = {}
+        for tid, got in ((request.team_a, request.give_b), (request.team_b, request.give_a)):
+            adj = adjustments.get(tid, {})
+            out[tid] = value(got) - value(adj.get("drop", ())) + value(adj.get("add", ()))
+        return out
+
+    @staticmethod
+    def balance(values) -> float:
+        """İki net kazancın küçük / büyük oranı (biri ≤ 0 ise 0)."""
+        a, b = values
+        return min(a, b) / max(a, b) if min(a, b) > 0 else 0.0
+
     def analyze(self, request: TradeRequest, *, strategy_a: Strategy | None = None,
                 strategy_b: Strategy | None = None, analysis_date: dt.date | None = None,
                 min_fairness: float = .55) -> TradeResult:
@@ -581,6 +599,7 @@ class TradeEngine:
         win = p_at_least(p)
         np.fill_diagonal(win, np.nan)
         fair = self.fairness(request)
+        net = self.roster_values(request, adjustments)
         day = analysis_date or self.data.as_of
         deadline, expired = self.deadline(day)
         gains = [metrics[t]["strategy_delta"] for t in strategies]
@@ -595,7 +614,8 @@ class TradeEngine:
         if not incoming_known and not expired:
             risk = "Veri yetersiz"
         assessments = {"mutual_benefit": mutual, "both_matchup_improve": min(wins) > 0,
-                       "fairness_ratio": fair, "fit_scores": fit, "commissioner_risk": risk,
+                       "fairness_ratio": fair, "roster_values": net,
+                       "roster_balance": self.balance(net.values()), "fit_scores": fit, "commissioner_risk": risk,
                        "review_type": self.league.settings.get("Trade Review", "Bilinmiyor"),
                        "review_time": self.league.settings.get("Trade Reject Time", "Bilinmiyor"),
                        "deadline": deadline.isoformat() if deadline else None, "deadline_passed": expired,

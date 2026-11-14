@@ -225,6 +225,9 @@ def trade_result(eng: TradeEngine, result: TradeResult, *, perceived: pd.Series 
         given = float(perceived.reindex(list(req.give_a)).fillna(0).sum())
         taken = float(perceived.reindex(list(req.give_b)).fillna(0).sum())
         balance = given / taken if taken > 0 else None
-    return clean({"teams": teams, "fairness": result.assessments["fairness_ratio"], "perceived_balance": balance,
-                  "assessments": {k: v for k, v in result.assessments.items() if k != "fit_scores"},
+    for side, tid in (("a", a), ("b", b)):
+        teams[side]["net_value"] = result.assessments["roster_values"][tid]
+    return clean({"teams": teams, "fairness": result.assessments["fairness_ratio"],
+                  "roster_balance": result.assessments["roster_balance"], "perceived_balance": balance,
+                  "assessments": {k: v for k, v in result.assessments.items() if k not in ("fit_scores", "roster_values")},
                   "notes": result.notes, "modes": MODES})

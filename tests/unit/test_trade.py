@@ -171,6 +171,13 @@ def test_unequal_trade_requires_drop_and_automatic_plan_is_unique(eng):
     assert len(r.adjustments["2"]["drop"]) == 1
     assert not set(r.rosters_after["1"]) & set(r.rosters_after["2"])
     assert r.adjustments["1"]["add"][0] not in {p for rr in eng.league.rosters.values() for p in rr}
+    # kadro sonrası değer: 2'yi alan taraf bıraktığını kaybeder, 1 alan taraf boştan ekleneni kazanır
+    v = lambda ids: float(np.clip([eng.market.get(p, 0.0) for p in ids], 0, None).sum())
+    net = r.assessments["roster_values"]
+    assert net["2"] == pytest.approx(v(("0", "1")) - v(r.adjustments["2"]["drop"]))
+    assert net["1"] == pytest.approx(v(("3",)) + v(r.adjustments["1"]["add"]))
+    assert r.assessments["roster_balance"] == pytest.approx(TradeEngine.balance(net.values()))
+    assert TradeEngine.balance((2.0, 1.0)) == .5 and TradeEngine.balance((1.0, -1.0)) == 0
 
 
 def test_preexisting_empty_slot_is_not_counted_as_trade_gain(trade_data):
