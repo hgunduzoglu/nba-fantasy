@@ -2361,6 +2361,41 @@ policy also differed: on post-trade rosters it chose moves from scratch with the
 Example: Banchero + Jackson → Jerome + Williams is −0.007 categories a week in the fast score, −0.143 with daily lineups
 and −10 points in playoff odds (±2). Lineup conflicts make the trade clearly worse than the fast score shows.
 
+### 13.46 A measured return distribution, questionable players and a forward test (14 November 2026)
+
+**Return delay distribution** (`delay_games`, `return_pmf`): CBS's "earliest" date was taken as certain (0 days of delay;
+"late return" was a separate scenario). Now `scripts/calibrate_returns.py --write` measures, from all CBS reports and NBA
+game logs, how many more team games are missed after the earliest date (Kaplan–Meier; non-returns censored) and writes
+the distribution to `config/returns.yaml` (at least 30 observations). On 14 November, 91 observations: 25% return on the
+date, 11% after one game, 4% after two, 8% after four, 9% after five; 43% had not returned within the observable span (at
+most ~5 games). That tail is assumed to return at game 10: a lower-bound assumption for the unobservable range. The model
+counts each post-return game by the probability that the player is back by then:
+- remaining-season production is cut to the expected games (`apply_injuries`),
+- the trade score's segment distribution and the IL return cost use the same probabilities (`TradeEngine._presence`),
+- the weekly model uses a per-game play weight (`WeekModel.play_weight`).
+
+The "late return" scenario (a fixed 7-day shift) stays as a stress test.
+
+**Questionable players** (`questionable_play`): a Q/GTD/DTD player counted as playing in the weekly model (or, in the
+scenario, not at all). The share of players listed as uncertain by CBS who played their team's next game was measured:
+44% (72 observations). The rate applies only to the team's next game; later games are normal. CBS's uncertain list is
+not identical to Yahoo's Q tag, so the rate is approximate.
+
+**Forward test** (`fdo.evaluation.forward`, `scripts/backtest_forward.py`): with an archived day's data (that day's
+rosters, projections and CBS report) the model's forecast is compared with what the NBA game logs show afterwards. 31
+October → 13 November (14 days, METU IE, 481 players):
+- 54 injured players awaiting a return played 43 games. Taking the CBS date as certain, the model expected 95.8; with the
+  delay distribution 39.1 (per-player error 1.23 → 0.77). The distribution was measured on the same reports, so this
+  comparison is in-sample.
+- Player value (nine categories, scaled by the realised distribution) has a rank correlation of 0.74 between forecast and
+  realised.
+- Over 3,332 one-for-one trades the trade score agrees in sign with the realised value difference 62% of the time (rank
+  correlation 0.42); the raw player forecast 76% (0.71). The realised measure is a sum of player value, while the trade
+  score includes team context, category probabilities and free moves; still, the gap is worth watching.
+
+As the decision log grows the same measurement will be applied to suggestions actually given. The log currently holds a
+few days of entries.
+
 ### 13.8 V3 candidates
 
 Beam search and H-score weight optimization; fitting the profile mix; covariance of game counts between

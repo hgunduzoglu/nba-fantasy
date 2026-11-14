@@ -2334,6 +2334,39 @@ farklıydı: takas sonrası kadrolarda hamleleri sıfırdan ve dengeli stratejiy
 Örnek: Banchero + Jackson → Jerome + Williams hızlı puanda −0,007 kategori/hafta, günlük kadroyla −0,143 ve
 playoff olasılığında −10 puan (±2). Kadro çakışmaları takası hızlı puanın gösterdiğinden belirgin biçimde kötüleştiriyor.
 
+### 13.46 Ölçülmüş dönüş dağılımı, belirsiz oyuncular ve ileriye dönük test (14 Kasım 2026)
+
+**Dönüş gecikmesi dağılımı** (`delay_games`, `return_pmf`): CBS'in "en erken" tarihi kesin sayılıyordu (gecikme 0 gün;
+"geç dönüş" ayrı bir senaryoydu). Şimdi `scripts/calibrate_returns.py --write` bütün CBS raporları ve NBA maç
+kayıtlarından en erken tarihten sonra kaç takım maçı daha kaçırıldığının dağılımını ölçer (Kaplan–Meier; dönmeyenler
+sansürlü) ve `config/returns.yaml`'a yazar (en az 30 gözlem). 14 Kasım'da 91 gözlem: %25 tarihte döner, %11 bir maç,
+%4 iki, %8 dört, %9 beş maç sonra; %43 izlenebilen sürede (en çok ~5 maç) dönmedi. Bu kuyruk 10. maçta dönüyor
+sayılır: izlenemeyen bölge için bir alt sınır varsayımı. Model dönüş sonrası her maçı oyuncunun o maçta dönmüş olma
+olasılığıyla sayar:
+- kalan sezon üretimi beklenen maçla kısılır (`apply_injuries`),
+- takas puanının dönem dağıtımı ve IL dönüşü bedeli aynı olasılıklarla hesaplanır (`TradeEngine._presence`),
+- haftalık model maç başına oynama ağırlığı kullanır (`WeekModel.play_weight`).
+
+"Geç dönüş" senaryosu (7 gün sabit kaydırma) stres testi olarak kalır.
+
+**Belirsiz oyuncular** (`questionable_play`): Q/GTD/DTD oyuncu haftalık modelde oynuyor sayılıyordu (ya da senaryoda
+hiç oynamıyordu). CBS'te belirsiz listelenip takımının bir sonraki maçında oynayanların oranı ölçüldü: %44 (72 gözlem).
+Bu oran yalnız takımının bir sonraki maçına uygulanır, sonraki maçlar normaldir. CBS'in belirsiz listesi Yahoo'nun Q
+etiketiyle birebir aynı değildir; oran yaklaşık kalır.
+
+**İleriye dönük test** (`fdo.evaluation.forward`, `scripts/backtest_forward.py`): arşivdeki bir günün verisiyle (o günün
+kadroları, projeksiyonu ve CBS raporu) modelin tahmini, NBA maç kayıtlarındaki gerçekleşenle karşılaştırılır. 31 Ekim →
+13 Kasım (14 gün, METU IE, 481 oyuncu):
+- Dönüş bekleyen 54 sakat 43 maç oynadı. Model CBS tarihini kesin sayınca 95,8 maç bekliyordu, gecikme dağılımıyla 39,1
+  (oyuncu başı hata 1,23 → 0,77). Dağılım aynı raporlardan ölçüldüğü için bu karşılaştırma örneklem içidir.
+- Oyuncu değeri (dokuz kategori, gerçekleşen dağılıma göre ölçekli) tahmin ile gerçekleşen arasında sıra korelasyonu
+  0,74.
+- 3332 adet 1'e 1 takasta takas puanının gerçekleşen değer farkıyla işaret uyumu %62 (sıra korelasyonu 0,42); ham oyuncu
+  tahmini %76 (0,71). Gerçekleşen ölçü oyuncu değeri toplamıdır, takas puanı ise takım bağlamı, kategori olasılıkları ve
+  bedava hamleler içerir; yine de izlenmesi gereken bir fark.
+
+Karar günlüğü biriktikçe aynı ölçüm gerçekten verilmiş önerilere de uygulanacak. Şu an günlükte birkaç günlük kayıt var.
+
 ### 13.8 V3 adayları
 
 Beam search ve H-score ağırlık optimizasyonu; profil karışımı uyumu; oyuncular arası maç sayısı
