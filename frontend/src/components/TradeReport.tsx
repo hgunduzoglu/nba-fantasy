@@ -103,6 +103,17 @@ export function TradeReport({ league, body, needsCode, onApply }: {
               <ul>{rep.watch.map((w, i) => <li key={i}>{w}</li>)}</ul>
             </div>
           )}
+          {rec.number_check && (
+            rec.number_check.unmatched.length > 0 ? (
+              <details className="banner" style={{ marginTop: 10 }}>
+                <summary>Rapordaki {rec.number_check.checked} sayıdan {rec.number_check.unmatched.length} tanesi hesap paketinde yok:
+                  {" "}{rec.number_check.unmatched.slice(0, 6).map((u) => u.value).join(" · ")}. Türetilmiş olabilir (fark, toplam); kontrol et.</summary>
+                <ul>{rec.number_check.unmatched.map((u, i) => <li key={i}><b>{u.value}</b> ({u.where}): <span className="muted">…{u.context}…</span></li>)}</ul>
+              </details>
+            ) : (
+              <p className="hint">Rapordaki {rec.number_check.checked} sayının hepsi hesap paketinde var.</p>
+            )
+          )}
           <p className="hint">
             {rec.model} · {rec.created_at ? fmtStamp(rec.created_at) : ""} · maliyet ~{(rec.cost ?? 0).toFixed(2)} $ · aynı veriyle aynı takas
             kayıttan açılır.{" "}

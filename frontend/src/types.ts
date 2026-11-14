@@ -104,6 +104,8 @@ export interface ReportRecord {
   model?: string;
   cost?: number;
   report?: TradeReportBody;
+  /** Rapordaki sayıların hesap paketine karşı denetimi; bulunamayanlar türetilmiş de olabilir. */
+  number_check?: { checked: number; unmatched: { value: string; where: string; context: string }[] };
 }
 
 export interface Injury {
