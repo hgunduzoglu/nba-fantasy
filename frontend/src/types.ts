@@ -434,6 +434,9 @@ export interface SuggestIn {
 
 export interface Suggestion {
   own_delta_plain?: number | null;
+  /** Günlük kadroyla kalan normal sezon farkı: stratejinin ağırlıklarıyla (sıralama ölçüsü) ve ağırlıksız. */
+  lineup_delta?: number | null;
+  lineup_ecw_delta?: number | null;
   team_b: string;
   team_b_name: string;
   give_a: BriefPlayer[];
@@ -476,6 +479,8 @@ export interface SuggestOut {
   rejected_overpay?: number;
   limit_reached: boolean;
   message: string;
+  /** "lineup": finalistler günlük kadro farkıyla sıralandı; yoksa hızlı puanla. */
+  ranked_by?: string;
 }
 
 export interface MispricedRow {

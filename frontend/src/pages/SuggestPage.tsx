@@ -181,6 +181,8 @@ export function SuggestPage({ meta, league, team, injuries, onOpen }: Props) {
 
   const rows: Row[] = view === "all" ? [...combined]
     : (results[view]?.suggestions ?? []).map((s) => ({ key: tradeKey(s), s, dirs: [view], best: view }));
+  /** Varsayılan sıra: günlük kadro farkı (sunucu ölçtüyse), yoksa hızlı puan. */
+  const ownRank = (s: Suggestion) => s.lineup_delta ?? s.score;
   const ecwOf = (s: Suggestion) => Object.values(s.my_categories).reduce((a, b) => a + b, 0);
   const effVal = (k: string, which: "playoff" | "champion") => {
     const e = effects[k];
@@ -190,7 +192,7 @@ export function SuggestPage({ meta, league, team, injuries, onOpen }: Props) {
   if (sortBy === "playoff" || sortBy === "champion") rows.sort((a, b) => effVal(b.key, sortBy) - effVal(a.key, sortBy));
   else if (sortBy === "ecw") rows.sort((a, b) => ecwOf(b.s) - ecwOf(a.s));
   else if (sortBy === "robust") rows.sort((a, b) => robustness(b.s).n - robustness(a.s).n || b.s.score - a.s.score);
-  else if (view === "all") rows.sort((a, b) => b.dirs.length - a.dirs.length || b.s.score - a.s.score);
+  else if (view === "all") rows.sort((a, b) => b.dirs.length - a.dirs.length || ownRank(b.s) - ownRank(a.s));
 
   /** İlk 25 önerinin sezon etkisi: takassız ve takaslı sezon aynı çekilişlerle (eşleşmeli fark + hata payı). */
   const runEffects = async () => {
@@ -351,7 +353,7 @@ export function SuggestPage({ meta, league, team, injuries, onOpen }: Props) {
               <>
                 <div className="seg">
                   <button aria-pressed={sortBy === "score"} onClick={() => setSortBy("score")}
-                          title="Varsayılan sıralama: senin kazancın. Rakibin gerekçesi ve değer dengesi süzgeçtir, puanı büyütmez.">Senin faydan</button>
+                          title="Varsayılan sıralama: senin kazancın, günlük kadroyla (kalan normal sezon, pozisyon ve maç çakışmaları dahil). Arama hızlı puanla finalist seçer, finalistler günlük kadroyla yeniden sıralanır. Rakibin gerekçesi ve değer dengesi süzgeçtir, puanı büyütmez.">Senin faydan</button>
                   <button aria-pressed={sortBy === "robust"} onClick={() => setSortBy("robust")}
                           title="Kaç yönde senin kazancın pozitif">Sağlamlık</button>
                   <button aria-pressed={sortBy === "ecw"} onClick={() => setSortBy("ecw")}>Senin ΔECW</button>
@@ -388,7 +390,7 @@ export function SuggestPage({ meta, league, team, injuries, onOpen }: Props) {
                   <th title="Kalan sezon değeri: küçük paket / büyük paket">Değer dengesi</th>
                   <th title="Rakibin gözünden (bu sezon + isim değeri): aldığı / verdiği. 1 = eşit görür.">Rakibin gözünde</th>
                   <th title="Rakip için kabul gerekçesi: modelde kazanıyor mu, kendi gözünde eşit ya da fazla alıyor mu. İkisi yüksek, biri orta. Olasılık değil.">Kabul gerekçesi</th>
-                  <th title="Kalan normal sezonda haftalık beklenen kategori farkı, haftalık modelin günlük kadro atamasıyla (sezon etkisiyle birlikte hesaplanır). Sen ΔECW ile farkı ufuk ve günlük kadrodan gelir.">Günlük kadro Δ</th>
+                  <th title="Kalan normal sezonda haftalık beklenen kategori farkı (ağırlıksız), haftalık modelin günlük kadro atamasıyla. Varsayılan sıralama bunun stratejinin ağırlıklarıyla hesaplanmış hâlidir. Sen ΔECW ile farkı ufuk ve günlük kadrodan gelir.">Günlük kadro Δ</th>
                   <th title="Playoff olasılığı değişimi (puan)">Playoff</th><th title="Şampiyonluk olasılığı değişimi (puan)">Şamp.</th>
                   <th title="Rakibin playoff olasılığı değişimi">Rakip PO</th><th />
                 </tr></thead>
@@ -410,6 +412,8 @@ export function SuggestPage({ meta, league, team, injuries, onOpen }: Props) {
                           {s.position_gap > 0 && <span className="badge out" title={`Takastan sonra ${s.position_gap} aktif pozisyon doldurulamıyor`}>⚠ pozisyon</span>}
                           <SeasonWarnBadge show={!!e && e !== "err" && seasonWarning(ecw, e.me.playoff)} />
                           <MovesWarnBadge own={s.own_delta} plain={s.own_delta_plain} />
+                          {s.lineup_delta != null && s.lineup_delta < 0 && s.own_delta > 0 &&
+                            <span className="badge out" title={`Hızlı puanda kazanç (${fmtDelta(s.own_delta, 3)}) var ama günlük kadroyla kalan sezonda kayıp (${fmtDelta(s.lineup_delta, 3)}): pozisyon ya da maç çakışması yüzünden alınan oyuncunun maçları bench'te kalıyor.`}>⚠ günlük kadro</span>}
                           <ComponentBadges c={s.components} />
                         </td>
                         {view !== "all" && <td className={deltaClass(s.own_delta, 0.3)}>{fmtDelta(s.own_delta, 3)}</td>}
@@ -423,8 +427,10 @@ export function SuggestPage({ meta, league, team, injuries, onOpen }: Props) {
                         <td>{fmtPct(s.fairness)}</td>
                         <td>{fmtNum(s.perceived_view, 2)}</td>
                         <td><AcceptBadge level={s.acceptability} reasons={s.counterpart_reasons} /></td>
-                        <td className={e && e !== "err" && e.me.ecw_lineup ? deltaClass(e.me.ecw_lineup.delta, 0.3) : "muted"}>
-                          {e && e !== "err" && e.me.ecw_lineup ? fmtDelta(e.me.ecw_lineup.delta, 3) : "—"}</td>
+                        {(() => {
+                          const lu = s.lineup_ecw_delta ?? (e && e !== "err" ? e.me.ecw_lineup?.delta : undefined);
+                          return <td className={lu != null ? deltaClass(lu, 0.3) : "muted"}>{lu != null ? fmtDelta(lu, 3) : "—"}</td>;
+                        })()}
                         <SeasonDeltaCell d={e === "err" ? "err" : e?.me.playoff} />
                         <SeasonDeltaCell d={e === "err" ? "err" : e?.me.champion} scale={0.05} />
                         <SeasonDeltaCell d={e === "err" ? "err" : e?.opp.playoff} />
