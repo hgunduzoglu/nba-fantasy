@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
-import { AcceptBadge, CategoryChips, ErrorBanner, Loading, PlayerName, SeasonDeltaCell, deltaClass } from "../components/common";
+import { AcceptBadge, CategoryChips, ErrorBanner, Loading, PlayerName, SeasonDeltaCell, SeasonWarnBadge, deltaClass, seasonWarning } from "../components/common";
 import { BALANCED, StrategyPicker, strategyLabel, toStrategyIn, type StrategyChoice } from "../components/StrategyPicker";
 import { fmtDelta, fmtNum, fmtPct } from "../format";
 import type { League, Meta, MispricedRow, Perceived, SeasonEffect, SuggestMode, SuggestOut, Suggestion } from "../types";
@@ -221,6 +221,11 @@ export function SuggestPage({ meta, league, team, injuries, onOpen }: Props) {
     setEffBusy(null);
   };
 
+  // arama bitince ilk 25 önerinin sezon etkisi kendiliğinden hesaplanır
+  useEffect(() => {
+    if (!busy && found.length && effBusy === null) runEffects();
+  }, [results, busy]);  // eslint-disable-line react-hooks/exhaustive-deps
+
   const modeInfo = MODES.find((m) => m.id === mode)!;
   const open = (r: Row) => onOpen({
     opp: r.s.team_b, giveA: r.s.give_a.map((p) => p.id), giveB: r.s.give_b.map((p) => p.id),
@@ -401,6 +406,7 @@ export function SuggestPage({ meta, league, team, injuries, onOpen }: Props) {
                         <td className="l wrap">
                           {s.give_b.map((p) => <div key={p.id}><PlayerName p={p} sub={false} />{star(p.id)}</div>)}
                           {s.position_gap > 0 && <span className="badge out" title={`Takastan sonra ${s.position_gap} aktif pozisyon doldurulamıyor`}>⚠ pozisyon</span>}
+                          <SeasonWarnBadge show={!!e && e !== "err" && seasonWarning(ecw, e.me.playoff)} />
                         </td>
                         {view !== "all" && <td className={deltaClass(s.own_delta, 0.3)}>{fmtDelta(s.own_delta, 3)}</td>}
                         <td title={rob.tip} className={rob.n === rob.total ? "good" : rob.n === 0 ? "bad" : ""}>{rob.n}/{rob.total}</td>

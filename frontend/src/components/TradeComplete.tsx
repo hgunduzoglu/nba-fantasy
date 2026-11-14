@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AcceptBadge, CategoryChips, ErrorBanner, SeasonDeltaCell, deltaClass } from "./common";
+import { AcceptBadge, CategoryChips, ErrorBanner, SeasonDeltaCell, SeasonWarnBadge, deltaClass, seasonWarning } from "./common";
 import { fmtDelta, fmtNum, fmtPct } from "../format";
 import type { CompleteOut, CompletePlayer, CompleteRow, CompleteTier, SeasonEffect, SeasonManyOut } from "../types";
 
@@ -48,7 +48,6 @@ export function TradeComplete({ data, busy, error, base, oppName, labels, mobile
   const [seasonBusy, setSeasonBusy] = useState(false);
   const [seasonErr, setSeasonErr] = useState<string | null>(null);
   const [order, setOrder] = useState<Order>("score");
-  useEffect(() => { setSeason(null); setSeasonErr(null); setOrder("score"); }, [data]);
   const runSeason = () => {
     if (!data || !onSeason) return;
     setSeasonBusy(true);
@@ -61,7 +60,16 @@ export function TradeComplete({ data, busy, error, base, oppName, labels, mobile
       .catch((e: Error) => setSeasonErr(e.message))
       .finally(() => setSeasonBusy(false));
   };
+  // liste gelince sezon etkisi kendiliğinden hesaplanır (haftalık puan zamanlamayı görmez)
+  useEffect(() => {
+    setSeason(null); setSeasonErr(null); setOrder("score");
+    if (data && data.suggestions.length && onSeason) runSeason();
+  }, [data]);  // eslint-disable-line react-hooks/exhaustive-deps
   const eff = (i: number): SeasonEffect | "err" | undefined => season?.effects[i];
+  const warn = (i: number, r: CompleteRow) => {
+    const p = part(i, "playoff");
+    return seasonWarning(r.own_delta, p === "err" ? undefined : p);
+  };
   const part = (i: number, k: "playoff" | "champion") => {
     const e = eff(i);
     return e === "err" ? "err" : e?.[k];
@@ -93,7 +101,7 @@ export function TradeComplete({ data, busy, error, base, oppName, labels, mobile
         {onSeason && data && data.suggestions.length > 0 && !season && (
           <button className="btn" onClick={runSeason} disabled={seasonBusy}
                   title="Her öneri için kalan sezon ve playoff braketi simüle edilir (aynı çekilişlerle takassız/takaslı)">
-            {seasonBusy ? <><span className="spinner" /> Simüle ediliyor…</> : "Sezon etkisi"}
+            {seasonBusy ? <><span className="spinner" /> Sezon simüle ediliyor…</> : "Sezon etkisini hesapla"}
           </button>
         )}
         <button className="btn" onClick={onClose}>Kapat</button>
@@ -117,7 +125,7 @@ export function TradeComplete({ data, busy, error, base, oppName, labels, mobile
               <ul className="m-list">
                 {shown.map(({ r, i }) => (
                   <li key={i} className="m-item">
-                    <div className="m-line"><Tier t={r.tier} /><span className="spacer" />
+                    <div className="m-line"><Tier t={r.tier} /><SeasonWarnBadge show={warn(i, r)} /><span className="spacer" />
                       {isApplied(r) ? <span className="muted">seçili</span>
                         : <button className="btn" onClick={() => onApply(r)}>Uygula</button>}</div>
                     <div className="m-line"><span className="m-lbl drop">Ver</span><Pkg players={r.give_a} /></div>
@@ -157,7 +165,7 @@ export function TradeComplete({ data, busy, error, base, oppName, labels, mobile
                   <tbody>
                     {shown.map(({ r, i }) => (
                       <tr key={i} className={isApplied(r) ? "rec" : ""} title={extras(r).join(" · ") || undefined}>
-                        <td className="l"><Tier t={r.tier} /></td>
+                        <td className="l"><Tier t={r.tier} /><SeasonWarnBadge show={warn(i, r)} /></td>
                         <td className="l wrap"><Pkg players={r.give_a} /></td>
                         <td className="l wrap"><Pkg players={r.give_b} /></td>
                         <td className={deltaClass(r.own_delta, 0.3)}>{fmtDelta(r.own_delta, 3)}</td>

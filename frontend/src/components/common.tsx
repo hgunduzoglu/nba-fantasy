@@ -94,6 +94,15 @@ export function SeasonDeltaCell({ d, scale = 0.1 }: { d?: SeasonDelta | null | "
   );
 }
 
+/** Haftalık kazanç pozitif ama sezon simülasyonunda playoff olasılığı açıkça düşüyorsa uyarı (zamanlama). */
+export function seasonWarning(ownDelta: number, playoff?: SeasonDelta | null): boolean {
+  return !!playoff && playoff.clear && playoff.delta < 0 && ownDelta > 0;
+}
+
+export function SeasonWarnBadge({ show }: { show: boolean }) {
+  return show ? <span className="badge out" title="Haftalık kategori kazancın var ama sezon simülasyonunda playoff olasılığın açıkça düşüyor. Çoğu zaman zamanlamadan: uzun süre sakat bir oyuncu playoff yarışı bittikten sonra döner, ya da fikstür haftaları tutmaz. Haftalık ortalama sezon sonundaki katkıyı bugünkü kadar değerli sayar; bu takası bu açıdan kontrol et.">⚠ sezon</span> : null;
+}
+
 export function InlineBar({ value, max = 1 }: { value: number; max?: number }) {
   const w = Math.max(0, Math.min(1, value / max)) * 100;
   return <span className="ibar" aria-hidden="true"><span style={{ width: `${w}%` }} /></span>;
