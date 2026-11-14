@@ -22,11 +22,35 @@ def _late_return(data, pid="1", day=dt.date(2026, 11, 6)):  # noqa: F811
                           .set_index("player_id"))
 
 
-def test_one_segment_or_none_keeps_the_untimed_engine(data):  # noqa: F811
+def test_no_segments_keep_the_untimed_engine_and_one_segment_is_timed(data):  # noqa: F811
     plain = TradeEngine(data, "L", utilization=1)
-    one = TradeEngine(data, "L", utilization=1, segments=(EARLY,))
-    assert not plain.timed and not one.timed and one.seg_vecs is None
+    assert not plain.timed
+    # tek dönem (ör. son fantezi haftası) de zamanlıdır; bütün ufku kapsayan tek dönem zamansız puanla aynıdır
+    whole = Segment(data.as_of, dt.date(2027, 4, 11), 1.0, "tümü")
+    one = TradeEngine(data, "L", utilization=1, segments=(whole,))
+    assert one.timed and one.seg_vecs.shape[0] == 1
+    np.testing.assert_allclose(one.seg_vecs[0][one.modeled], plain.vecs[plain.modeled])
     np.testing.assert_allclose(one.baseline_p, plain.baseline_p)
+
+
+def test_production_outside_the_window_is_not_moved_into_it(data):  # noqa: F811
+    # Pencere yalnız 2–4 Kasım: oyuncunun kalan maçlarının bir kısmı; pencere dışındaki üretim pencereye taşınmaz.
+    window = Segment(dt.date(2026, 11, 2), dt.date(2026, 11, 4), 1.0, "pencere")
+    eng = TradeEngine(data, "L", utilization=1, segments=(window,))
+    j = eng.index["0"]
+    games = eng._team_games[eng.data.players.loc["0", "nba_team"]]
+    inside = sum(window.start <= d <= window.end for d in games)
+    assert 0 < inside < len(games)
+    np.testing.assert_allclose(eng.seg_vecs[0, j] * window.weeks, eng.vecs[j] * eng.horizon_weeks * inside / len(games))
+
+
+def test_return_after_every_segment_adds_nothing_and_unknown_teams_are_labelled(data):  # noqa: F811
+    d = _late_return(data, day=dt.date(2026, 11, 6))
+    eng = TradeEngine(d, "L", utilization=1, segments=(EARLY,))                       # dönüş pencereden sonra
+    assert not eng.seg_vecs[0, eng.index["1"]].any()
+    d.players.loc["2", "nba_team"] = "ZZZ"                                            # takvimde olmayan takım
+    eng = TradeEngine(d, "L", utilization=1, segments=(EARLY, LATE))
+    assert "2" in eng.timing_unknown and eng.seg_vecs[:, eng.index["2"], 0].min() > 0
 
 
 def test_segment_vectors_split_the_season_by_games_after_return(data):  # noqa: F811

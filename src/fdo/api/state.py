@@ -109,12 +109,21 @@ class AppState:
         data = self.basis_data(injuries, basis)
         if str(league_id) not in data.leagues:
             raise KeyError(f"Lig yok: {league_id}")
+        lg = data.leagues[str(league_id)]
+        weeks = self._get(("league_weeks", data.fingerprint, str(league_id)), lambda: league_weeks(
+            data.schedule, lg.settings, lg.config) if data.schedule is not None else None)
+        # bu hafta kullanılmış alım hakları (canlı hafta, kadrolarla aynı çekimden ise; yalnız kullanıcının takımı)
+        lv = self._get(("live", self.signature()), lambda: load_live(self.data_dir)).get(str(league_id))
+        used, limit = (), None
+        if (lv is not None and lv.as_of == data.as_of and weeks is not None and weeks.week_of(lv.as_of) == lv.week
+                and lv.my_team and lv.adds_used is not None):
+            used, limit = ((lv.my_team, lv.adds_used),), lv.adds_limit
+
         def build():
-            lg = data.leagues[str(league_id)]
-            weeks = league_weeks(data.schedule, lg.settings, lg.config) if data.schedule is not None else None
             segments = trade_segments(weeks, data.as_of) if weeks is not None else None
-            return TradeEngine(data, str(league_id), segments=segments, free_moves=free_moves)
-        return self._get(("engine", data.fingerprint, str(league_id), free_moves), build)
+            return TradeEngine(data, str(league_id), segments=segments, free_moves=free_moves, adds_used=dict(used),
+                               adds_limit=limit)
+        return self._get(("engine", data.fingerprint, str(league_id), free_moves, used, limit), build)
 
     def weeks(self, league_id: str, injuries: bool = True) -> LeagueWeeks:
         eng = self.engine(league_id, injuries)

@@ -499,3 +499,29 @@ def test_planned_drop_of_a_player_moved_to_il_by_the_trade_is_not_applied(trade_
     after = r.plans["after"]["1"]
     assert "2" in after.roster and after.il == frozenset({"2"})
     assert all(d != "2" for d, _ in after.moves)
+
+
+def test_free_moves_beyond_this_weeks_adds_start_next_week(trade_data):
+    # Kapasite 3, 1. takımda bir yer boş: plan boş yere boştakini eklemek. Bu hafta hakkı kalmadıysa hamle ilk
+    # dönemde (bu hafta) yok, sonraki dönemlerde var; hakkı varsa ilk dönemde de var.
+    from fdo.trade.engine import Segment
+    lg = trade_data.leagues["L"]
+    trade_data.leagues["L"] = replace(lg, rosters={**lg.rosters, "1": ("0", "1")})
+    segs = (Segment(dt.date(2026, 10, 31), dt.date(2026, 11, 6), 1.0, "bu hafta"),
+            Segment(dt.date(2026, 11, 7), dt.date(2026, 11, 27), 3.0, "sonra"))
+    s = {"1": Strategy(), "2": Strategy()}
+    trade_data = replace(trade_data, schedule=pd.DataFrame({"game_date": ["2026-11-02", "2026-11-05", "2026-11-10",
+                                                                          "2026-11-20"],
+                                                            "home_team": "SYN", "away_team": "OTHER"}))
+    full = TradeEngine(trade_data, "L", utilization=1, segments=segs, adds_limit=2)
+    spent = TradeEngine(trade_data, "L", utilization=1, segments=segs, adds_used={"1": 2}, adds_limit=2)
+    pf, ps = full.waiver_plans(full.league.rosters, s)["1"], spent.waiver_plans(spent.league.rosters, s)["1"]
+    assert pf.moves == ps.moves and pf.moves and pf.budget.remaining == 2 and not pf.later
+    assert ps.budget.known and ps.budget.remaining == 0 and ps.later == ps.moves and ps.week_roster == ("0", "1")
+    vf, vs = full.plan_vectors({"1": pf}, s)["1"], spent.plan_vectors({"1": ps}, s)["1"]
+    assert (vs[0] < vf[0]).any() and np.allclose(vs[1:], vf[1:])
+    np.testing.assert_allclose(vs[0], spent.team_seg_vector(("0", "1"))[0])
+    # takasın gerektirdiği boştan ekleme aynı bütçeden: bilinmeyen kullanım limit kabul edilir
+    b = full.budget("2", reserved=1)
+    assert not b.known and b.remaining == 1
+    assert TradeEngine(trade_data, "L", utilization=1, adds_limit=0).budget("1").remaining == 0

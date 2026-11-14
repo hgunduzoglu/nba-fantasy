@@ -35,13 +35,58 @@ class RosterInvariantError(RuntimeError):
 
 
 @dataclass(frozen=True)
+class TransactionBudget:
+    """Bir takımın bu haftaki alım hakkı. Takasın gerektirdiği eklemeler (``reserved``) ve bedava hamleler aynı
+    bütçeden harcanır. ``used`` bilinmiyorsa ``None``: kalan hak haftalık limit kabul edilir ve ``known`` yanlıştır."""
+
+    weekly_limit: int
+    used: int | None = None
+    reserved: int = 0
+
+    @property
+    def known(self) -> bool:
+        return self.used is not None
+
+    @property
+    def remaining(self) -> int:
+        """Takasın gerektirdiği eklemelerden sonra bu hafta bedava hamleye kalan hak."""
+        return max(0, self.weekly_limit - (self.used or 0) - self.reserved)
+
+
+@dataclass(frozen=True)
 class RosterPlan:
     """Bir takımın puanlanan kadrosu: bedava hamleler uygulanmış ``roster``, ``il`` ve hamleler ``(bırakılan | None,
-    alınan)``. Puan ve kullanıcıya gösterilen hamle listesi aynı nesneden üretilir."""
+    alınan)``. Puan ve kullanıcıya gösterilen hamle listesi aynı nesneden üretilir.
+
+    ``base``: hamlelerden önceki kadro; ``budget``: bu haftanın alım hakkı. Hakkı aşan hamleler (``later``) bu hafta
+    yapılamaz, gelecek haftadan itibaren sayılır: ilk dönem ``week_roster`` ile puanlanır."""
 
     roster: tuple[str, ...]
     il: frozenset[str]
     moves: tuple[tuple[str | None, str], ...] = ()
+    base: tuple[str, ...] = ()
+    budget: TransactionBudget | None = None
+
+    @property
+    def now(self) -> int:
+        """Bu hafta yapılabilen hamle sayısı (sıradaki ilk hamleler)."""
+        return len(self.moves) if self.budget is None else min(len(self.moves), self.budget.remaining)
+
+    @property
+    def later(self) -> tuple[tuple[str | None, str], ...]:
+        return self.moves[self.now:]
+
+    @property
+    def week_roster(self) -> tuple[str, ...]:
+        """Bu hafta yapılabilen hamlelerden sonraki kadro."""
+        if not self.later:
+            return self.roster
+        current = list(self.base)
+        for d, f in self.moves[:self.now]:
+            if d is not None:
+                current.remove(d)
+            current.append(f)
+        return tuple(current)
 
 
 @dataclass(frozen=True)
@@ -129,7 +174,7 @@ class TradeEngine:
 
     def __init__(self, data: TradeData, league_id: str, *, utilization: float = .987,
                  horizon_weeks: float | None = None, segments: tuple[Segment, ...] | None = None,
-                 free_moves: bool = True):
+                 free_moves: bool = True, adds_used: dict[str, int] | None = None, adds_limit: int | None = None):
         """``segments``: kalan sezonun dönemleri. Birden fazlaysa takas puanı zamanlamayı görür: her oyuncunun katkısı
         dönem dönem, o dönemde oynayacağı maçlardan (bilinen dönüş tarihinden sonra) hesaplanır; kategori olasılıkları
         dönem başına bulunup ağırlıklı ortalanır. Verilmezse kalan sezon tek dönemdir (üretim haftalara eşit yayılır)."""
@@ -147,6 +192,9 @@ class TradeEngine:
         self.free_moves = free_moves
         m = re.match(r"\s*(\d+)", str(self.league.settings.get("Max Acquisitions per Week", "")))
         self._max_moves = int(m.group(1)) if m else 4                          # haftalık alım hakkı (yoksa 4)
+        #: Bu hafta kullanılmış alım hakları (bilinen takımlar; genelde yalnız kullanıcının takımı, canlı hafta verisi).
+        self.adds_used = {str(t): int(u) for t, u in (adds_used or {}).items() if u is not None}
+        self._weekly_limit = int(adds_limit) if adds_limit is not None else self._max_moves
         if horizon_weeks is None:
             if data.schedule is None:
                 raise ValueError("Haftalık modele NBA takvimi veya açık horizon_weeks gerekiyor")
@@ -176,11 +224,12 @@ class TradeEngine:
         self._before_p_cache: dict[tuple, tuple] = {}
         self._fa_cache: dict[Strategy, list[str]] = {}
         self._waiver_cache: dict[tuple, tuple[tuple[str, ...], tuple[tuple[str, str], ...]]] = {}
-        owned = {p for r in self.league.rosters.values() for p in r}
+        owned = self._owned = frozenset(p for r in self.league.rosters.values() for p in r)
         self.free_agents = tuple(p for p in self.ids if p not in owned and self.modeled[self.index[p]])
         self._team_games = self._games_left()
         self.segments = tuple(s for s in (segments or ()) if s.end >= data.as_of and s.weight > 0)
-        self.timed = len(self.segments) > 1
+        self.timed = len(self.segments) >= 1          # tek dönem (ör. son fantezi haftası) de zamanlı
+        self.timing_unknown: tuple[str, ...] = ()
         self._seg_w = np.array([s.weight for s in self.segments], float)
         self._seg_w = self._seg_w / self._seg_w.sum() if self.timed else self._seg_w
         self.seg_vecs = self._segment_vectors() if self.timed else None
@@ -223,24 +272,34 @@ class TradeEngine:
 
     def _segment_vectors(self) -> np.ndarray:
         """``(S, n, 24)``: oyuncunun dönem başına haftalık vektörü. Kalan sezon üretimi (``vecs × horizon``) oyuncunun
-        dönüşünden sonraki takım maçlarına göre dönemlere dağıtılır: dönem payı = dönemdeki maç / dönüş sonrası maç."""
+        dönüşünden sonraki **bütün** kalan takım maçlarına bölünür; her döneme yalnız o dönemdeki maçların payı düşer:
+        dönem payı = dönemdeki maç / dönüş sonrası kalan maç (ufkun sonuna kadar). Böylece dönemlerin dışında kalan maçların
+        (ör. fantezi playoff'undan sonraki NBA maçları) üretimi pencereye taşınmaz; dönüşü bütün dönemlerden sonra olan
+        ya da dönemlerde maçı olmayan oyuncu 0 katar. Takımı takvimde yoksa (maçları bilinmiyor) üretim gün payına göre
+        dağıtılır ve oyuncu ``timing_unknown``'a yazılır."""
         S, H = len(self.segments), self.horizon_weeks
         out = np.zeros((S,) + self.vecs.shape)
         weeks = np.array([s.weeks for s in self.segments])
-        uniform = weeks / weeks.sum()
         cache: dict[tuple[str, dt.date], np.ndarray] = {}
         teams = self.data.players["nba_team"].reindex(list(self.ids))
+        unknown = []
         for i, pid in enumerate(self.ids):
             if not self.modeled[i]:
                 continue
             team = normalize_team(teams.iloc[i]) if isinstance(teams.iloc[i], str) and teams.iloc[i] else ""
             ret = max(self.return_day(pid) or self.data.as_of, self.data.as_of)
-            key = (team, ret)
-            if key not in cache:
-                games = [d for d in self._team_games.get(team, []) if d >= ret]
-                counts = np.array([sum(s.start <= d <= s.end for d in games) for s in self.segments], float)
-                cache[key] = counts / counts.sum() if counts.sum() > 0 else uniform
-            out[:, i] = self.vecs[i][None, :] * (H * cache[key] / weeks)[:, None]
+            if team not in self._team_games:
+                unknown.append(pid)
+                share = self._seg_after_raw(ret) * weeks * 7 / max(H * 7 - max((ret - self.data.as_of).days, 0), 1)
+            else:
+                key = (team, ret)
+                if key not in cache:
+                    games = [d for d in self._team_games[team] if d >= ret]
+                    counts = np.array([sum(s.start <= d <= s.end for d in games) for s in self.segments], float)
+                    cache[key] = counts / len(games) if games else np.zeros(S)        # bilinen sıfır maç → 0
+                share = cache[key]
+            out[:, i] = self.vecs[i][None, :] * (H * share / weeks)[:, None]
+        self.timing_unknown = tuple(unknown)
         return out
 
     def _seg_after(self, day: dt.date) -> np.ndarray:
@@ -332,9 +391,10 @@ class TradeEngine:
         sched = self.data.schedule
         days = pd.to_datetime(sched["game_date"]).dt.date
         for d, h, a in zip(days, sched["home_team"], sched["away_team"]):
-            if d >= self.data.as_of:
-                for t in (h, a):
-                    out.setdefault(normalize_team(t), []).append(d)
+            for t in (h, a):
+                games = out.setdefault(normalize_team(t), [])      # takvimdeki takım kalan maçı olmasa da bilinir
+                if d >= self.data.as_of:
+                    games.append(d)
         return out
 
     def return_share(self, pid: str) -> float:
@@ -635,19 +695,41 @@ class TradeEngine:
                      injuries: dict[str, frozenset[str]] | None = None) -> dict[str, RosterPlan]:
         """``strategies`` takımlarının puanlanan kadroları: bedava hamleler (kadrolar ligdekiyle aynıysa
         ``joint_waiver``, değilse takas öncesi hamlelere bağlı ``anchored_waiver``) uygulanmış ve doğrulanmış
-        (``check_rosters``). Puan da ekrandaki hamle listesi de bu çıktıdan üretilir."""
+        (``check_rosters``). Puan da ekrandaki hamle listesi de bu çıktıdan üretilir. Her takımın bu haftaki alım
+        hakkı (``budget``) takasın gerektirdiği boştan eklemelerle paylaşılır; hakkı aşan hamleler gelecek haftadan
+        sayılır (``RosterPlan.week_roster``)."""
         items = [(t, tuple(rosters[t]), self._il(t, rosters[t], injuries), s or Strategy()) for t, s in strategies.items()]
         same = all(set(r) == set(self.league.rosters[t]) for t, r, _, _ in items)
         moved = self.joint_waiver(items) if same or not self.free_moves else self.anchored_waiver(items)
-        plans = {t: RosterPlan(tuple(moved[t][0]), il, tuple(moved[t][1])) for t, _, il, _ in items}
+        owned = self._owned
+        plans = {t: RosterPlan(tuple(moved[t][0]), il, tuple(moved[t][1]), r,
+                               self.budget(t, sum(p not in owned for p in r)))
+                 for t, r, il, _ in items}
         self.check_rosters("bedava hamle", {t: (r, il) for t, r, il, _ in items},
                            {t: (p.roster, p.il) for t, p in plans.items()}, rosters)
         return plans
 
     def plan_vectors(self, plans: dict[str, RosterPlan], strategies: dict[str, Strategy]) -> dict[str, np.ndarray]:
         """Planlardaki kadroların takım vektörleri (dönemliyse dönem vektörleri), IL dönüşü bedeli dahil."""
-        vec = self.team_seg_vector if self.timed else self.team_vector
-        return {t: vec(p.roster, p.il, strategies[t] or Strategy()) for t, p in plans.items()}
+        out = {}
+        for t, p in plans.items():
+            s = strategies[t] or Strategy()
+            if self.timed:
+                v = self.team_seg_vector(p.roster, p.il, s)
+                if p.later:                                   # hakkı aşan hamleler ilk dönemde (bu hafta) yok
+                    v = v.copy()
+                    v[0] = self.team_seg_vector(p.week_roster, p.il, s)[0]
+            else:
+                v = self.team_vector(p.roster, p.il, s)
+                if p.later:                                   # zamansız: bu haftanın payı kadar hamlesiz
+                    w = min(1.0, 1.0 / self.horizon_weeks)
+                    v = (1 - w) * v + w * self.team_vector(p.week_roster, p.il, s)
+            out[t] = v
+        return out
+
+    def budget(self, team_id: str, reserved: int = 0) -> TransactionBudget:
+        """Takımın bu haftaki alım hakkı; ``reserved``: takasın gerektirdiği boştan eklemeler (aynı bütçeden)."""
+        return TransactionBudget(self._weekly_limit, self.adds_used.get(str(team_id)), reserved)
 
     def trade_vector(self, roster, il=frozenset(), strategy: Strategy | None = None) -> np.ndarray:
         """Takas karşılaştırması için takım vektörü: bedava waiver hamleleri + IL dönüşü bedeli."""
