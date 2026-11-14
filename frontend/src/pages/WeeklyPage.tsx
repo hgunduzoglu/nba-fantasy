@@ -82,6 +82,7 @@ export function WeeklyPage({ meta, league, team, injuries }: Props) {
   const [opponent, setOpponent] = useState<string | null>(null);
   const [strategy, setStrategy] = useState<StrategyChoice>(BALANCED);
   const [sitOut, setSitOut] = useState(true);
+  const [qOut, setQOut] = useState(false);
   const [accMine, setAccMine] = useState<Acc>(empty);
   const [accOpp, setAccOpp] = useState<Acc>(empty);
   const [data, setData] = useState<WeeklyOut | null>(null);
@@ -90,9 +91,9 @@ export function WeeklyPage({ meta, league, team, injuries }: Props) {
 
   const hasAcc = (a: Acc) => Object.values(a).some((v) => v > 0);
   const body: WeeklyIn = useMemo(() => ({
-    team, week, opponent, sit_out: sitOut, strategy: toStrategyIn(strategy), injuries,
+    team, week, opponent, sit_out: sitOut, questionable_out: qOut, strategy: toStrategyIn(strategy), injuries,
     acc_mine: hasAcc(accMine) ? accMine : null, acc_opp: hasAcc(accOpp) ? accOpp : null,
-  }), [team, week, opponent, sitOut, strategy, injuries, accMine, accOpp]);
+  }), [team, week, opponent, sitOut, qOut, strategy, injuries, accMine, accOpp]);
 
   useEffect(() => {
     setBusy(true);
@@ -152,6 +153,9 @@ export function WeeklyPage({ meta, league, team, injuries }: Props) {
         <StrategyPicker meta={meta} value={strategy} onChange={setStrategy} label="Senin stratejin" />
         <label className="check" title="NA (takımda değil) her zaman oynamaz; Q oynar; dönüş tarihi bilinen sakatlar o güne kadar oynamaz.">
           <input type="checkbox" checked={sitOut} onChange={(e) => setSitOut(e.target.checked)} /> O durumundakileri oynatma
+        </label>
+        <label className="check" title="Senaryo: Q / GTD / DTD durumundaki oyuncular bu hafta hiç oynamaz. Varsayılan model onları oynar sayar; gerçek oynama oranı ölçülmedi.">
+          <input type="checkbox" checked={qOut} onChange={(e) => setQOut(e.target.checked)} /> Q/GTD de oynamasın (senaryo)
         </label>
         {busy && <span className="spinner" />}
       </div>

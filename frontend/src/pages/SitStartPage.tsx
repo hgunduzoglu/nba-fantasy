@@ -72,6 +72,7 @@ export function SitStartPage({ meta, league, team, injuries }: Props) {
   const [week, setWeek] = useState<number | null>(null);
   const [strategy, setStrategy] = useState<StrategyChoice>(BALANCED);
   const [sitOut, setSitOut] = useState(true);
+  const [qOut, setQOut] = useState(false);
   const [data, setData] = useState<SitStartOut | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(true);
@@ -79,11 +80,11 @@ export function SitStartPage({ meta, league, team, injuries }: Props) {
 
   useEffect(() => {
     setBusy(true);
-    api.sitstart(league.id, { team, week, sit_out: sitOut, strategy: toStrategyIn(strategy), injuries })
+    api.sitstart(league.id, { team, week, sit_out: sitOut, questionable_out: qOut, strategy: toStrategyIn(strategy), injuries })
       .then((d) => { setData(d); setError(null); })
       .catch((e: Error) => setError(e.message))
       .finally(() => setBusy(false));
-  }, [league.id, team, week, sitOut, strategy, injuries]);
+  }, [league.id, team, week, sitOut, qOut, strategy, injuries]);
 
   if (!data && busy) return <Loading text="Kadro düzeni hesaplanıyor…" />;
   if (!data) return <ErrorBanner error={error} />;
@@ -108,6 +109,9 @@ export function SitStartPage({ meta, league, team, injuries }: Props) {
         <StrategyPicker meta={meta} value={strategy} onChange={setStrategy} label="Senin stratejin" />
         <label className="check" title="O durumundakiler oynamaz; Q oynar; dönüş tarihi bilinen sakatlar o güne kadar oynamaz.">
           <input type="checkbox" checked={sitOut} onChange={(e) => setSitOut(e.target.checked)} /> O durumundakileri oynatma
+        </label>
+        <label className="check" title="Senaryo: Q / GTD / DTD durumundaki oyuncular bu hafta hiç oynamaz. Varsayılan model onları oynar sayar; gerçek oynama oranı ölçülmedi.">
+          <input type="checkbox" checked={qOut} onChange={(e) => setQOut(e.target.checked)} /> Q/GTD de oynamasın (senaryo)
         </label>
         {busy && <span className="spinner" />}
       </div>

@@ -512,6 +512,7 @@ export interface WeeklyIn {
   week?: number | null;
   opponent?: string | null;
   sit_out: boolean;
+  questionable_out?: boolean;
   strategy?: StrategyIn | null;
   acc_mine?: Record<string, number> | null;
   acc_opp?: Record<string, number> | null;
