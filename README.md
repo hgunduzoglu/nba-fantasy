@@ -2191,8 +2191,7 @@ an explanation. The benefit side (expected categories, P(5+)) is already compute
 **Manager profile**: from the league's transactions page (`transactions.csv`), each team's free-agent adds, drops,
 trades, vetoed trades and last action day. It is shown on the trade page under the other team, with the capture date of
 the transaction history (`GET /managers`). It shows how active a manager is; the tendency to accept offers is not
-measured and it does not change the acceptability level. `transactions.csv` is not updated by the Yahoo sync (last
-capture 31 October); the profile runs to that date.
+measured and it does not change the acceptability level. `transactions.csv` is updated by the Yahoo sync (§13.40).
 
 **Offer log**: "Teklif ettim" (I offered) on the trade page records the selected trade with its measures at that moment:
 both sides' gain, value balance, the ratio in the opponent's eyes and the acceptability level (`POST /trade/offer`). When
@@ -2217,6 +2216,34 @@ double counting and the cap did not change. Within groups there is regression to
 (previous ≥ 0.85) play 0.76 after returning, frequent absentees (< 0.70) 0.67; the samples are small (14 and 34).
 Limits: the previous season's rate is not the projection, players who changed teams are left out, not getting minutes
 counts as a missed game.
+
+### 13.40 Minutes ramp after a return and a season timing warning (14 November 2026)
+
+**Minutes ramp** (`apply_return_ramp`): a player back from a long injury plays less in his first games. Measured from NBA
+game logs (`scripts/check_durability.py --ramp`; 81 returns in 2024-25 and 2025-26 after missing ≥ 10 games, with ≥ 20
+minutes before): in the first game back 78% of the pre-injury minutes, then 82%, 85%, 90%, 93%; no difference from the
+6th game on. Both seasons give the same result. For an injured player with a known return date, the rest-of-season
+production is reduced by this loss (per-game value unchanged). The values change with `ramp` in `config/returns.yaml`;
+an empty list turns it off.
+
+**Timing warning**: on the 14 November data, Banchero + Jackson → Ty Jerome + Jalen Williams gains you +0.09 categories a
+week, while in the season simulation it lowers your playoff probability by 10.8 points. Jalen Williams is out until early
+March: the weekly average values his end-of-season contribution as much as today's, but the playoff race ends before he
+returns. In the reference cases the model order and the season order point in opposite directions on this data
+(Spearman −0.22 to −0.36). So:
+
+- In the completion and suggestion lists the season effect is now computed **automatically** (the button stays for
+  recomputing).
+- If the weekly gain is positive but the playoff probability clearly drops (outside the error margin), the row shows a
+  **⚠ sezon** warning.
+- The default order is still the model score: the score rewards balanced trades where both sides gain (so the other side
+  accepts), the season effect looks only at your goal. They answer different questions; the season order is chosen with
+  "Δ playoff".
+
+**Transaction history** (§13.38) is now updated by the Yahoo sync: the league's transactions page is read newest first and
+reading stops at a known transaction. The key is player ids + team + timestamp; Yahoo also writes the player's current
+injury status into the row text, so the text cannot be the key. If the page cannot be read, a note is added and the rest of
+the sync is not affected.
 
 ### 13.8 V3 candidates
 

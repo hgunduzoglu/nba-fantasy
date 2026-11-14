@@ -2174,7 +2174,7 @@ beklentisi, P(5+)) zaten kadro çözümüyle hesaplanıyor.
 **Menajer profili**: ligin işlem sayfasından (`transactions.csv`) her takımın boştan alımı, bırakması, takası, veto
 edilen takası ve son işlem günü. Takas Analizi'nde karşı takımın altında, işlem geçmişinin çekim tarihiyle gösterilir
 (`GET /managers`). Menajerin ne kadar etkin olduğunu gösterir; teklif kabul eğilimi ölçülmedi, kabul gerekçesi düzeyini
-değiştirmez. `transactions.csv` Yahoo senkronizasyonuyla güncellenmiyor (son çekim 31 Ekim); profil o tarihe kadardır.
+değiştirmez. `transactions.csv` Yahoo senkronizasyonuyla güncellenir (§13.40).
 
 **Teklif kaydı**: Takas Analizi'nde "Teklif ettim" seçili takası o anki ölçüleriyle kaydeder: iki tarafın kazancı, değer
 dengesi, rakibin gözünde oran ve kabul gerekçesi düzeyi (`POST /trade/offer`). Cevap gelince listeden kabul / ret /
@@ -2196,6 +2196,29 @@ oyuncuların dönüş sonrası oynama oranı, önceki sezonun oranıyla (sezon �
 değişmedi. Gruplarda ortalamaya dönüş var: dayanıklı görünen oyuncular (önceki ≥ 0,85) dönüşten sonra 0,76, sık
 kaçıranlar (< 0,70) 0,67 oynuyor; örnekler küçük (14 ve 34). Sınırlar: önceki sezon oranı projeksiyon değildir, takım
 değiştirenler dışarıda, süre almamak kayıp sayılır.
+
+### 13.40 Dönüş sonrası dakika artışı ve sezon zamanlaması uyarısı (14 Kasım 2026)
+
+**Dakika artışı** (`apply_return_ramp`): uzun sakatlıktan dönen oyuncu ilk maçlarda daha az oynar. NBA maç
+kayıtlarından ölçüldü (`scripts/check_durability.py --ramp`; 2024-25 ve 2025-26'da ≥ 10 maç kaçırıp dönen, öncesinde
+≥ 20 dakika oynayan 81 dönüş): dönüşteki 1. maçta sakatlık öncesi dakikanın %78'i, sonra %82, %85, %90, %93; 6. maçtan
+sonra fark yok. İki sezon aynı sonucu veriyor. Dönüş tarihi bilinen sakatın kalan sezon üretimi bu kayıp kadar azaltılır
+(maç başı değer aynı). Değerler `config/returns.yaml` içinde `ramp` ile değişir; boş liste kapatır.
+
+**Zamanlama uyarısı**: 14 Kasım verisinde Banchero + Jackson → Ty Jerome + Jalen Williams haftalık kategoride sana +0,09
+kazandırıyor, sezon simülasyonunda ise playoff olasılığını 10,8 puan düşürüyor. Jalen Williams Mart başına kadar sakat:
+haftalık ortalama sezon sonundaki katkısını bugünkü kadar değerli sayar, oysa playoff yarışı o dönmeden biter. Referans
+vakalarda model sırası ile sezon sırası bu veride ters yönde (Spearman −0,22 ile −0,36). Bu yüzden:
+
+- Tamamlama ve öneri listelerinde sezon etkisi artık **kendiliğinden** hesaplanır (düğme yeniden hesaplamak için kalır).
+- Haftalık kazanç pozitifken playoff olasılığı açıkça düşüyorsa (hata payının dışında) satırda **⚠ sezon** uyarısı çıkar.
+- Varsayılan sıra yine model puanıdır: puan iki tarafın da kazandığı dengeli takası ödüllendirir (rakibin kabul etmesi
+  için), sezon etkisi yalnız senin hedefine bakar. İkisi farklı soruları cevaplar; sezon sırası "Δ playoff" ile seçilir.
+
+**İşlem geçmişi** (§13.38) artık Yahoo senkronizasyonuyla güncellenir: ligin işlem sayfası en yeniden geriye okunur,
+bilinen işleme ulaşınca durulur. İşlem anahtarı oyuncu kimlikleri + takım + zaman damgasıdır; Yahoo satır metnine
+oyuncunun güncel sakatlık durumunu da yazdığı için metin anahtar olamaz. Sayfa okunamazsa not düşülür, senkronizasyonun
+geri kalanı etkilenmez.
 
 ### 13.8 V3 adayları
 
