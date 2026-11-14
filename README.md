@@ -2341,6 +2341,26 @@ a gain that depends on free moves). On screen the ⓘ badge shows all of them; "
 the problem ones. Suggestions still do not optimise championship odds: the season effect is shown next to them as a
 shadow evaluation.
 
+### 13.45 A shared plan for the trade score and the season simulation, and a daily-lineup re-evaluation (14 November 2026)
+
+The trade score, the weekly analysis and the season simulation worked with different assumptions. The trade score adds up
+player vectors (no daily slot assignment); the weekly model and the simulation build daily lineups. The simulation's waiver
+policy also differed: on post-trade rosters it chose moves from scratch with the balanced strategy (`joint_waiver`).
+
+- **Shared plan** (`SeasonSim.plans`): teams in the trade use the same plan object in the simulation as in the trade
+  score (`TradeEngine.waiver_plans`). That plan has the team's own strategy, post-trade `anchored_waiver` tied to the
+  pre-trade moves, capacity validation and this week's adds. Moves beyond the budget are absent in the current week.
+  Other teams pick from the shared pool in the league's waiver priority.
+- **Daily-lineup re-evaluation** (`SeasonResult.ecw`, `ecw_lineup` in the effect): over the remaining regular-season
+  weeks the simulation computes each team's expected categories against the league average with the weekly model's daily
+  slot assignment. The season table in the trade analysis and the finalists in the suggestion list (whose season effect is
+  computed automatically) show this delta next to the fast score. The fast score stays as the candidate screen. The two
+  numbers differ by horizon (rest of season versus regular season) and daily lineup assignment (benched games,
+  positions), not by a hidden difference in assumptions.
+
+Example: Banchero + Jackson → Jerome + Williams is −0.007 categories a week in the fast score, −0.143 with daily lineups
+and −10 points in playoff odds (±2). Lineup conflicts make the trade clearly worse than the fast score shows.
+
 ### 13.8 V3 candidates
 
 Beam search and H-score weight optimization; fitting the profile mix; covariance of game counts between

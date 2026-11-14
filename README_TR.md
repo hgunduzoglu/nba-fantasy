@@ -2315,6 +2315,25 @@ oyuncular; kazancın bedava hamlelere bağlı olması). Ekranda ⓘ rozeti hepsi
 "? veri" rozetleri sorunlu olanları işaretler. Öneriler hâlâ şampiyonluk olasılığını optimize etmez: sezon etkisi gölge
 değerlendirme olarak yanında gösterilir.
 
+### 13.45 Takas puanı ve sezon simülasyonunda ortak plan, günlük kadroyla yeniden değerlendirme (14 Kasım 2026)
+
+Takas puanı, haftalık analiz ve sezon simülasyonu farklı varsayımlarla çalışıyordu. Takas puanı oyuncu vektörlerini
+topluyor (günlük slot ataması yok); haftalık model ve simülasyon günlük kadroyu kuruyor. Simülasyonun waiver politikası da
+farklıydı: takas sonrası kadrolarda hamleleri sıfırdan ve dengeli stratejiyle seçiyordu (`joint_waiver`).
+
+- **Ortak plan** (`SeasonSim.plans`): takastaki takımlar simülasyonda da takas puanıyla aynı plan nesnesini kullanır
+  (`TradeEngine.waiver_plans`). Bu planda takımın kendi stratejisi, takas sonrası takas öncesi hamlelere bağlı
+  `anchored_waiver`, kapasite doğrulaması ve bu haftanın alım hakkı vardır. Hakkı aşan hamleler içinde bulunulan
+  haftada yoktur. Diğer takımlar ligin waiver önceliğiyle ortak havuzdan seçer.
+- **Günlük kadroyla yeniden değerlendirme** (`SeasonResult.ecw`, etkide `ecw_lineup`): simülasyon kalan normal sezon
+  haftalarında her takımın lig ortalamasına karşı beklenen kategori sayısını haftalık modelin günlük slot atamasıyla
+  hesaplar. Takas analizindeki sezon tablosu ve öneri listesindeki finalistler (sezon etkisi otomatik hesaplanır) bu
+  farkı hızlı puanın yanında gösterir. Hızlı puan aday taraması olarak kalır. İki sayının farkı ufuk (kalan sezon ile
+  normal sezon) ve günlük kadro atamasından (bench'e düşen maçlar, pozisyonlar) gelir, gizli bir varsayım farkından değil.
+
+Örnek: Banchero + Jackson → Jerome + Williams hızlı puanda −0,007 kategori/hafta, günlük kadroyla −0,143 ve
+playoff olasılığında −10 puan (±2). Kadro çakışmaları takası hızlı puanın gösterdiğinden belirgin biçimde kötüleştiriyor.
+
 ### 13.8 V3 adayları
 
 Beam search ve H-score ağırlık optimizasyonu; profil karışımı uyumu; oyuncular arası maç sayısı
