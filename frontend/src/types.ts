@@ -113,6 +113,21 @@ export interface ManagersOut {
   teams: ManagerProfile[];
 }
 
+export type OfferOutcome = "pending" | "accepted" | "rejected" | "countered";
+
+/** Kaydedilen teklif (``/trade/offers``): teklif anındaki kabul gerekçesi ve son cevap. */
+export interface OfferRow {
+  decision_id: string;
+  created_at: string;
+  outcome: OfferOutcome;
+  team_a: string;
+  team_b: string;
+  give_a: { id: string; name: string }[];
+  give_b: { id: string; name: string }[];
+  acceptability: Acceptability | null;
+  perceived_view: number | null;
+}
+
 export interface ReportRecord {
   key: string;
   status: "running" | "done" | "error";
