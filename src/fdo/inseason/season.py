@@ -23,10 +23,15 @@
   vektörü (ortalama ve varyans) sezon boyu sabit bir ``λ ~ lognormal(0, strength_sd)`` ile ölçeklenir
   (oranlar değişmez). Olmadan takım güçleri kesin bilinir sayılır ve olasılıklar aşırı kesinleşir.
   ``strength_sd`` kalibre edilmedi (varsayılan 0.06).
-* **Waiver hamleleri** (``waiver_order`` verilirse): sezon başında (veri gününde) bu sıradaki takımlar boştaki en iyi
-  oyuncuları ortak havuzdan alır (``TradeEngine.joint_waiver``: boş yer doldurulur, en zayıf aktif daha iyi bir
-  boştakiyle değiştirilir; dengeli strateji). Takas motorunun "bedava waiver hamleleri" varsayımıyla aynı; sıra ligin
-  waiver önceliği, işlem yapmayan menajer listede yoktur. Sezon içindeki sonraki hamleler (haftalık streaming) yok.
+* **Waiver hamleleri** (``waiver_order`` verilirse): sezon başında (veri gününde) takımlar boştaki oyuncuları ortak
+  havuzdan alır. Takastaki takımlar (``first``) **takas puanıyla aynı plan nesnesini** kullanır
+  (``TradeEngine.waiver_plans``: kendi stratejileri, takas sonrası takas öncesi hamlelere bağlı ``anchored_waiver``,
+  kapasite doğrulaması ve bu haftanın alım hakkı: hakkı aşan hamleler içinde bulunulan haftada yok). Sonra ligin waiver
+  önceliğindeki diğer takımlar (``joint_waiver``, dengeli strateji); işlem yapmayan menajer listede yoktur. Sezon
+  içindeki sonraki hamleler (haftalık streaming) yok.
+* **Günlük kadroyla kategori beklentisi** (``SeasonResult.ecw``): kalan normal sezon haftalarında takımın lig
+  ortalamasına karşı beklenen kategori sayısı, haftalık modelin günlük slot atamasıyla. Takas puanının (oyuncu
+  toplamı) günlük kadro karşılığıdır: aynı takasın iki hesaptaki farkı ufuk ve kadro atamasından gelir.
 * Aynı ``seed`` ile iki senaryo aynı çekilişleri kullanır (CRN): takas etkisi eşleşmeli farktır.
 """
 
@@ -42,8 +47,9 @@ from scipy.special import ndtri
 
 from fdo.inseason.weekly import Stint, WeekModel, accumulated_vector
 from fdo.inseason.weeks import LeagueWeeks
-from fdo.matchup.ecw import ecw_vs, p_at_least, p_outcomes
+from fdo.matchup.ecw import ecw_vs, p_at_least, p_outcomes, p_win
 from fdo.matchup.player_week import WEEK_DIM
+from fdo.trade.engine import RosterPlan
 from fdo.trade.strategy import Strategy
 
 
@@ -94,6 +100,8 @@ class SeasonResult:
     n_sims: int
     playoff_size: int
     notes: list[str] = field(default_factory=list)
+    #: (T,) kalan normal sezonda haftalık beklenen kategori (lig ortalamasına karşı), günlük kadro ataması ile.
+    ecw: np.ndarray | None = None
 
 
 class SeasonSim:
@@ -147,17 +155,31 @@ class SeasonSim:
                                   "günler takas öncesi kadroyla beklenen değerdir; takas yalnız kalan günleri etkiler.")
 
     # ------------------------------------------------------------- waiver
-    def with_waivers(self, rosters: dict[str, tuple[str, ...]], injuries: dict[str, frozenset[str]] | None = None,
-                     first: tuple[str, ...] = ()) -> dict[str, tuple[str, ...]]:
-        """Bedava waiver hamleleri uygulanmış kadrolar: önce ``first`` (takastaki takımlar: karar veren şimdi hareket
-        eder; takas motorunun varsayımı), sonra ``waiver_order``'daki diğer takımlar. İkisi de boşsa aynı kadrolar."""
-        order = tuple(first) + tuple(t for t in self.waiver_order if t not in first)
-        if not order:
-            return rosters
+    def plans(self, rosters: dict[str, tuple[str, ...]], injuries: dict[str, frozenset[str]] | None = None,
+              first: tuple[str, ...] = (), strategies: dict[str, Strategy] | None = None) -> dict[str, RosterPlan]:
+        """Bedava waiver planları: önce ``first`` (takastaki takımlar; karar veren şimdi hareket eder) takas puanıyla
+        aynı ``TradeEngine.waiver_plans`` ile (``strategies``: takımın stratejisi, yoksa dengeli), sonra
+        ``waiver_order``'daki diğer takımlar ortak havuzdan (``joint_waiver``). İkisi de boşsa boş."""
         eng = self.engine
-        items = [(t, tuple(rosters[t]), eng._il(t, rosters[t], injuries), Strategy()) for t in order if t in rosters]
-        moved = eng.joint_waiver(items, taken={p for r in rosters.values() for p in r})
-        return {**rosters, **{t: moved[t][0] for t in moved}}
+        head = tuple(t for t in first if t in rosters)
+        out = (eng.waiver_plans(rosters, {t: (strategies or {}).get(t) or Strategy() for t in head}, injuries)
+               if head else {})
+        rest = [t for t in self.waiver_order if t not in head and t in rosters]
+        if rest:
+            taken = {p for r in rosters.values() for p in r} | {f for pl in out.values() for _, f in pl.moves}
+            items = [(t, tuple(rosters[t]), eng._il(t, rosters[t], injuries), Strategy()) for t in rest]
+            moved = eng.joint_waiver(items, taken=taken)
+            for t, r, il, _ in items:
+                out[t] = RosterPlan(tuple(moved[t][0]), il, tuple(moved[t][1]), r, eng.budget(t))
+        return out
+
+    def with_waivers(self, rosters: dict[str, tuple[str, ...]], injuries: dict[str, frozenset[str]] | None = None,
+                     first: tuple[str, ...] = (), strategies: dict[str, Strategy] | None = None,
+                     this_week: bool = False) -> dict[str, tuple[str, ...]]:
+        """Bedava waiver hamleleri uygulanmış kadrolar (``plans``). ``this_week``: içinde bulunulan haftanın kadroları
+        (alım hakkını aşan hamleler henüz yok)."""
+        plans = self.plans(rosters, injuries, first, strategies)
+        return {**rosters, **{t: (p.week_roster if this_week else p.roster) for t, p in plans.items()}}
 
     # ------------------------------------------------------------- haftalık vektörler
     def il_map(self, rosters: dict[str, tuple[str, ...]],
@@ -274,11 +296,15 @@ class SeasonSim:
 
     def run(self, rosters: dict[str, tuple[str, ...]] | None = None, *, n_sims: int = 2000, seed: int = 0,
             team: str | None = None, strength_sd: float = 0.06,
-            injuries: dict[str, frozenset[str]] | None = None, first: tuple[str, ...] = ()) -> SeasonResult:
+            injuries: dict[str, frozenset[str]] | None = None, first: tuple[str, ...] = (),
+            strategies: dict[str, Strategy] | None = None) -> SeasonResult:
         """``injuries``: takas sonrası IL kümeleri (``TradeEngine.resolve``); yoksa lig IL'i ∩ kadro. ``first``: waiver
-        hamlelerini önce yapan takımlar (takastakiler; takassız koşuda da aynısı verilmeli ki fark eşleşsin)."""
+        hamlelerini önce yapan takımlar (takastakiler; takassız koşuda da aynısı verilmeli ki fark eşleşsin);
+        ``strategies``: onların stratejileri (takas puanıyla aynı)."""
         given = dict(rosters or self.league.rosters)
-        rosters = self.with_waivers(given, injuries, first)
+        plans = self.plans(given, injuries, first, strategies)
+        rosters = {**given, **{t: p.roster for t, p in plans.items()}}
+        now = {**given, **{t: p.week_roster for t, p in plans.items()}}         # hakkı aşan hamleler bu hafta yok
         il = self.il_map(rosters, injuries)
         T, S = len(self.teams), int(n_sims)
         rng = np.random.default_rng(seed)
@@ -292,11 +318,16 @@ class SeasonSim:
             L_ += st["losses"].to_numpy(float)
             Tie += st["ties"].to_numpy(float)
         start = self.done + 1
+        ecw, n_weeks = np.zeros(T), 0
         for w in [w for w in self.regular if w >= start]:
+            V = self.week_vectors(now if w == self.current_week else rosters, w, il)
+            P = p_win(V[:, None, :], V[None, :, :], self.engine.config).sum(axis=2)   # (T, T) günlük kadroyla
+            np.fill_diagonal(P, np.nan)
+            ecw += np.nanmean(P, axis=1)
+            n_weeks += 1
             pairs = self.pairs.get(w, [])
             if not pairs:
                 continue
-            V = self.week_vectors(rosters, w, il)
             a = np.array([x for x, _ in pairs])
             b = np.array([y for _, y in pairs])
             k, t = self._outcomes(lam[:, a, None] * V[a][None], lam[:, b, None] * V[b][None], rng)   # (S, M)
@@ -326,7 +357,7 @@ class SeasonSim:
         }, index=self.teams)
         sched = self.fixture_outlook(team, given, injuries) if team is not None else pd.DataFrame()
         notes = list(self.notes) + [f"Takım gücü belirsizliği: sezonluk ±%{100 * strength_sd:.0f} (kalibre edilmedi)."]
-        return SeasonResult(table, sched, seeds, champion, start, S, n, notes)
+        return SeasonResult(table, sched, seeds, champion, start, S, n, notes, ecw / n_weeks if n_weeks else None)
 
     def effect(self, base: SeasonResult, after: SeasonResult, team: str) -> dict[str, PairedDelta]:
         """Bir senaryonun takıma etkisi: ``playoff`` (playoff varsa), ``champion``, ``seed`` (ortalama sıra). İki koşu
@@ -336,6 +367,9 @@ class SeasonSim:
         i = self.tix[team]
         out = {"champion": paired(base.champion[:, i], after.champion[:, i]),
                "seed": paired(base.seeds[:, i], after.seeds[:, i])}
+        if base.ecw is not None and after.ecw is not None:                  # günlük kadroyla, simülasyon gürültüsü yok
+            b, a = float(base.ecw[i]), float(after.ecw[i])
+            out["ecw_lineup"] = PairedDelta(b, a, a - b, 0.0)
         if base.playoff_size:
             n = base.playoff_size
             out["playoff"] = paired(base.seeds[:, i] <= n, after.seeds[:, i] <= n)

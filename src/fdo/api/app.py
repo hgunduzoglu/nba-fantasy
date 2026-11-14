@@ -258,9 +258,9 @@ def create_app(data_dir: str | Path | None = None, frontend_dir: str | Path | No
             rosters, _, il = eng.resolve(_request(body), {body.team_a: sa, body.team_b: sb})
         except (TradeError, ValueError) as e:
             raise HTTPException(400, str(e)) from e
-        first = (body.team_a, body.team_b)
-        base = state.season_base(lid, body.injuries, n, sd, basis=body.basis, first=first)
-        after = sim.run(rosters, n_sims=n, seed=1, strength_sd=sd, injuries=il, first=first)
+        first, pair = (body.team_a, body.team_b), {body.team_a: sa, body.team_b: sb}
+        base = state.season_base(lid, body.injuries, n, sd, basis=body.basis, first=first, strategies=pair)
+        after = sim.run(rosters, n_sims=n, seed=1, strength_sd=sd, injuries=il, first=first, strategies=pair)
         out = {}
         for side, tid in (("a", body.team_a), ("b", body.team_b)):
             b, a = base.table.loc[tid], after.table.loc[tid]
@@ -288,9 +288,9 @@ def create_app(data_dir: str | Path | None = None, frontend_dir: str | Path | No
             except (TradeError, ValueError, HTTPException) as e:
                 rows.append({"index": i, "error": getattr(e, "detail", None) or str(e)})
                 continue
-            first = (t.team_a, t.team_b)
-            base = state.season_base(lid, body.injuries, n, sd, basis=body.basis, first=first)
-            after = sim.run(rosters, n_sims=n, seed=1, strength_sd=sd, injuries=il, first=first)
+            first, pair = (t.team_a, t.team_b), {t.team_a: sa, t.team_b: sb}
+            base = state.season_base(lid, body.injuries, n, sd, basis=body.basis, first=first, strategies=pair)
+            after = sim.run(rosters, n_sims=n, seed=1, strength_sd=sd, injuries=il, first=first, strategies=pair)
             rows.append({"index": i, "give_a": list(t.give_a), "give_b": list(t.give_b),
                          "teams": {side: {"team_id": tid, **season_effect(sim, base, after, tid)}
                                    for side, tid in (("a", t.team_a), ("b", t.team_b))}})

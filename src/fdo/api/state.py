@@ -172,14 +172,20 @@ class AppState:
         return self._get(("season_sim", eng.data.fingerprint, str(league_id)), build)
 
     def season_base(self, league_id: str, injuries: bool, n_sims: int, sd: float, seed: int = 1,
-                    basis: str = "ros", first: tuple[str, ...] = ()) -> SeasonResult | None:
-        """Takassız sezon; ``first``: waiver hamlelerini önce yapan takımlar (takastakiler, takaslı koşuyla aynı)."""
+                    basis: str = "ros", first: tuple[str, ...] = (),
+                    strategies: dict | None = None) -> SeasonResult | None:
+        """Takassız sezon; ``first``: waiver hamlelerini önce yapan takımlar (takastakiler, takaslı koşuyla aynı);
+        ``strategies``: onların stratejileri (takas puanıyla aynı plan)."""
+        strategies = {t: s for t, s in (strategies or {}).items() if s is not None}
         sim = self.season_sim(league_id, injuries, basis)
         if sim is None:
             return None
         eng = self.engine(league_id, injuries, basis)
-        return self._get(("season_base", eng.data.fingerprint, str(league_id), n_sims, round(sd, 4), seed, tuple(first)),
-                         lambda: sim.run(n_sims=n_sims, seed=seed, strength_sd=sd, first=tuple(first)))
+        key = tuple((t, strategies.get(t)) for t in first)
+        return self._get(("season_base", eng.data.fingerprint, str(league_id), n_sims, round(sd, 4), seed, tuple(first),
+                          key, eng.adds_used.get(str(first[0])) if first else None),
+                         lambda: sim.run(n_sims=n_sims, seed=seed, strength_sd=sd, first=tuple(first),
+                                         strategies=strategies))
 
     def playoff_games(self, league_id: str, injuries: bool = True) -> dict[str, int]:
         """Oyuncu → fantezi playoff haftalarındaki NBA maçı (bilinen sakatlık dönüşünden önceki maçlar hariç).

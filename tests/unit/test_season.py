@@ -82,8 +82,9 @@ def test_paired_effect_is_zero_for_the_same_rosters_and_carries_an_error(sim, da
     base = sim.run(n_sims=400, seed=4)
     same = sim.run(n_sims=400, seed=4)
     e = sim.effect(base, same, "1")
-    assert set(e) == {"playoff", "champion", "seed"}
-    assert all(d.delta == 0 and d.se == 0 and not d.clear for d in e.values())      # ortak çekiliş: gürültü yok
+    assert set(e) == {"playoff", "champion", "seed", "ecw_lineup"}
+    assert all(d.delta == 0 and d.se == 0 for d in e.values())                        # ortak çekiliş: gürültü yok
+    assert not any(d.clear for k, d in e.items() if k != "ecw_lineup")
     rosters = dict(data.leagues["L"].rosters)
     rosters["4"], rosters["1"] = rosters["1"], rosters["4"]
     after = sim.run(rosters, n_sims=400, seed=4)
@@ -199,3 +200,35 @@ def test_waiver_moves_take_free_agents_in_order_and_cancel_out_without_a_trade(d
     a = sim.run(n_sims=200, seed=2, first=("1", "2"))
     b = sim.run(dict(lg.rosters), n_sims=200, seed=2, first=("1", "2"))
     assert all(d.delta == 0 for d in sim.effect(a, b, "1").values())
+
+
+def test_trade_teams_use_the_trade_score_plans_and_lineup_ecw_is_recorded(data):  # noqa: F811
+    from fdo.trade import TradeRequest
+    from fdo.trade.strategy import Strategy
+
+    lg = data.leagues["L"]
+    lg.settings["Playoffs"] = "2 teams - Week 22 (ends Sunday, Apr 4)"
+    weeks = league_weeks(data.schedule, lg.settings, lg.config)
+    st = pd.DataFrame({"wins": [7, 2, 5, 4], "losses": [2, 7, 4, 5], "ties": 0}, index=["1", "2", "3", "4"])
+    eng = TradeEngine(data, "L", utilization=1)
+    sim = SeasonSim(WeekModel(eng), weeks, _fixtures(range(1, 20)), st, data.as_of, waiver_order=("3", "2", "1"))
+    reb = Strategy("yalnız REB", tuple(1.0 if i == 4 else 0.0 for i in range(9)))
+    pair = {"1": reb, "2": Strategy()}
+    rosters, _, il = eng.resolve(TradeRequest("1", "2", ("0",), ("4",)), pair)
+    plans = sim.plans(rosters, il, ("1", "2"), pair)
+    same = eng.waiver_plans(rosters, pair, il)                                # takas puanıyla aynı plan nesnesi
+    assert all(plans[t] == same[t] for t in ("1", "2"))
+    assert set(plans) == {"1", "2", "3"}
+    taken = [f for pl in plans.values() for _, f in pl.moves]
+    assert len(taken) == len(set(taken))                                      # ortak havuz
+    r = sim.run(rosters, n_sims=100, seed=3, injuries=il, first=("1", "2"), strategies=pair)
+    assert r.ecw is not None and r.ecw.shape == (4,) and np.isfinite(r.ecw).all()
+    base = sim.run(n_sims=100, seed=3, first=("1", "2"), strategies=pair)
+    e = sim.effect(base, r, "1")["ecw_lineup"]
+    assert e.delta == pytest.approx(r.ecw[0] - base.ecw[0])
+    # bu haftanın hakkı bitmişse hamleler içinde bulunulan haftada yok
+    spent = TradeEngine(data, "L", utilization=1, adds_used={"1": 4})
+    sim2 = SeasonSim(WeekModel(spent), weeks, _fixtures(range(1, 20)), st, data.as_of, waiver_order=("1",))
+    pl = sim2.plans(dict(lg.rosters), None, ("1",))["1"]
+    if pl.moves:
+        assert pl.later == pl.moves and sim2.with_waivers(dict(lg.rosters), first=("1",), this_week=True)["1"] == pl.base
