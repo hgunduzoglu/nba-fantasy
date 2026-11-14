@@ -525,3 +525,27 @@ def test_free_moves_beyond_this_weeks_adds_start_next_week(trade_data):
     b = full.budget("2", reserved=1)
     assert not b.known and b.remaining == 1
     assert TradeEngine(trade_data, "L", utilization=1, adds_limit=0).budget("1").remaining == 0
+
+
+def test_default_ranking_is_my_gain_and_joint_is_kept_as_an_option(eng):
+    from fdo.trade.suggest import components, rank_value
+    base = dict(max_evaluations=600, min_fairness=.1, min_strategy_gain=.00001, min_win_gain=-1, ecw_weight=1,
+                min_opponent_view=0, require_reason=False)
+    own = suggest_trades(eng, "2", options=SearchOptions(**base)).suggestions
+    joint = suggest_trades(eng, "2", options=SearchOptions(**base, rank="joint")).suggestions
+    assert own and joint
+    for s in own:                                            # puan = senin kazancın; denge ve rakip süzgeçte
+        assert s.score == pytest.approx(s.own_strategy_delta / 9)
+    assert [s.score for s in own] == sorted((s.score for s in own), reverse=True)
+    for s in joint:
+        ga, gb = s.own_strategy_delta / 9, s.other_strategy_delta / 9
+        assert s.score == pytest.approx(rank_value("joint", ga, gb, s.fairness))
+    with pytest.raises(ValueError):
+        SearchOptions(rank="yok")
+    s = own[0]
+    _, adj, _ = eng.resolve(s.request, {"2": Strategy(), s.request.team_b: s.other_strategy})
+    c = components(eng, s, adj, own_plain=-1.0)
+    assert set(c) == {"own", "opponent", "market", "feasibility", "uncertainty"}
+    assert c["own"]["strategy_delta"] == s.own_strategy_delta and c["market"]["value_balance"] == s.fairness
+    assert c["uncertainty"]["moves_dependent"] is (s.own_strategy_delta > 0)
+    assert c["feasibility"]["adds_left"] == eng.budget("2").remaining and not c["feasibility"]["adds_known"]

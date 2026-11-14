@@ -207,8 +207,11 @@ class MultiSearchOptions:
     min_win_gain: float = 0.0
     ecw_weight: float = .65
     min_opponent_view: float = 0.0       # diğer takımların gözünde (algılanan değer) aldığı / verdiği; 0 = kapalı
+    rank: str = "own"                    # sıralama: own = senin kazancın (diğerlerinin kazancı süzgeç); joint = ortak
 
     def __post_init__(self):
+        if self.rank not in ("own", "joint"):
+            raise ValueError("Geçersiz sıralama politikası")
         if (self.min_opponent_view < 0 or not self.shapes or any(tuple(s) not in SHAPES for s in self.shapes) or not 2 <= self.shortlist <= 10
                 or not 2 <= self.shortlist4 <= self.shortlist or self.candidates < 1 or self.max_results < 1
                 or self.per_group < 1 or self.per_package < 1 or not 0 <= self.min_fairness <= 1 or not 0 <= self.ecw_weight <= 1
@@ -416,7 +419,10 @@ def suggest_multi(engine: TradeEngine, team_id: str, *, strategy: Strategy | Non
         result.scanned += int(np.prod(stacked.shape[1:]))
         if not mask.any():
             continue
-        score = (stacked.min(axis=0) + stacked.mean(axis=0)) * (.5 + .5 * np.broadcast_to(fair, stacked.shape[1:]))
+        if options.rank == "own":                  # senin kazancın (teams[0]); diğerleri süzgeçte
+            score = stacked[0]
+        else:
+            score = (stacked.min(axis=0) + stacked.mean(axis=0)) * (.5 + .5 * np.broadcast_to(fair, stacked.shape[1:]))
         score = np.where(mask, score, -np.inf)
         flat = score.ravel()
         top = np.argpartition(-flat, min(len(flat) - 1, 11))[:12]
@@ -463,7 +469,8 @@ def suggest_multi(engine: TradeEngine, team_id: str, *, strategy: Strategy | Non
         if g.min() <= 0:
             continue
         result.eligible += 1
-        value = (g.min() + float(np.exp(np.log(g).mean()))) * (.5 + .5 * fair)
+        value = (float(g[list(metrics).index(team_id)]) if options.rank == "own"
+                 else (g.min() + float(np.exp(np.log(g).mean()))) * (.5 + .5 * fair))
         found.append(MultiSuggestion(req, shape, float(value), metrics, fair, {t: strategies[t] for t in teams}))
     found.sort(key=lambda s: -s.score)
     result.suggestions = sorted(_pick(found, options.max_results, lambda s: s.shape,

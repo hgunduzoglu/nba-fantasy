@@ -127,7 +127,7 @@ def register(app: FastAPI, state: AppState) -> None:
             opts = MultiSearchOptions(shapes, body.shortlist, min(body.shortlist4, body.shortlist),
                                       min_fairness=body.min_fairness, min_strategy_gain=body.min_gain,
                                       min_win_gain=body.min_win / 100, ecw_weight=body.ecw_weight,
-                                      min_opponent_view=body.min_view)
+                                      min_opponent_view=body.min_view, rank=body.rank)
             strategy = _strategy(body.strategy, eng, body.team)
             found = suggest_multi(eng, body.team, strategy=strategy,
                                   opponent_strategies=assumed_strategies(eng, body.opponent_assumption, opps),

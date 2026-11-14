@@ -12,6 +12,12 @@
   ``min_edge``); aynı algılanan denge ve senin kazancın şartı.
 
 Algılanan değer ``fdo.trade.perception`` (bu sezon / sezon öncesi / ikisinin ortalaması).
+
+Sıralama politikası (``rank``, ``RANKINGS``) açıktır: varsayılan ``own``, rakip için makul gerekçesi olan (eşikler ve
+``counterpart``) ve değer dengesini geçen paketler arasında **senin** kazancına göre sıralar; değer dengesi ve
+rakibin kazancı süzgeçtir, puanı büyütmez. ``joint`` eski ortak fayda puanıdır (iki tarafın kazancını birlikte
+yükseltir, dengeyi ödüllendirir). Her önerinin bileşenleri ayrıca gösterilir (``components``): senin faydan, rakibin
+gerekçesi, piyasa dengesi, uygulanabilirlik ve belirsizlik.
 """
 
 from __future__ import annotations
@@ -29,6 +35,17 @@ from fdo.trade.perception import PERCEPTIONS, perceived_prices
 from fdo.trade.strategy import Strategy
 
 MODES = {"mutual": "Karşılıklı fayda", "sell_high": "Sat yüksek", "buy_low": "Al düşük"}
+#: Sıralama politikası: süzgeçleri geçen paketler neye göre sıralanır.
+RANKINGS = {"own": "Senin faydan (rakip gerekçesi ve denge süzgeç)", "joint": "Ortak fayda (iki taraf ve denge)"}
+OUT_STATUSES = ("O", "INJ", "INJ+")
+
+
+def rank_value(rank: str, ga: float, gb: float, fair: float) -> float:
+    """Sıralama puanı. ``own``: senin kazancın; ``joint``: iki taraf da kazanıyorsa eski ortak fayda puanı
+    ``(min + √(ga·gb)) · (0,5 + 0,5 · denge)``, değilse senin kazancın."""
+    if rank == "joint" and ga > 0 and gb > 0:
+        return (min(ga, gb) + float(np.sqrt(ga * gb))) * (.5 + .5 * fair)
+    return ga
 
 
 @dataclass(frozen=True)
@@ -50,10 +67,11 @@ class SearchOptions:
     require_reason: bool = True             # rakip için gerekçesiz (modelde de kendi gözünde de kaybeden) paket listelenmez
     max_view: float = 1.25                  # karşılıklı faydada rakibin gözünde en çok: üstü piyasa gözünde senin fazla
                                             # ödemen, karşılığında daha fazlası istenebilir (0 = kapalı)
+    rank: str = "own"                       # sıralama politikası (``RANKINGS``)
 
     def __post_init__(self):
         if (self.mode not in MODES or self.perceived not in PERCEPTIONS or self.min_perceived_balance < 0
-                or self.min_edge < 0 or self.min_opponent_view < 0):
+                or self.min_edge < 0 or self.min_opponent_view < 0 or self.rank not in RANKINGS):
             raise ValueError("Geçersiz öneri türü ya da algılanan değer ayarı")
         if (not self.package_sizes or any(a not in (1, 2, 3) or b not in (1, 2, 3) for a, b in self.package_sizes)
                 or not 2 <= self.shortlist <= 20 or self.max_evaluations < 1 or self.max_results < 1
@@ -235,14 +253,9 @@ def suggest_trades(engine: TradeEngine, team_id: str, *, strategy: Strategy | No
             w = options.ecw_weight
             ga = w * m["strategy_delta"] / 9 + (1 - w) * m["win_delta"]
             gb = w * o["strategy_delta"] / 9 + (1 - w) * o["win_delta"]
-            if mode == "mutual":
-                if min(ga, gb) <= 0:
-                    continue
-                value = (min(ga, gb) + float(np.sqrt(ga * gb))) * (.5 + .5 * fair)
-            else:
-                if ga <= 0:
-                    continue
-                value = ga * min(1.0, balance)
+            if ga <= 0 or (mode == "mutual" and gb <= 0):
+                continue
+            value = rank_value(options.rank, ga, gb, fair)
             level, why = counterpart(gb, o["strategy_delta"], balance)
             if options.require_reason and level == "low":
                 result.rejected_reason += 1
@@ -290,8 +303,11 @@ class CompleteOptions:
     ecw_weight: float = .65
     require_reason: bool = True             # rakip için gerekçesiz paket listelenmez (``counterpart``)
     max_view: float = 1.25                  # rakibin gözünde en çok: üstü piyasa gözünde senin fazla ödemen (0 = kapalı)
+    rank: str = "own"                       # sıralama politikası (``RANKINGS``)
 
     def __post_init__(self):
+        if self.rank not in RANKINGS:
+            raise ValueError("Geçersiz sıralama politikası")
         if (not 1 <= self.max_side <= 3 or not 1 <= self.max_extra <= 3 or not 2 <= self.shortlist <= 20
                 or self.max_evaluations < 1 or self.max_results < 1 or not 0 <= self.min_fairness <= 1
                 or self.min_view < 0 or self.max_view < 0 or self.perceived not in PERCEPTIONS
@@ -356,13 +372,11 @@ def offer_features(engine: TradeEngine, req: TradeRequest, sa: Strategy, sb: Str
 
 
 def _tiered(req: TradeRequest, m: dict, o: dict, ga: float, gb: float, fair: float, view: float,
-            sb: Strategy) -> Suggestion:
-    if ga > 0 and gb > 0:
-        tier, value = "mutual", (min(ga, gb) + float(np.sqrt(ga * gb))) * (.5 + .5 * fair)
-    elif ga > 0:
-        tier, value = "own", ga * fair
-    else:
-        tier, value = "loss", ga
+            sb: Strategy, rank: str = "own") -> Suggestion:
+    tier = "mutual" if ga > 0 and gb > 0 else "own" if ga > 0 else "loss"
+    value = rank_value(rank, ga, gb, fair) if rank == "joint" or tier != "own" else ga
+    if rank == "joint" and tier == "own":
+        value = ga * fair
     level, why = counterpart(gb, o["strategy_delta"], view)
     return Suggestion(req, value, m["strategy_delta"], o["strategy_delta"], m["win_delta"], o["win_delta"], fair, sb,
                       tier, view, (), level, why)
@@ -412,7 +426,7 @@ def complete_trade(engine: TradeEngine, team_a: str, team_b: str, give_a: tuple[
         try:
             m, o, ga, gb = _gains(engine, req, sa, sb, w)
             v = view(fixed_a, fixed_b)
-            result.current = _tiered(req, m, o, ga, gb, balance(req, v), v, sb)
+            result.current = _tiered(req, m, o, ga, gb, balance(req, v), v, sb, options.rank)
         except TradeError:
             result.current = None
 
@@ -448,14 +462,16 @@ def complete_trade(engine: TradeEngine, team_a: str, team_b: str, give_a: tuple[
             except TradeError:
                 result.rejected_roster += 1
                 continue
-            s = _tiered(req, m, o, ga, gb, fair, v, sb)
+            s = _tiered(req, m, o, ga, gb, fair, v, sb, options.rank)
             if options.require_reason and s.acceptability == "low":
                 result.rejected_reason += 1              # rakip modelde de kendi gözünde de kaybediyor
                 continue
             found.append(s)
         if result.limit_reached:
             break
-    found.sort(key=lambda s: (TIERS[s.mode], -s.score, len(s.request.give_a) + len(s.request.give_b)))
+    # own: senin kaybettiğin paketler sonda, diğerleri senin kazancına göre; joint: türe göre, tür içinde puan
+    order = (lambda s: s.mode == "loss") if options.rank == "own" else (lambda s: TIERS[s.mode])
+    found.sort(key=lambda s: (order(s), -s.score, len(s.request.give_a) + len(s.request.give_b)))
     sets = {id(s): (frozenset(s.request.give_a), frozenset(s.request.give_b)) for s in found}
 
     def inside(small: Suggestion, big: Suggestion) -> bool:
@@ -483,3 +499,30 @@ def complete_trade(engine: TradeEngine, team_a: str, team_b: str, give_a: tuple[
                           + " olan" + (", rakip için de bir gerekçesi bulunan" if options.require_reason else "")
                           + " bir tamamlama bulunamadı. Başka oyuncu seç ya da eşikleri gevşet.")
     return result
+
+
+def components(engine: TradeEngine, s: Suggestion, adjustments: dict, own_plain: float | None = None) -> dict:
+    """Önerinin sıralamadan bağımsız bileşenleri: senin faydan, rakibin gerekçesi, piyasa dengesi, uygulanabilirlik
+    (bırakma/ekleme ve bu haftanın alım hakkı) ve belirsizlik (sakat/dönüşü bekleyen, modellenemeyen, takvimi
+    bilinmeyen oyuncular; kazancın bedava hamlelere bağlı olması). ``adjustments``: ``resolve`` çıktısı;
+    ``own_plain``: bedava hamleler olmadan senin strateji farkın (biliniyorsa)."""
+    req = s.request
+    adj = adjustments.get(req.team_a, {})
+    adds, drops = len(adj.get("add", ())), len(adj.get("drop", ()))
+    budget = engine.budget(req.team_a)
+    left = budget.remaining
+    names = engine.data.players["name"]
+    involved = tuple(req.give_a) + tuple(req.give_b)
+    hurt = [names[p] for p in involved if engine._status.get(p) in OUT_STATUSES or engine.return_day(p)]
+    unmodeled = [names[p] for p in involved if not engine.modeled[engine.index[p]]]
+    timing = [names[p] for p in involved if p in set(engine.timing_unknown)]
+    return {
+        "own": {"strategy_delta": s.own_strategy_delta, "win_delta": s.own_win_delta},
+        "opponent": {"strategy_delta": s.other_strategy_delta, "win_delta": s.other_win_delta,
+                     "level": s.acceptability, "reasons": list(s.counterpart_reasons)},
+        "market": {"value_balance": s.fairness, "their_view": s.perceived_balance},
+        "feasibility": {"adds": adds, "drops": drops, "adds_left": left, "adds_known": budget.known,
+                        "fits_this_week": adds <= left},
+        "uncertainty": {"injured": hurt, "unmodeled": unmodeled, "timing_unknown": timing,
+                        "moves_dependent": bool(own_plain is not None and s.own_strategy_delta > 0 >= own_plain)},
+    }

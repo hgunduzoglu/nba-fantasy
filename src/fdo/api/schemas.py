@@ -71,6 +71,7 @@ class CompleteIn(TradeIn):
     perceived: str = Field(default="blend", pattern="^(season_total|preseason|blend)$")
     max_extra: int = Field(default=3, ge=1, le=3)
     max_evaluations: int = Field(default=4000, ge=100, le=20000)
+    rank: str = Field(default="own", pattern="^(own|joint)$")   # sıralama politikası (fdo.trade.suggest.RANKINGS)
 
 
 class SuggestIn(BaseModel):
@@ -94,6 +95,7 @@ class SuggestIn(BaseModel):
     auto_balance: bool = True
     strategy: StrategyIn | None = None
     injuries: bool = True
+    rank: str = Field(default="own", pattern="^(own|joint)$")   # sıralama politikası (fdo.trade.suggest.RANKINGS)
 
 
 class MoveIn(BaseModel):
@@ -130,6 +132,7 @@ class MultiSuggestIn(BaseModel):
     min_view: float = 0.8                           # diğer takımların gözünde (algılanan) en az denge
     strategy: StrategyIn | None = None
     injuries: bool = True
+    rank: str = Field(default="own", pattern="^(own|joint)$")   # sıralama politikası
 
 
 class WeeklyIn(BaseModel):

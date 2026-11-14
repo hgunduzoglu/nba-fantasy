@@ -25,7 +25,7 @@ from fdo.trade import Strategy, TradeError
 from fdo.trade.data import MODES, ROS
 from fdo.trade.perception import mispricing, perceived_prices
 from fdo.trade.strategy import CATEGORIES
-from fdo.trade.suggest import CompleteOptions, SearchOptions, complete_trade, suggest_trades
+from fdo.trade.suggest import CompleteOptions, SearchOptions, complete_trade, components, suggest_trades
 from fdo.types import CATEGORY_LABELS
 
 
@@ -84,7 +84,7 @@ def register(app: FastAPI, state: AppState) -> None:
                                  body.min_gain, body.min_win / 100, body.auto_balance, body.ecw_weight,
                                  body.mode, body.perceived, body.min_balance, body.min_edge,
                                  body.min_view if body.mode == "mutual" else 0.0, body.require_reason,
-                                 body.max_view)
+                                 body.max_view, body.rank)
             strategy = _strategy(body.strategy, eng, body.team)
             found = suggest_trades(eng, body.team, strategy=strategy, opponent_strategies=opp_strats,
                                    opponents=opps, options=opts)
@@ -114,6 +114,7 @@ def register(app: FastAPI, state: AppState) -> None:
                          "own_win": s.own_win_delta, "other_win": s.other_win_delta, "fairness": s.fairness,
                          "perceived_balance": s.perceived_balance, "score": s.score, "mode": s.mode,
                          "acceptability": s.acceptability, "counterpart_reasons": list(s.counterpart_reasons),
+                         "components": components(eng, s, adj, plain[body.team]["strategy_delta"] if plain else None),
                          "key_players": list(s.key_players), "other_strategy": s.other_strategy.name,
                          "other_weights": list(s.other_strategy.weights),
                          "adjustments": {t: {k: [eng.data.players.loc[p, "name"] for p in v] for k, v in a.items()}
@@ -139,7 +140,7 @@ def register(app: FastAPI, state: AppState) -> None:
             opts = CompleteOptions(max_extra=body.max_extra, max_evaluations=body.max_evaluations,
                                    min_fairness=body.min_fairness, min_view=body.min_view, perceived=body.perceived,
                                    auto_balance=body.auto_balance, require_reason=body.require_reason,
-                                   max_view=body.max_view)
+                                   max_view=body.max_view, rank=body.rank)
             found = complete_trade(eng, body.team_a, body.team_b, tuple(body.give_a), tuple(body.give_b),
                                    strategy_a=sa, strategy_b=sb, options=opts)
         except (ValueError, TradeError) as e:
@@ -160,6 +161,7 @@ def register(app: FastAPI, state: AppState) -> None:
                     "other_delta": s.other_strategy_delta, "own_win": s.own_win_delta, "other_win": s.other_win_delta,
                     "fairness": s.fairness, "perceived_view": s.perceived_balance,
                     "acceptability": s.acceptability, "counterpart_reasons": list(s.counterpart_reasons),
+                    "components": components(eng, s, adj, plain[r.team_a]["strategy_delta"] if plain else None),
                     "my_categories": category_deltas(eng, p, r.team_a, pair),
                     "adjustments": {t: {k: [eng.data.players.loc[x, "name"] for x in v] for k, v in a.items()}
                                     for t, a in adj.items()}}
