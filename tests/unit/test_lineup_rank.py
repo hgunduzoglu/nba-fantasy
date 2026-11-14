@@ -5,11 +5,12 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from fdo.inseason.lineup_rank import LineupDelta, lineup_deltas, rerank
+from fdo.inseason.lineup_rank import LineupDelta, lineup_deltas, multi_lineup_deltas, rerank
 from fdo.inseason.season import SeasonSim
 from fdo.inseason.weekly import WeekModel
 from fdo.inseason.weeks import league_weeks
 from fdo.trade import TradeEngine, TradeRequest
+from fdo.trade.multi import MultiSuggestion, MultiTradeRequest, resolve_multi
 from fdo.trade.strategy import Strategy
 from fdo.trade.suggest import Suggestion
 from unit.test_inseason import data  # noqa: F401  paylaşılan sentetik lig
@@ -62,3 +63,15 @@ def test_rerank_orders_by_lineup_gain_and_keeps_unmeasured_last():
     assert [s.score for s in ranked] == [.2, .1, .4, .3] and ds[-1] is None
     top, _ = rerank(sugs, deltas, 2)
     assert [s.score for s in top] == [.2, .1]
+
+
+def test_multi_lineup_deltas_use_all_teams_strategies_and_the_same_measure(setup):
+    eng, sim = setup
+    st = {"1": Strategy(), "2": Strategy(), "3": Strategy()}
+    req = MultiTradeRequest((("0", "1", "2"), ("4", "2", "3"), ("8", "3", "1")))
+    (d,) = multi_lineup_deltas(sim, eng, "1", [MultiSuggestion(req, (1, 1, 1), .1, {}, 1.0, st)])
+    rosters, _, il = resolve_multi(eng, req, st)
+    first = tuple(req.teams)
+    diff = (sim.lineup_profile(rosters, injuries=il, first=first, strategies=st)
+            - sim.lineup_profile(first=first, strategies=st))[sim.tix["1"]]
+    assert d.ecw == pytest.approx(diff.sum()) and d.strategy == pytest.approx(diff.sum())   # dengeli: ikisi aynı
