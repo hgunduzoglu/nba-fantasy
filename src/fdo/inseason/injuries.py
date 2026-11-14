@@ -32,6 +32,7 @@ from fdo.config import REPO_ROOT
 from fdo.inseason.identity import IdentityReport, Resolver, load_overrides
 from fdo.schedule.calendar import normalize_team
 from fdo.trade.data import ROS, TradeData
+from fdo.trade.presence import expected_left, presence  # noqa: F401  (yeniden dışa açılır)
 from fdo.types import STATS
 
 SOURCE_URL = "https://www.cbssports.com/nba/injuries/"
@@ -132,21 +133,6 @@ def questionable_play(path: str | Path | None = None) -> float:
     ``scripts/calibrate_returns.py --write`` ölçer). Yoksa 1 (oynar sayılır)."""
     v = _config(path).get("questionable_play")
     return 1.0 if v is None else min(1.0, max(0.0, float(v)))
-
-
-def presence(n: int, pmf: dict[int, float] | None) -> np.ndarray:
-    """En erken tarihten sonraki ``n`` takım maçının her birinde oyuncunun dönmüş olma olasılığı ``P(T ≤ i)``
-    (``pmf`` yoksa hepsi 1). Kuyruk ("en az K maç") K. maçtan itibaren dönmüş sayılır."""
-    if not pmf:
-        return np.ones(n)
-    tail = max(pmf)
-    cdf = np.cumsum([pmf.get(k, 0.0) for k in range(tail + 1)])
-    return np.array([cdf[min(i, tail)] for i in range(n)])
-
-
-def expected_left(n: int, pmf: dict[int, float] | None) -> float:
-    """En erken tarihten sonraki ``n`` maçtan beklenen oynanacak maç (``presence`` toplamı)."""
-    return float(presence(n, pmf).sum())
 
 
 def return_delay(path: str | Path | None = None) -> int:

@@ -14,6 +14,7 @@ from fdo.matchup.player_week import COUNT_STATS, N_COUNT, RATIO_OFFSETS, WEEK_DI
 from fdo.roster.assignment import best_assignment
 from fdo.schedule.calendar import normalize_team
 from fdo.trade.data import MODES, ROS, TradeData, TradeLeague
+from fdo.trade.presence import presence
 from fdo.trade.strategy import CATEGORIES, Strategy
 from fdo.types import STATS
 from fdo.valuation import value_players
@@ -307,11 +308,10 @@ class TradeEngine:
 
     def _presence(self, n: int) -> np.ndarray:
         """Dönüşü bekleyen oyuncunun en erken tarihten sonraki ``n`` maçında dönmüş olma olasılığı (veride ölçülmüş
-        gecikme dağılımı varsa; ``fdo.inseason.injuries.presence``)."""
+        gecikme dağılımı varsa; ``fdo.trade.presence``)."""
         pmf = (self.data.sources.get("injuries") or {}).get("delay_pmf")
         if not pmf:
             return np.ones(n)
-        from fdo.inseason.injuries import presence
         return presence(n, {int(k): float(v) for k, v in pmf.items()})
 
     def _seg_after(self, day: dt.date) -> np.ndarray:
