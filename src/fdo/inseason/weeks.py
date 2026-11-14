@@ -83,3 +83,28 @@ def league_weeks(schedule: pd.DataFrame, settings: dict[str, str], config: Confi
     df["n_days"] = [(e - s).days + 1 for s, e in weeks]
     df["playoff"] = df.index.isin(po)
     return LeagueWeeks(df, tuple(po), tuple(notes))
+
+
+#: Takas puanının zamanlaması: kalan sezon bu kadar haftalık dönemlere bölünür (1 = her fantezi haftası ayrı; haftanın
+#: NBA maç yoğunluğu da görülür). Normal sezon ve playoff haftaları ayrı gruplanır.
+TIMING_BLOCK_WEEKS = 1
+#: Playoff haftalarının hafta başına ağırlığı (1 = normal sezon haftasıyla eşit; puan ortalama haftalık beklenti olur).
+PLAYOFF_WEIGHT = 1.0
+
+
+def trade_segments(weeks: LeagueWeeks, as_of: dt.date, *, block: int = TIMING_BLOCK_WEEKS,
+                   playoff_weight: float = PLAYOFF_WEIGHT):
+    """Takas motoru için kalan sezon dönemleri (``fdo.trade.engine.Segment``): normal sezonun ve playoff'un kalan
+    haftaları ayrı ayrı ``block`` haftalık gruplar (içinde bulunulan hafta veri gününden başlar). Ağırlık dönemin hafta
+    sayısı (playoff'ta × ``playoff_weight``)."""
+    from fdo.trade.engine import Segment
+
+    w = weeks.weeks[weeks.weeks["end"] >= as_of]
+    out = []
+    for part_df, factor, tag in ((w[~w["playoff"]], 1.0, ""), (w[w["playoff"]], playoff_weight, " (playoff)")):
+        for i in range(0, len(part_df), max(1, block)):
+            part = part_df.iloc[i:i + max(1, block)]
+            start, end = max(part["start"].iloc[0], as_of), part["end"].iloc[-1]
+            label = f"{int(part.index[0])}" + (f"–{int(part.index[-1])}" if len(part) > 1 else "") + ". hafta" + tag
+            out.append(Segment(start, end, ((end - start).days + 1) / 7 * factor, label))
+    return tuple(out)

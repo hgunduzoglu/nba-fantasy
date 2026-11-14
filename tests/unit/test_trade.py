@@ -14,6 +14,7 @@ import pytest
 
 from fdo.config import REPO_ROOT, load_config
 from fdo.trade import Strategy, TradeData, TradeEngine, TradeError, TradeLeague, TradeRequest, load_trade_data
+from fdo.trade.strategy import CATEGORIES
 from fdo.trade.data import MODES, ROS, number, preseason_file
 from fdo.trade.report import category_changes, export_result
 from fdo.trade.suggest import SearchOptions, suggest_trades
@@ -367,13 +368,30 @@ def test_swapping_identical_players_changes_nothing_with_free_waiver_on_both_sid
     np.testing.assert_allclose(res.probabilities_before, res.probabilities_after, atol=1e-12)
 
 
-def test_waiver_best_fills_open_spots_and_only_swaps_for_better_free_agents(eng):
+def test_waiver_best_fills_open_spots_and_every_move_strengthens_the_team(eng):
+    from fdo.matchup.ecw import p_win
     roster = eng.league.rosters["1"][:2]                       # 3 kapasitede bir yer boş
     best, moves = eng.waiver_best(roster)
-    assert moves[0][0] is None and moves[0][1] == eng._fa_order(Strategy())[0] and len(best) == 3
-    u = eng._utility_array(Strategy())
-    for d, f in moves[1:]:
-        assert u[eng.index[f]] > u[eng.index[d]]
+    assert moves[0][0] is None and len(best) == 3 and len(moves) <= eng._max_moves
+    s = Strategy()
+    strength = lambda r: float(p_win(eng.team_vector(r)[None, None, :], eng.baseline_vectors[None], eng.config)
+                               .mean(axis=1)[0] @ np.asarray(s.normalized))
+    current = list(roster)
+    for d, f in moves:                                         # her hamle takımın kendi beklentisini artırır
+        nxt = [p for p in current if p != d] + [f]
+        assert strength(tuple(nxt)) > strength(tuple(current))
+        current = nxt
+
+
+def test_waiver_best_skips_a_generally_better_player_who_hurts_the_team(eng):
+    # takımın en zayıf aktifi yerine genel değeri yüksek ama takımın kategorilerine zararlı biri önerilmemeli:
+    # stratejisi yalnız ribaund olan takım için ribaundu düşük boştaki oyuncu hamle değildir.
+    reb_only = Strategy("yalnız REB", tuple(1.0 if c == "REB" else 0.0 for c in CATEGORIES))
+    roster = eng.league.rosters["1"]
+    _, moves = eng.waiver_best(roster, strategy=reb_only)
+    reb = list(CATEGORIES).index("REB")
+    for d, f in moves:
+        assert eng.zscores.loc[f].iloc[reb] > (eng.zscores.loc[d].iloc[reb] if d else -np.inf)
 
 
 def test_mutual_suggestions_respect_the_opponents_view(eng):
@@ -392,3 +410,11 @@ def test_suggestions_drop_packages_padded_with_worthless_extras(eng):
         for b in found:
             if a is not b and a.request.team_b == b.request.team_b:
                 assert not (set(a.request.give_a) <= set(b.request.give_a) and set(a.request.give_b) <= set(b.request.give_b))
+
+
+def test_without_free_moves_rosters_are_taken_as_they_are(trade_data):
+    plain = TradeEngine(trade_data, "L", horizon_weeks=4, free_moves=False)
+    roster = plain.league.rosters["1"]
+    assert plain.waiver_best(roster) == (tuple(roster), ())
+    r = plain.analyze(TradeRequest("1", "2", ("0",), ("3",)))
+    assert not any("bedava waiver" in n for n in r.notes)

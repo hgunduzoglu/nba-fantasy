@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import re
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -18,6 +19,8 @@ from fdo.types import STATS
 from fdo.valuation import value_players
 
 
+#: Bedava waiver hamlesi adayı olarak bakılan boştaki oyuncu sayısı (genel faydaya göre ilk N).
+WAIVER_POOL = 8
 _ZERO = np.zeros(WEEK_DIM)
 _ZERO.setflags(write=False)
 
@@ -70,6 +73,21 @@ class TradeResult:
     notes: list[str] = field(default_factory=list)
 
 
+@dataclass(frozen=True)
+class Segment:
+    """Kalan sezonun bir dönemi (ör. normal sezonun 4 haftası, playoff haftaları). ``end`` dahil. ``weight``: takas
+    puanındaki ağırlık (varsayılan dönemin hafta sayısı; böylece ortalama haftalık beklenen kategori olur)."""
+
+    start: dt.date
+    end: dt.date
+    weight: float
+    label: str = ""
+
+    @property
+    def weeks(self) -> float:
+        return max((self.end - self.start).days + 1, 1) / 7
+
+
 class TradeEngine:
     """Okunan veriyi değiştirmez; her senaryo orijinal kadrolara karşı hesaplanır.
 
@@ -93,7 +111,11 @@ class TradeEngine:
     """
 
     def __init__(self, data: TradeData, league_id: str, *, utilization: float = .987,
-                 horizon_weeks: float | None = None):
+                 horizon_weeks: float | None = None, segments: tuple[Segment, ...] | None = None,
+                 free_moves: bool = True):
+        """``segments``: kalan sezonun dönemleri. Birden fazlaysa takas puanı zamanlamayı görür: her oyuncunun katkısı
+        dönem dönem, o dönemde oynayacağı maçlardan (bilinen dönüş tarihinden sonra) hesaplanır; kategori olasılıkları
+        dönem başına bulunup ağırlıklı ortalanır. Verilmezse kalan sezon tek dönemdir (üretim haftalara eşit yayılır)."""
         if not 0 < utilization <= 1:
             raise ValueError("Lineup kullanım oranı (0, 1] aralığında olmalı")
         self.data, self.league = data, data.leagues[str(league_id)]
@@ -103,6 +125,11 @@ class TradeEngine:
         self.ids = tuple(data.players.index)
         self.index = {p: i for i, p in enumerate(self.ids)}
         self.utilization = utilization
+        #: Takas öncesi ve sonrası takımlar boştaki daha iyi oyuncuları bedavaya alır mı (``waiver_best``). Kapalıysa
+        #: kadrolar olduğu gibi değerlendirilir (yalnız takasın zorunlu kıldığı bırak/boştan al).
+        self.free_moves = free_moves
+        m = re.match(r"\s*(\d+)", str(self.league.settings.get("Max Acquisitions per Week", "")))
+        self._max_moves = int(m.group(1)) if m else 4                          # haftalık alım hakkı (yoksa 4)
         if horizon_weeks is None:
             if data.schedule is None:
                 raise ValueError("Haftalık modele NBA takvimi veya açık horizon_weeks gerekiyor")
@@ -126,6 +153,7 @@ class TradeEngine:
         self._utility_cache: dict[Strategy, np.ndarray] = {}
         self._status = dict(zip(self.ids, data.players["injury_status"].reindex(list(self.ids)).astype(str)))
         self._share_cache: dict[str, float] = {}
+        self._return_days: dict[str, dt.date] | None = None
         self._crunch_cache: dict[tuple, np.ndarray] = {}
         self._before_cache: dict[tuple[str, Strategy], np.ndarray] = {}
         self._before_p_cache: dict[tuple, np.ndarray] = {}
@@ -134,9 +162,18 @@ class TradeEngine:
         owned = {p for r in self.league.rosters.values() for p in r}
         self.free_agents = tuple(p for p in self.ids if p not in owned and self.modeled[self.index[p]])
         self._team_games = self._games_left()
+        self.segments = tuple(s for s in (segments or ()) if s.end >= data.as_of and s.weight > 0)
+        self.timed = len(self.segments) > 1
+        self._seg_w = np.array([s.weight for s in self.segments], float)
+        self._seg_w = self._seg_w / self._seg_w.sum() if self.timed else self._seg_w
+        self.seg_vecs = self._segment_vectors() if self.timed else None
+        self._seg_cache: dict[tuple, np.ndarray] = {}
+        self._after_cache: dict[dt.date, np.ndarray] = {}
         self.baseline_vectors = self.vectors(self.league.rosters)
-        self.baseline_p = ecw_matrix(self.baseline_vectors, self.config)
-        self.baseline_matchup = p_at_least(self.baseline_p)
+        self.baseline_seg = (np.stack([self.team_seg_vector(self.league.rosters[t], self._il(t, self.league.rosters[t]))
+                                       for t in self.team_ids], axis=1) if self.timed else None)       # (S, T, 24)
+        self.baseline_p, self.baseline_matchup = self._probs(self.baseline_seg if self.timed else self.baseline_vectors)
+        self.baseline_matchup = self.baseline_matchup.copy()
         np.fill_diagonal(self.baseline_matchup, np.nan)
         self.before = {m: self.view(self.league.rosters, m) for m in MODES}
 
@@ -166,6 +203,79 @@ class TradeEngine:
             v[:, o + 3], v[:, o + 4] = k * pct * av, k * av
         out[valid] = v
         return out, valid
+
+    def _segment_vectors(self) -> np.ndarray:
+        """``(S, n, 24)``: oyuncunun dönem başına haftalık vektörü. Kalan sezon üretimi (``vecs × horizon``) oyuncunun
+        dönüşünden sonraki takım maçlarına göre dönemlere dağıtılır: dönem payı = dönemdeki maç / dönüş sonrası maç."""
+        S, H = len(self.segments), self.horizon_weeks
+        out = np.zeros((S,) + self.vecs.shape)
+        weeks = np.array([s.weeks for s in self.segments])
+        uniform = weeks / weeks.sum()
+        cache: dict[tuple[str, dt.date], np.ndarray] = {}
+        teams = self.data.players["nba_team"].reindex(list(self.ids))
+        for i, pid in enumerate(self.ids):
+            if not self.modeled[i]:
+                continue
+            team = normalize_team(teams.iloc[i]) if isinstance(teams.iloc[i], str) and teams.iloc[i] else ""
+            ret = max(self.return_day(pid) or self.data.as_of, self.data.as_of)
+            key = (team, ret)
+            if key not in cache:
+                games = [d for d in self._team_games.get(team, []) if d >= ret]
+                counts = np.array([sum(s.start <= d <= s.end for d in games) for s in self.segments], float)
+                cache[key] = counts / counts.sum() if counts.sum() > 0 else uniform
+            out[:, i] = self.vecs[i][None, :] * (H * cache[key] / weeks)[:, None]
+        return out
+
+    def _seg_after(self, day: dt.date) -> np.ndarray:
+        """Dönem başına ``day`` ve sonrasına düşen gün payı."""
+        hit = self._after_cache.get(day)
+        if hit is None:
+            hit = self._after_cache[day] = self._seg_after_raw(day)
+        return hit
+
+    def _seg_after_raw(self, day: dt.date) -> np.ndarray:
+        return np.array([min(max((s.end - max(s.start, day)).days + 1, 0) / ((s.end - s.start).days + 1), 1.0)
+                         for s in self.segments])
+
+    def team_seg_vector(self, roster, il=frozenset(), strategy: Strategy | None = None) -> np.ndarray:
+        """``team_vector``'ın dönem başına hâli ``(S, 24)``: oyuncu toplamı − IL dönüşü bedeli (dönüşte bırakılan
+        oyuncu yalnız dönüş gününden sonraki dönem paylarında kaybedilir)."""
+        s = strategy or Strategy()
+        key = (tuple(sorted(roster)), tuple(sorted(il)), s)
+        cached = self._seg_cache.get(key)
+        if cached is not None:
+            return cached
+        out = self.seg_vecs[:, [self.index[p] for p in roster]].sum(axis=1)
+        members = set(roster)
+        if any(p in members and self.modeled[self.index[p]] and self.return_share(p) > 0 for p in il):
+            for r, d in self.crunch_plan(roster, il, s):
+                if d == r:
+                    out = out - self.seg_vecs[:, self.index[r]]
+                elif d is not None:
+                    ret = self.return_day(r) or self.data.as_of + dt.timedelta(days=7)
+                    out = out - self._seg_after(ret)[:, None] * self.seg_vecs[:, self.index[d]]
+        if len(self._seg_cache) > 20_000:
+            self._seg_cache.clear()
+        self._seg_cache[key] = out
+        return out
+
+    def _probs(self, vectors: np.ndarray, rows=None) -> tuple[np.ndarray, np.ndarray]:
+        """Takım vektörlerinden ``(T, T, C)`` kategori ve ``(T, T)`` P(5+) olasılıkları. Dönemliyse (``(S, T, 24)``)
+        her dönem ayrı hesaplanıp dönem ağırlıklarıyla ortalanır. ``rows``: P(5+) yalnız bu takım satırları için
+        (diğerleri NaN; tarama hızı)."""
+        if vectors.ndim == 2:
+            p = ecw_matrix(vectors, self.config)
+            return p, p_at_least(p)
+        p = p_win(vectors[:, :, None, :], vectors[:, None, :, :], self.config)          # (S, T, T, C) tek seferde
+        idx = np.arange(vectors.shape[1])
+        p[:, idx, idx, :] = np.nan
+        w = self._seg_w
+        if rows is None:
+            return np.tensordot(w, p, axes=1), np.tensordot(w, p_at_least(p), axes=1)
+        rows = list(rows)
+        p5 = np.full(p.shape[1:3], np.nan)
+        p5[rows] = np.tensordot(w, p_at_least(p[:, rows]), axes=1)
+        return np.tensordot(w, p, axes=1), p5
 
     def _market_values(self) -> tuple[pd.Series, pd.DataFrame]:
         frame = self.data.stats[ROS].loc[np.asarray(self.ids)[self.modeled], ["gp", *STATS]].copy()
@@ -244,13 +354,15 @@ class TradeEngine:
 
     def return_day(self, pid: str) -> dt.date | None:
         """Sakatlık raporundaki bilinen dönüş tarihi (CBS ``out_until``); yoksa ``None``."""
-        inj = getattr(self.data, "injuries", None)
-        if inj is None or pid not in inj.index:
-            return None
-        row = inj.loc[pid]
-        if row["kind"] == "out_until" and not pd.isna(row["return_date"]):
-            return pd.Timestamp(row["return_date"]).date()
-        return None
+        if self._return_days is None:
+            out: dict[str, dt.date] = {}
+            inj = getattr(self.data, "injuries", None)
+            if inj is not None:
+                for p, row in inj.iterrows():
+                    if row["kind"] == "out_until" and not pd.isna(row["return_date"]):
+                        out[p] = pd.Timestamp(row["return_date"]).date()
+            self._return_days = out
+        return self._return_days.get(pid)
 
     def crunch_plan(self, roster, il, strategy: Strategy | None = None) -> list[tuple[str, str | None]]:
         """IL'den dönüş sırasıyla (erken dönen önce) ``(dönen, bırakılan)``: boş aktif yer varsa bırakılan ``None``;
@@ -319,35 +431,78 @@ class TradeEngine:
                     ) -> tuple[tuple[str, ...], tuple[tuple[str | None, str], ...]]:
         """Bedava waiver hamleleri uygulanmış kadro ve hamleler ``(bırakılan | None, alınan)``.
 
-        Boş aktif yerler en iyi boştakilerle dolar; sonra en zayıf aktif oyuncu, kalan en iyi boştakiden zayıfsa
-        değiştirilir (stratejiye göre fayda). Kadroda olan oyuncu (ör. takasta boştan eklenen) ve ``exclude``
-        (başka takımın aldığı) boştaki sayılmaz. Pozisyon, waiver sırası ve haftalık alım hakkı yok sayılır."""
+        Hamle yalnız takımın kendi stratejisine göre beklenen kategorisini (lig rakiplerine karşı) artırıyorsa yapılır:
+        oyuncunun genel değeri yetmez, takımın kategori ihtiyacına bakılır (ör. bloğu zayıf takım blokçusunu genel
+        değeri biraz yüksek bir şutçuyla değiştirmez). Adaylar: genel faydaya göre ilk ``WAIVER_POOL`` boştaki × en
+        zayıf 3 aktif (boş aktif yer varsa yalnız ekleme). Açgözlü: her adımda en çok kazandıran hamle, en çok haftalık
+        alım hakkı kadar. Kadroda olan oyuncu ve ``exclude`` (başka takımın aldığı) boştaki sayılmaz. Pozisyon ve waiver
+        sırası yok sayılır."""
+        if not self.free_moves:
+            return tuple(roster), ()
         s = strategy or Strategy()
         key = (tuple(sorted(roster)), tuple(sorted(il)), s, frozenset(exclude))
         if key in self._waiver_cache:
             return self._waiver_cache[key]
         u = self._utility_array(s)
         members = set(roster) | set(exclude)
-        fas = [p for p in self._fa_order(s) if p not in members]
-        active = [p for p in roster if p not in il]
-        moves: list[tuple[str | None, str]] = [(None, f) for f in fas[:max(0, self.league.capacity - len(active))]]
-        fas = fas[len(moves):]
-        weakest = sorted((p for p in active if self.modeled[self.index[p]]), key=lambda p: u[self.index[p]])
-        for d, f in zip(weakest, fas):
-            if u[self.index[f]] <= u[self.index[d]]:
+        fas = [p for p in self._fa_order(s) if p not in members][:WAIVER_POOL]
+        w = np.asarray(s.normalized, float)
+        opp = self.baseline_vectors
+
+        def strength(V: np.ndarray) -> np.ndarray:                        # (k, 24) → stratejiye göre beklenti (k,)
+            return p_win(V[:, None, :], opp[None, :, :], self.config).mean(axis=1) @ w
+
+        def exact(rosters: list[tuple[str, ...]]) -> np.ndarray:
+            """Kadroların takas puanıyla aynı temelde gücü (tek hesapta): IL dönüşleri dahil, dönemliyse dönem
+            ağırlıklı."""
+            if not self.timed:
+                return strength(np.stack([self.team_vector(r, il, s) for r in rosters]))
+            v = np.stack([self.team_seg_vector(r, il, s) for r in rosters])               # (k, S, 24)
+            p = p_win(v[:, :, None, :], self.baseline_seg[None], self.config).mean(axis=2)   # (k, S, C)
+            return (p @ w) @ self._seg_w
+
+        current, moves, now = list(roster), [], None
+        while fas and len(moves) < self._max_moves:
+            active = [p for p in current if p not in il]
+            base = self.team_vector(tuple(current), il, s)
+            if len(active) < self.league.capacity:
+                cands = [(None, f) for f in fas]
+            else:
+                weakest = sorted((p for p in active if self.modeled[self.index[p]]), key=lambda p: u[self.index[p]])[:3]
+                cands = [(d, f) for d in weakest for f in fas]
+            if not cands:
                 break
+            V = np.stack([base + self.vecs[self.index[f]] - (self.vecs[self.index[d]] if d else 0) for d, f in cands])
+            rough = strength(V) - strength(base[None, :])[0]               # hızlı tahmin: IL dönüşü bedeli sabit
+            top = [k for k in np.argsort(-rough)[:2] if rough[k] > 1e-6]   # en iyi 2 aday, takas puanının temelinde
+            if not top:
+                break
+            trials = [tuple(p for p in current if p != cands[k][0]) + (cands[k][1],) for k in top]
+            score = exact(trials if now is not None else [tuple(current), *trials])
+            if now is None:
+                now, score = score[0], score[1:]
+            best = int(np.argmax(score))
+            if score[best] - now <= 1e-6:
+                break
+            pick, now = cands[top[best]], score[best]
+            d, f = pick
+            if d is not None:
+                current.remove(d)
+            current.append(f)
+            fas.remove(f)
             moves.append((d, f))
-        out = (tuple(p for p in roster if p not in {d for d, _ in moves}) + tuple(f for _, f in moves), tuple(moves))
+        out = (tuple(current), tuple(moves))
         if len(self._waiver_cache) > 20_000:
             self._waiver_cache.clear()
         self._waiver_cache[key] = out
         return out
 
-    def joint_waiver(self, items: list[tuple[str, tuple[str, ...], frozenset[str], Strategy]]
-                     ) -> dict[str, tuple[tuple[str, ...], tuple[tuple[str | None, str], ...]]]:
+    def joint_waiver(self, items: list[tuple[str, tuple[str, ...], frozenset[str], Strategy]],
+                     taken: set[str] | None = None) -> dict[str, tuple[tuple[str, ...], tuple[tuple[str | None, str], ...]]]:
         """Takastaki takımların bedava waiver hamleleri ortak havuzdan: ``items`` sırasıyla ``(takım, kadro, IL,
-        strateji)``; her takım öncekilerin aldığı boştakileri alamaz. Dönüş: takım → ``waiver_best`` çıktısı."""
-        taken: set[str] = set()
+        strateji)``; her takım öncekilerin aldığı boştakileri alamaz. ``taken``: baştan alınamayacaklar (ör. başka
+        kadrolardaki oyuncular). Dönüş: takım → ``waiver_best`` çıktısı."""
+        taken = set(taken or ())
         out = {}
         for tid, roster, il, s in items:
             res = self.waiver_best(roster, il, s, frozenset(taken))
@@ -355,11 +510,56 @@ class TradeEngine:
             out[tid] = res
         return out
 
+    def anchored_waiver(self, items: list[tuple[str, tuple[str, ...], frozenset[str], Strategy]]
+                        ) -> dict[str, tuple[tuple[str, ...], tuple[tuple[str | None, str], ...]]]:
+        """Takas sonrası kadrolar için bedava hamleler: takımların **takas öncesi** kadrosundaki hamleler
+        (``joint_waiver``, aynı sıra) geçerli kaldıkça korunur; bırakılacak oyuncu artık kadroda değilse ya da boştaki
+        oyuncu kadroda/başka takımca alınmışsa o hamle düşer. Boş aktif yer kalırsa genel faydası en yüksek alınabilir
+        boştakiyle dolar. Hamleler takastan bağımsız olduğu için takas, takassız da yapılabilecek bir hamleyle kazanmış
+        ya da kaybetmiş görünmez; her aday için hamle araması yapılmaz (hızlı)."""
+        base = self.joint_waiver([(t, tuple(self.league.rosters[t]), self._il(t, self.league.rosters[t]), s)
+                                  for t, _, _, s in items])
+        taken = {p for _, r, _, _ in items for p in r}
+        out = {}
+        opp = self.baseline_vectors
+        for tid, roster, il, s in items:
+            current, moves = list(roster), []
+            u, w = self._utility_array(s), np.asarray(s.normalized, float)
+            for d, f in base[tid][1]:
+                if f in taken:
+                    continue
+                if d is not None and d not in current:
+                    # bırakılacak oyuncu takasla gitti: aynı boştakini en zayıf aktif yerine almak takımı güçlendiriyor mu
+                    active = [p for p in current if p not in il and self.modeled[self.index[p]]]
+                    if not active:
+                        continue
+                    d = min(active, key=lambda p: u[self.index[p]])
+                    v = self.team_vector(tuple(current), il, s)
+                    V = np.stack([v, v - self.vecs[self.index[d]] + self.vecs[self.index[f]]])
+                    gain = p_win(V[:, None, :], opp[None, :, :], self.config).mean(axis=1) @ w
+                    if gain[1] - gain[0] <= 1e-6:
+                        continue
+                if d is not None:
+                    current.remove(d)
+                current.append(f)
+                taken.add(f)
+                moves.append((d, f))
+            active = [p for p in current if p not in il]
+            if len(active) < self.league.capacity:
+                for f in [p for p in self._fa_order(s) if p not in taken][:self.league.capacity - len(active)]:
+                    current.append(f)
+                    taken.add(f)
+                    moves.append((None, f))
+            out[tid] = (tuple(current), tuple(moves))
+        return out
+
     def _joint_vectors(self, rosters: dict[str, tuple[str, ...]], strategies: dict[str, Strategy],
                        injuries: dict[str, frozenset[str]] | None) -> dict[str, np.ndarray]:
         items = [(t, tuple(rosters[t]), self._il(t, rosters[t], injuries), s or Strategy()) for t, s in strategies.items()]
-        moved = self.joint_waiver(items)
-        return {t: self.team_vector(moved[t][0], il, s) for t, _, il, s in items}
+        same = all(set(r) == set(self.league.rosters[t]) for t, r, _, _ in items)
+        moved = self.joint_waiver(items) if same or not self.free_moves else self.anchored_waiver(items)
+        vec = self.team_seg_vector if self.timed else self.team_vector
+        return {t: vec(moved[t][0], il, s) for t, _, il, s in items}
 
     def trade_vector(self, roster, il=frozenset(), strategy: Strategy | None = None) -> np.ndarray:
         """Takas karşılaştırması için takım vektörü: bedava waiver hamleleri + IL dönüşü bedeli."""
@@ -377,26 +577,42 @@ class TradeEngine:
         if key not in self._before_cache:
             roster = self.league.rosters[team_id]
             v = self.trade_vector(roster, self._il(team_id, roster), s)
-            self._before_cache[key] = (self.baseline_p[i, keep] if np.array_equal(v, self.baseline_vectors[i])
-                                       else p_win(v[None, :], self.baseline_vectors[keep], self.config))
+            self._before_cache[key] = p_win(v[None, :], self.baseline_vectors[keep], self.config)
         return self._before_cache[key]
 
-    def _before_p(self, strategies: dict[str, Strategy]) -> np.ndarray:
+    def _base_vectors(self) -> np.ndarray:
+        return (self.baseline_seg if self.timed else self.baseline_vectors).copy()
+
+    def _set(self, vectors: np.ndarray, tid: str, v: np.ndarray) -> None:
+        if self.timed:
+            vectors[:, self.team_index[tid]] = v
+        else:
+            vectors[self.team_index[tid]] = v
+
+    def _before_p(self, strategies: dict[str, Strategy]) -> tuple[np.ndarray, np.ndarray]:
         key = tuple((t, s or Strategy()) for t, s in strategies.items())          # sıra önemli (ortak waiver havuzu)
         if key not in self._before_p_cache:
             if len(self._before_p_cache) > 4096:
                 self._before_p_cache.clear()
-            vectors = self.baseline_vectors.copy()
+            vectors = self._base_vectors()
             for tid, v in self._joint_vectors(self.league.rosters, dict(key), None).items():
-                vectors[self.team_index[tid]] = v
-            self._before_p_cache[key] = ecw_matrix(vectors, self.config)
+                self._set(vectors, tid, v)
+            self._before_p_cache[key] = self._probs(vectors)
         return self._before_p_cache[key]
 
     def before_matrix(self, strategies: dict[str, Strategy]) -> np.ndarray:
         """Takas öncesi olasılık matrisi, ``score_many`` ile aynı taban: ``strategies`` takımlarının (takastakiler)
         hepsi kendi stratejileriyle bedava waiver hamleleri ve IL dönüşü bedeli uygulanmış gerçek kadrolarıyla,
         diğerleri gerçek kadroyla. Aynı oyuncuları değiş tokuş eden takas her takım için sıfır fark verir."""
-        return self._before_p(strategies).copy()
+        return self._before_p(strategies)[0].copy()
+
+    def matrices(self, rosters: dict[str, tuple[str, ...]], strategies: dict[str, Strategy],
+                 injuries: dict[str, frozenset[str]] | None = None, rows=None) -> tuple[np.ndarray, np.ndarray]:
+        """Takas sonrası ``(T, T, C)`` kategori ve ``(T, T)`` P(5+) olasılıkları (``score_many`` ile aynı taban)."""
+        vectors = self._base_vectors()
+        for tid, v in self._joint_vectors(rosters, strategies, injuries).items():
+            self._set(vectors, tid, v)
+        return self._probs(vectors, rows)
 
     def view(self, rosters: dict[str, tuple[str, ...]], mode: str) -> LeagueView:
         categories, cover = [], []
@@ -529,18 +745,15 @@ class TradeEngine:
                    injuries: dict[str, frozenset[str]] | None = None) -> tuple[np.ndarray, dict]:
         """``strategies`` içindeki takımların kadroları değişmiş kabul edilir; diğerleri temel kadroda kalır.
         ``injuries``: takastan sonraki IL kümeleri (``resolve`` çıktısı); yoksa eski IL ∩ kadro."""
-        vectors = self.baseline_vectors.copy()
-        for tid, v in self._joint_vectors(rosters, strategies, injuries).items():
-            vectors[self.team_index[tid]] = v
-        p = ecw_matrix(vectors, self.config)
-        p_before = self._before_p(strategies)
+        p, w5 = self.matrices(rosters, strategies, injuries, rows=[self.team_index[t] for t in strategies])
+        p_before, w5_before = self._before_p(strategies)
         metrics = {}
         for tid, strategy in strategies.items():
             i = self.team_index[tid]
             keep = np.arange(len(self.team_ids)) != i
             before, after = p_before[i, keep], p[i, keep]
             bp, ap = before.mean(axis=0), after.mean(axis=0)
-            bw, aw = float(p_at_least(before).mean()), float(p_at_least(after).mean())
+            bw, aw = float(w5_before[i, keep].mean()), float(w5[i, keep].mean())
             metrics[tid] = {"ecw_before": float(bp.sum()), "ecw_after": float(ap.sum()),
                             "ecw_delta": float((ap - bp).sum()), "win_before": bw, "win_after": aw,
                             "win_delta": aw - bw,
@@ -592,11 +805,10 @@ class TradeEngine:
         strategies = {request.team_a: sa, request.team_b: sb}
         rosters, adjustments, injuries = self.resolve(request, strategies)
         p, metrics = self.score(rosters, request.team_a, request.team_b, sa, sb, injuries)
-        p_before = self.before_matrix(strategies)
-        win_before = p_at_least(p_before)
+        p_before, win_before = (x.copy() for x in self._before_p(strategies))
         np.fill_diagonal(win_before, np.nan)
         after = {m: self.view(rosters, m) for m in MODES}
-        win = p_at_least(p)
+        win = self.matrices(rosters, strategies, injuries)[1].copy()
         np.fill_diagonal(win, np.nan)
         fair = self.fairness(request)
         net = self.roster_values(request, adjustments)
