@@ -281,6 +281,34 @@ class SeasonSim:
         out["opponent_name"] = [self.league.teams[t] for t in out["opponent"]]
         return out
 
+    # ------------------------------------------------------------- günlük kadro profili
+    def _scored(self, given: dict[str, tuple[str, ...]], injuries: dict[str, frozenset[str]] | None,
+                first: tuple[str, ...], strategies: dict[str, Strategy] | None):
+        """Puanlanan kadrolar (``plans``), içinde bulunulan haftanın kadroları (alım hakkını aşan hamleler yok) ve IL."""
+        plans = self.plans(given, injuries, first, strategies)
+        rosters = {**given, **{t: p.roster for t, p in plans.items()}}
+        now = {**given, **{t: p.week_roster for t, p in plans.items()}}
+        return rosters, now, self.il_map(rosters, injuries)
+
+    def _week_profile(self, V: np.ndarray) -> np.ndarray:
+        """Bir haftanın ``(T, C)`` profili: her takımın diğer takımlara karşı ortalama kategori kazanma olasılığı."""
+        P = p_win(V[:, None, :], V[None, :, :], self.engine.config)                   # (T, T, C)
+        T = len(V)
+        return P[~np.eye(T, dtype=bool)].reshape(T, T - 1, -1).mean(axis=1)
+
+    def lineup_profile(self, rosters: dict[str, tuple[str, ...]] | None = None, *,
+                       injuries: dict[str, frozenset[str]] | None = None, first: tuple[str, ...] = (),
+                       strategies: dict[str, Strategy] | None = None) -> np.ndarray | None:
+        """Kalan normal sezon haftalarının ortalama ``(T, C)`` profili, haftalık modelin günlük kadro atamasıyla ve
+        ``run`` ile aynı kadrolarla (simülasyon yok, gürültüsüz). Toplamı ``SeasonResult.ecw``; kalan hafta yoksa
+        ``None``."""
+        weeks = [w for w in self.regular if w >= self.done + 1]
+        if not weeks:
+            return None
+        rosters, now, il = self._scored(dict(rosters or self.league.rosters), injuries, first, strategies)
+        return np.mean([self._week_profile(self.week_vectors(now if w == self.current_week else rosters, w, il))
+                        for w in weeks], axis=0)
+
     # ------------------------------------------------------------- simülasyon
     def _outcomes(self, a: np.ndarray, b: np.ndarray, rng: np.random.Generator) -> tuple[np.ndarray, np.ndarray]:
         """Haftalık vektörler ``a, b (..., 24)`` → A'nın kazandığı ve berabere kalan kategori sayısı (kopula). Aynı
@@ -302,10 +330,7 @@ class SeasonSim:
         hamlelerini önce yapan takımlar (takastakiler; takassız koşuda da aynısı verilmeli ki fark eşleşsin);
         ``strategies``: onların stratejileri (takas puanıyla aynı)."""
         given = dict(rosters or self.league.rosters)
-        plans = self.plans(given, injuries, first, strategies)
-        rosters = {**given, **{t: p.roster for t, p in plans.items()}}
-        now = {**given, **{t: p.week_roster for t, p in plans.items()}}         # hakkı aşan hamleler bu hafta yok
-        il = self.il_map(rosters, injuries)
+        rosters, now, il = self._scored(given, injuries, first, strategies)
         T, S = len(self.teams), int(n_sims)
         rng = np.random.default_rng(seed)
         lam = np.exp(strength_sd * rng.standard_normal((S, T)))                         # (S, T) sezonluk güç çarpanı
@@ -318,12 +343,10 @@ class SeasonSim:
             L_ += st["losses"].to_numpy(float)
             Tie += st["ties"].to_numpy(float)
         start = self.done + 1
-        ecw, n_weeks = np.zeros(T), 0
+        profile, n_weeks = 0.0, 0
         for w in [w for w in self.regular if w >= start]:
             V = self.week_vectors(now if w == self.current_week else rosters, w, il)
-            P = p_win(V[:, None, :], V[None, :, :], self.engine.config).sum(axis=2)   # (T, T) günlük kadroyla
-            np.fill_diagonal(P, np.nan)
-            ecw += np.nanmean(P, axis=1)
+            profile = profile + self._week_profile(V)
             n_weeks += 1
             pairs = self.pairs.get(w, [])
             if not pairs:
@@ -357,7 +380,8 @@ class SeasonSim:
         }, index=self.teams)
         sched = self.fixture_outlook(team, given, injuries) if team is not None else pd.DataFrame()
         notes = list(self.notes) + [f"Takım gücü belirsizliği: sezonluk ±%{100 * strength_sd:.0f} (kalibre edilmedi)."]
-        return SeasonResult(table, sched, seeds, champion, start, S, n, notes, ecw / n_weeks if n_weeks else None)
+        return SeasonResult(table, sched, seeds, champion, start, S, n, notes,
+                            profile.sum(axis=1) / n_weeks if n_weeks else None)
 
     def effect(self, base: SeasonResult, after: SeasonResult, team: str) -> dict[str, PairedDelta]:
         """Bir senaryonun takıma etkisi: ``playoff`` (playoff varsa), ``champion``, ``seed`` (ortalama sıra). İki koşu
