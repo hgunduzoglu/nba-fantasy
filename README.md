@@ -2124,6 +2124,32 @@ the model's first suggestion (Banchero → Ty Jerome + Dylan Cardwell, both side
 (±1.4); it is third in the model order. The default suggestion list agrees better (Spearman playoff +0.51, title +0.63).
 Most title differences are within the noise at 2000 simulations (±1.2 points); the playoff difference separates better.
 
+### 13.34 Injury returns: the earliest date and a late-return scenario (`fdo.inseason.returns`, 10 November 2026)
+
+CBS's "Expected to be out until at least <date>" is the earliest date; the model used it as the return day.
+`scripts/calibrate_returns.py` measures this: it compares the earliest date in every CBS report (data folder, old daily
+copies and archive batches) with the first game in the NBA game logs. Players are identified with the matcher from
+§13.31. Players not yet back are censored at the end of observation (Kaplan–Meier): the share back within at most k team
+games / k days after the earliest date and the median delay, each point with the number of players still followed. A
+return means playing minutes; bench players on the roster who get no minutes look delayed, so the measurement may
+somewhat overstate the delay.
+
+First measurement (reports from 31 October to 9 November, 32 observations): 19% back on or before the earliest date,
+31% within one team game after it, 40% within a week; 21 players were still out on the last game day and the median
+could not be determined. The sample is small, but it shows the earliest date is optimistic.
+
+The assumptions change with `config/returns.yaml` (defaults if the file is missing):
+
+- `delay_days` (0): days added to the earliest date in every analysis. It stays 0 until the measurement settles; the data
+  note says which assumption is used. When it changes, every calculation (remaining games, weekly model, season
+  simulation, who is dropped on an IL return) uses the new date; CBS's date stays in the `stated_return` column.
+- `late_days` (7): the **Geç dönüş** (late return) basis on the trade page. Rates are Yahoo's and injured players return
+  `late_days` days after the earliest date. It appears as its own row in the bases table (§13.28) as "Geç dönüş (+7 gün)";
+  "Bu temelle aç" reruns the whole analysis under this scenario. It shows how much a decision to trade for or away an
+  injured player depends on the return delay.
+
+Open: Questionable / GTD players still count as playing; there is no minutes ramp after a return.
+
 ### 13.8 V3 candidates
 
 Beam search and H-score weight optimization; fitting the profile mix; covariance of game counts between

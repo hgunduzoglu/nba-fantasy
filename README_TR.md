@@ -2109,6 +2109,31 @@ Banchero → Clingan +21,9 puan (±1,9) ve şampiyonluğu +3,2 puan (±1,4) art�
 öneri listesinde uyum daha iyi (Spearman playoff +0,51, şampiyonluk +0,63). Şampiyonluk farklarının çoğu 2000
 simülasyonda gürültü içinde (±1,2 puan); playoff farkı daha ayırt edici.
 
+### 13.34 Sakatlık dönüşü: en erken tarih ve geç dönüş senaryosu (`fdo.inseason.returns`, 10 Kasım 2026)
+
+CBS'in "Expected to be out until at least <tarih>" bilgisi en erken tarihtir; model bu tarihi dönüş günü sayıyordu.
+`scripts/calibrate_returns.py` bunu ölçer: bütün CBS raporlarındaki (veri dizini, eski günlük kopyalar ve arşiv
+partileri) en erken tarihi NBA maç kayıtlarındaki ilk maçla karşılaştırır. Oyuncu kimliği §13.31'deki eşleştiriciyle
+bulunur. Henüz dönmeyenler gözlem sonuna kadar sansürlü sayılır (Kaplan–Meier): "en erken tarihten sonra en çok k takım
+maçı / k gün içinde dönme" oranı ve medyan gecikme, her noktada izlenen oyuncu sayısıyla verilir. Dönüş = maçta süre
+almak; kadroda olup süre almayan yedekler gecikmiş görünür, bu yüzden ölçüm gecikmeyi biraz büyütebilir.
+
+İlk ölçüm (31 Ekim – 9 Kasım raporları, 32 gözlem): en erken tarihte ya da önce dönen %19, en çok 1 takım maçı sonra
+%31, bir hafta içinde %40; 21 oyuncu son maç gününde hâlâ dönmemişti, medyan belirlenemedi. Örnek küçük; ama en erken
+tarihin iyimser olduğunu gösteriyor.
+
+Varsayımlar `config/returns.yaml` dosyasıyla değişir (dosya yoksa varsayılan):
+
+- `delay_days` (0): her analizde en erken tarihe eklenen gün. Ölçüm oturana kadar 0 kaldı; veri notunda hangi
+  varsayımın kullanıldığı yazar. Değişince bütün hesaplar (kalan sezon maçı, haftalık model, sezon simülasyonu, IL
+  dönüşünde kimin bırakılacağı) yeni tarihle yapılır; CBS'in tarihi `stated_return` sütununda kalır.
+- `late_days` (7): Takas Analizi'ndeki **Geç dönüş** temeli. Oranlar Yahoo'nunkidir, sakatlar en erken tarihten
+  `late_days` gün sonra döner. Temeller tablosunda (§13.28) ayrı satır olarak "Geç dönüş (+7 gün)" çıkar; "Bu temelle
+  aç" bütün analizi bu senaryoyla yeniler. Sakat bir oyuncu alırken ya da verirken kararın dönüş gecikmesine ne kadar
+  bağlı olduğunu gösterir.
+
+Açık: Questionable / GTD oyuncular hâlâ oynar sayılır; dönüş sonrası dakika rampası yok.
+
 ### 13.8 V3 adayları
 
 Beam search ve H-score ağırlık optimizasyonu; profil karışımı uyumu; oyuncular arası maç sayısı
