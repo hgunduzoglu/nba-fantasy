@@ -3,7 +3,8 @@
 Tek bir "son güncelleme" yerine her bileşenin (kadro, oyuncu istatistikleri, sakatlık, haber...) kendi zamanı tutulur
 (``fdo.ingest.timestamps``). Yaş, dosyanın kendi kaydındaki çekim zamanından (``captured_at``) hesaplanır; o yoksa
 dosya adındaki çekim gününden, o da yoksa dosyanın diskte değiştiği andan. Son durumda ``basis="file"`` işaretlenir:
-kaynağın zamanı bilinmiyor demektir.
+kaynağın zamanı bilinmiyor demektir. Yaşı önemli bir bileşenin kaynak zamanı bilinmiyorsa karar ``normal`` olmaz:
+add/drop ve lineup'ta bekletilir, diğerlerinde koşulludur (``STRICT_UNKNOWN``).
 
 Karar türleri ve durumlar:
 
@@ -42,6 +43,10 @@ LABELS = {"rosters": "Kadrolar", "player_stats": "Oyuncu istatistikleri ve kalan
           "player_master": "Oyuncu listesi", "adp": "Yahoo ADP", "draft": "Lig draftı", "schedule": "NBA takvimi",
           "variance": "Tarihsel varyans", "fixtures": "Lig fikstürü", "transactions": "İşlem geçmişi"}
 DECISIONS = {"trade": "Takas", "adddrop": "Add/drop", "lineup": "Kadro (lineup)", "season": "Sezon görünümü"}
+#: Kaynak zamanı bilinmeyen (yaşı hesaplanamayan ya da yalnız dosya zamanı olan) bileşen bu kararlarda bekletilir;
+#: diğerlerinde koşulludur. Dosya zamanı arşiv içindir, kaynağın güncelliğini kanıtlamaz (eski bir export bugün
+#: kopyalanmış olabilir).
+STRICT_UNKNOWN = frozenset({"adddrop", "lineup"})
 SHORT = {"trade": "takas", "adddrop": "add/drop", "lineup": "lineup", "season": "sezon"}
 REFRESH = {"rosters": "Yahoo'dan güncelle", "player_stats": "Yahoo'dan güncelle (projeksiyonlar açık)",
            "live_week": "Yahoo'dan güncelle", "results": "Yahoo'dan güncelle", "standings": "Yahoo'dan güncelle",
@@ -120,8 +125,12 @@ def assess(aged: dict[str, dict], rule_set: dict | None = None, read_only: bool 
             label = LABELS.get(comp, comp)
             if c is None:
                 s, why = "hold", f"{label} yok"
-            elif ok_h is None or c["age_hours"] is None:
+            elif ok_h is None:
                 s, why = "normal", ""
+            elif c["age_hours"] is None or c.get("basis") == "file":
+                s = "hold" if decision in STRICT_UNKNOWN else "conditional"
+                why = f"{label}: kaynak zamanı bilinmiyor" + (" (dosya zamanı güncelliği kanıtlamaz)"
+                                                               if c["age_hours"] is not None else "")
             elif c["age_hours"] <= ok_h:
                 s, why = "normal", ""
             elif cond_h is not None and c["age_hours"] <= cond_h:
@@ -131,8 +140,6 @@ def assess(aged: dict[str, dict], rule_set: dict | None = None, read_only: bool 
             if s != "normal":
                 reasons.append(why)
                 actions.setdefault(REFRESH.get(comp, "Dosyayı yenile"), []).append(label)
-                if c is not None and c.get("basis") == "file":
-                    reasons[-1] += " — kaynak zamanı bilinmiyor, dosya zamanına göre"
             if rank[s] > rank[state]:
                 state = s
         # aynı eylem bir kez: "Yahoo'dan güncelle (Kadrolar, Sakatlık raporu)"

@@ -57,3 +57,17 @@ def test_rules_file_overrides_defaults_and_read_only_refresh_text(d, tmp_path):
     add = rep["decisions"]["adddrop"]
     assert add["state"] == "hold" and any("bilgisayarda" in x for x in add["refresh"])
     assert "varsayım" in rep["assumption"]
+
+
+def test_unknown_source_time_is_never_normal_for_an_age_checked_component(d):
+    # Eski bir export bugün kopyalandı: dosya zamanı yeni ama kaynağın çekim zamanı yok.
+    (d / "rosters.json").write_text(json.dumps({"leagues": []}), encoding="utf-8")
+    aged = ages(components(d, "2026-27"), NOW)
+    assert aged["rosters"]["basis"] == "file" and aged["rosters"]["age_hours"] is not None
+    rule = {"trade": {"rosters": (72, 168)}, "adddrop": {"rosters": (12, 36)}, "season": {"schedule": (None, None)}}
+    out = assess(aged, rule)
+    assert out["trade"]["state"] == "conditional" and "kaynak zamanı bilinmiyor" in out["trade"]["reasons"][0]
+    assert out["adddrop"]["state"] == "hold"                              # zamana duyarlı karar: daha sıkı
+    assert out["season"]["state"] == "normal"                             # yaşa bakılmayan bileşen: yalnız var olmalı
+    aged["rosters"]["age_hours"] = None                                   # yaş hiç hesaplanamıyor
+    assert assess(aged, rule)["trade"]["state"] == "conditional"
