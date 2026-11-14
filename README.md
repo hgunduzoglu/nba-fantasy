@@ -2411,7 +2411,25 @@ search now has two stages:
 Rows carry `lineup_delta` (weighted, the ranking measure) and `lineup_ecw_delta` (unweighted, the "daily lineup Δ"
 column). A suggestion that gains on the fast score but loses with daily lineups is flagged "⚠ günlük kadro".
 `lineup_rank: false` gives the old order. The cost is 0.1–0.8 s per finalist. A league without fixtures keeps the fast
-order (`ranked_by`). Trade completion and multi-team search are still ranked by the fast score.
+order (`ranked_by`).
+
+The same measure is used in trade completion (24 candidates → 12; the selected trade itself is measured too) and in
+multi-team search (40 candidates → 20; each team's own strategy and waiver order). Re-ranking happens only under the
+"your gain" ranking; if the joint ranking (`rank: joint`) is chosen it is left alone.
+
+### 13.48 The questionable play rate comes from Yahoo's label (15 November 2026)
+
+The weekly model uses Yahoo's Q/GTD/DTD label, but its play rate (§13.46) had been measured from CBS's uncertain list.
+Yahoo roster snapshots (archive batches, `snapshots/<day>/rosters.json`, the current file; for each day the earliest
+capture, i.e. before games) carry that label. `scripts/calibrate_returns.py` now measures the rate there first
+(`yahoo_questionable_outcomes`) and writes it when it has at least 30 observations (`questionable_source: yahoo`);
+otherwise the CBS rate stays. On 15 November, 5 roster days: players tagged Q/GTD/DTD on Yahoo who played their team's
+next game 53% (19/36); CBS list 44% (32/72). The model uses 0.528. All 3 players tagged "P" (probable) on Yahoo played;
+that tag still counts as playing.
+
+The tail of the return distribution (§13.46: the 43% not back within ~5 games of the earliest date are assumed back at
+game 10) shrinks as the archive grows: each run of the script sees a longer horizon. For the range not yet observable
+it stays an assumption.
 
 ### 13.8 V3 candidates
 

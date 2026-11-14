@@ -2381,7 +2381,24 @@ takasta hızlı puan ≈ 0 iken günlük kadroyla −0,14 kategori/hafta çıkt�
 Satırlarda `lineup_delta` (ağırlıklı, sıralama ölçüsü) ve `lineup_ecw_delta` (ağırlıksız, "Günlük kadro Δ" sütunu)
 bulunur. Hızlı puanda kazanç olup günlük kadroda kayıp olan öneri "⚠ günlük kadro" diye işaretlenir. `lineup_rank: false`
 eski sıralamayı verir. Finalist başına maliyet 0,1–0,8 sn'dir. Fikstürü olmayan ligde hızlı puan sırası kalır
-(`ranked_by`). Takas tamamlama ve çok takımlı arama henüz hızlı puanla sıralanır.
+(`ranked_by`).
+
+Aynı ölçü takas tamamlamada (24 aday → 12; seçili takasın kendisi de ölçülür) ve çok takımlı aramada (40 aday → 20;
+her takımın kendi stratejisi ve waiver sırası) kullanılır. Yeniden sıralama yalnız "senin faydan" sıralamasında
+yapılır; ortak sıralama (`rank: joint`) seçilirse ona dokunulmaz.
+
+### 13.48 Belirsiz oyuncu oranı Yahoo etiketinden (15 Kasım 2026)
+
+Haftalık model Yahoo'nun Q/GTD/DTD etiketini kullanır, ama oynama oranı (§13.46) CBS'in belirsiz listesinden
+ölçülmüştü. Yahoo kadro anlık görüntüleri (arşiv partileri, `snapshots/<gün>/rosters.json`, güncel dosya; aynı gün
+için en erken yakalanan, yani maçlardan önceki) bu etiketi taşır. `scripts/calibrate_returns.py` artık oranı önce
+buradan ölçer (`yahoo_questionable_outcomes`) ve en az 30 gözlem varsa onu yazar (`questionable_source: yahoo`). Yoksa
+CBS oranı kalır. 15 Kasım'da 5 kadro günü: Yahoo'da Q/GTD/DTD olup takımının bir sonraki maçında oynayan %53 (19/36),
+CBS listesinde %44 (32/72). Model 0,528 kullanır. Yahoo'da "P" (probable) etiketli 3 oyuncunun üçü de oynadı; bu etiket
+oynuyor sayılmaya devam eder.
+
+Dönüş dağılımının kuyruğu (§13.46, en erken tarihten sonra ~5 maçta dönmeyen %43, 10. maçta dönüyor sayılır) arşiv
+uzadıkça kısalır: betik her çalıştığında izlenen ufuk büyür. Şu an ölçülemeyen bölge için varsayım olarak kalır.
 
 ### 13.8 V3 adayları
 
