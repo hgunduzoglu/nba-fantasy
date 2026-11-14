@@ -384,6 +384,7 @@ export interface CompleteRow {
   /** Rakip için kabul gerekçesi: high (modelde kazanç + kendi gözünde ≥ 1), medium (biri), low (hiçbiri). Olasılık değil. */
   acceptability: Acceptability;
   counterpart_reasons: string[];
+  components?: SuggestionComponents;
   my_categories: Record<string, number>;
   adjustments: Record<string, { drop: string[]; add: string[]; move_to_il: string[] }>;
 }
@@ -457,6 +458,7 @@ export interface Suggestion {
   perceived_view: number | null;
   acceptability: Acceptability;
   counterpart_reasons: string[];
+  components?: SuggestionComponents;
   adjustments: Record<string, Record<"drop" | "add" | "move_to_il", string[]>>;
 }
 
@@ -1032,3 +1034,12 @@ export interface SitStartOut {
 export type FreeMove = { drop: string | null; add: string };
 
 export type MoveBudget = { weekly_limit: number; used: number | null; known: boolean; reserved: number; remaining: number; later: FreeMove[] };
+
+/** Önerinin sıralamadan bağımsız bileşenleri (fdo.trade.suggest.components). */
+export type SuggestionComponents = {
+  own: { strategy_delta: number; win_delta: number };
+  opponent: { strategy_delta: number; win_delta: number; level: Acceptability; reasons: string[] };
+  market: { value_balance: number; their_view: number | null };
+  feasibility: { adds: number; drops: number; adds_left: number; adds_known: boolean; fits_this_week: boolean };
+  uncertainty: { injured: string[]; unmodeled: string[]; timing_unknown: string[]; moves_dependent: boolean };
+};

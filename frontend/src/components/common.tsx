@@ -1,5 +1,5 @@
 import { fmtDate, fmtDelta } from "../format";
-import type { Acceptability, Availability, BriefPlayer, SeasonDelta } from "../types";
+import type { Acceptability, Availability, BriefPlayer, SeasonDelta, SuggestionComponents } from "../types";
 
 export function PlayerName({ p, sub = true }: { p: BriefPlayer; sub?: boolean }) {
   return (
@@ -30,6 +30,30 @@ export function AcceptBadge({ level, reasons }: { level?: Acceptability; reasons
   const a = ACCEPT[level];
   return <span className={"badge " + a.cls} style={{ marginLeft: 0 }}
                title={`Rakip için gerekçe: ${(reasons ?? []).join(" · ")}. Kabul olasılığı değildir.`}>{a.label}</span>;
+}
+
+/** Uygulanabilirlik ve belirsizlik rozetleri; bütün bileşenler (senin faydan, rakibin gerekçesi, piyasa dengesi,
+ * uygulanabilirlik, belirsizlik) üstüne gelince. Sıralama bunlardan bağımsızdır: varsayılan senin faydan. */
+export function ComponentBadges({ c }: { c?: SuggestionComponents }) {
+  if (!c) return null;
+  const f = c.feasibility, u = c.uncertainty;
+  const n = (v: number, d = 3) => (v >= 0 ? "+" : "") + v.toFixed(d);
+  const tip = [
+    `Senin faydan: ${n(c.own.strategy_delta)} kategori/hafta, haftayı kazanma ${n(c.own.win_delta * 100, 1)} puan`,
+    `Rakibin gerekçesi: ${c.opponent.reasons.join(" · ")}`,
+    `Piyasa dengesi: değer ${(c.market.value_balance * 100).toFixed(0)}%` + (c.market.their_view != null ? `, rakibin gözünde ${c.market.their_view.toFixed(2)}` : ""),
+    `Uygulanabilirlik: ${f.adds} ekleme, ${f.drops} bırakma; bu hafta kalan alım hakkı ${f.adds_left}${f.adds_known ? "" : " (kullanım bilinmiyor, limit varsayıldı)"}`,
+    `Belirsizlik: ${[u.injured.length ? `sakat/dönüş bekleyen ${u.injured.join(", ")}` : "", u.unmodeled.length ? `modellenemeyen ${u.unmodeled.join(", ")}` : "",
+      u.timing_unknown.length ? `takvimi bilinmeyen ${u.timing_unknown.join(", ")}` : "", u.moves_dependent ? "kazanç bedava hamlelere bağlı" : ""].filter(Boolean).join(" · ") || "belirgin bir kaynak yok"}`,
+  ].join("\n");
+  return (
+    <>
+      <span className="badge" style={{ marginLeft: 0 }} title={tip}>ⓘ</span>
+      {!f.fits_this_week && <span className="badge out" title={tip}>⚠ alım hakkı</span>}
+      {u.injured.length > 0 && <span className="badge q" title={tip}>sakat {u.injured.length}</span>}
+      {(u.unmodeled.length > 0 || u.timing_unknown.length > 0) && <span className="badge q" title={tip}>? veri</span>}
+    </>
+  );
 }
 
 export function ErrorBanner({ error }: { error: string | null }) {

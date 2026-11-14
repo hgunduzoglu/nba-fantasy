@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AcceptBadge, CategoryChips, ErrorBanner, MovesWarnBadge, SeasonDeltaCell, SeasonWarnBadge, deltaClass, seasonWarning } from "./common";
+import { AcceptBadge, CategoryChips, ComponentBadges, ErrorBanner, MovesWarnBadge, SeasonDeltaCell, SeasonWarnBadge, deltaClass, seasonWarning } from "./common";
 import { fmtDelta, fmtNum, fmtPct } from "../format";
 import type { CompleteOut, CompletePlayer, CompleteRow, CompleteTier, SeasonEffect, SeasonManyOut } from "../types";
 
@@ -135,7 +135,7 @@ export function TradeComplete({ data, busy, error, base, oppName, labels, mobile
                       <span className="m-kv">rakip <b className={sign(r.other_delta)}>{fmtDelta(r.other_delta, 3)}</b></span>
                       <span className="m-kv">denge <b>{fmtPct(r.fairness)}</b></span>
                       <span className="m-kv">gözünde <b>{fmtNum(r.perceived_view, 2)}</b></span>
-                      <span className="m-kv">kabul <AcceptBadge level={r.acceptability} reasons={r.counterpart_reasons} /></span>
+                      <span className="m-kv">kabul <AcceptBadge level={r.acceptability} reasons={r.counterpart_reasons} /> <ComponentBadges c={r.components} /></span>
                       {(() => {
                         const po = part(i, "playoff"), ch = part(i, "champion");
                         if (!ch || ch === "err") return null;
@@ -173,7 +173,7 @@ export function TradeComplete({ data, busy, error, base, oppName, labels, mobile
                         <td>{fmtDelta(r.own_win * 100, 1)}</td>
                         <td>{fmtPct(r.fairness)}</td>
                         <td>{fmtNum(r.perceived_view, 2)}</td>
-                        <td><AcceptBadge level={r.acceptability} reasons={r.counterpart_reasons} /></td>
+                        <td><AcceptBadge level={r.acceptability} reasons={r.counterpart_reasons} /> <ComponentBadges c={r.components} /></td>
                         {season && <SeasonDeltaCell d={part(i, "playoff")} />}
                         {season && <SeasonDeltaCell d={part(i, "champion")} scale={0.05} />}
                         <td className="l"><CategoryChips deltas={r.my_categories} labels={labels} /></td>

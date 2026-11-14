@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
-import { AcceptBadge, CategoryChips, ErrorBanner, Loading, MovesWarnBadge, PlayerName, SeasonDeltaCell, SeasonWarnBadge, deltaClass, seasonWarning } from "../components/common";
+import { AcceptBadge, CategoryChips, ComponentBadges, ErrorBanner, Loading, MovesWarnBadge, PlayerName, SeasonDeltaCell, SeasonWarnBadge, deltaClass, seasonWarning } from "../components/common";
 import { BALANCED, StrategyPicker, strategyLabel, toStrategyIn, type StrategyChoice } from "../components/StrategyPicker";
 import { fmtDelta, fmtNum, fmtPct } from "../format";
 import type { League, Meta, MispricedRow, Perceived, SeasonEffect, SuggestMode, SuggestOut, Suggestion } from "../types";
@@ -350,7 +350,8 @@ export function SuggestPage({ meta, league, team, injuries, onOpen }: Props) {
             {rows.length > 0 && (
               <>
                 <div className="seg">
-                  <button aria-pressed={sortBy === "score"} onClick={() => setSortBy("score")}>Öneri puanı</button>
+                  <button aria-pressed={sortBy === "score"} onClick={() => setSortBy("score")}
+                          title="Varsayılan sıralama: senin kazancın. Rakibin gerekçesi ve değer dengesi süzgeçtir, puanı büyütmez.">Senin faydan</button>
                   <button aria-pressed={sortBy === "robust"} onClick={() => setSortBy("robust")}
                           title="Kaç yönde senin kazancın pozitif">Sağlamlık</button>
                   <button aria-pressed={sortBy === "ecw"} onClick={() => setSortBy("ecw")}>Senin ΔECW</button>
@@ -408,6 +409,7 @@ export function SuggestPage({ meta, league, team, injuries, onOpen }: Props) {
                           {s.position_gap > 0 && <span className="badge out" title={`Takastan sonra ${s.position_gap} aktif pozisyon doldurulamıyor`}>⚠ pozisyon</span>}
                           <SeasonWarnBadge show={!!e && e !== "err" && seasonWarning(ecw, e.me.playoff)} />
                           <MovesWarnBadge own={s.own_delta} plain={s.own_delta_plain} />
+                          <ComponentBadges c={s.components} />
                         </td>
                         {view !== "all" && <td className={deltaClass(s.own_delta, 0.3)}>{fmtDelta(s.own_delta, 3)}</td>}
                         <td title={rob.tip} className={rob.n === rob.total ? "good" : rob.n === 0 ? "bad" : ""}>{rob.n}/{rob.total}</td>
