@@ -1,0 +1,71 @@
+"""Uzun sakatlıktan dönen oyuncunun dönüş sonrası oynama oranı, bir önceki sezonun oranıyla (README §13.19, §13.39).
+
+    python scripts/check_durability.py --prev data/real/gamelogs_nba_2024-25.csv --cur data/real/gamelogs_nba_2025-26.csv
+
+Dayanıklılık tavanı (``fdo.inseason.durability``) bilinen dönüş tarihinden sonraki maçlara sezon öncesi oynama oranını
+uygular. Soru: oran zaten sakatlıkları içerdiği için dönüşten sonra risk iki kez mi sayılıyor? Dönüş sonrası oran önceki
+oranla aynıysa risk sabittir (çift sayım yok); 1'e yakınsa sezonun sakatlık "payı" harcanmıştır (çift sayım var).
+Önceki sezon oranı sezon öncesi projeksiyonun vekilidir. Oynamak = sahada süre almak (kadro dışı ve DNP kayıp sayılır).
+"""
+
+from __future__ import annotations
+
+import argparse
+import sys
+
+import pandas as pd
+
+
+def team_days(df: pd.DataFrame) -> dict[str, list]:
+    return {t: sorted(set(g)) for t, g in df.groupby("nba_team")["game_date"]}
+
+
+def post_return(prev: pd.DataFrame, cur: pd.DataFrame, min_streak: int = 10, min_after: int = 10) -> pd.DataFrame:
+    """Bu sezon en az ``min_streak`` takım maçı art arda kaçırıp sonra en az ``min_after`` takım maçı izlenen oyuncular:
+    önceki sezon oranı ve dönüş sonrası oran (takım değiştirenler dışarıda)."""
+    tp, tc = team_days(prev), team_days(cur)
+    rate_prev = {n: len(g) / len(tp[g["nba_team"].iloc[-1]]) for n, g in prev[prev["minutes"] > 0].groupby("name")}
+    rows = []
+    for name, g in cur[cur["minutes"] > 0].groupby("name"):
+        if name not in rate_prev or g["nba_team"].nunique() > 1:
+            continue
+        days = tc[g["nba_team"].iloc[-1]]
+        played = set(g["game_date"])
+        idx = [d in played for d in days]
+        first = idx.index(True)
+        best, run, start = 0, 0, None
+        for i in range(first, len(idx)):
+            run = 0 if idx[i] else run + 1
+            if run > best:
+                best, start = run, i - run + 1
+        if best < min_streak or start + best > len(idx) - min_after:
+            continue
+        after = idx[start + best:]
+        rows.append({"name": name, "prev_rate": min(rate_prev[name], 1.0), "streak": best,
+                     "after_games": len(after), "after_rate": sum(after) / len(after)})
+    return pd.DataFrame(rows, columns=["name", "prev_rate", "streak", "after_games", "after_rate"])
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--prev", required=True)
+    ap.add_argument("--cur", required=True)
+    ap.add_argument("--min-streak", type=int, default=10)
+    args = ap.parse_args()
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    prev, cur = pd.read_csv(args.prev), pd.read_csv(args.cur)
+    for df in (prev, cur):
+        df["game_date"] = pd.to_datetime(df["game_date"]).dt.date
+    r = post_return(prev, cur, args.min_streak)
+    r = r[r["prev_rate"] >= .3]
+    print(f"{len(r)} oyuncu: önceki sezon oranı ort. {r.prev_rate.mean():.2f}, dönüş sonrası ort. {r.after_rate.mean():.2f}")
+    for lo, hi in ((.3, .7), (.7, .85), (.85, 1.01)):
+        s = r[(r.prev_rate >= lo) & (r.prev_rate < hi)]
+        if len(s):
+            print(f"  önceki {lo:.2f}–{hi:.2f}: n={len(s)}, önceki {s.prev_rate.mean():.2f} → dönüş sonrası {s.after_rate.mean():.2f}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
