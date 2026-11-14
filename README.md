@@ -2203,6 +2203,21 @@ The script does not change the thresholds: 0.95, 1.25 and 0.80 should change onl
 this table in view. Records are in the decision log where the app is used; if the app was used on the server, run the
 script on the data folder there.
 
+### 13.39 Play rate after a return: is the risk counted twice? (`scripts/check_durability.py`, 10 November 2026)
+
+The durability cap (§13.19) applies the preseason play rate to the games after a known return date. Since the rate already
+includes injuries, a player who is injured now was suspected of having his risk counted twice. The script measures this
+with NBA game logs: for players who missed at least 10 team games in a row in a season and were followed for at least 10
+games after returning, the play rate after the return is compared with the previous season's rate (a proxy for the
+preseason projection).
+
+2025-26 (previous: 2024-25), 63 players: previous rate mean 0.68, after the return 0.69. A long injury does not use up
+the season's injury "budget"; players keep missing games at a similar rate after returning, so on average there is no
+double counting and the cap did not change. Within groups there is regression to the mean: players who looked durable
+(previous ≥ 0.85) play 0.76 after returning, frequent absentees (< 0.70) 0.67; the samples are small (14 and 34).
+Limits: the previous season's rate is not the projection, players who changed teams are left out, not getting minutes
+counts as a missed game.
+
 ### 13.8 V3 candidates
 
 Beam search and H-score weight optimization; fitting the profile mix; covariance of game counts between

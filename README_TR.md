@@ -2184,6 +2184,19 @@ oranını verir; 10'dan az kayıtlı grup belirsiz diye işaretlenir. Betik eşi
 yeterli kayıt biriktikçe ve bu tabloya bakılarak değiştirilmeli. Kayıtlar uygulamanın kullanıldığı yerdeki karar
 günlüğündedir; uygulama sunucuda kullanıldıysa betik oradaki veri dizininde çalıştırılır.
 
+### 13.39 Dönüş sonrası oynama oranı: risk iki kez sayılıyor mu? (`scripts/check_durability.py`, 10 Kasım 2026)
+
+Dayanıklılık tavanı (§13.19) bilinen dönüş tarihinden sonraki maçlara sezon öncesi oynama oranını uygular. Oran
+sakatlıkları zaten içerdiği için, şu an sakat olan oyuncuda riskin iki kez sayılmasından şüphelenilmişti. Betik bunu NBA
+maç kayıtlarıyla ölçer: bir sezonda en az 10 takım maçını art arda kaçırıp döndükten sonra en az 10 maç izlenen
+oyuncuların dönüş sonrası oynama oranı, önceki sezonun oranıyla (sezon öncesi projeksiyonun vekili) karşılaştırılır.
+
+2025-26 (önceki: 2024-25), 63 oyuncu: önceki oran ort. 0,68, dönüş sonrası 0,69. Uzun sakatlık sezonun sakatlık
+"payını" harcamıyor; dönüşten sonra da benzer oranda maç kaçırılıyor, yani ortalamada çift sayım yok ve tavan
+değişmedi. Gruplarda ortalamaya dönüş var: dayanıklı görünen oyuncular (önceki ≥ 0,85) dönüşten sonra 0,76, sık
+kaçıranlar (< 0,70) 0,67 oynuyor; örnekler küçük (14 ve 34). Sınırlar: önceki sezon oranı projeksiyon değildir, takım
+değiştirenler dışarıda, süre almamak kayıp sayılır.
+
 ### 13.8 V3 adayları
 
 Beam search ve H-score ağırlık optimizasyonu; profil karışımı uyumu; oyuncular arası maç sayısı
