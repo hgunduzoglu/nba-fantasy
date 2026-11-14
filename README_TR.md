@@ -2169,6 +2169,21 @@ rakip onu IL'e koyup boşalan yere boştan oyuncu alır; Banchero senin IL'inde 
 birini bırakırsın. Öneri filtreleri ve sıralama değişmedi; kadro sonrası denge açıklamadır. Fayda tarafı (kategori
 beklentisi, P(5+)) zaten kadro çözümüyle hesaplanıyor.
 
+### 13.38 Menajer profili ve teklif kaydı (`fdo.inseason.managers`, `fdo.evaluation.offers`, 10 Kasım 2026)
+
+**Menajer profili**: ligin işlem sayfasından (`transactions.csv`) her takımın boştan alımı, bırakması, takası, veto
+edilen takası ve son işlem günü. Takas Analizi'nde karşı takımın altında, işlem geçmişinin çekim tarihiyle gösterilir
+(`GET /managers`). Menajerin ne kadar etkin olduğunu gösterir; teklif kabul eğilimi ölçülmedi, kabul gerekçesi düzeyini
+değiştirmez. `transactions.csv` Yahoo senkronizasyonuyla güncellenmiyor (son çekim 31 Ekim); profil o tarihe kadardır.
+
+**Teklif kaydı**: Takas Analizi'nde "Teklif ettim" seçili takası o anki ölçüleriyle kaydeder: iki tarafın kazancı, değer
+dengesi, rakibin gözünde oran ve kabul gerekçesi düzeyi (`POST /trade/offer`). Cevap gelince listeden kabul / ret /
+karşı teklif işaretlenir (ayrı kayıt; günlük yalnız eklemeli). `scripts/calibrate_thresholds.py` cevaplanan teklifleri
+kabul gerekçesi düzeyine ve rakibin gözündeki oran gruplarına (0,80 / 0,95 / 1,10 / 1,25 sınırları) göre sayar ve kabul
+oranını verir; 10'dan az kayıtlı grup belirsiz diye işaretlenir. Betik eşikleri değiştirmez: 0,95, 1,25 ve 0,80 ancak
+yeterli kayıt biriktikçe ve bu tabloya bakılarak değiştirilmeli. Kayıtlar uygulamanın kullanıldığı yerdeki karar
+günlüğündedir; uygulama sunucuda kullanıldıysa betik oradaki veri dizininde çalıştırılır.
+
 ### 13.8 V3 adayları
 
 Beam search ve H-score ağırlık optimizasyonu; profil karışımı uyumu; oyuncular arası maç sayısı

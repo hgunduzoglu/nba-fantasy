@@ -2186,6 +2186,23 @@ Example (9 November, METU IE): Banchero → Ty Jerome is 0.39 linear and 0.78 af
 IL, you drop someone to make room for Jerome. Suggestion filters and ranking did not change; the post-roster balance is
 an explanation. The benefit side (expected categories, P(5+)) is already computed with the roster resolution.
 
+### 13.38 Manager profile and offer log (`fdo.inseason.managers`, `fdo.evaluation.offers`, 10 November 2026)
+
+**Manager profile**: from the league's transactions page (`transactions.csv`), each team's free-agent adds, drops,
+trades, vetoed trades and last action day. It is shown on the trade page under the other team, with the capture date of
+the transaction history (`GET /managers`). It shows how active a manager is; the tendency to accept offers is not
+measured and it does not change the acceptability level. `transactions.csv` is not updated by the Yahoo sync (last
+capture 31 October); the profile runs to that date.
+
+**Offer log**: "Teklif ettim" (I offered) on the trade page records the selected trade with its measures at that moment:
+both sides' gain, value balance, the ratio in the opponent's eyes and the acceptability level (`POST /trade/offer`). When
+the answer comes, accepted / rejected / countered is marked from the list (a separate record; the log is append-only).
+`scripts/calibrate_thresholds.py` counts answered offers by acceptability level and by groups of the opponent's-view ratio
+(bounds 0.80 / 0.95 / 1.10 / 1.25) and gives the acceptance rate; groups with fewer than 10 records are marked uncertain.
+The script does not change the thresholds: 0.95, 1.25 and 0.80 should change only as enough records accumulate and with
+this table in view. Records are in the decision log where the app is used; if the app was used on the server, run the
+script on the data folder there.
+
 ### 13.8 V3 candidates
 
 Beam search and H-score weight optimization; fitting the profile mix; covariance of game counts between
