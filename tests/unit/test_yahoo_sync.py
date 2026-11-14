@@ -196,3 +196,42 @@ def test_sync_stops_without_writing_when_a_page_breaks(real_dir):
         sync(real_dir, broken, players=False, now=pd.Timestamp("2026-11-07 09:00", tz="America/New_York"))
     assert json.loads((real_dir / "rosters.json").read_text(encoding="utf-8"))["roster_date"] == "2026-10-31"
     assert not (real_dir / "yahoo_live.json").exists()
+
+
+def _tx(rows):
+    """Yahoo işlem sayfası satırları: (oyuncu kimlikleri ve adları, ara metinler, takım, zaman)."""
+    body = ""
+    for players, team, when in rows:
+        cell = "".join(f'<div><a href="https://sports.yahoo.com/nba/players/{pid}">{name}</a>'
+                       f'<a href="https://sports.yahoo.com/nba/players/{pid}/news"></a><h6>{what}</h6></div>'
+                       for pid, name, what in players)
+        body += (f'<tr><td><span title="Added Player">&#xe035;</span></td><td>{cell}</td><td><a class="Tst-team-name" '
+                 f'href="https://basketball.fantasysports.yahoo.com/nba/{LID}/{team}">Team {team}</a>'
+                 f'<span>{when}</span><img alt="logo"></td></tr>')
+    return f"<table><tbody>{body}</tbody></table>"
+
+
+def test_transactions_parse_and_sync_adds_only_new_rows(real_dir):
+    rows = Y.parse_transactions(_tx([([("11", "Ann A", "Free Agent"), ("12", "Bob B", "To Waivers")], "1",
+                                       "Nov 13, 5:54 pm")]), LID)
+    assert rows == [{"raw_text": " Ann A Free Agent Bob B To Waivers Team 1 Nov 13, 5:54 pm",
+                     "player_ids": "11,12", "team_ids": "1"}]
+    old = "  Old O LAL - PG Free Agent Team 2 Nov 1, 1:00 pm logo"         # eski çekim (durum yazmıyordu)
+    pd.DataFrame([{"league_id": LID, "raw_text": old, "player_ids": "40", "team_ids": "2",
+                   "captured_at": "2026-11-01T00:00:00+00:00"}]).to_csv(real_dir / "transactions.csv", index=False)
+    fetch, asked = _site()
+    page = _tx([([("41", "New N", "Free Agent")], "1", "Nov 6, 2:00 pm"),
+                ([("40", "Old O LAL - PG O", "Free Agent")], "2", "Nov 1, 1:00 pm")])   # artık sakat
+
+    def site(path):
+        return page if "/transactions" in path else fetch(path)
+    res = sync(real_dir, site, players=False, now=pd.Timestamp("2026-11-07 09:00", tz="America/New_York"))
+    tx = pd.read_csv(real_dir / "transactions.csv", dtype=str, keep_default_na=False)
+    assert len(tx) == 2 and tx["raw_text"].iloc[0].startswith(" New N") and "transactions.csv" in res.written
+    assert set(tx["captured_at"]) == {res.captured_at}                            # liste bu çekime kadar tam
+    assert sum("/transactions" in p for p in [*asked, *[]]) == 0                  # tek sayfada bilinen satıra ulaşıldı
+    # işlem sayfası bozuksa not düşülür, senkronizasyon yine yazar
+    fetch2, _ = _site()
+    res2 = sync(real_dir, lambda p: (_ for _ in ()).throw(ValueError("x")) if "/transactions" in p else fetch2(p),
+                players=False, now=pd.Timestamp("2026-11-07 09:00", tz="America/New_York"))
+    assert any("işlem geçmişi okunamadı" in n for n in res2.notes) and "transactions.csv" not in res2.written

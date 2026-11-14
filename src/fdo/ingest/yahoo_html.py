@@ -296,3 +296,34 @@ def parse_player_table(html: str, league_id: str | None = None) -> dict | None:
             row["owner_team_id"] = team_id_of(cs[rs], league_id)
         out_rows.append(row)
     return {"headers": header, "rows": out_rows}
+
+
+_PLAYER_LINK = re.compile(r"/nba/players/(\d+)/?$")
+
+
+def _strings(node: Node) -> Iterator[str]:
+    """Düğümdeki bütün metin parçaları sırasıyla (öğe sınırında boşluk; satır içi öğeler de ayrılır)."""
+    for c in node.children:
+        if isinstance(c, Node):
+            yield from _strings(c)
+        else:
+            yield c
+
+
+def parse_transactions(html: str, league_id: str) -> list[dict]:
+    """Lig işlem sayfası (``/nba/<lig>/transactions``): satır başına düz metin (``raw_text``: oyuncular, "Free Agent",
+    "To Waivers", "$3 Waiver", "Traded to ...", "Vetoed Trade", takım ve "Nov 13, 5:54 pm"), oyuncu kimlikleri ve
+    satırdaki takım bağlantıları (alım/bırakmada işlemi yapan, takasta alan takım). Sayfanın en yenisi ilk sırada."""
+    out = []
+    for tr in parse(html).iter("tr"):
+        players = [m.group(1) for h in tr.links() if (m := _PLAYER_LINK.search(h.split("?")[0]))]
+        if not players:
+            continue
+        teams = []
+        for h in tr.links():
+            m = _TEAM_LINK.search(h.split("?")[0])
+            if m and m.group(1) == str(league_id) and m.group(2) not in teams:
+                teams.append(m.group(2))
+        out.append({"raw_text": " ".join(" ".join(_strings(tr)).split()), "player_ids": ",".join(dict.fromkeys(players)),
+                    "team_ids": ",".join(teams)})
+    return out

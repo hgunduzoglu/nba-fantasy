@@ -9,6 +9,8 @@ bekleyerek çekilir. Yazılanlar (hepsi ``data/real`` altında, git dışı):
 * ``standings_live.csv`` — kategori W-L-T (``fdo.inseason.standings`` okur).
 * ``matchups.json`` — biten haftaların kategori sonuçları ve takım toplamları (eksik olanlar çekilir).
 * ``yahoo_live.json`` — içinde bulunulan haftanın takım toplamları, kullanıcının alım hakkı, FAB, waiver listesi.
+* ``transactions.csv`` — ligin işlem geçmişi (alım, bırakma, takas): yalnız yeni satırlar çekilir, bilinenlere ulaşınca
+  durulur; okunamazsa not düşülür, senkronizasyonun geri kalanı etkilenmez (``fdo.inseason.managers`` okur).
 
 Üzerine yazmadan önce analiz girdilerinin o anki hâli, yazdıktan sonra da yeni hâli değiştirilemez arşive alınır
 (``fdo.ingest.archive``, ``snapshots/`` altında): aynı gün ikinci çekim ilkini silmez, aynı içerik ikinci kez saklanmaz.
@@ -21,6 +23,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import re
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -37,7 +40,14 @@ MAX_PLAYERS = 750
 #: Senkronizasyonun yazdığı / anlık görüntüye aldığı dosyalar.
 #: ``fdo.trade.data.ROS`` ile aynı (ingest, trade'e bağımlı olmasın diye tekrarlandı).
 ROS = "remaining_games_projection"
-OUTPUTS = ("rosters.json", "player_stat_pages.json", "standings_live.csv", "matchups.json", "yahoo_live.json")
+OUTPUTS = ("rosters.json", "player_stat_pages.json", "standings_live.csv", "matchups.json", "yahoo_live.json",
+           "transactions.csv")
+TX_FILE = "transactions.csv"
+TX_COLUMNS = ("league_id", "league_name", "source_page_offset", "source_row", "action_raw", "raw_text", "player_ids",
+              "team_ids", "source_url", "captured_at")
+TX_MAX_PAGES = 40
+_TX_WHEN = re.compile(r"[A-Z][a-z]{2} \d{1,2}, \d{1,2}:\d{2} [ap]m")
+_TX_NOISE = re.compile("[\\ue000-\\uf8ff]|\\blogo\\b")       # simge yazı tipi karakterleri, logo görselinin adı
 
 
 class NotLoggedIn(RuntimeError):
@@ -155,6 +165,31 @@ def waiver_list(fetch: Callable[[str], str], league_id: str, today: dt.date) -> 
     return out, n
 
 
+def tx_key(row) -> str:
+    """İşlem satırının kimliği: oyuncu kimlikleri (sıralı), takımlar ve satırdaki zaman ("Nov 13, 5:54 pm"). Metin
+    kullanılmaz: Yahoo oyuncunun güncel sakatlık durumunu da yazar, aynı işlemin metni zamanla değişir."""
+    when = _TX_WHEN.search(str(row["raw_text"]))
+    ids = ",".join(sorted(x for x in str(row["player_ids"]).split(",") if x))
+    teams = ",".join(sorted(x for x in str(row["team_ids"]).split(",") if x))
+    return f"{ids}|{teams}|{when.group(0) if when else _TX_NOISE.sub(' ', str(row['raw_text'])).strip()}"
+
+
+def transactions(fetch: Callable[[str], str], league_id: str, league_name: str, known: set[str],
+                 captured: Callable[[], str]) -> tuple[list[dict], int]:
+    """En yeniden geriye yeni işlem satırları; sayfada bilinen bir satıra ulaşınca ya da sayfa bitince durur."""
+    rows, n = [], 0
+    for count in range(0, TX_MAX_PAGES * PAGE_SIZE, PAGE_SIZE):
+        path = f"/nba/{league_id}/transactions?transactionsfilter=all&count={count}"
+        page = Y.parse_transactions(fetch(path), league_id)
+        n += 1
+        fresh = [(i, r) for i, r in enumerate(page) if tx_key(r) not in known]
+        rows += [{"league_id": league_id, "league_name": league_name, "source_page_offset": count, "source_row": i + 1,
+                  "action_raw": "", **r, "source_url": BASE + path, "captured_at": captured()} for i, r in fresh]
+        if len(fresh) < len(page) or len(page) < PAGE_SIZE:
+            break
+    return rows, n
+
+
 def _result(teams: list[dict]) -> dict:
     a, b = teams
     wa, wb = a["category_wins"] or 0, b["category_wins"] or 0
@@ -178,6 +213,10 @@ def sync(directory: str | Path, fetch: Callable[[str], str], *, players: bool = 
     snapshot(directory, f"senkronizasyon öncesi (kadro {old_rosters['roster_date']})")
     roster_leagues, standings, live = [], [], {}
     matchups_doc = _read(directory / "matchups.json")
+    tx_path = directory / TX_FILE
+    tx_old = pd.read_csv(tx_path, dtype=str, keep_default_na=False) if tx_path.exists() else pd.DataFrame(columns=TX_COLUMNS)
+    tx_new: list[dict] = []
+    tx_checked: set[str] = set()
     for lid, name, n_teams in leagues:
         log(f"{name}: lig sayfası")
         home = Y.parse_league_home(fetch(f"/nba/{lid}"), lid)
@@ -211,6 +250,17 @@ def sync(directory: str | Path, fetch: Callable[[str], str], *, players: bool = 
         waivers, n = waiver_list(fetch, lid, as_of)
         res.pages += n
         live[lid] = {"week": week, "my_team": me, **team_info, "matchups": current, "waivers": waivers}
+        log(f"{name}: işlem geçmişi")
+        known = {tx_key(r) for r in tx_old[tx_old["league_id"] == lid].to_dict("records")}
+        try:
+            got, n = transactions(fetch, lid, name, known, stamp)
+            res.pages += n
+            tx_new += got
+            tx_checked.add(lid)
+        except NotLoggedIn:
+            raise
+        except Exception as e:  # noqa: BLE001 — ayrı sayfa; senkronizasyonu düşürmez
+            res.notes.append(f"{name}: işlem geçmişi okunamadı ({e.__class__.__name__}); eski kayıt korundu.")
         if matchups_doc:
             for m in matchups_doc["matchups"]:
                 if str(m["league_id"]) != lid or int(m["week"]) >= week or m.get("team_a_totals"):
@@ -250,6 +300,14 @@ def sync(directory: str | Path, fetch: Callable[[str], str], *, players: bool = 
         matchups_doc.update(results_updated_at=res.captured_at, collected_result_weeks=weeks)
         _write(directory / "matchups.json", matchups_doc)
         res.written.append("matchups.json")
+    if tx_checked:
+        tx = pd.concat([pd.DataFrame(tx_new, columns=list(TX_COLUMNS)), tx_old], ignore_index=True)
+        tx = tx[~(tx["league_id"] + "|" + tx.apply(tx_key, axis=1)).duplicated()]   # yeni metin önde kalır
+        tx.loc[tx["league_id"].isin(tx_checked), "captured_at"] = res.captured_at   # liste bu ana kadar tam
+        tx.to_csv(tx_path, index=False, encoding="utf-8")
+        res.written.append(TX_FILE)
+        if tx_new:
+            res.notes.append(f"İşlem geçmişi: {len(tx_new)} yeni satır.")
     _write(directory / "yahoo_live.json", {"captured_at": res.captured_at, "captured_et": now.isoformat(),
                                            "as_of": as_of.isoformat(), "live": res.live, "leagues": live})
     res.written.append("yahoo_live.json")
