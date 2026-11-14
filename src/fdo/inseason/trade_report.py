@@ -6,6 +6,8 @@ tarihleri) ve haberler tek bir veri paketinde toplanır; Claude bunlardan Türk�
 yazar (karar, bölümler, karşı teklifler, izlenecekler). Yalnız paketteki veriler kullanılır; genel basketbol bilgisi
 (yaş, kariyer normları) veriyle çelişmediği sürece ve belirtilerek.
 
+Rapordaki sayılar pakete karşı denetlenir (``fdo.inseason.number_check``); bulunamayanlar kayıtta ``number_check``.
+
 Raporlar ``trade_reports.json``'da saklanır (veri imzası + takas + stratejiler anahtarıyla): aynı veriyle aynı takas
 yeniden ücret ödemeden açılır. Üretim arka planda çalışır (Cloudflare 100 sn sınırı); arayüz durumu sorar.
 """
@@ -22,6 +24,7 @@ import numpy as np
 import pandas as pd
 
 from fdo.inseason.news import PRICES, load_env_key, model_name
+from fdo.inseason.number_check import check as number_check
 from fdo.inseason.roles import match_ids
 from fdo.trade.data import ROS
 from fdo.trade.engine import TradeEngine
@@ -332,7 +335,8 @@ class ReportStore:
                 self.jobs[key] = {"status": "error", "key": key, "error": error}
             return
         record = {"key": key, "created_at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="minutes"),
-                  "model": usage["model"], "cost": round(cost(usage), 4), "usage": usage, **meta, "report": report}
+                  "model": usage["model"], "cost": round(cost(usage), 4), "usage": usage, **meta, "report": report,
+                  "number_check": number_check(report, packet)}
         with self.lock:
             saved = self._load()
             saved[key] = record

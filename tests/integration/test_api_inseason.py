@@ -309,6 +309,7 @@ def test_trade_report_background_and_access(client, tmp_path, monkeypatch):
     assert r["status"] == "done" and r["report"]["decision"] == "karşı teklif ver"
     c = r["report"]["counter_offers"][0]
     assert c["valid"] and c["give"][0]["id"] == "0" and c["get"][0]["id"] == "4"
+    assert r["number_check"]["checked"] >= 0 and isinstance(r["number_check"]["unmatched"], list)
     assert client.post("/api/leagues/L/trade/report", json=body).json()["status"] == "done"     # kayıttan, ücretsiz
     assert (tmp_path / "trade_reports.json").exists()
 
