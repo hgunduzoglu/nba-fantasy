@@ -251,11 +251,15 @@ export interface TradeSide {
   adjustments: Record<"drop" | "add" | "move_to_il", { id: string; name: string }[]>;
   ranks: Record<string, RankRow[]>;
   returns?: ReturnEvent[];
+  /** Kadro sonrası net piyasa kazancı (aldıkları − kadroya sığmadığı için bıraktıkları + boştan eklenenler). */
+  net_value?: number;
 }
 
 export interface TradeOut {
   teams: { a: TradeSide; b: TradeSide };
   fairness: number;
+  /** Kadro sonrası değer dengesi: iki tarafın net kazancı (aldıkları − bıraktıkları + boştan eklenenler) oranı. */
+  roster_balance?: number;
   perceived_balance: number | null;
   assessments: {
     mutual_benefit: boolean;

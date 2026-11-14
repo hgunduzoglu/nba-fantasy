@@ -547,6 +547,11 @@ export function TradePage({ meta, league, team, injuries, initial }: Props) {
                 <span className="pill" title="Kalan sezon piyasa değerine göre küçük paket / büyük paket">
                   Değer dengesi {fmtPct(result.fairness)}
                 </span>
+                {result.roster_balance !== undefined && Math.abs(result.roster_balance - result.fairness) >= 0.03 && (
+                  <span className="pill" title={`Kadroya sığmayan oyuncular düşüldükten sonra: senin net kazancın ${fmtNum(result.teams.a.net_value ?? 0, 2)}, rakibinki ${fmtNum(result.teams.b.net_value ?? 0, 2)} (aldıkları − bıraktıkları + boştan eklenenler, piyasa değeri). 2'ye 1'de fazla oyuncu alan taraf birini bırakmak zorunda kalır.`}>
+                    Kadro sonrası denge {fmtPct(result.roster_balance)}
+                  </span>
+                )}
                 {result.perceived_balance !== null && (
                   <span className="pill" title="Rakibin gözünden (bu sezon + isim değeri): aldığı / verdiği. 1 = eşit görür.">
                     Rakibin gözünde {fmtNum(result.perceived_balance, 2)}
