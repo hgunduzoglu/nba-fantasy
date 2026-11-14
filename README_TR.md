@@ -2136,6 +2136,17 @@ Varsayımlar `config/returns.yaml` dosyasıyla değişir (dosya yoksa varsayıla
 haftanın kalan günlerinde oturtur (`WeeklyIn.questionable_out`). Varsayılan model onları oynar sayar; gerçek oynama
 oranı ölçülmedi, iki ucu karşılaştırmak içindir. Açık: dönüş sonrası dakika rampası yok.
 
+### 13.35 Kategori beraberliği (`fdo.matchup.ecw.p_outcomes`, sezon simülasyonu, 10 Kasım 2026)
+
+Sezon simülasyonu her kategoriyi kazanç ya da kayıp sayıyordu. Sayım kategorilerinde (3PM, STL, BLK, TOV...) haftalık
+toplamlar tam sayıdır ve eşit kalabilir. Şimdi fark Normal yaklaşımla, süreklilik düzeltmesiyle değerlendirilir: kazanç
+`P(D > 0,5)`, beraberlik `P(|D| < 0,5)`; FG% ve FT%'de beraberlik yok sayılır. Kopulanın aynı gizil çekilişi kazanç /
+beraberlik / kayıp olarak bölünür; kategori W-L-T'ye T yazılır. Playoff turunda kategori galibiyetleri eşitse üst
+sıradaki takım tur atlar (Yahoo kuralı varsayıldı). Haftalık ekranlardaki `p_win` ve ECW değişmedi.
+
+Kontrol (9 Kasım, METU IE): simülasyon kalan sezonda takım başına 2,4–3,7 kategori beraberliği bekliyor (kategorilerin
+%1,5–2'si); ligin şimdiye kadarki gerçek W-L-T'sinde oran %1,6.
+
 ### 13.8 V3 adayları
 
 Beam search ve H-score ağırlık optimizasyonu; profil karışımı uyumu; oyuncular arası maç sayısı

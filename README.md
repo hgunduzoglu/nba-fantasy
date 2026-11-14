@@ -2152,6 +2152,17 @@ The assumptions change with `config/returns.yaml` (defaults if the file is missi
 the remaining days of the current week (`WeeklyIn.questionable_out`). The default model counts them as playing; the real
 play rate was not measured, the box is for comparing the two ends. Open: there is no minutes ramp after a return.
 
+### 13.35 Category ties (`fdo.matchup.ecw.p_outcomes`, season simulation, 10 November 2026)
+
+The season simulation counted every category as a win or a loss. In counting categories (3PM, STL, BLK, TOV...) weekly
+totals are integers and can be equal. The difference is now evaluated with the Normal approximation and a continuity
+correction: win `P(D > 0.5)`, tie `P(|D| < 0.5)`; FG% and FT% ties are ignored. The copula's latent draw is split into
+win / tie / loss, and the tie goes into the category W-L-T. In a playoff round with equal category wins the higher seed
+advances (Yahoo's rule assumed). `p_win` and ECW on the weekly pages did not change.
+
+Check (9 November, METU IE): the simulation expects 2.4–3.7 category ties per team over the rest of the season (1.5–2% of
+categories); in the league's real W-L-T so far the share is 1.6%.
+
 ### 13.8 V3 candidates
 
 Beam search and H-score weight optimization; fitting the profile mix; covariance of game counts between
