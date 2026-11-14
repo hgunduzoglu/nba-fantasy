@@ -129,6 +129,7 @@ class WeeklyIn(BaseModel):
     week: int | None = None
     opponent: str | None = None
     sit_out: bool = True
+    questionable_out: bool = False      # senaryo: Q / GTD / DTD bu hafta oynamaz (varsayılan: oynar)
     strategy: StrategyIn | None = None
     acc_mine: dict[str, float] | None = None
     acc_opp: dict[str, float] | None = None

@@ -36,6 +36,8 @@ from fdo.valuation import value_players
 
 #: Bu durumlar haftada oynamaz sayılır (NA: takımda değil; O: out). Q (questionable) oynar.
 DEFAULT_OUT = ("NA", "O", "INJ", "SUSP")
+#: Belirsiz durumlar: varsayılan olarak oynar; "Q oynamaz" senaryosunda ``out_statuses``a eklenir (kalibre değil).
+QUESTIONABLE = ("Q", "GTD", "DTD")
 #: Elle girilen haftalık skor sütunları → vektördeki ortalama indeksleri.
 ACC_FIELDS = ("fgm", "fga", "ftm", "fta", "fg3m", "pts", "reb", "ast", "stl", "blk", "tov")
 
@@ -177,8 +179,8 @@ class WeekModel:
         Dönüş tarihi bilinen oyuncuda Yahoo durumu yerine tarih kullanılır (``team_week`` gün maskesi)."""
         i = self.engine.index[pid]
         status = str(self.engine.data.players.loc[pid, "injury_status"] or "")
-        if pid in self.injury_known:
-            use_status = status == "NA" and use_status
+        if pid in self.injury_known:              # CBS tarihi bilinen: Yahoo durumu yalnız NA ya da seçilen Q senaryosunda
+            use_status = (status == "NA" or (status in QUESTIONABLE and status in self.out_statuses)) and use_status
         return bool(self.engine.modeled[i]) and (not use_status or status not in self.out_statuses)
 
     def game_unit(self, idx: np.ndarray, days: list[dt.date]) -> np.ndarray:

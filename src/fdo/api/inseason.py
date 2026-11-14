@@ -18,7 +18,7 @@ from fdo.inseason.fixtures import opponent as fixture_opponent
 from fdo.inseason.history import team_history
 from fdo.inseason.sitstart import plan_week, today_changes
 from fdo.inseason.waiver import drop_ranking, waiver_table
-from fdo.inseason.weekly import DEFAULT_OUT, Stint, WeekOutlook, acquisition_limit, vector_totals
+from fdo.inseason.weekly import DEFAULT_OUT, QUESTIONABLE, Stint, WeekOutlook, acquisition_limit, vector_totals
 from fdo.roster.assignment import best_assignment
 from fdo.trade import Strategy, TradeError
 from fdo.trade.data import MODES, ROS
@@ -51,6 +51,12 @@ def _outlook(eng, o: WeekOutlook) -> dict:
             "counted": {"mine": int(o.mine.counted.sum()), "opp": int(o.opp.counted.sum())},
             "benched": {"mine": o.mine.benched, "opp": o.opp.benched},
             "day_labels": list(o.mine.grid.columns), "grid": {"mine": grid(o.mine), "opp": grid(o.opp)}}
+
+
+def out_statuses(body) -> tuple[str, ...]:
+    """Bu hafta oynamayan Yahoo durumları: ``sit_out`` kapalıysa O oynar; ``questionable_out`` Q/GTD/DTD'yi de oturtur."""
+    out = DEFAULT_OUT if body.sit_out else tuple(s for s in DEFAULT_OUT if s != "O")
+    return out + QUESTIONABLE if getattr(body, "questionable_out", False) else out
 
 
 def register(app: FastAPI, state: AppState) -> None:
@@ -189,8 +195,7 @@ def register(app: FastAPI, state: AppState) -> None:
         fx_opp = fixture_opponent(state.fixtures(), lid, body.team, wk)
         opp = body.opponent or fx_opp or next(t for t in eng.team_ids if t != body.team)
         team_check(eng, opp)
-        out = DEFAULT_OUT if body.sit_out else tuple(s for s in DEFAULT_OUT if s != "O")
-        model = state.week_model(lid, body.injuries, _strategy(body.strategy, eng, body.team), out)
+        model = state.week_model(lid, body.injuries, _strategy(body.strategy, eng, body.team), out_statuses(body))
         return eng, weeks, current, wk, days, fx_opp, opp, model
 
     def _acc(lid: str, body: WeeklyIn, wk: int, current: int, opp: str):
@@ -296,8 +301,7 @@ def register(app: FastAPI, state: AppState) -> None:
             raise HTTPException(400, f"Bilinmeyen kategori: {bad}")
         chosen = body.categories or pick_critical(leverage)
         if body.mode == "critical":
-            out = DEFAULT_OUT if body.sit_out else tuple(s for s in DEFAULT_OUT if s != "O")
-            model = state.week_model(lid, body.injuries, critical_strategy(chosen), out)
+            model = state.week_model(lid, body.injuries, critical_strategy(chosen), out_statuses(body))
             base = model.outlook(body.team, opp, days, acc_mine=acc_mine, acc_opp=acc_opp, week=wk)
         droppable = list(body.droppable) if body.droppable is not None else _default_droppable(eng, model, body)
         limit = acquisition_limit(eng.league.settings)

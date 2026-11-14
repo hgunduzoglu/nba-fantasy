@@ -76,3 +76,19 @@ def test_weekly_model_waits_for_return_date(data):  # noqa: F811
     assert set(row.iloc[:3]) <= {"", "✕"} and (row.iloc[:3] == "✕").sum() == len(before)   # dönüşten önce oynamaz
     after = [d for d in WEEK3[3:] if m.has_game("0", d)]
     assert set(row.iloc[3:]) <= {"", "▶", "B"} and (row.iloc[3:] != "").sum() == len(after)  # O olsa da dönüşte oynar
+
+
+def test_questionable_players_sit_only_in_the_scenario(data):  # noqa: F811
+    from fdo.api.inseason import out_statuses
+    from fdo.api.schemas import WeeklyIn
+    from fdo.inseason.weekly import DEFAULT_OUT, QUESTIONABLE
+
+    data.players.loc["0", "injury_status"] = "Q"
+    known = apply_injuries(data, _injuries([{"player_id": "0", "kind": "day_to_day", "return_date": None}]))
+    for d in (data, known):                                                   # CBS'te olsun olmasın
+        eng = TradeEngine(d, "L", utilization=1)
+        assert WeekModel(eng).playable("0")                                    # varsayılan: Q oynar
+        assert not WeekModel(eng, out_statuses=DEFAULT_OUT + QUESTIONABLE).playable("0")
+        assert WeekModel(eng, out_statuses=DEFAULT_OUT + QUESTIONABLE).playable("0", use_status=False)  # gelecek haftalar
+    assert out_statuses(WeeklyIn(team="1")) == DEFAULT_OUT
+    assert set(out_statuses(WeeklyIn(team="1", questionable_out=True, sit_out=False))) == {"NA", "INJ", "SUSP", *QUESTIONABLE}
