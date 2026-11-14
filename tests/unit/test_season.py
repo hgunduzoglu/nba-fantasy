@@ -177,3 +177,25 @@ def test_playoff_tie_on_categories_goes_to_the_higher_seed(sim, monkeypatch):
     r = sim.run(n_sims=50, seed=1)
     first = r.seeds.argmin(axis=1)
     assert r.champion[np.arange(50), first].all() and r.table["exp_ties"].min() > 0
+
+
+def test_waiver_moves_take_free_agents_in_order_and_cancel_out_without_a_trade(data):  # noqa: F811
+    lg = data.leagues["L"]
+    lg.settings["Playoffs"] = "2 teams - Week 22 (ends Sunday, Apr 4)"
+    eng = TradeEngine(data, "L", utilization=1)
+    weeks = league_weeks(data.schedule, lg.settings, lg.config)
+    st = pd.DataFrame({"wins": [7, 2, 5, 4], "losses": [2, 7, 4, 5], "ties": 0}, index=["1", "2", "3", "4"])
+    plain = SeasonSim(WeekModel(eng), weeks, _fixtures(range(1, 20)), st, data.as_of)
+    sim = SeasonSim(WeekModel(eng), weeks, _fixtures(range(1, 20)), st, data.as_of, waiver_order=("2", "1"))
+    assert plain.with_waivers(dict(lg.rosters)) == dict(lg.rosters)
+    moved = sim.with_waivers(dict(lg.rosters))
+    fa = set(eng.free_agents)
+    got = {t: set(moved[t]) & fa for t in moved}
+    assert got["2"] and not got["3"] and not got["4"]                       # yalnız sıradakiler
+    assert not got["1"] & got["2"]                                          # ortak havuz: aynı oyuncu iki takıma gitmez
+    first = sim.with_waivers(dict(lg.rosters), first=("1",))
+    best = eng._fa_order(eng.free_agents and __import__("fdo.trade.strategy", fromlist=["Strategy"]).Strategy())[0]
+    assert best in first["1"]                                               # önce hareket eden en iyisini alır
+    a = sim.run(n_sims=200, seed=2, first=("1", "2"))
+    b = sim.run(dict(lg.rosters), n_sims=200, seed=2, first=("1", "2"))
+    assert all(d.delta == 0 for d in sim.effect(a, b, "1").values())

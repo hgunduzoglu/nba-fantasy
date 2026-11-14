@@ -23,6 +23,10 @@
   vektörü (ortalama ve varyans) sezon boyu sabit bir ``λ ~ lognormal(0, strength_sd)`` ile ölçeklenir
   (oranlar değişmez). Olmadan takım güçleri kesin bilinir sayılır ve olasılıklar aşırı kesinleşir.
   ``strength_sd`` kalibre edilmedi (varsayılan 0.06).
+* **Waiver hamleleri** (``waiver_order`` verilirse): sezon başında (veri gününde) bu sıradaki takımlar boştaki en iyi
+  oyuncuları ortak havuzdan alır (``TradeEngine.joint_waiver``: boş yer doldurulur, en zayıf aktif daha iyi bir
+  boştakiyle değiştirilir; dengeli strateji). Takas motorunun "bedava waiver hamleleri" varsayımıyla aynı; sıra ligin
+  waiver önceliği, işlem yapmayan menajer listede yoktur. Sezon içindeki sonraki hamleler (haftalık streaming) yok.
 * Aynı ``seed`` ile iki senaryo aynı çekilişleri kullanır (CRN): takas etkisi eşleşmeli farktır.
 """
 
@@ -95,9 +99,11 @@ class SeasonResult:
 class SeasonSim:
     def __init__(self, model: WeekModel, weeks: LeagueWeeks, fixtures: pd.DataFrame,
                  standings: pd.DataFrame | None, as_of: dt.date,
-                 realized: dict[str, dict[str, float]] | None = None):
-        """``realized``: içinde bulunulan haftanın takım → şu ana kadarki toplamları (``accumulated_vector`` alanları)."""
+                 realized: dict[str, dict[str, float]] | None = None, waiver_order: tuple[str, ...] | None = None):
+        """``realized``: içinde bulunulan haftanın takım → şu ana kadarki toplamları (``accumulated_vector`` alanları).
+        ``waiver_order``: bedava waiver hamlelerini yapan takımlar, öncelik sırasıyla (``None``: kadrolar olduğu gibi)."""
         self.model = model
+        self.waiver_order = tuple(waiver_order or ())
         self.realized = realized or {}
         eng = model.engine
         self.engine, self.league = eng, eng.league
@@ -139,6 +145,19 @@ class SeasonSim:
                 self.realized = {}
                 self.notes.append(f"{self.current_week}. hafta sürüyor: geçmiş günlerin gerçek skoru bilinmediği için bu "
                                   "günler takas öncesi kadroyla beklenen değerdir; takas yalnız kalan günleri etkiler.")
+
+    # ------------------------------------------------------------- waiver
+    def with_waivers(self, rosters: dict[str, tuple[str, ...]], injuries: dict[str, frozenset[str]] | None = None,
+                     first: tuple[str, ...] = ()) -> dict[str, tuple[str, ...]]:
+        """Bedava waiver hamleleri uygulanmış kadrolar: önce ``first`` (takastaki takımlar: karar veren şimdi hareket
+        eder; takas motorunun varsayımı), sonra ``waiver_order``'daki diğer takımlar. İkisi de boşsa aynı kadrolar."""
+        order = tuple(first) + tuple(t for t in self.waiver_order if t not in first)
+        if not order:
+            return rosters
+        eng = self.engine
+        items = [(t, tuple(rosters[t]), eng._il(t, rosters[t], injuries), Strategy()) for t in order if t in rosters]
+        moved = eng.joint_waiver(items, taken={p for r in rosters.values() for p in r})
+        return {**rosters, **{t: moved[t][0] for t in moved}}
 
     # ------------------------------------------------------------- haftalık vektörler
     def il_map(self, rosters: dict[str, tuple[str, ...]],
@@ -221,7 +240,7 @@ class SeasonSim:
                         injuries: dict[str, frozenset[str]] | None = None) -> pd.DataFrame:
         """Takımın kalan normal sezon haftaları: rakip, beklenen kategori ve haftayı kazanma olasılığı (nokta
         tahmini, güç belirsizliği yok). Takas sonrası kadrolarla çağrılırsa iki tarafın değişimi de yansır."""
-        rosters = dict(rosters or self.league.rosters)
+        rosters = self.with_waivers(dict(rosters or self.league.rosters), injuries)
         il = self.il_map(rosters, injuries)
         me = self.tix[team]
         rows = []
@@ -255,9 +274,11 @@ class SeasonSim:
 
     def run(self, rosters: dict[str, tuple[str, ...]] | None = None, *, n_sims: int = 2000, seed: int = 0,
             team: str | None = None, strength_sd: float = 0.06,
-            injuries: dict[str, frozenset[str]] | None = None) -> SeasonResult:
-        """``injuries``: takas sonrası IL kümeleri (``TradeEngine.resolve``); yoksa lig IL'i ∩ kadro."""
-        rosters = dict(rosters or self.league.rosters)
+            injuries: dict[str, frozenset[str]] | None = None, first: tuple[str, ...] = ()) -> SeasonResult:
+        """``injuries``: takas sonrası IL kümeleri (``TradeEngine.resolve``); yoksa lig IL'i ∩ kadro. ``first``: waiver
+        hamlelerini önce yapan takımlar (takastakiler; takassız koşuda da aynısı verilmeli ki fark eşleşsin)."""
+        given = dict(rosters or self.league.rosters)
+        rosters = self.with_waivers(given, injuries, first)
         il = self.il_map(rosters, injuries)
         T, S = len(self.teams), int(n_sims)
         rng = np.random.default_rng(seed)
@@ -303,7 +324,7 @@ class SeasonSim:
             "p_bye": (seeds <= byes).mean(0) if byes else np.nan,
             "p_first": (seeds == 1).mean(0), "p_champion": champion.mean(0),
         }, index=self.teams)
-        sched = self.fixture_outlook(team, rosters, injuries) if team is not None else pd.DataFrame()
+        sched = self.fixture_outlook(team, given, injuries) if team is not None else pd.DataFrame()
         notes = list(self.notes) + [f"Takım gücü belirsizliği: sezonluk ±%{100 * strength_sd:.0f} (kalibre edilmedi)."]
         return SeasonResult(table, sched, seeds, champion, start, S, n, notes)
 

@@ -93,8 +93,9 @@ def register(app: FastAPI, state: AppState) -> None:
             rosters, _, il = resolve_multi(eng, req, strategies)
         except (TradeError, ValueError) as e:
             raise HTTPException(400, str(e)) from e
-        base = state.season_base(lid, body.injuries, n, sd)
-        after = sim.run(rosters, n_sims=n, seed=1, strength_sd=sd, injuries=il)
+        first = tuple(req.teams)
+        base = state.season_base(lid, body.injuries, n, sd, first=first)
+        after = sim.run(rosters, n_sims=n, seed=1, strength_sd=sd, injuries=il, first=first)
         out = []
         for t in req.teams:
             b, a = base.table.loc[t], after.table.loc[t]

@@ -69,3 +69,27 @@ def profiles(transactions: pd.DataFrame | None, league_id: str, teams) -> tuple[
     out = {t: ManagerProfile(t, c["adds"], c["drops"], c["trades"], c["vetoed"], c["last"])
            for t, c in count.items()}
     return out, captured
+
+
+#: Bu kadar gündür işlem yapmayan menajer sezon simülasyonunda waiver hamlesi yapmaz sayılır (varsayım).
+INACTIVE_DAYS = 21
+
+
+def waiver_order(standings: pd.DataFrame | None, transactions: pd.DataFrame | None, league_id: str, teams,
+                 as_of: dt.date, inactive_days: int = INACTIVE_DAYS) -> tuple[str, ...]:
+    """Sezon simülasyonunda bedava waiver hamlesi yapan takımlar, ligin waiver önceliğine göre (``standings_live.csv``
+    ``waiver_priority``; yoksa sıralama, o da yoksa takım sırası). İşlem geçmişi biliniyorsa son ``inactive_days``
+    günde işlem yapmayan takım dışarıda kalır."""
+    teams = [str(t) for t in teams]
+    order = list(teams)
+    if standings is not None and len(standings) and "waiver_priority" in standings:
+        sub = standings[standings["league_id"].astype(str) == str(league_id)].copy()
+        sub["team_id"] = sub["team_id"].astype(str)
+        key = pd.to_numeric(sub["waiver_priority"], errors="coerce").fillna(
+            pd.to_numeric(sub.get("rank"), errors="coerce") + 100 if "rank" in sub else 999)
+        ranked = list(sub.assign(_k=key).sort_values("_k")["team_id"])
+        order = [t for t in ranked if t in teams] + [t for t in teams if t not in ranked]
+    prof, captured = profiles(transactions, league_id, teams)
+    if captured is None:
+        return tuple(order)
+    return tuple(t for t in order if prof[t].last_action and (as_of - prof[t].last_action).days <= inactive_days)

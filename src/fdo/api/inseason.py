@@ -9,7 +9,7 @@ from fastapi import FastAPI, HTTPException, Query
 
 from fdo.api.schemas import AddDropWeekIn, CompleteIn, DropIn, StrategyIn, StreamIn, SuggestIn, WaiverIn, WeeklyIn
 from fdo.api.serialize import (assumed_strategies, brief, category_deltas, clean, games_delta, injury_info,
-                               player_row, strategy_from, value_ranks)
+                               plain_metrics, player_row, strategy_from, value_ranks)
 from fdo.api.state import AppState
 from fdo.evaluation.cases import summarize
 from fdo.inseason.adddrop import available_from, critical_categories, critical_strategy, pick_critical
@@ -61,9 +61,9 @@ def out_statuses(body) -> tuple[str, ...]:
 
 
 def register(app: FastAPI, state: AppState) -> None:
-    def engine(lid: str, injuries: bool):
+    def engine(lid: str, injuries: bool, free_moves: bool = True):
         try:
-            return state.engine(lid, injuries)
+            return state.engine(lid, injuries, free_moves=free_moves)
         except KeyError as e:
             raise HTTPException(404, str(e)) from e
 
@@ -92,10 +92,12 @@ def register(app: FastAPI, state: AppState) -> None:
             raise HTTPException(400, str(e)) from e
         perceived = perceived_prices(eng, body.perceived)
         po_games = state.playoff_games(lid, body.injuries)
+        plain_eng = engine(lid, body.injuries, False)
         rows = []
         for s in found.suggestions:
             r = s.request
             pair = {body.team: strategy, r.team_b: s.other_strategy}
+            plain = plain_metrics(plain_eng, r, pair)
             rosters, adj, il = eng.resolve(r, pair)
             p, _ = eng.score(rosters, body.team, r.team_b, strategy, s.other_strategy, il)
             taken = float(perceived.reindex(list(r.give_b)).fillna(0).sum())
@@ -108,6 +110,7 @@ def register(app: FastAPI, state: AppState) -> None:
                          if taken > 0 else None,"team_b": r.team_b, "team_b_name": eng.league.teams[r.team_b],
                          "give_a": [_brief(eng, p) for p in r.give_a], "give_b": [_brief(eng, p) for p in r.give_b],
                          "own_delta": s.own_strategy_delta, "other_delta": s.other_strategy_delta,
+                         "own_delta_plain": plain[body.team]["strategy_delta"] if plain else None,
                          "own_win": s.own_win_delta, "other_win": s.other_win_delta, "fairness": s.fairness,
                          "perceived_balance": s.perceived_balance, "score": s.score, "mode": s.mode,
                          "acceptability": s.acceptability, "counterpart_reasons": list(s.counterpart_reasons),
@@ -143,14 +146,17 @@ def register(app: FastAPI, state: AppState) -> None:
             raise HTTPException(400, str(e)) from e
         fixed = set(body.give_a) | set(body.give_b)
         pair = {body.team_a: sa, body.team_b: sb}
+        plain_eng = engine(lid, body.injuries, False)
 
         def row(s):
             r = s.request
             rosters, adj, il = eng.resolve(r, pair)
             p, _ = eng.score(rosters, r.team_a, r.team_b, sa, sb, il)
+            plain = plain_metrics(plain_eng, r, pair)
             return {"give_a": [{**_brief(eng, x), "added": x not in fixed} for x in r.give_a],
                     "give_b": [{**_brief(eng, x), "added": x not in fixed} for x in r.give_b],
                     "tier": s.mode, "score": s.score, "own_delta": s.own_strategy_delta,
+                    "own_delta_plain": plain[r.team_a]["strategy_delta"] if plain else None,
                     "other_delta": s.other_strategy_delta, "own_win": s.own_win_delta, "other_win": s.other_win_delta,
                     "fairness": s.fairness, "perceived_view": s.perceived_balance,
                     "acceptability": s.acceptability, "counterpart_reasons": list(s.counterpart_reasons),

@@ -20,12 +20,13 @@ from fdo.inseason.durability import apply_durability
 from fdo.inseason.fixtures import load_fixtures
 from fdo.inseason.injuries import apply_return_ramp, latest_file, return_assumptions, with_injuries
 from fdo.inseason.live import LiveLeague, load_live
+from fdo.inseason.managers import load_transactions, waiver_order
 from fdo.inseason.roles import RoleBoost, load_logs, role_boosts
 from fdo.inseason.scenarios import basis_data
 from fdo.inseason.season import SeasonResult, SeasonSim
 from fdo.inseason.standings import league_standings, load_standings
 from fdo.inseason.weekly import WeekModel
-from fdo.inseason.weeks import LeagueWeeks, league_weeks
+from fdo.inseason.weeks import LeagueWeeks, league_weeks, trade_segments
 from fdo.trade import TradeData, TradeEngine, load_trade_data
 from fdo.trade.data import file_signature
 from fdo.trade.perception import perceived_prices, perceived_ranks
@@ -103,11 +104,17 @@ class AppState:
             return basis_data(base, basis, logs)
         return self._get(("data_basis", base.fingerprint, injuries, basis), build)
 
-    def engine(self, league_id: str, injuries: bool = True, basis: str = "ros") -> TradeEngine:
+    def engine(self, league_id: str, injuries: bool = True, basis: str = "ros", free_moves: bool = True) -> TradeEngine:
+        """``free_moves=False``: takımların boştaki oyunculardan bedava hamle yaptığı varsayılmaz (kadrolar olduğu gibi)."""
         data = self.basis_data(injuries, basis)
         if str(league_id) not in data.leagues:
             raise KeyError(f"Lig yok: {league_id}")
-        return self._get(("engine", data.fingerprint, str(league_id)), lambda: TradeEngine(data, str(league_id)))
+        def build():
+            lg = data.leagues[str(league_id)]
+            weeks = league_weeks(data.schedule, lg.settings, lg.config) if data.schedule is not None else None
+            segments = trade_segments(weeks, data.as_of) if weeks is not None else None
+            return TradeEngine(data, str(league_id), segments=segments, free_moves=free_moves)
+        return self._get(("engine", data.fingerprint, str(league_id), free_moves), build)
 
     def weeks(self, league_id: str, injuries: bool = True) -> LeagueWeeks:
         eng = self.engine(league_id, injuries)
@@ -148,18 +155,22 @@ class AppState:
                 return None
             standings = league_standings(load_standings(self.data_dir), league_id, eng.league.teams)
             lv = self.live(league_id, injuries)
+            live_csv = self.data_dir / "standings_live.csv"
+            order = waiver_order(pd.read_csv(live_csv, dtype={"league_id": str, "team_id": str}) if live_csv.exists()
+                                 else None, load_transactions(self.data_dir), league_id, eng.team_ids, eng.data.as_of)
             return SeasonSim(self.week_model(league_id, injuries, basis=basis), self.weeks(league_id, injuries), fx,
-                             standings, eng.data.as_of, realized=lv.totals if lv else None)
+                             standings, eng.data.as_of, realized=lv.totals if lv else None, waiver_order=order)
         return self._get(("season_sim", eng.data.fingerprint, str(league_id)), build)
 
     def season_base(self, league_id: str, injuries: bool, n_sims: int, sd: float, seed: int = 1,
-                    basis: str = "ros") -> SeasonResult | None:
+                    basis: str = "ros", first: tuple[str, ...] = ()) -> SeasonResult | None:
+        """Takassız sezon; ``first``: waiver hamlelerini önce yapan takımlar (takastakiler, takaslı koşuyla aynı)."""
         sim = self.season_sim(league_id, injuries, basis)
         if sim is None:
             return None
         eng = self.engine(league_id, injuries, basis)
-        return self._get(("season_base", eng.data.fingerprint, str(league_id), n_sims, round(sd, 4), seed),
-                         lambda: sim.run(n_sims=n_sims, seed=seed, strength_sd=sd))
+        return self._get(("season_base", eng.data.fingerprint, str(league_id), n_sims, round(sd, 4), seed, tuple(first)),
+                         lambda: sim.run(n_sims=n_sims, seed=seed, strength_sd=sd, first=tuple(first)))
 
     def playoff_games(self, league_id: str, injuries: bool = True) -> dict[str, int]:
         """Oyuncu → fantezi playoff haftalarındaki NBA maçı (bilinen sakatlık dönüşünden önceki maçlar hariç).

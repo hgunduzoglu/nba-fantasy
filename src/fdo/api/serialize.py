@@ -112,6 +112,17 @@ def fixture_changes(sim, teams, rosters: dict, injuries: dict) -> list[dict]:
     return out
 
 
+def plain_metrics(plain, request, strategies: dict, keys=("ecw_delta", "win_delta", "strategy_delta")) -> dict | None:
+    """Aynı takasın bedava waiver hamleleri varsayılmadan (``free_moves=False`` motoru) takım başına farkları; takas bu
+    varsayımla çözülemezse ``None``."""
+    try:
+        rosters, _, il = plain.resolve(request, strategies)
+        _, m = plain.score_many(rosters, strategies, il)
+    except Exception:  # noqa: BLE001 — yalnız açıklama; ana sonuç etkilenmez
+        return None
+    return {t: {k: m[t][k] for k in keys} for t in strategies}
+
+
 def season_effect(sim, base, after, team: str) -> dict:
     """``SeasonSim.effect`` → JSON: ölçü başına önce, sonra, eşleşmeli fark, standart hata, gürültüden ayrılıyor mu."""
     return {k: {"before": d.before, "after": d.after, "delta": d.delta, "se": d.se, "clear": d.clear}

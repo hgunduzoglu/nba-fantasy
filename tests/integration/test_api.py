@@ -144,3 +144,14 @@ def test_offers_record_features_and_answers(client):
     rows = client.get("/api/leagues/L/trade/offers").json()
     assert len(rows) == 1 and rows[0]["outcome"] == "accepted" and rows[0]["give_a"][0]["id"] == "0"
     assert client.post("/api/leagues/L/trade/offer", json={**body, "outcome": "maybe"}).status_code == 422
+
+
+def test_analysis_also_reports_the_result_without_free_moves(client):
+    body = {"team_a": "1", "team_b": "2", "give_a": ["0"], "give_b": ["3"]}
+    j = client.post("/api/leagues/L/trade/analyze", json=body).json()
+    for side in ("a", "b"):
+        plain = j["teams"][side]["plain"]
+        assert set(plain) == {"ecw_delta", "win_delta", "strategy_delta"}
+    c = client.post("/api/leagues/L/trade/complete", json={**body, "give_b": [], "min_fairness": 0, "min_view": 0,
+                                                            "require_reason": False, "max_view": 0}).json()
+    assert c["suggestions"] and all("own_delta_plain" in r for r in c["suggestions"])
