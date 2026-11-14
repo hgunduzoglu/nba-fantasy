@@ -137,6 +137,17 @@ export function MovesWarnBadge({ own, plain }: { own: number; plain?: number | n
   return <span className="badge out" title={`Bu kazanç, iki takımın boştaki daha iyi oyuncuları bedavaya aldığı varsayımına bağlı. O hamleler yapılmazsa (kadrolar olduğu gibi kalırsa) takas sana kaybettiriyor. Boştaki oyuncuları gerçekten alacak mısın, ona göre karar ver. Hamlesiz fark: ${fmtDelta(plain ?? 0, 3)}.`}>⚠ hamle</span>;
 }
 
+/** Hızlı puanda kazanç var ama günlük kadroyla kalan sezonda kayıp (README §13.47). */
+export function LineupWarnBadge({ own, lineup }: { own: number; lineup?: number | null }) {
+  if (lineup == null || !(lineup < 0 && own > 0)) return null;
+  return <span className="badge out" title={`Hızlı puanda kazanç (${fmtDelta(own, 3)}) var ama günlük kadroyla kalan sezonda kayıp (${fmtDelta(lineup, 3)}): pozisyon ya da maç çakışması yüzünden alınan oyuncunun maçları bench'te kalıyor.`}>⚠ günlük kadro</span>;
+}
+
+/** Günlük kadroyla kalan normal sezon farkı hücresi (ölçülmediyse —). */
+export function LineupCell({ d }: { d?: number | null }) {
+  return <td className={d != null ? deltaClass(d, 0.3) : "muted"}>{d != null ? fmtDelta(d, 3) : "—"}</td>;
+}
+
 export function InlineBar({ value, max = 1 }: { value: number; max?: number }) {
   const w = Math.max(0, Math.min(1, value / max)) * 100;
   return <span className="ibar" aria-hidden="true"><span style={{ width: `${w}%` }} /></span>;

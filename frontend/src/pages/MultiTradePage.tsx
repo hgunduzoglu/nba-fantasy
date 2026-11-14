@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api";
 import { CategoryImpact } from "../components/CategoryImpact";
 import { FixtureImpact } from "../components/FixtureImpact";
-import { CategoryChips, ErrorBanner, Loading, PlayerName, deltaClass } from "../components/common";
+import { CategoryChips, ErrorBanner, LineupCell, LineupWarnBadge, Loading, PlayerName, deltaClass } from "../components/common";
 import { RosterTable } from "../components/RosterTable";
 import { BALANCED, StrategyPicker, toStrategyIn, type StrategyChoice } from "../components/StrategyPicker";
 import { fmtDelta, fmtNum, fmtPct, fmtStat } from "../format";
@@ -593,8 +593,9 @@ function MultiSuggest({ meta, league, team, injuries, onOpen }: Props & { onOpen
             {result.suggestions.length > 0 && (
               <>
                 <div className="seg">
-                  <button aria-pressed={sortBy === "score"} onClick={() => setSortBy("score")}>Öneri puanı</button>
-                  <button aria-pressed={sortBy === "mine"} onClick={() => setSortBy("mine")}>Senin kazancın</button>
+                  <button aria-pressed={sortBy === "score"} onClick={() => setSortBy("score")}
+                          title="Varsayılan sıra: senin kazancın, günlük kadroyla (kalan normal sezon, pozisyon ve maç çakışmaları dahil). Diğer takımların kazancı süzgeçtir.">Senin faydan</button>
+                  <button aria-pressed={sortBy === "mine"} onClick={() => setSortBy("mine")} title="Hızlı puanla senin kazancın">Hızlı puan</button>
                   <button aria-pressed={sortBy === "playoff"} onClick={() => setSortBy("playoff")} disabled={!Object.keys(effects).length}>Playoff + şampiyonluk</button>
                 </div>
                 <button className="btn" onClick={runEffects} disabled={effBusy !== null}>
@@ -609,7 +610,8 @@ function MultiSuggest({ meta, league, team, injuries, onOpen }: Props & { onOpen
               <table className="data">
                 <thead><tr>
                   <th className="l">Şekil</th><th className="l">Hareketler</th>
-                  <th title="Senin stratejine göre kazancın (rakip başına haftalık kategori)">Sen Δ</th>
+                  <th title="Senin stratejine göre kazancın (rakip başına haftalık kategori, hızlı puan)">Sen Δ</th>
+                  <th title="Aynı fark, kalan normal sezonda haftalık modelin günlük kadro atamasıyla (pozisyon ve maç çakışmaları dahil). Varsayılan sıra buna göre.">Günlük kadro Δ</th>
                   <th title="Haftayı kazanma olasılığı değişimi (puan)">Sen P(5+)</th>
                   <th title="Ağırlıksız beklenen kategori değişimi">Sen ΔECW</th>
                   <th className="l" title="Diğer takımların (varsayılan stratejileriyle) kazancı">Diğer takımlar Δ</th>
@@ -624,7 +626,7 @@ function MultiSuggest({ meta, league, team, injuries, onOpen }: Props & { onOpen
                     const others = s.teams.filter((t) => t.team_id !== team);
                     return (
                       <tr key={i}>
-                        <td className="l muted">{s.shape_label}</td>
+                        <td className="l muted">{s.shape_label}<LineupWarnBadge own={me.strategy_delta} lineup={s.lineup_delta} /></td>
                         <td className="l wrap">
                           <div className="flow">
                             {s.moves.map((m) => (
@@ -636,6 +638,7 @@ function MultiSuggest({ meta, league, team, injuries, onOpen }: Props & { onOpen
                           </div>
                         </td>
                         <td className={deltaClass(me.strategy_delta, 0.3)}>{fmtDelta(me.strategy_delta, 3)}</td>
+                        <LineupCell d={s.lineup_delta} />
                         <td>{fmtDelta(me.win_delta * 100, 1)}</td>
                         <td className={deltaClass(me.ecw_delta, 0.3)}>{fmtDelta(me.ecw_delta, 3)}</td>
                         <td className="l wrap">

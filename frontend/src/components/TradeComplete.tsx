@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AcceptBadge, CategoryChips, ComponentBadges, ErrorBanner, MovesWarnBadge, SeasonDeltaCell, SeasonWarnBadge, deltaClass, seasonWarning } from "./common";
+import { AcceptBadge, CategoryChips, ComponentBadges, ErrorBanner, LineupCell, LineupWarnBadge, MovesWarnBadge, SeasonDeltaCell, SeasonWarnBadge, deltaClass, seasonWarning } from "./common";
 import { fmtDelta, fmtNum, fmtPct } from "../format";
 import type { CompleteOut, CompletePlayer, CompleteRow, CompleteTier, SeasonEffect, SeasonManyOut } from "../types";
 
@@ -93,7 +93,7 @@ export function TradeComplete({ data, busy, error, base, oppName, labels, mobile
         {season && (
           <div className="seg" role="group" aria-label="Sıralama">
             <button aria-pressed={order === "score"} onClick={() => setOrder("score")}
-                    title="Kalan sezon kategori kazancı + haftalık galibiyet (varsayılan sıra)">Model puanı</button>
+                    title="Varsayılan sıra: senin kazancın, günlük kadroyla (kalan normal sezon, pozisyon ve maç çakışmaları dahil)">Senin faydan</button>
             <button aria-pressed={order === "playoff"} onClick={() => setOrder("playoff")}>Δ playoff</button>
             <button aria-pressed={order === "champion"} onClick={() => setOrder("champion")}>Δ şampiyonluk</button>
           </div>
@@ -115,6 +115,8 @@ export function TradeComplete({ data, busy, error, base, oppName, labels, mobile
             {data.current && (
               <div className="banner">
                 Şu anki seçim: <Tier t={data.current.tier} /> · sen <b className={sign(data.current.own_delta)}>{fmtDelta(data.current.own_delta, 3)}</b>
+                {data.current.lineup_delta != null && <>{" "}· günlük kadroyla <b className={sign(data.current.lineup_delta)}>{fmtDelta(data.current.lineup_delta, 3)}</b></>}
+                <LineupWarnBadge own={data.current.own_delta} lineup={data.current.lineup_delta} />
                 {" "}· {oppName} <b className={sign(data.current.other_delta)}>{fmtDelta(data.current.other_delta, 3)}</b>
                 {" "}· değer dengesi <b>{fmtPct(data.current.fairness)}</b> · rakibin gözünde <b>{fmtNum(data.current.perceived_view, 2)}</b>
                 {" "}· rakip için gerekçe <AcceptBadge level={data.current.acceptability} reasons={data.current.counterpart_reasons} />
@@ -125,13 +127,14 @@ export function TradeComplete({ data, busy, error, base, oppName, labels, mobile
               <ul className="m-list">
                 {shown.map(({ r, i }) => (
                   <li key={i} className="m-item">
-                    <div className="m-line"><Tier t={r.tier} /><SeasonWarnBadge show={warn(i, r)} /><MovesWarnBadge own={r.own_delta} plain={r.own_delta_plain} /><span className="spacer" />
+                    <div className="m-line"><Tier t={r.tier} /><SeasonWarnBadge show={warn(i, r)} /><MovesWarnBadge own={r.own_delta} plain={r.own_delta_plain} /><LineupWarnBadge own={r.own_delta} lineup={r.lineup_delta} /><span className="spacer" />
                       {isApplied(r) ? <span className="muted">seçili</span>
                         : <button className="btn" onClick={() => onApply(r)}>Uygula</button>}</div>
                     <div className="m-line"><span className="m-lbl drop">Ver</span><Pkg players={r.give_a} /></div>
                     <div className="m-line"><span className="m-lbl add">Al</span><Pkg players={r.give_b} /></div>
                     <div className="m-line">
                       <span className="m-kv">sen <b className={sign(r.own_delta)}>{fmtDelta(r.own_delta, 3)}</b></span>
+                      {r.lineup_delta != null && <span className="m-kv">günlük kadro <b className={sign(r.lineup_delta)}>{fmtDelta(r.lineup_delta, 3)}</b></span>}
                       <span className="m-kv">rakip <b className={sign(r.other_delta)}>{fmtDelta(r.other_delta, 3)}</b></span>
                       <span className="m-kv">denge <b>{fmtPct(r.fairness)}</b></span>
                       <span className="m-kv">gözünde <b>{fmtNum(r.perceived_view, 2)}</b></span>
@@ -152,7 +155,8 @@ export function TradeComplete({ data, busy, error, base, oppName, labels, mobile
                 <table className="data">
                   <thead><tr>
                     <th className="l">Tür</th><th className="l">Veriyorsun</th><th className="l">Alıyorsun</th>
-                    <th title="Senin stratejine göre kalan sezon puanı değişimi">Sen Δ</th>
+                    <th title="Senin stratejine göre kalan sezon puanı değişimi (hızlı puan)">Sen Δ</th>
+                    <th title="Aynı fark, kalan normal sezonda haftalık modelin günlük kadro atamasıyla (pozisyon ve maç çakışmaları dahil). Varsayılan sıra buna göre.">Günlük kadro Δ</th>
                     <th title="Rakibin stratejisine göre">Rakip Δ</th>
                     <th title="Haftayı kazanma P(5+) değişimi, ortalama rakibe karşı">Sen P(5+)</th>
                     <th title="Küçük paket / büyük paket: modelin kalan sezon değerinde ya da menajerlerin algıladığı değerde (draft fiyatı + bu sezon), hangisi yüksekse">Değer dengesi</th>
@@ -165,10 +169,11 @@ export function TradeComplete({ data, busy, error, base, oppName, labels, mobile
                   <tbody>
                     {shown.map(({ r, i }) => (
                       <tr key={i} className={isApplied(r) ? "rec" : ""} title={extras(r).join(" · ") || undefined}>
-                        <td className="l"><Tier t={r.tier} /><SeasonWarnBadge show={warn(i, r)} /><MovesWarnBadge own={r.own_delta} plain={r.own_delta_plain} /></td>
+                        <td className="l"><Tier t={r.tier} /><SeasonWarnBadge show={warn(i, r)} /><MovesWarnBadge own={r.own_delta} plain={r.own_delta_plain} /><LineupWarnBadge own={r.own_delta} lineup={r.lineup_delta} /></td>
                         <td className="l wrap"><Pkg players={r.give_a} /></td>
                         <td className="l wrap"><Pkg players={r.give_b} /></td>
                         <td className={deltaClass(r.own_delta, 0.3)}>{fmtDelta(r.own_delta, 3)}</td>
+                        <LineupCell d={r.lineup_delta} />
                         <td className={deltaClass(r.other_delta, 0.3)}>{fmtDelta(r.other_delta, 3)}</td>
                         <td>{fmtDelta(r.own_win * 100, 1)}</td>
                         <td>{fmtPct(r.fairness)}</td>

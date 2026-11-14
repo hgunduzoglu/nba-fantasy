@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
-import { AcceptBadge, CategoryChips, ComponentBadges, ErrorBanner, Loading, MovesWarnBadge, PlayerName, SeasonDeltaCell, SeasonWarnBadge, deltaClass, seasonWarning } from "../components/common";
+import { AcceptBadge, CategoryChips, ComponentBadges, ErrorBanner, LineupWarnBadge, Loading, MovesWarnBadge, PlayerName, SeasonDeltaCell, SeasonWarnBadge, deltaClass, seasonWarning } from "../components/common";
 import { BALANCED, StrategyPicker, strategyLabel, toStrategyIn, type StrategyChoice } from "../components/StrategyPicker";
 import { fmtDelta, fmtNum, fmtPct } from "../format";
 import type { League, Meta, MispricedRow, Perceived, SeasonEffect, SuggestMode, SuggestOut, Suggestion } from "../types";
@@ -412,8 +412,7 @@ export function SuggestPage({ meta, league, team, injuries, onOpen }: Props) {
                           {s.position_gap > 0 && <span className="badge out" title={`Takastan sonra ${s.position_gap} aktif pozisyon doldurulamıyor`}>⚠ pozisyon</span>}
                           <SeasonWarnBadge show={!!e && e !== "err" && seasonWarning(ecw, e.me.playoff)} />
                           <MovesWarnBadge own={s.own_delta} plain={s.own_delta_plain} />
-                          {s.lineup_delta != null && s.lineup_delta < 0 && s.own_delta > 0 &&
-                            <span className="badge out" title={`Hızlı puanda kazanç (${fmtDelta(s.own_delta, 3)}) var ama günlük kadroyla kalan sezonda kayıp (${fmtDelta(s.lineup_delta, 3)}): pozisyon ya da maç çakışması yüzünden alınan oyuncunun maçları bench'te kalıyor.`}>⚠ günlük kadro</span>}
+                          <LineupWarnBadge own={s.own_delta} lineup={s.lineup_delta} />
                           <ComponentBadges c={s.components} />
                         </td>
                         {view !== "all" && <td className={deltaClass(s.own_delta, 0.3)}>{fmtDelta(s.own_delta, 3)}</td>}

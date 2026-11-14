@@ -373,6 +373,9 @@ export type CompleteTier = "mutual" | "own" | "loss";
 export interface CompleteRow {
   /** Senin farkın bedava waiver hamleleri varsayılmadan. */
   own_delta_plain?: number | null;
+  /** Günlük kadroyla kalan normal sezon farkı: stratejinin ağırlıklarıyla (sıralama ölçüsü) ve ağırlıksız. */
+  lineup_delta?: number | null;
+  lineup_ecw_delta?: number | null;
   give_a: CompletePlayer[];
   give_b: CompletePlayer[];
   tier: CompleteTier;
@@ -395,6 +398,8 @@ export interface CompleteOut {
   kind: "get" | "give" | "balance";
   suggestions: CompleteRow[];
   current: CompleteRow | null;
+  /** "lineup": günlük kadro farkıyla sıralandı. */
+  ranked_by?: string;
   examined: number;
   rejected_balance: number;
   rejected_view: number;
@@ -862,6 +867,9 @@ export interface MultiSuggestion {
   shape: string;
   shape_label: string;
   score: number;
+  /** Senin günlük kadroyla kalan normal sezon farkın: stratejinin ağırlıklarıyla (sıralama ölçüsü) ve ağırlıksız. */
+  lineup_delta?: number | null;
+  lineup_ecw_delta?: number | null;
   fairness: number;
   moves: { player: BriefPlayer; from: string; from_name: string; to: string; to_name: string }[];
   teams: MultiSuggestTeam[];
@@ -877,6 +885,7 @@ export interface MultiSuggestOut {
   rejected_view?: number;
   message: string;
   shapes: Record<string, string>;
+  ranked_by?: string;
 }
 
 // ------------------------------------------------------------------ fikstür etkisi
