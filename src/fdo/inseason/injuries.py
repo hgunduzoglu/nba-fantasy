@@ -7,6 +7,9 @@ CBS sayfasında her takımın tablosu: oyuncu, pozisyon, güncelleme, sakatlık,
 * ``Game Time Decision`` / ``Day-To-Day`` / ``Questionable`` / ``Probable`` → ``day_to_day`` (oynar);
 * diğerleri → ``unknown`` (yalnızca Yahoo durumu kullanılır).
 
+Dönüş tarihi CBS'in en erken tarihi + ``delay_days`` gün (``config/returns.yaml``, varsayılan 0). Gerçek dönüş çoğu
+zaman en erken tarihten sonradır; varsayım ``fdo.inseason.returns`` ile ölçülür (``scripts/calibrate_returns.py``).
+
 Model etkisi (``apply_injuries``): dönüşten sonra takımın oynayacağı maç sayısı kalan sezon (ROS)
 projeksiyonundaki maçtan azsa ROS toplamları orantılı küçültülür (``season`` → sıfır). Haftalık model ve
 sezon simülasyonu oyuncuyu dönüş gününe kadar oynatmaz, sonrasında kalan maçlarını dönüş sonrasına yayar.
@@ -23,7 +26,9 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import yaml
 
+from fdo.config import REPO_ROOT
 from fdo.inseason.identity import IdentityReport, Resolver, load_overrides
 from fdo.schedule.calendar import normalize_team
 from fdo.trade.data import ROS, TradeData
@@ -40,6 +45,36 @@ _UNTIL = re.compile(r"out until (?:at least )?([A-Z][a-z]{2})[a-z]*\.?\s+(\d{1,2
 HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
                          "Chrome/120 Safari/537.36", "Accept-Language": "en-US,en;q=0.9"}
 DTD = ("game time decision", "day-to-day", "day to day", "questionable", "probable", "doubtful")
+RETURNS_CONFIG = REPO_ROOT / "config" / "returns.yaml"
+#: Dönüş varsayımları (gün). ``delay_days``: her analizde en erken tarihe eklenen; ``late_days``: "Geç dönüş" senaryosu
+#: (takas ekranında ayrı temel). İkisi de doğrulanmadı; ``scripts/calibrate_returns.py`` ile ölçülür, dosyayla değişir.
+RETURN_DEFAULTS = {"delay_days": 0, "late_days": 7}
+
+
+def return_assumptions(path: str | Path | None = None) -> dict[str, int]:
+    """``RETURN_DEFAULTS`` + ``config/returns.yaml`` (varsa) üzerine yazılmış hâli; değerler ≥ 0 gün."""
+    out = dict(RETURN_DEFAULTS)
+    path = Path(path) if path else RETURNS_CONFIG
+    if path.exists():
+        for k, v in (yaml.safe_load(path.read_text(encoding="utf-8")) or {}).items():
+            if k in out:
+                out[k] = max(0, int(v or 0))
+    return out
+
+
+def return_delay(path: str | Path | None = None) -> int:
+    """Her analizde en erken dönüş tarihine eklenen gün (varsayılan 0 = CBS'in tarihi)."""
+    return return_assumptions(path)["delay_days"]
+
+
+def shift_returns(injuries: pd.DataFrame, days: int) -> pd.DataFrame:
+    """``out_until`` dönüş tarihlerini ``days`` gün ileri alır; CBS'in tarihi ``stated_return`` sütununda kalır."""
+    out = injuries.copy()
+    out["stated_return"] = out["return_date"]
+    if days:
+        mask = (out["kind"] == "out_until") & out["return_date"].notna()
+        out.loc[mask, "return_date"] = [d + dt.timedelta(days=days) for d in out.loc[mask, "return_date"]]
+    return out
 
 
 def _text(s: str) -> str:
@@ -190,8 +225,9 @@ def apply_injuries(data: TradeData, injuries: pd.DataFrame, source: str = SOURCE
                                issues=(*data.issues, note))
 
 
-def with_injuries(data: TradeData, directory: str | Path) -> TradeData:
-    """En yeni ``injuries_cbs_*.csv`` varsa eşleştirip uygular; yoksa ya da eşleşme yoksa ``data`` aynen döner."""
+def with_injuries(data: TradeData, directory: str | Path, delay: int | None = None) -> TradeData:
+    """En yeni ``injuries_cbs_*.csv`` varsa eşleştirip uygular; yoksa ya da eşleşme yoksa ``data`` aynen döner.
+    ``delay``: en erken dönüş tarihine eklenen gün (``None``: ``return_delay()``)."""
     path = latest_file(directory)
     if path is None:
         return data
@@ -201,5 +237,10 @@ def with_injuries(data: TradeData, directory: str | Path) -> TradeData:
     note = f"{report.note()} ({path.name})"
     if matched.empty:
         return dataclasses.replace(data, issues=(*data.issues, note))
+    delay = return_delay() if delay is None else max(0, int(delay))
+    matched = shift_returns(matched, delay)
+    when = (f"CBS'in en erken tarihi + {delay} gün (varsayım)" if delay else
+            "CBS'in en erken tarihi (\"at least\"; gerçek dönüş çoğu zaman daha geç, gecikme varsayımı 0 gün)")
     out = apply_injuries(data, matched, source=f"{SOURCE_URL} ({path.name})")
-    return dataclasses.replace(out, issues=(*out.issues, note))
+    return dataclasses.replace(out, issues=(*out.issues, note, f"Sakatlık dönüşü: {when}."),
+                               fingerprint=f"{out.fingerprint}:d{delay}")

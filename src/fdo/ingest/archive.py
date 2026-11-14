@@ -163,6 +163,15 @@ def archive(directory: str | Path, *, source: str, note: str = "", files: list[P
     return ArchiveResult(batch_id, True, new, len(digests))
 
 
+def read_object(directory: str | Path, digest: str) -> bytes:
+    """Arşivdeki bir dosyanın içeriği (sha256 ile; özet doğrulanır)."""
+    with gzip.open(_object(Path(directory), digest), "rb") as f:
+        data = f.read()
+    if hashlib.sha256(data).hexdigest() != digest:
+        raise ValueError(f"Arşiv nesnesi bozuk: {digest}")
+    return data
+
+
 def restore(directory: str | Path, batch_id: str, dest: str | Path) -> list[Path]:
     """Partinin dosyalarını ``dest`` dizinine yazar (dizin boş olmalı); her dosyanın sha256'sı doğrulanır."""
     manifest = get(directory, batch_id)
