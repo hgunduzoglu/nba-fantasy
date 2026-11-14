@@ -106,3 +106,38 @@ def test_questionable_outcomes_check_the_next_team_game():
     from fdo.inseason.returns import questionable_outcomes
     q = questionable_outcomes(REPORTS, _logs(), PLAYERS, START).set_index("name")
     assert list(q.index) == ["Eve Ely"] and q.loc["Eve Ely", "game"] == DAYS[0] and bool(q.loc["Eve Ely", "played"])
+
+
+def _snap(day, captured, slots):
+    return {"roster_date": str(day), "captured_at": captured,
+            "leagues": [{"teams": [{"slots": [{"player_id": p, "player_name": n, "nba_team": t, "status": s}
+                                              for p, n, t, s in slots]}]}]}
+
+
+def test_yahoo_questionable_outcomes_use_the_yahoo_label_and_the_next_team_game():
+    from fdo.inseason.returns import yahoo_questionable_outcomes
+    first = _snap(DAYS[0], "2026-11-01T12:00", [("5", "Eve Ely", "AAA", "Q"), ("3", "Cy Cole", "BBB", "GTD"),
+                                                ("1", "Ann Able", "AAA", None), ("2", "Bob Baker", "AAA", "O")])
+    again = _snap(DAYS[0], "2026-11-01T13:00", [("5", "Eve Ely", "AAA", "Q")])                # aynı maç: tek gözlem
+    late = _snap(dt.date(2026, 11, 12), "x", [("5", "Eve Ely", "AAA", "Q")])                  # maç kaydı yok
+    q = yahoo_questionable_outcomes([(DAYS[0], first), (DAYS[0], again), (dt.date(2026, 11, 12), late)], _logs(),
+                                    PLAYERS).set_index("name")
+    assert sorted(q.index) == ["Cy Cole", "Eve Ely"]
+    assert bool(q.loc["Eve Ely", "played"]) and not bool(q.loc["Cy Cole", "played"])          # 0 dakika oynamadı
+    assert q.loc["Cy Cole", "game"] == DAYS[0] and q.loc["Cy Cole", "status"] == "GTD"
+    assert yahoo_questionable_outcomes([], pd.DataFrame(), PLAYERS).empty
+
+
+def test_roster_snapshots_come_from_the_archive_folders_and_keep_the_earliest_capture(tmp_path):
+    import json
+
+    from fdo.ingest.archive import archive, root
+    from fdo.inseason.returns import load_roster_snapshots
+    (tmp_path / "rosters.json").write_text(json.dumps(_snap(DAYS[0], "2026-11-01T10:00", [])), encoding="utf-8")
+    archive(tmp_path, source="test")
+    (tmp_path / "rosters.json").write_text(json.dumps(_snap(DAYS[1], "2026-11-02T10:00", [])), encoding="utf-8")
+    (root(tmp_path) / str(DAYS[0])).mkdir(parents=True)
+    (root(tmp_path) / str(DAYS[0]) / "rosters.json").write_text(
+        json.dumps(_snap(DAYS[0], "2026-11-01T23:00", [])), encoding="utf-8")                # aynı gün, daha geç
+    got = load_roster_snapshots(tmp_path)
+    assert [d for d, _ in got] == DAYS[:2] and got[0][1]["captured_at"] == "2026-11-01T10:00"

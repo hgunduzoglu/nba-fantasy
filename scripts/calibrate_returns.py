@@ -5,8 +5,9 @@
     python scripts/calibrate_returns.py --write        # dağılımı ve Q oynama oranını config/returns.yaml'a yaz
 
 Ölçülenler: CBS'in en erken tarihinden sonra kaç takım maçı daha kaçırıldığının dağılımı (``delay_games``, Kaplan–Meier;
-dönmeyenler gözlem sonuna kadar sansürlü) ve belirsiz (game time decision, day-to-day, questionable) listelenen
-oyuncunun takımının bir sonraki maçında oynama oranı (``questionable_play``). ``--write`` yalnız yeterli gözlem varsa
+dönmeyenler gözlem sonuna kadar sansürlü) ve belirsiz oyuncunun takımının bir sonraki maçında oynama oranı
+(``questionable_play``). Bu oran önce Yahoo'nun kendi Q/GTD/DTD etiketinden ölçülür (kadro anlık görüntüleri; model bu
+etiketi kullanır), yeterli gözlem yoksa CBS'in belirsiz listesinden (game time decision, day-to-day, questionable). ``--write`` yalnız yeterli gözlem varsa
 (``--min`` , varsayılan 30) yazar; model bu değerleri kullanır (``fdo.inseason.injuries.return_pmf`` /
 ``questionable_play``). Yazılmazsa CBS tarihi kesin sayılır ve Q oyuncu oynar.
 """
@@ -25,8 +26,9 @@ import yaml  # noqa: E402
 
 from fdo.inseason.identity import load_overrides  # noqa: E402
 from fdo.inseason.injuries import RETURNS_CONFIG, questionable_play, return_delay, return_pmf  # noqa: E402
-from fdo.inseason.returns import (delay_pmf, load_reports, median_delay, observed_returns,  # noqa: E402
-                                  questionable_outcomes, return_curve)
+from fdo.inseason.returns import (delay_pmf, load_reports, load_roster_snapshots, median_delay,  # noqa: E402
+                                  observed_returns, questionable_outcomes, return_curve,
+                                  yahoo_questionable_outcomes)
 from fdo.inseason.roles import load_logs  # noqa: E402
 from fdo.trade import load_trade_data  # noqa: E402
 
@@ -68,10 +70,16 @@ def main() -> int:
     pmf = delay_pmf(obs, "games_missed", 10)
     print("Gecikme dağılımı (en erken tarihten sonra k takım maçı daha kaçırma): "
           + " · ".join(f"{k}{'+' if k == 10 else ''}: %{100 * v:.0f}" for k, v in pmf.items()))
-    q = questionable_outcomes(reports, logs, data.players, start, load_overrides(args.data))
+    snaps = load_roster_snapshots(args.data)
+    yq = yahoo_questionable_outcomes(snaps, logs, data.players, load_overrides(args.data))
+    cq = questionable_outcomes(reports, logs, data.players, start, load_overrides(args.data))
+
+    def share(df) -> str:
+        return f"%{100 * df['played'].mean():.0f} ({int(df['played'].sum())}/{len(df)})" if len(df) else "gözlem yok"
+    print(f"Yahoo Q/GTD/DTD ({len(snaps)} kadro günü) takımının bir sonraki maçında oynayan: {share(yq)}")
+    print(f"CBS belirsiz listesi, aynı ölçü: {share(cq)}")
+    q, q_source = (yq, "yahoo") if len(yq) >= args.min else (cq, "cbs")
     rate = float(q["played"].mean()) if len(q) else None
-    print(f"Belirsiz listelenip takımının bir sonraki maçında oynayan: "
-          + (f"%{100 * rate:.0f} ({int(q['played'].sum())}/{len(q)})" if rate is not None else "gözlem yok"))
     print(f"Modelde şu an: dağılım {'var' if return_pmf(args.config) else 'yok (CBS tarihi kesin)'}, "
           f"Q oynama {questionable_play(args.config):.2f}")
     if args.write:
@@ -83,9 +91,11 @@ def main() -> int:
             wrote.append(f"delay_games ({len(obs)} gözlem)")
         if rate is not None and len(q) >= args.min:
             cfg["questionable_play"] = round(rate, 3)
-            wrote.append(f"questionable_play ({len(q)} gözlem)")
+            cfg["questionable_source"] = q_source
+            wrote.append(f"questionable_play ({q_source}, {len(q)} gözlem)")
         if wrote:
-            path.write_text("# scripts/calibrate_returns.py --write ile ölçüldü (CBS raporları + NBA maç kayıtları).\n"
+            path.write_text("# scripts/calibrate_returns.py --write ile ölçüldü (CBS raporları, Yahoo kadro anlık "
+                            "görüntüleri + NBA maç kayıtları).\n"
                             + yaml.safe_dump(cfg, sort_keys=False, allow_unicode=True), encoding="utf-8")
             print(f"Yazıldı: {path} → {', '.join(wrote)}")
         else:

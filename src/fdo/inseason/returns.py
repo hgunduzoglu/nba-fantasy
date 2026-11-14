@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import datetime as dt
 import io
+import json
 import re
 from pathlib import Path
 
@@ -144,18 +145,8 @@ def questionable_outcomes(reports: list[tuple[dt.date, pd.DataFrame]], logs: pd.
     cols = ["player_id", "name", "report_date", "game", "played"]
     if logs is None or logs.empty:
         return pd.DataFrame(columns=cols)
-    logs = logs.assign(game_date=pd.to_datetime(logs["game_date"]).dt.date,
-                       nba_team=logs["nba_team"].map(normalize_team))
-    last = max(logs["game_date"])
+    on, team_days, team_of, last = _log_index(logs, players, overrides)
     resolve = Resolver(players, overrides, source="cbs")
-    one = Resolver(players, overrides)
-    keys = logs[["name", "nba_team"]].drop_duplicates()
-    ids = {(r.name, r.nba_team): one(r.name, r.nba_team).player_id for r in keys.itertuples()}
-    logs = logs.assign(player_id=[ids[(n, t)] for n, t in zip(logs["name"], logs["nba_team"])])
-    played = logs[logs["minutes"].fillna(0) > 0] if "minutes" in logs else logs
-    on = set(zip(played["player_id"], played["game_date"]))
-    team_days = {t: sorted(set(g)) for t, g in logs.groupby("nba_team")["game_date"]}
-    team_of = {p: t for p, t in logs.groupby("player_id")["nba_team"].last().items()}
     seen: set[tuple[str, dt.date]] = set()
     rows = []
     for report_date, rep in sorted(reports, key=lambda x: x[0]):
@@ -170,4 +161,72 @@ def questionable_outcomes(reports: list[tuple[dt.date, pd.DataFrame]], logs: pd.
             seen.add((pid, game))
             rows.append({"player_id": pid, "name": r.name, "report_date": report_date, "game": game,
                          "played": (pid, game) in on})
+    return pd.DataFrame(rows, columns=cols)
+
+
+def _log_index(logs: pd.DataFrame, players: pd.DataFrame, overrides: pd.DataFrame | None):
+    """Maç kayıtlarından: oynanan (oyuncu, gün) kümesi, takım → maç günleri, oyuncu → son takımı, son maç günü."""
+    logs = logs.assign(game_date=pd.to_datetime(logs["game_date"]).dt.date,
+                       nba_team=logs["nba_team"].map(normalize_team))
+    one = Resolver(players, overrides)
+    keys = logs[["name", "nba_team"]].drop_duplicates()
+    ids = {(r.name, r.nba_team): one(r.name, r.nba_team).player_id for r in keys.itertuples()}
+    logs = logs.assign(player_id=[ids[(n, t)] for n, t in zip(logs["name"], logs["nba_team"])])
+    played = logs[logs["minutes"].fillna(0) > 0] if "minutes" in logs else logs
+    on = set(zip(played["player_id"], played["game_date"]))
+    team_days = {t: sorted(set(g)) for t, g in logs.groupby("nba_team")["game_date"]}
+    team_of = {p: t for p, t in logs.groupby("player_id")["nba_team"].last().items()}
+    return on, team_days, team_of, max(logs["game_date"])
+
+
+def load_roster_snapshots(directory: str | Path) -> list[tuple[dt.date, dict]]:
+    """Yahoo kadro anlık görüntüleri (``rosters.json``), güne göre: arşiv partileri, eski günlük kopyalar
+    (``snapshots/<gün>/``) ve güncel dosya. Aynı gün birden çok kez yakalandıysa en erken yakalanan (maçlardan önceki
+    durum)."""
+    directory = Path(directory)
+    found: list[dict] = []
+    for m in batches(directory):
+        info = m["files"].get("rosters.json")
+        if info:
+            found.append(json.loads(read_object(directory, info["sha256"])))
+    for path in [*sorted(root(directory).glob("*/rosters.json")), directory / "rosters.json"]:
+        if path.exists():
+            found.append(json.loads(path.read_text(encoding="utf-8")))
+    out: dict[dt.date, dict] = {}
+    for d in found:
+        day = d.get("roster_date")
+        if not day:
+            continue
+        day = dt.date.fromisoformat(day)
+        if day not in out or str(d.get("captured_at") or "") < str(out[day].get("captured_at") or ""):
+            out[day] = d
+    return sorted(out.items(), key=lambda x: x[0])
+
+
+def yahoo_questionable_outcomes(snapshots: list[tuple[dt.date, dict]], logs: pd.DataFrame, players: pd.DataFrame,
+                                overrides: pd.DataFrame | None = None,
+                                statuses: tuple[str, ...] = ("Q", "GTD", "DTD")) -> pd.DataFrame:
+    """Yahoo'da ``statuses`` etiketli (modelin haftalık kadroda kullandığı etiket) kadrolu oyuncuların takımının o gün
+    ya da sonraki ilk maçında oynayıp oynamadığı: oyuncu ve maç başına bir gözlem (ilk anlık görüntüden). Anlık görüntü
+    maçlardan önce alınır; maç kayıtlarının son gününden sonraki maçlar dışarıda kalır."""
+    cols = ["player_id", "name", "status", "report_date", "game", "played"]
+    if logs is None or logs.empty:
+        return pd.DataFrame(columns=cols)
+    on, team_days, team_of, last = _log_index(logs, players, overrides)
+    seen: set[tuple[str, dt.date]] = set()
+    rows = []
+    for day, snap in sorted(snapshots, key=lambda x: x[0]):
+        for league in snap.get("leagues", []):
+            for team in league.get("teams", []):
+                for slot in team.get("slots", []):
+                    status, pid = slot.get("status"), str(slot.get("player_id") or "")
+                    if status not in statuses or not pid:
+                        continue
+                    nba = team_of.get(pid) or normalize_team(str(slot.get("nba_team") or ""))
+                    game = next((d for d in team_days.get(nba, []) if d >= day), None)
+                    if game is None or game > last or (pid, game) in seen:
+                        continue
+                    seen.add((pid, game))
+                    rows.append({"player_id": pid, "name": slot.get("player_name"), "status": status,
+                                 "report_date": day, "game": game, "played": (pid, game) in on})
     return pd.DataFrame(rows, columns=cols)
