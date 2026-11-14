@@ -231,8 +231,15 @@ def trade_result(eng: TradeEngine, result: TradeResult, *, perceived: pd.Series 
                              for c, r in category_changes(result, mode, tid).iterrows()] for mode in MODES},
         }
         base = float(eng.baseline_p[i, keep].mean(axis=0).sum())
+        after_plan = plans.get("after", {}).get(tid)
+        bud = after_plan.budget if after_plan is not None else None
         teams[side]["free"] = {"moves": moves(plans["before"].get(tid)),
-                               "after_moves": moves(plans.get("after", {}).get(tid)),
+                               "after_moves": moves(after_plan),
+                               "budget": None if bud is None else {
+                                   "weekly_limit": bud.weekly_limit, "used": bud.used, "known": bud.known,
+                                   "reserved": bud.reserved, "remaining": bud.remaining,
+                                   "later": [{"drop": names[d] if d else None, "add": names[f]}
+                                             for d, f in after_plan.later]},
                                "ecw_gain": float(pb.sum()) - base}
     req = result.request
     balance = None

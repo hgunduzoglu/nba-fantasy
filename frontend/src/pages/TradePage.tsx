@@ -129,6 +129,14 @@ function SideCard({ side, title, scale }: { side: TradeSide; title: string; scal
             Takastan sonra puanlanan hamleler: {freeText(side.free.after_moves) || "yok"}.
           </p>
         )}
+        {side.free?.budget && (side.free.budget.later.length > 0 || side.free.budget.reserved > 0) && (
+          <p className="hint" title="Takasın gerektirdiği boştan eklemeler ve bedava hamleler aynı haftalık alım hakkından harcanır. Hakkı aşan hamleler bu hafta yapılamaz, gelecek haftadan sayılır.">
+            Bu hafta alım hakkı: {side.free.budget.known ? `${side.free.budget.used} kullanılmış` : "kullanım bilinmiyor"}
+            {" "}/ {side.free.budget.weekly_limit}
+            {side.free.budget.reserved > 0 ? `, takas ${side.free.budget.reserved} ekleme gerektiriyor` : ""}
+            {side.free.budget.later.length > 0 ? `; gelecek haftadan sayılan: ${freeText(side.free.budget.later)}` : ""}.
+          </p>
+        )}
         <div className="section-title">Kategori kazanma olasılığı değişimi (puan)</div>
         <CategoryImpact rows={side.categories} scale={scale} />
         {moves.length > 0 && (
