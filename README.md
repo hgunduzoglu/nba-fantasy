@@ -2163,6 +2163,15 @@ advances (Yahoo's rule assumed). `p_win` and ECW on the weekly pages did not cha
 Check (9 November, METU IE): the simulation expects 2.4–3.7 category ties per team over the rest of the season (1.5–2% of
 categories); in the league's real W-L-T so far the share is 1.6%.
 
+### 13.36 Checking the numbers in a report (`fdo.inseason.number_check`, 10 November 2026)
+
+The detailed analysis (§13.29) should use only the data in the packet; Claude can still copy a number wrongly. After a
+report is written, every number in its text is compared with the numbers in the packet: if its value rounded to the
+written precision (or ×100 as a percentage) equals a packet value, it counts as found. Small integers (≤ 10) and dates
+are not checked. Numbers not found are listed under the report with where they appear and their context; this is not
+proof of an error (it can be a difference or a sum of two values), it shows what to check. The check runs on newly
+written reports; old records have no stored packet.
+
 ### 13.8 V3 candidates
 
 Beam search and H-score weight optimization; fitting the profile mix; covariance of game counts between

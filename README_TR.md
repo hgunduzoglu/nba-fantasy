@@ -2147,6 +2147,15 @@ sıradaki takım tur atlar (Yahoo kuralı varsayıldı). Haftalık ekranlardaki 
 Kontrol (9 Kasım, METU IE): simülasyon kalan sezonda takım başına 2,4–3,7 kategori beraberliği bekliyor (kategorilerin
 %1,5–2'si); ligin şimdiye kadarki gerçek W-L-T'sinde oran %1,6.
 
+### 13.36 Rapordaki sayıların denetimi (`fdo.inseason.number_check`, 10 Kasım 2026)
+
+Detaylı analiz (§13.29) yalnız paketteki verileri kullanmalı; Claude yine de bir sayıyı yanlış aktarabilir. Rapor
+yazıldıktan sonra metindeki her sayı paketteki sayılarla karşılaştırılır: yazıldığı basamağa yuvarlanmış hâli (ya da
+yüzde olarak ×100) paketteki bir değere eşitse bulunmuş sayılır. Küçük tam sayılar (≤ 10) ve tarihler denetlenmez.
+Bulunamayanlar raporun altında yerleri ve çevreleriyle listelenir; bu bir hata kanıtı değildir (iki değerin farkı ya da
+toplamı da olabilir), kontrol edilmesi gereken yerleri gösterir. Denetim yeni yazılan raporlarda çalışır; eski kayıtlarda
+paket saklanmadığı için yoktur.
+
 ### 13.8 V3 adayları
 
 Beam search ve H-score ağırlık optimizasyonu; profil karışımı uyumu; oyuncular arası maç sayısı
