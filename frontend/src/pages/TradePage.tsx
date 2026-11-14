@@ -634,7 +634,8 @@ export function TradePage({ meta, league, team, injuries, initial }: Props) {
               )}
               {season && (
                 <table className="mini" style={{ maxWidth: 720 }}>
-                  <thead><tr><th className="l">Takım</th><th>Playoff</th><th>Fark</th><th>Şampiyonluk</th><th>Fark</th><th>Ort. sıra</th></tr></thead>
+                  <thead><tr><th className="l">Takım</th><th>Playoff</th><th>Fark</th><th>Şampiyonluk</th><th>Fark</th><th>Ort. sıra</th>
+                    <th title="Kalan normal sezonda haftalık beklenen kategori farkı, haftalık modelin günlük kadro atamasıyla (bench'e düşen maçlar, pozisyonlar). Parantez içi hızlı takas puanının ΔECW'si: fark ufuk ve günlük kadrodan gelir.">Günlük kadroyla Δ kat.</th></tr></thead>
                   <tbody>
                     {(["a", "b"] as const).map((k) => {
                       const s = season.teams[k];
@@ -648,6 +649,9 @@ export function TradePage({ meta, league, team, injuries, initial }: Props) {
                           <td>{fmtPct(s.champion_before, 1)} → {fmtPct(s.champion_after, 1)}</td>
                           <td className={dc > 0.005 ? "good" : dc < -0.005 ? "bad" : ""}>{fmtDelta(dc * 100, 1)}</td>
                           <td>{fmtNum(s.seed_before)} → {fmtNum(s.seed_after)}</td>
+                          <td className={deltaClass(s.effect?.ecw_lineup?.delta ?? 0, 0.3)}>
+                            {s.effect?.ecw_lineup ? fmtDelta(s.effect.ecw_lineup.delta, 3) : "—"}
+                            <span className="muted"> ({fmtDelta(result.teams[k].ecw_delta, 3)})</span></td>
                         </tr>
                       );
                     })}

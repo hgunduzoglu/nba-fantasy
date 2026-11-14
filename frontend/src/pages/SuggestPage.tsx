@@ -388,6 +388,7 @@ export function SuggestPage({ meta, league, team, injuries, onOpen }: Props) {
                   <th title="Kalan sezon değeri: küçük paket / büyük paket">Değer dengesi</th>
                   <th title="Rakibin gözünden (bu sezon + isim değeri): aldığı / verdiği. 1 = eşit görür.">Rakibin gözünde</th>
                   <th title="Rakip için kabul gerekçesi: modelde kazanıyor mu, kendi gözünde eşit ya da fazla alıyor mu. İkisi yüksek, biri orta. Olasılık değil.">Kabul gerekçesi</th>
+                  <th title="Kalan normal sezonda haftalık beklenen kategori farkı, haftalık modelin günlük kadro atamasıyla (sezon etkisiyle birlikte hesaplanır). Sen ΔECW ile farkı ufuk ve günlük kadrodan gelir.">Günlük kadro Δ</th>
                   <th title="Playoff olasılığı değişimi (puan)">Playoff</th><th title="Şampiyonluk olasılığı değişimi (puan)">Şamp.</th>
                   <th title="Rakibin playoff olasılığı değişimi">Rakip PO</th><th />
                 </tr></thead>
@@ -422,6 +423,8 @@ export function SuggestPage({ meta, league, team, injuries, onOpen }: Props) {
                         <td>{fmtPct(s.fairness)}</td>
                         <td>{fmtNum(s.perceived_view, 2)}</td>
                         <td><AcceptBadge level={s.acceptability} reasons={s.counterpart_reasons} /></td>
+                        <td className={e && e !== "err" && e.me.ecw_lineup ? deltaClass(e.me.ecw_lineup.delta, 0.3) : "muted"}>
+                          {e && e !== "err" && e.me.ecw_lineup ? fmtDelta(e.me.ecw_lineup.delta, 3) : "—"}</td>
                         <SeasonDeltaCell d={e === "err" ? "err" : e?.me.playoff} />
                         <SeasonDeltaCell d={e === "err" ? "err" : e?.me.champion} scale={0.05} />
                         <SeasonDeltaCell d={e === "err" ? "err" : e?.opp.playoff} />

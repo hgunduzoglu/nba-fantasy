@@ -340,6 +340,8 @@ export interface SeasonEffect {
   playoff?: SeasonDelta;
   champion: SeasonDelta;
   seed: SeasonDelta;
+  /** Kalan normal sezonda haftalık beklenen kategori, haftalık modelin günlük kadro atamasıyla (gürültüsüz). */
+  ecw_lineup?: SeasonDelta;
 }
 
 export type SeasonManyRow =
