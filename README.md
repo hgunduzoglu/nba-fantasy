@@ -2245,6 +2245,42 @@ reading stops at a known transaction. The key is player ids + team + timestamp; 
 injury status into the row text, so the text cannot be the key. If the page cannot be read, a note is added and the rest of
 the sync is not affected.
 
+### 13.41 A trade score that sees timing, waivers in the season simulation and a fix to free moves (14 November 2026)
+
+**Weekly segments** (`TradeEngine(segments=...)`, `trade_segments`): the trade score treated the rest of the season as one
+"average week", spreading each player's remaining production evenly over all weeks. Now every remaining fantasy week
+(playoff weeks included) is its own segment. A player's contribution comes from his team's games in that week and from
+after his known return date. Category probabilities are computed week by week and averaged, weighted by weeks. A player
+back in March adds nothing to November weeks; weeks with different game density are seen separately. The trade analysis,
+completion, suggestions and logs use this score. Playoff week weight is `PLAYOFF_WEIGHT` (1 = like a regular week).
+Speed: suggestion search went from ~11 s to ~24 s per direction.
+
+**Free waiver moves fixed**: the trade comparison assumes teams pick up better free agents for free (§13.32). These moves
+were chosen by the player's overall 9-category value, without looking at the team's category needs. In METU IE the team's
+three moves (Grant → McBride, Lopez → Morez Johnson, Allen → Shead) **lowered** its expectation (−0.08 categories a
+week). The no-trade base made all three harmful moves and the post-trade base made two, so the trade looked good because
+it reduced the harm. That is why Banchero + Jackson → Ty Jerome + Jalen Williams, which the user disputed, came out at
++0.09. Now:
+
+- A move is made only if it raises the team's own strategy-weighted expectation. Candidates are the top 8 free agents ×
+  the 3 weakest actives; moves are checked including IL returns and on the same (weekly) basis as the trade score. At most
+  the weekly acquisition limit.
+- Moves are computed once for the team's **pre-trade** roster. After the trade they are kept while still valid; a move
+  drops out if the free agent can no longer be added; if the player to cut was traded away, the same free agent replaces
+  the weakest active if that strengthens the team (`anchored_waiver`). So a trade
+  never looks better or worse because of a move that is available without trading.
+- The analysis and the completion and suggestion lists also compute the same trade **without free moves**
+  (`TradeEngine(free_moves=False)`). If the gain exists only with the moves, the row shows **⚠ hamle**.
+
+Result: Banchero + Jackson → Jerome + Williams is now a loss under both assumptions (−0.011 / −0.034) and no longer in the
+completion list. Banchero → Clingan is a gain under both (+0.36 / +0.35).
+
+**Waiver moves in the season simulation**: the simulation played rosters unchanged while the trade engine assumed free
+moves, which is why the two models disagreed. The simulation now also makes free moves at the start of the season: first
+the teams in the trade (the decision maker acts now; same order in the no-trade run), then the others in the league's
+waiver priority (`standings_live.csv`). A manager with no transaction in the last 21 days makes none (`INACTIVE_DAYS`,
+an assumption). There is no weekly streaming.
+
 ### 13.8 V3 candidates
 
 Beam search and H-score weight optimization; fitting the profile mix; covariance of game counts between

@@ -2220,6 +2220,42 @@ bilinen işleme ulaşınca durulur. İşlem anahtarı oyuncu kimlikleri + takım
 oyuncunun güncel sakatlık durumunu da yazdığı için metin anahtar olamaz. Sayfa okunamazsa not düşülür, senkronizasyonun
 geri kalanı etkilenmez.
 
+### 13.41 Zamanlamayı gören takas puanı, sezonda waiver ve bedava hamlelerin düzeltilmesi (14 Kasım 2026)
+
+**Haftalık dönemler** (`TradeEngine(segments=...)`, `trade_segments`): takas puanı kalan sezonu tek bir "ortalama hafta"
+olarak değerlendiriyordu; her oyuncunun kalan üretimi bütün haftalara eşit yayılıyordu. Artık kalan sezonun her fantezi
+haftası (playoff haftaları dahil) ayrı bir dönemdir. Oyuncunun katkısı, o haftada takımının oynadığı maçlardan ve bilinen
+dönüş tarihinden sonrasından hesaplanır. Kategori olasılıkları hafta hafta bulunup hafta sayısıyla ağırlıklı
+ortalanır. Mart'ta dönen oyuncu Kasım haftalarına 0 katar; maç yoğunluğu farklı haftalar da ayrı görülür. Takas analizi,
+tamamlama, öneriler ve kayıtlar bu puanı kullanır. Playoff haftalarının ağırlığı `PLAYOFF_WEIGHT` (1 = normal hafta
+gibi). Hız: öneri araması yön başına ~11 sn'den ~24 sn'ye çıktı.
+
+**Bedava waiver hamleleri düzeltildi**: takas karşılaştırmasında takımların boştaki daha iyi oyuncuları bedavaya
+aldığı varsayılıyor (§13.32). Bu hamleler oyuncunun genel 9 kategori değerine göre seçiliyordu ve takımın kategori
+ihtiyacına bakılmıyordu. METU IE'de takımın üç hamlesi (Grant → McBride, Lopez → Morez Johnson, Allen → Shead) takımın
+beklentisini **düşürüyordu** (−0,08 kategori / hafta). Takassız tabanda bu üç zararlı hamle yapılırken takaslı tabanda
+ikisi yapılıyordu, dolayısıyla takas zararı azalttığı için kazançlı görünüyordu. Kullanıcının itiraz ettiği Banchero +
+Jackson → Ty Jerome + Jalen Williams bu yüzden +0,09 çıkıyordu. Şimdi:
+
+- Hamle yalnız takımın kendi stratejisine göre beklentisini artırıyorsa yapılır. Aday ilk 8 boştaki × en zayıf 3
+  aktif oyuncudur; IL dönüşleri dahil ve takas puanıyla aynı (haftalık) temelde doğrulanır. En çok haftalık alım hakkı
+  kadar hamle yapılır.
+- Hamleler takımın **takas öncesi** kadrosu için bir kez hesaplanır. Takastan sonra geçerli kaldıkları sürece korunur;
+  boştaki oyuncu artık alınamıyorsa düşer; bırakılacak oyuncu takasla gittiyse aynı boştaki, takımı güçlendiriyorsa en
+  zayıf aktif yerine alınır (`anchored_waiver`). Böylece takas,
+  takassız da yapılabilecek bir hamle yüzünden kazanmış ya da kaybetmiş görünmez.
+- Analizde, tamamlama ve öneri listelerinde aynı takas **bedava hamleler olmadan** da hesaplanır
+  (`TradeEngine(free_moves=False)`). Kazanç yalnız hamleler yapılırsa varsa satırda **⚠ hamle** uyarısı çıkar.
+
+Sonuç: Banchero + Jackson → Jerome + Williams artık iki varsayımda da kayıp (−0,011 / −0,034) ve tamamlama listesinde
+yok. Banchero → Clingan iki varsayımda da kazanç (+0,36 / +0,35).
+
+**Sezon simülasyonunda waiver hamleleri**: simülasyon kadroları hiç değişmeden oynatıyordu, takas motoru ise bedava
+hamleleri varsayıyordu; iki model bu yüzden ayrışıyordu. Simülasyonda da sezon başında takımlar bedava hamle yapar: önce
+takastaki takımlar (karar veren şimdi hareket eder; takassız koşuda da aynı sıra), sonra diğerleri ligin waiver
+önceliğine göre (`standings_live.csv`). Son 21 günde işlem yapmayan menajer hamle yapmaz (`INACTIVE_DAYS`, varsayım).
+Haftalık streaming yok.
+
 ### 13.8 V3 adayları
 
 Beam search ve H-score ağırlık optimizasyonu; profil karışımı uyumu; oyuncular arası maç sayısı
