@@ -1,6 +1,6 @@
 import type {
   AddDropWeekIn, AddDropWeekOut, CompleteOut, Freshness, ReportedTrade, ReportRecord, ScenariosOut, DropIn, DropOut, FixtureTeam, HistoryOut, NewsOut, NewsStatus, Meta, MispricedRow, MultiSeasonOut, MultiSuggestIn, MultiSuggestOut, MultiTradeIn, MultiTradeOut, Perceived, Player,
-  RankingsOut, Roster, SeasonManyOut, SeasonOut, SeasonPageOut, SitStartOut, Source, StreamOut, StrategyIn, SuggestIn, SuggestOut, SyncStatus, TradeIn,
+  ManagersOut, RankingsOut, Roster, SeasonManyOut, SeasonOut, SeasonPageOut, SitStartOut, Source, StreamOut, StrategyIn, SuggestIn, SuggestOut, SyncStatus, TradeIn,
   TradeOut, WaiverOut, WeeklyIn, WeeklyOut,
 } from "./types";
 
@@ -36,6 +36,7 @@ export const api = {
   meta: (injuries: boolean) => request<Meta>(`/api/meta?${q(injuries)}`),
   freshness: () => request<Freshness>("/api/freshness"),
   reportTrade: (league: string, body: TradeIn) => request<{ decision_id: string }>(`/api/leagues/${league}/trade/reported`, post(body)),
+  managers: (league: string) => request<ManagersOut>(`/api/leagues/${league}/managers`),
   reportedTrades: (league: string) => request<ReportedTrade[]>(`/api/leagues/${league}/trade/reported`),
   roster: (league: string, team: string, source: Source, injuries: boolean) =>
     request<Roster>(`/api/leagues/${league}/roster/${team}?source=${source}&${q(injuries)}`),

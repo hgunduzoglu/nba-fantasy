@@ -96,6 +96,23 @@ export interface TradeReportBody {
   watch: string[];
 }
 
+/** Menajerin işlem geçmişi (``/managers``): bağlam, kabul olasılığı değil. ``captured_at`` dosyanın çekim zamanı. */
+export interface ManagerProfile {
+  team_id: string;
+  team: string;
+  adds: number;
+  drops: number;
+  trades: number;
+  vetoed: number;
+  last_action: string | null;
+  days_since: number | null;
+}
+
+export interface ManagersOut {
+  captured_at: string | null;
+  teams: ManagerProfile[];
+}
+
 export interface ReportRecord {
   key: string;
   status: "running" | "done" | "error";

@@ -9,10 +9,10 @@ import { TradeComplete, sameIds } from "../components/TradeComplete";
 import { TradeReport } from "../components/TradeReport";
 import { BASIS_HINT, BASIS_LABELS, BASIS_SHORT, ReturnList, TradeScenarios } from "../components/TradeScenarios";
 import { deltaClass } from "../components/common";
-import { fmtDelta, fmtNum, fmtPct, fmtStat } from "../format";
+import { fmtDate, fmtDelta, fmtNum, fmtPct, fmtStat } from "../format";
 import { useIsMobile } from "../hooks";
 import { downloadJson, useScenarios, type NamedId, type Scenario } from "../scenarios";
-import type { Basis, CompleteOut, CompleteRow, FixtureTeam, League, Meta, Player, Roster, ScenariosOut, SeasonOut, Source, TradeIn, TradeOut, TradeSide } from "../types";
+import type { Basis, CompleteOut, ManagersOut, CompleteRow, FixtureTeam, League, Meta, Player, Roster, ScenariosOut, SeasonOut, Source, TradeIn, TradeOut, TradeSide } from "../types";
 import { ReportedTrades } from "../components/ReportedTrades";
 
 export interface TradeInit {
@@ -278,6 +278,10 @@ export function TradePage({ meta, league, team, injuries, initial }: Props) {
     api.freeAgents(league.id, source, injuries).then((r) => setFa(r.players)).catch(() => setFa([]));
   }, [league.id, source, injuries]);
 
+  const [managers, setManagers] = useState<ManagersOut | null>(null);
+  useEffect(() => { api.managers(league.id).then(setManagers).catch(() => setManagers(null)); }, [league.id]);
+  const oppProfile = managers?.teams.find((t) => t.team_id === opp);
+
   const body: TradeIn | null = useMemo(() => {
     if (!giveA.size || !giveB.size) return null;
     return { team_a: team, team_b: opp, give_a: [...giveA], give_b: [...giveB], drop_a: dropA, drop_b: dropB,
@@ -457,6 +461,15 @@ export function TradePage({ meta, league, team, injuries, initial }: Props) {
           Kadroyu otomatik dengele
         </label>
       </div>
+
+      {oppProfile && managers?.captured_at && (
+        <p className="hint" style={{ marginTop: -6 }} title="Ligin işlem sayfasından: boştan alım, bırakma, takas. Menajerin ne kadar etkin olduğunu gösterir; teklifi kabul etme olasılığı değildir.">
+          {oppProfile.team}: {oppProfile.adds} alım, {oppProfile.drops} bırakma, {oppProfile.trades} takas
+          {oppProfile.vetoed ? `, ${oppProfile.vetoed} veto edilen takas` : ""}
+          {oppProfile.last_action ? ` · son işlem ${fmtDate(oppProfile.last_action)}` : " · işlem yok"}
+          {" "}(işlem geçmişi {fmtDate(managers.captured_at.slice(0, 10))} çekimine kadar)
+        </p>
+      )}
 
       <div className="grid-2">
         <RosterTable title={teamName(team)} subtitle={giveA.size ? `${giveA.size} oyuncu veriyorsun` : "veriyorsun"}
