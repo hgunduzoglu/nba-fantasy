@@ -19,3 +19,12 @@ def test_post_return_rate_after_the_longest_absence():
     assert list(r.index) == ["Hurt"]
     assert r.loc["Hurt", "prev_rate"] == .75 and r.loc["Hurt", "streak"] == 15
     assert r.loc["Hurt", "after_rate"] == .5 and r.loc["Hurt", "after_games"] == 20
+
+
+def test_minutes_ramp_compares_games_after_return_with_minutes_before():
+    from check_durability import minutes_ramp
+    rows = [{"name": "Team", "nba_team": "AAA", "game_date": d, "minutes": 30} for d in DAYS]
+    hurt = DAYS[:10] + DAYS[22:]                                      # 12 maç yok
+    rows += [{"name": "Hurt", "nba_team": "AAA", "game_date": d, "minutes": 15 if d in DAYS[22:24] else 30} for d in hurt]
+    med, n = minutes_ramp(pd.DataFrame(rows), games=4)
+    assert n == 1 and med == [.5, .5, 1.0, 1.0]
