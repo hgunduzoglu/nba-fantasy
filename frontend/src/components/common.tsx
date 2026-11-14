@@ -103,6 +103,16 @@ export function SeasonWarnBadge({ show }: { show: boolean }) {
   return show ? <span className="badge out" title="Haftalık kategori kazancın var ama sezon simülasyonunda playoff olasılığın açıkça düşüyor. Çoğu zaman zamanlamadan: uzun süre sakat bir oyuncu playoff yarışı bittikten sonra döner, ya da fikstür haftaları tutmaz. Haftalık ortalama sezon sonundaki katkıyı bugünkü kadar değerli sayar; bu takası bu açıdan kontrol et.">⚠ sezon</span> : null;
 }
 
+/** Kazanç yalnız bedava waiver hamleleri varsayımıyla mı var (hamlesiz farkı ≤ 0)? */
+export function movesWarning(own: number, plain?: number | null): boolean {
+  return own > 0.005 && plain !== undefined && plain !== null && plain <= 0;
+}
+
+export function MovesWarnBadge({ own, plain }: { own: number; plain?: number | null }) {
+  if (!movesWarning(own, plain)) return null;
+  return <span className="badge out" title={`Bu kazanç, iki takımın boştaki daha iyi oyuncuları bedavaya aldığı varsayımına bağlı. O hamleler yapılmazsa (kadrolar olduğu gibi kalırsa) takas sana kaybettiriyor. Boştaki oyuncuları gerçekten alacak mısın, ona göre karar ver. Hamlesiz fark: ${fmtDelta(plain ?? 0, 3)}.`}>⚠ hamle</span>;
+}
+
 export function InlineBar({ value, max = 1 }: { value: number; max?: number }) {
   const w = Math.max(0, Math.min(1, value / max)) * 100;
   return <span className="ibar" aria-hidden="true"><span style={{ width: `${w}%` }} /></span>;

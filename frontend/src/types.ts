@@ -264,6 +264,8 @@ export interface RankRow {
 }
 
 export interface TradeSide {
+  /** Aynı takas bedava waiver hamleleri varsayılmadan (kadrolar olduğu gibi). */
+  plain?: { ecw_delta: number; win_delta: number; strategy_delta: number } | null;
   /** Takassız alternatif: takas öncesi tabanın bedava waiver hamleleri (ortak havuz) ve tek başına kategori kazancı. */
   free?: { moves: { drop: string | null; add: string }[]; ecw_gain: number };
   team_id: string;
@@ -367,6 +369,8 @@ export interface CompletePlayer extends BriefPlayer {
 export type CompleteTier = "mutual" | "own" | "loss";
 
 export interface CompleteRow {
+  /** Senin farkın bedava waiver hamleleri varsayılmadan. */
+  own_delta_plain?: number | null;
   give_a: CompletePlayer[];
   give_b: CompletePlayer[];
   tier: CompleteTier;
@@ -426,6 +430,7 @@ export interface SuggestIn {
 }
 
 export interface Suggestion {
+  own_delta_plain?: number | null;
   team_b: string;
   team_b_name: string;
   give_a: BriefPlayer[];

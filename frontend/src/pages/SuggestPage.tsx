@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
-import { AcceptBadge, CategoryChips, ErrorBanner, Loading, PlayerName, SeasonDeltaCell, SeasonWarnBadge, deltaClass, seasonWarning } from "../components/common";
+import { AcceptBadge, CategoryChips, ErrorBanner, Loading, MovesWarnBadge, PlayerName, SeasonDeltaCell, SeasonWarnBadge, deltaClass, seasonWarning } from "../components/common";
 import { BALANCED, StrategyPicker, strategyLabel, toStrategyIn, type StrategyChoice } from "../components/StrategyPicker";
 import { fmtDelta, fmtNum, fmtPct } from "../format";
 import type { League, Meta, MispricedRow, Perceived, SeasonEffect, SuggestMode, SuggestOut, Suggestion } from "../types";
@@ -407,6 +407,7 @@ export function SuggestPage({ meta, league, team, injuries, onOpen }: Props) {
                           {s.give_b.map((p) => <div key={p.id}><PlayerName p={p} sub={false} />{star(p.id)}</div>)}
                           {s.position_gap > 0 && <span className="badge out" title={`Takastan sonra ${s.position_gap} aktif pozisyon doldurulamıyor`}>⚠ pozisyon</span>}
                           <SeasonWarnBadge show={!!e && e !== "err" && seasonWarning(ecw, e.me.playoff)} />
+                          <MovesWarnBadge own={s.own_delta} plain={s.own_delta_plain} />
                         </td>
                         {view !== "all" && <td className={deltaClass(s.own_delta, 0.3)}>{fmtDelta(s.own_delta, 3)}</td>}
                         <td title={rob.tip} className={rob.n === rob.total ? "good" : rob.n === 0 ? "bad" : ""}>{rob.n}/{rob.total}</td>

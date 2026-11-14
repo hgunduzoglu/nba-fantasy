@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AcceptBadge, CategoryChips, ErrorBanner, SeasonDeltaCell, SeasonWarnBadge, deltaClass, seasonWarning } from "./common";
+import { AcceptBadge, CategoryChips, ErrorBanner, MovesWarnBadge, SeasonDeltaCell, SeasonWarnBadge, deltaClass, seasonWarning } from "./common";
 import { fmtDelta, fmtNum, fmtPct } from "../format";
 import type { CompleteOut, CompletePlayer, CompleteRow, CompleteTier, SeasonEffect, SeasonManyOut } from "../types";
 
@@ -125,7 +125,7 @@ export function TradeComplete({ data, busy, error, base, oppName, labels, mobile
               <ul className="m-list">
                 {shown.map(({ r, i }) => (
                   <li key={i} className="m-item">
-                    <div className="m-line"><Tier t={r.tier} /><SeasonWarnBadge show={warn(i, r)} /><span className="spacer" />
+                    <div className="m-line"><Tier t={r.tier} /><SeasonWarnBadge show={warn(i, r)} /><MovesWarnBadge own={r.own_delta} plain={r.own_delta_plain} /><span className="spacer" />
                       {isApplied(r) ? <span className="muted">seçili</span>
                         : <button className="btn" onClick={() => onApply(r)}>Uygula</button>}</div>
                     <div className="m-line"><span className="m-lbl drop">Ver</span><Pkg players={r.give_a} /></div>
@@ -165,7 +165,7 @@ export function TradeComplete({ data, busy, error, base, oppName, labels, mobile
                   <tbody>
                     {shown.map(({ r, i }) => (
                       <tr key={i} className={isApplied(r) ? "rec" : ""} title={extras(r).join(" · ") || undefined}>
-                        <td className="l"><Tier t={r.tier} /><SeasonWarnBadge show={warn(i, r)} /></td>
+                        <td className="l"><Tier t={r.tier} /><SeasonWarnBadge show={warn(i, r)} /><MovesWarnBadge own={r.own_delta} plain={r.own_delta_plain} /></td>
                         <td className="l wrap"><Pkg players={r.give_a} /></td>
                         <td className="l wrap"><Pkg players={r.give_b} /></td>
                         <td className={deltaClass(r.own_delta, 0.3)}>{fmtDelta(r.own_delta, 3)}</td>
