@@ -2304,6 +2304,27 @@ on the roster.
 
 Banchero + Jackson → Jerome + Williams is unchanged (−0.011 / −0.034).
 
+### 13.43 The segment window, this week's adds and unknown source times (14 November 2026)
+
+**Segment window** (`_segment_vectors`): a player's remaining production was split only over the games inside the
+selected segments (`games in segment / games in all segments`). When the segments do not cover the rest of the NBA season
+(the fantasy playoffs end first), production outside the window was moved into it: a player with 6 of 12 remaining
+games in the window added 120 points instead of 60. A player with no games in the segments (e.g. returning after all of
+them) was spread evenly as if the schedule were unknown and got a positive contribution. Now the share is games in the
+segment / **all** remaining games after the return; known zero games contribute 0. A player whose team is not in the
+schedule is spread by days and flagged in `timing_unknown`. A single remaining segment (the last fantasy week) is timed
+too.
+
+**This week's adds** (`TransactionBudget`): free moves were capped by the weekly limit in total, but adds already used
+this week were not subtracted. Now each team's budget this week = limit − used − free-agent adds the trade itself
+requires. Used adds come from the live week data (your team only; for other teams usage is unknown, the limit is
+assumed and the page says so). Moves beyond the budget are not made this week and count from next week: the first segment
+is scored without them. The "without free moves" line is the trade's effect with no extra transactions.
+
+**Data without a known source time** (`freshness.assess`): a component whose age could not be computed, or that had only
+a file time, counted as "normal", so an old export copied today looked fresh. Now an age-checked component without a
+known source time makes trades and the season view conditional and puts add/drop and lineup on hold.
+
 ### 13.8 V3 candidates
 
 Beam search and H-score weight optimization; fitting the profile mix; covariance of game counts between

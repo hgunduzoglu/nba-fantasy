@@ -2279,6 +2279,26 @@ kadroda olmuyordu.
 
 Banchero + Jackson → Jerome + Williams değişmedi (−0,011 / −0,034).
 
+### 13.43 Dönem penceresi, haftalık alım hakkı ve kaynak zamanı (14 Kasım 2026)
+
+**Dönem penceresi** (`_segment_vectors`): oyuncunun kalan sezon üretimi yalnız seçili dönemlerdeki maçlara
+bölünüyordu (`dönemdeki maç / dönemlerdeki toplam maç`). Dönemler kalan NBA sezonunun tamamını kapsamıyorsa (fantezi
+playoff'u NBA sezonundan önce biter) pencere dışındaki üretim pencereye taşınıyordu: 12 kalan maçının 6'sı pencerede
+olan oyuncu 60 yerine 120 puan katıyordu. Dönemlerde maçı olmayan (ör. dönüşü bütün dönemlerden sonra olan) oyuncu da
+"takvim yok" gibi eşit dağıtılıp pozitif katkı alıyordu. Şimdi pay = dönemdeki maç / dönüşten sonraki **bütün** kalan
+maç; bilinen sıfır maç 0 katkıdır. Takımı takvimde olmayan oyuncu gün payıyla dağıtılır ve `timing_unknown` olarak
+işaretlenir. Tek dönem kaldığında da (son fantezi haftası) zamanlı hesap kullanılır.
+
+**Haftalık alım hakkı** (`TransactionBudget`): bedava hamleler toplamda haftalık limitle sınırlıydı ama o hafta
+kullanılmış haklar düşülmüyordu. Şimdi her takımın bu haftaki hakkı = limit − kullanılan − takasın gerektirdiği boştan
+eklemeler. Kullanılan hak canlı hafta verisinden okunur (yalnız kendi takımın; diğer takımlarda bilinmez ve limit
+kabul edilir, ekranda "kullanım bilinmiyor" yazar). Hakkı aşan hamleler bu hafta yapılmaz, gelecek haftadan sayılır:
+ilk dönem hamlesiz kadroyla puanlanır. "Boştaki hamleler olmadan" satırı ek işlem yapılmadan takas etkisidir.
+
+**Kaynak zamanı bilinmeyen veri** (`freshness.assess`): yaşı hesaplanamayan ya da yalnız dosya zamanı olan bileşen
+"normal" sayılıyordu; bugün kopyalanan eski bir export taze görünürdü. Şimdi yaşa bakılan bir bileşenin kaynak zamanı
+bilinmiyorsa takas ve sezonda koşullu, add/drop ve lineup'ta bekletilir.
+
 ### 13.8 V3 adayları
 
 Beam search ve H-score ağırlık optimizasyonu; profil karışımı uyumu; oyuncular arası maç sayısı
