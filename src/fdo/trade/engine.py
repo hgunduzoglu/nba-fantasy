@@ -29,6 +29,21 @@ class TradeError(ValueError):
     """Sahiplik, takım, oyuncu veya kadro kapasitesi hatası."""
 
 
+class RosterInvariantError(RuntimeError):
+    """Puanlanacak kadro kuralları bozuyor (kapasite, IL yeri, sahiplik). Kullanıcı girdisi değil, model hatasıdır:
+    böyle bir kadro sessizce puanlanmaz."""
+
+
+@dataclass(frozen=True)
+class RosterPlan:
+    """Bir takımın puanlanan kadrosu: bedava hamleler uygulanmış ``roster``, ``il`` ve hamleler ``(bırakılan | None,
+    alınan)``. Puan ve kullanıcıya gösterilen hamle listesi aynı nesneden üretilir."""
+
+    roster: tuple[str, ...]
+    il: frozenset[str]
+    moves: tuple[tuple[str | None, str], ...] = ()
+
+
 @dataclass(frozen=True)
 class TradeRequest:
     team_a: str
@@ -71,6 +86,8 @@ class TradeResult:
     assessments: dict
     strategies: dict[str, Strategy]
     notes: list[str] = field(default_factory=list)
+    #: Puanlanan kadrolar: ``{"before": {takım: RosterPlan}, "after": {...}}`` (bedava hamleler dahil).
+    plans: dict[str, dict[str, RosterPlan]] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -156,7 +173,7 @@ class TradeEngine:
         self._return_days: dict[str, dt.date] | None = None
         self._crunch_cache: dict[tuple, np.ndarray] = {}
         self._before_cache: dict[tuple[str, Strategy], np.ndarray] = {}
-        self._before_p_cache: dict[tuple, np.ndarray] = {}
+        self._before_p_cache: dict[tuple, tuple] = {}
         self._fa_cache: dict[Strategy, list[str]] = {}
         self._waiver_cache: dict[tuple, tuple[tuple[str, ...], tuple[tuple[str, str], ...]]] = {}
         owned = {p for r in self.league.rosters.values() for p in r}
@@ -404,7 +421,12 @@ class TradeEngine:
         if cached is not None:
             return cached
         out = np.zeros(WEEK_DIM)
-        for r, d in self.crunch_plan(roster, il, s):
+        plan = self.crunch_plan(roster, il, s)
+        active = sum(p not in il for p in roster)
+        after = active + sum(d != r for r, d in plan) - sum(d not in (None, r) for r, d in plan)
+        if after > max(self.league.capacity, active):              # IL dönüşü zinciri de kapasiteyi korumalı
+            raise RosterInvariantError(f"IL dönüşü: {after} aktif oyuncu, kapasite {self.league.capacity}")
+        for r, d in plan:
             if d == r:
                 out += self.vecs[self.index[r]]
             elif d is not None:
@@ -514,56 +536,125 @@ class TradeEngine:
                         ) -> dict[str, tuple[tuple[str, ...], tuple[tuple[str | None, str], ...]]]:
         """Takas sonrası kadrolar için bedava hamleler: takımların **takas öncesi** kadrosundaki hamleler
         (``joint_waiver``, aynı sıra) geçerli kaldıkça korunur; bırakılacak oyuncu artık kadroda değilse ya da boştaki
-        oyuncu kadroda/başka takımca alınmışsa o hamle düşer. Boş aktif yer kalırsa genel faydası en yüksek alınabilir
-        boştakiyle dolar. Hamleler takastan bağımsız olduğu için takas, takassız da yapılabilecek bir hamleyle kazanmış
-        ya da kaybetmiş görünmez; her aday için hamle araması yapılmaz (hızlı)."""
+        oyuncu kadroda/başka takımca alınmışsa o hamle düşer. Planlanan hamle takas sonrası kadroya olduğu gibi
+        uymuyorsa (bırakılacak oyuncu takasla gitti ya da boş yere ekleme planlanmıştı ama takas yeri doldurdu) aynı
+        boştaki, yer varsa boş yere, yoksa en zayıf aktifin yerine **yalnız takımı güçlendiriyorsa** alınır; kapasite
+        her hamlede takas sonrası kadroya göre kontrol edilir. Takasın açtığı boş yer, takımı güçlendiren en iyi
+        boştakiyle dolar. Toplam hamle haftalık alım hakkını aşmaz. Hamleler takastan bağımsız olduğu için takas,
+        takassız da yapılabilecek bir hamleyle kazanmış ya da kaybetmiş görünmez; her aday için hamle araması yapılmaz
+        (hızlı)."""
         base = self.joint_waiver([(t, tuple(self.league.rosters[t]), self._il(t, self.league.rosters[t]), s)
                                   for t, _, _, s in items])
         taken = {p for _, r, _, _ in items for p in r}
+        cap = self.league.capacity
         out = {}
         opp = self.baseline_vectors
         for tid, roster, il, s in items:
             current, moves = list(roster), []
             u, w = self._utility_array(s), np.asarray(s.normalized, float)
+
+            def gains(swaps: list[tuple[str | None, str]]) -> np.ndarray:
+                """Takımın stratejiye göre beklentisindeki artış, her ``(bırakılan | None, alınan)`` için."""
+                v = self.team_vector(tuple(current), il, s)
+                V = np.stack([v] + [v + self.vecs[self.index[f]] - (self.vecs[self.index[d]] if d else 0)
+                                    for d, f in swaps])
+                g = p_win(V[:, None, :], opp[None, :, :], self.config).mean(axis=1) @ w
+                return g[1:] - g[0]
+
+            def weakest() -> str | None:
+                active = [p for p in current if p not in il and self.modeled[self.index[p]]]
+                return min(active, key=lambda p: u[self.index[p]]) if active else None
+
             for d, f in base[tid][1]:
-                if f in taken:
+                if f in taken or len(moves) >= self._max_moves:
                     continue
-                if d is not None and d not in current:
-                    # bırakılacak oyuncu takasla gitti: aynı boştakini en zayıf aktif yerine almak takımı güçlendiriyor mu
-                    active = [p for p in current if p not in il and self.modeled[self.index[p]]]
-                    if not active:
-                        continue
-                    d = min(active, key=lambda p: u[self.index[p]])
-                    v = self.team_vector(tuple(current), il, s)
-                    V = np.stack([v, v - self.vecs[self.index[d]] + self.vecs[self.index[f]]])
-                    gain = p_win(V[:, None, :], opp[None, :, :], self.config).mean(axis=1) @ w
-                    if gain[1] - gain[0] <= 1e-6:
+                room = sum(p not in il for p in current) < cap
+                # bırakılacak oyuncu takas sonrası hâlâ aktif olmalı (takasla gitmiş ya da IL'ye taşınmış olabilir)
+                if not ((d is None and room) or (d is not None and d in current and d not in il)):
+                    # plan takas sonrası kadroya uymuyor: yer varsa boş yere, yoksa en zayıf aktifin yerine; kazandırırsa
+                    d = None if room else weakest()
+                    if (d is None and not room) or gains([(d, f)])[0] <= 1e-6:
                         continue
                 if d is not None:
                     current.remove(d)
                 current.append(f)
                 taken.add(f)
                 moves.append((d, f))
-            active = [p for p in current if p not in il]
-            if len(active) < self.league.capacity:
-                for f in [p for p in self._fa_order(s) if p not in taken][:self.league.capacity - len(active)]:
-                    current.append(f)
-                    taken.add(f)
-                    moves.append((None, f))
+            while sum(p not in il for p in current) < cap and len(moves) < self._max_moves:
+                fas = [p for p in self._fa_order(s) if p not in taken][:WAIVER_POOL]
+                if not fas:
+                    break
+                g = gains([(None, f) for f in fas])
+                k = int(np.argmax(g))
+                if g[k] <= 1e-6:
+                    break
+                current.append(fas[k])
+                taken.add(fas[k])
+                moves.append((None, fas[k]))
             out[tid] = (tuple(current), tuple(moves))
         return out
 
-    def _joint_vectors(self, rosters: dict[str, tuple[str, ...]], strategies: dict[str, Strategy],
-                       injuries: dict[str, frozenset[str]] | None) -> dict[str, np.ndarray]:
+    def check_rosters(self, stage: str, before: dict[str, tuple[tuple[str, ...], frozenset[str]]],
+                      after: dict[str, tuple[tuple[str, ...], frozenset[str]]],
+                      league: dict[str, tuple[str, ...]] | None = None) -> None:
+        """Bir kadro dönüşümünün (takas, zorunlu bırakma, IL değişikliği, bedava hamle) kuralları koruduğunu doğrular:
+        aynı oyuncu iki kez yok, IL'dekiler kadroda, aktif oyuncu sayısı kapasiteyi aşmıyor (dönüşümden önce zaten
+        aşıyorsa o sayıyı), IL sayısı IL yerini aşmıyor (aynı şekilde), bir oyuncu yalnız bir takımda. ``before`` /
+        ``after``: takım → ``(kadro, IL)``; ``league``: diğer takımların kadroları (yoksa ligdeki kadrolar). Bozulursa
+        ``RosterInvariantError``."""
+        for tid, after_t in after.items():
+            self._check_team(stage, tid, before.get(tid, ((), frozenset())), after_t)
+        others = self.league.rosters if league is None else league
+        owner: dict[str, str] = {}
+        for tid in self.team_ids:
+            roster = after[tid][0] if tid in after else others.get(tid, self.league.rosters[tid])
+            for p in roster:
+                if owner.setdefault(p, tid) != tid:
+                    raise RosterInvariantError(f"{stage}: {p} hem {self.league.teams.get(owner[p], owner[p])} hem "
+                                               f"{self.league.teams.get(tid, tid)} kadrosunda")
+
+    def _check_team(self, stage: str, tid: str, before: tuple[tuple[str, ...], frozenset[str]],
+                    after: tuple[tuple[str, ...], frozenset[str]]) -> None:
+        """Tek takımın kadro kuralları (``check_rosters``; sahiplik hariç)."""
+        cap, slots = self.league.capacity, self.config.unverified.il_slots
+        (r0, il0), (roster, il) = before, after
+        active, active0 = len(roster) - len(il), len(r0) - len(il0)
+        problem = None
+        if len(roster) != len(set(roster)):
+            problem = "aynı oyuncu iki kez"
+        elif not set(il) <= set(roster):
+            problem = "IL'deki oyuncu kadroda değil"
+        elif active > max(cap, active0):
+            problem = f"{active} aktif oyuncu, kapasite {cap}"
+        elif slots is not None and len(il) > max(slots, len(il0)):
+            problem = f"{len(il)} IL oyuncusu, IL yeri {slots}"
+        if problem:
+            raise RosterInvariantError(f"{stage}: {self.league.teams.get(tid, tid) if tid else 'kadro'}: {problem}")
+
+    def waiver_plans(self, rosters: dict[str, tuple[str, ...]], strategies: dict[str, Strategy],
+                     injuries: dict[str, frozenset[str]] | None = None) -> dict[str, RosterPlan]:
+        """``strategies`` takımlarının puanlanan kadroları: bedava hamleler (kadrolar ligdekiyle aynıysa
+        ``joint_waiver``, değilse takas öncesi hamlelere bağlı ``anchored_waiver``) uygulanmış ve doğrulanmış
+        (``check_rosters``). Puan da ekrandaki hamle listesi de bu çıktıdan üretilir."""
         items = [(t, tuple(rosters[t]), self._il(t, rosters[t], injuries), s or Strategy()) for t, s in strategies.items()]
         same = all(set(r) == set(self.league.rosters[t]) for t, r, _, _ in items)
         moved = self.joint_waiver(items) if same or not self.free_moves else self.anchored_waiver(items)
+        plans = {t: RosterPlan(tuple(moved[t][0]), il, tuple(moved[t][1])) for t, _, il, _ in items}
+        self.check_rosters("bedava hamle", {t: (r, il) for t, r, il, _ in items},
+                           {t: (p.roster, p.il) for t, p in plans.items()}, rosters)
+        return plans
+
+    def plan_vectors(self, plans: dict[str, RosterPlan], strategies: dict[str, Strategy]) -> dict[str, np.ndarray]:
+        """Planlardaki kadroların takım vektörleri (dönemliyse dönem vektörleri), IL dönüşü bedeli dahil."""
         vec = self.team_seg_vector if self.timed else self.team_vector
-        return {t: vec(moved[t][0], il, s) for t, _, il, s in items}
+        return {t: vec(p.roster, p.il, strategies[t] or Strategy()) for t, p in plans.items()}
 
     def trade_vector(self, roster, il=frozenset(), strategy: Strategy | None = None) -> np.ndarray:
         """Takas karşılaştırması için takım vektörü: bedava waiver hamleleri + IL dönüşü bedeli."""
-        return self.team_vector(self.waiver_best(roster, il, strategy)[0], il, strategy)
+        moved = self.waiver_best(roster, il, strategy)[0]
+        if moved != tuple(roster):           # boştakiler yalnız serbest oyunculardan: sahiplik değişmez, kapasite kontrolü
+            self._check_team("bedava hamle", "", (tuple(roster), frozenset(il)), (moved, frozenset(il)))
+        return self.team_vector(moved, il, strategy)
 
     def before_row(self, team_id: str, strategy: Strategy | None = None) -> np.ndarray:
         """Yalnız bu takım değişiyorsa takas öncesi rakiplere karşı kategori olasılıkları ``(K, C)``: kendi
@@ -589,16 +680,21 @@ class TradeEngine:
         else:
             vectors[self.team_index[tid]] = v
 
-    def _before_p(self, strategies: dict[str, Strategy]) -> tuple[np.ndarray, np.ndarray]:
+    def _before(self, strategies: dict[str, Strategy]) -> tuple[dict[str, RosterPlan], np.ndarray, np.ndarray]:
+        """Takas öncesi taban: planlar, ``(T, T, C)`` kategori ve ``(T, T)`` P(5+) olasılıkları (önbellekli)."""
         key = tuple((t, s or Strategy()) for t, s in strategies.items())          # sıra önemli (ortak waiver havuzu)
         if key not in self._before_p_cache:
             if len(self._before_p_cache) > 4096:
                 self._before_p_cache.clear()
+            plans = self.waiver_plans(self.league.rosters, dict(key))
             vectors = self._base_vectors()
-            for tid, v in self._joint_vectors(self.league.rosters, dict(key), None).items():
+            for tid, v in self.plan_vectors(plans, dict(key)).items():
                 self._set(vectors, tid, v)
-            self._before_p_cache[key] = self._probs(vectors)
+            self._before_p_cache[key] = (plans, *self._probs(vectors))
         return self._before_p_cache[key]
+
+    def _before_p(self, strategies: dict[str, Strategy]) -> tuple[np.ndarray, np.ndarray]:
+        return self._before(strategies)[1:]
 
     def before_matrix(self, strategies: dict[str, Strategy]) -> np.ndarray:
         """Takas öncesi olasılık matrisi, ``score_many`` ile aynı taban: ``strategies`` takımlarının (takastakiler)
@@ -607,10 +703,14 @@ class TradeEngine:
         return self._before_p(strategies)[0].copy()
 
     def matrices(self, rosters: dict[str, tuple[str, ...]], strategies: dict[str, Strategy],
-                 injuries: dict[str, frozenset[str]] | None = None, rows=None) -> tuple[np.ndarray, np.ndarray]:
-        """Takas sonrası ``(T, T, C)`` kategori ve ``(T, T)`` P(5+) olasılıkları (``score_many`` ile aynı taban)."""
+                 injuries: dict[str, frozenset[str]] | None = None, rows=None,
+                 plans: dict[str, RosterPlan] | None = None) -> tuple[np.ndarray, np.ndarray]:
+        """Takas sonrası ``(T, T, C)`` kategori ve ``(T, T)`` P(5+) olasılıkları (``score_many`` ile aynı taban).
+        ``plans``: önceden hesaplanmış ``waiver_plans`` çıktısı (yoksa hesaplanır)."""
+        if plans is None:
+            plans = self.waiver_plans(rosters, strategies, injuries)
         vectors = self._base_vectors()
-        for tid, v in self._joint_vectors(rosters, strategies, injuries).items():
+        for tid, v in self.plan_vectors(plans, strategies).items():
             self._set(vectors, tid, v)
         return self._probs(vectors, rows)
 
@@ -734,6 +834,9 @@ class TradeEngine:
             rosters[tid], injuries[tid] = tuple(roster), frozenset(il)
             adjustments[tid] = {"drop": drp + tuple(automatic_drops),
                                 "add": add + tuple(automatic_adds), "move_to_il": tuple(moved_il)}
+        # takas → zorunlu bırakma → IL değişikliği → boştan ekleme zincirinin sonu: kapasite, IL ve sahiplik
+        self.check_rosters("takas", {t: (tuple(original[t]), self._il(t, original[t])) for t in sent},
+                           {t: (rosters[t], injuries[t]) for t in sent}, rosters)
         return rosters, adjustments, injuries
 
     def score(self, rosters: dict[str, tuple[str, ...]], team_a: str, team_b: str,
@@ -742,10 +845,12 @@ class TradeEngine:
         return self.score_many(rosters, {team_a: strategy_a, team_b: strategy_b}, injuries)
 
     def score_many(self, rosters: dict[str, tuple[str, ...]], strategies: dict[str, Strategy],
-                   injuries: dict[str, frozenset[str]] | None = None) -> tuple[np.ndarray, dict]:
+                   injuries: dict[str, frozenset[str]] | None = None,
+                   plans: dict[str, RosterPlan] | None = None) -> tuple[np.ndarray, dict]:
         """``strategies`` içindeki takımların kadroları değişmiş kabul edilir; diğerleri temel kadroda kalır.
-        ``injuries``: takastan sonraki IL kümeleri (``resolve`` çıktısı); yoksa eski IL ∩ kadro."""
-        p, w5 = self.matrices(rosters, strategies, injuries, rows=[self.team_index[t] for t in strategies])
+        ``injuries``: takastan sonraki IL kümeleri (``resolve`` çıktısı); yoksa eski IL ∩ kadro. ``plans``: puanlanacak
+        kadrolar (``waiver_plans``; yoksa hesaplanır)."""
+        p, w5 = self.matrices(rosters, strategies, injuries, rows=[self.team_index[t] for t in strategies], plans=plans)
         p_before, w5_before = self._before_p(strategies)
         metrics = {}
         for tid, strategy in strategies.items():
@@ -804,11 +909,14 @@ class TradeEngine:
         sa, sb = strategy_a or Strategy(), strategy_b or Strategy()
         strategies = {request.team_a: sa, request.team_b: sb}
         rosters, adjustments, injuries = self.resolve(request, strategies)
-        p, metrics = self.score(rosters, request.team_a, request.team_b, sa, sb, injuries)
+        # puan, P(5+) matrisi ve ekrandaki hamle listesi aynı planlardan
+        plans_before = self._before(strategies)[0]
+        plans_after = self.waiver_plans(rosters, strategies, injuries)
+        p, metrics = self.score_many(rosters, strategies, injuries, plans=plans_after)
         p_before, win_before = (x.copy() for x in self._before_p(strategies))
         np.fill_diagonal(win_before, np.nan)
         after = {m: self.view(rosters, m) for m in MODES}
-        win = self.matrices(rosters, strategies, injuries)[1].copy()
+        win = self.matrices(rosters, strategies, injuries, plans=plans_after)[1].copy()
         np.fill_diagonal(win, np.nan)
         fair = self.fairness(request)
         net = self.roster_values(request, adjustments)
@@ -843,14 +951,15 @@ class TradeEngine:
         if any(adj["add"] for adj in adjustments.values()):
             notes.append("Boşta oyuncu eklemeleri koşulludur: waiver durumu, haftalık kalan alım hakkı ve Can't Cut listesi bu kayıtta doğrulanamaz.")
         names = self.data.players["name"]
-        joint = self.joint_waiver([(t, self.league.rosters[t], self._il(t, self.league.rosters[t]), s)
-                                   for t, s in strategies.items()])
-        for tid, s in strategies.items():
-            free = joint[tid][1]
-            if free:
-                moves = ", ".join(f"{names[d]} yerine {names[f]}" if d else f"boş yere {names[f]}" for d, f in free)
+        def listed(moves) -> str:
+            return ", ".join(f"{names[d]} yerine {names[f]}" if d else f"boş yere {names[f]}" for d, f in moves) or "yok"
+
+        for tid in strategies:
+            pre, post = plans_before[tid].moves, plans_after[tid].moves
+            if pre or post:
                 notes.append(f"{self.league.teams[tid]}: takas önce ve sonra bedava waiver hamleleri yapılmış sayılır "
-                             f"(takas öncesi: {moves}); takas yalnız bunun üstündeki farkla değerlendirilir.")
+                             f"(takas öncesi: {listed(pre)}; takas sonrası: {listed(post)}); takas yalnız bunun "
+                             f"üstündeki farkla değerlendirilir.")
         for tid in strategies:
             active = [pid for pid in rosters[tid] if pid not in injuries[tid]]
             n = best_assignment(self.positions(active), self.config).n_open_active
@@ -858,7 +967,7 @@ class TradeEngine:
                 notes.append(f"{self.league.teams[tid]}: {n} aktif pozisyon doldurulamıyor; ortalama lineup varsayımı iyimser olabilir.")
         return TradeResult(request, self.before, after, p_before, p, win_before, win,
                            pd.DataFrame.from_dict(metrics, orient="index"), rosters, adjustments,
-                           assessments, strategies, notes)
+                           assessments, strategies, notes, {"before": plans_before, "after": plans_after})
 
     def league_probabilities(self) -> pd.DataFrame:
         frame = pd.DataFrame(np.nanmean(self.baseline_p, axis=1), index=self.team_ids, columns=CATEGORIES)

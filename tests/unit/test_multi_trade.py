@@ -74,6 +74,7 @@ def test_local_table_matches_exact_single_team_score(eng):
         for b, (inc,) in enumerate(tab.ins):
             rosters = dict(eng.league.rosters)
             rosters["1"] = tuple(p for p in rosters["1"] if p != out) + (inc,)
+            rosters["2"] = tuple(p for p in rosters["2"] if p != inc) + (out,)   # yasal lig; 2. takım tabanda puanlanır
             _, m = eng.score_many(rosters, {"1": Strategy()})
             assert tab.strategy[a, b] == pytest.approx(m["1"]["strategy_delta"])
             assert tab.win[a, b] == pytest.approx(m["1"]["win_delta"])

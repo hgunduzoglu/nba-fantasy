@@ -418,3 +418,84 @@ def test_without_free_moves_rosters_are_taken_as_they_are(trade_data):
     assert plain.waiver_best(roster) == (tuple(roster), ())
     r = plain.analyze(TradeRequest("1", "2", ("0",), ("3",)))
     assert not any("bedava waiver" in n for n in r.notes)
+
+
+def test_planned_open_spot_add_does_not_overfill_the_roster_after_the_trade(trade_data):
+    # Kapasite 3. 1. takımda bir yer boş: takassız plan boş yere boştakini eklemek. Takasta 1 verip 2 alınca yer
+    # doluyor; eski plan olduğu gibi uygulanırsa puanlanan kadro 4 kişi olurdu.
+    lg = trade_data.leagues["L"]
+    trade_data.leagues["L"] = replace(lg, rosters={**lg.rosters, "1": ("0", "1")})
+    e = TradeEngine(trade_data, "L", utilization=1, horizon_weeks=4)
+    s = {"1": Strategy(), "2": Strategy()}
+    pre = e.waiver_plans(e.league.rosters, s)["1"]
+    assert pre.moves and pre.moves[0][0] is None                       # senaryo: boş yere ekleme planı
+    r = e.analyze(TradeRequest("1", "2", ("0",), ("3", "4")))
+    after = r.plans["after"]["1"]
+    assert len(after.roster) - len(after.il) <= e.league.capacity
+    # plan takas sonrası kadroya uygulanır: dolu kadroda ekleme ancak birinin yerine
+    rebuilt = list(r.rosters_after["1"])
+    for d, f in after.moves:
+        assert d is None or d in rebuilt
+        if d is not None:
+            rebuilt.remove(d)
+        rebuilt.append(f)
+        assert len(rebuilt) <= e.league.capacity
+    assert tuple(rebuilt) == after.roster
+    assert r.plans["before"]["1"] == pre
+    # puan bu planlardan: aynı kadroyla elle hesaplanan vektör puanlanan vektörle aynı
+    v = e.plan_vectors(r.plans["after"], r.strategies)["1"]
+    np.testing.assert_allclose(v, e.team_vector(after.roster, after.il, Strategy()))
+
+
+def test_roster_check_rejects_overfull_duplicate_and_double_owned_rosters(eng):
+    from fdo.trade.engine import RosterInvariantError
+    r1, r2 = eng.league.rosters["1"], eng.league.rosters["2"]
+    ok = {"1": (r1, frozenset())}
+    eng.check_rosters("test", ok, ok)                                  # değişmeyen kadro geçer
+    with pytest.raises(RosterInvariantError, match="kapasite"):
+        eng.check_rosters("test", ok, {"1": (r1 + ("15",), frozenset())})
+    with pytest.raises(RosterInvariantError, match="iki kez"):
+        eng.check_rosters("test", ok, {"1": (r1[:2] + (r1[0],), frozenset())})
+    with pytest.raises(RosterInvariantError, match="IL"):
+        eng.check_rosters("test", ok, {"1": (r1, frozenset({"15"}))})
+    with pytest.raises(RosterInvariantError, match="hem"):
+        eng.check_rosters("test", ok, {"1": (r1[:2] + (r2[0],), frozenset())})
+    # dönüşümden önce zaten kapasiteyi aşan kadro (veri) daha da büyümedikçe reddedilmez
+    big = {"1": (r1 + ("15",), frozenset())}
+    eng.check_rosters("test", big, big, {**eng.league.rosters, "1": big["1"][0]})
+
+
+def test_every_scored_roster_in_a_search_respects_capacity(eng):
+    seen = []
+    original = eng.check_rosters
+
+    def spy(stage, before, after, league=None):
+        seen.append(stage)
+        original(stage, before, after, league)
+        for tid, (roster, il) in after.items():
+            assert len(roster) - len(il) <= eng.league.capacity
+
+    eng.check_rosters = spy
+    opts = SearchOptions(max_evaluations=300, min_fairness=.1, min_strategy_gain=0, min_win_gain=-1, ecw_weight=1,
+                         package_sizes=((1, 1), (1, 2), (2, 1)))
+    suggest_trades(eng, "1", options=opts)
+    assert "takas" in seen and "bedava hamle" in seen
+
+
+def test_planned_drop_of_a_player_moved_to_il_by_the_trade_is_not_applied(trade_data):
+    # Takassız plan: 1. takımın en zayıfı 2'yi bırakıp boştakini almak. 2 sakat (O); takasta 1 verip 2 alınca kapasite
+    # için 2 IL'ye taşınır. Plan 2'yi yine bırakırsa kadro IL'deki oyuncuyu kaybeder (IL kümesi ile kadro çelişir).
+    for f in trade_data.stats.values():
+        f.loc["2", [c for c in f.columns if c != "gp"]] *= .05
+    trade_data.players.loc["2", "injury_status"] = "O"
+    lg = trade_data.leagues["L"]
+    cfg = lg.config.with_overrides({"unverified": {"il_slots": 1}})
+    trade_data.leagues["L"] = replace(lg, config=cfg)
+    e = TradeEngine(trade_data, "L", utilization=1, horizon_weeks=4)
+    s = {"1": Strategy(), "2": Strategy()}
+    assert e.waiver_plans(e.league.rosters, s)["1"].moves[0][0] == "2"
+    r = e.analyze(TradeRequest("1", "2", ("0",), ("3", "4")))
+    assert r.adjustments["1"]["move_to_il"] == ("2",)
+    after = r.plans["after"]["1"]
+    assert "2" in after.roster and after.il == frozenset({"2"})
+    assert all(d != "2" for d, _ in after.moves)
