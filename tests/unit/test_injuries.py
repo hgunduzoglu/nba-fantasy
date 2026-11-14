@@ -92,3 +92,25 @@ def test_questionable_players_sit_only_in_the_scenario(data):  # noqa: F811
         assert WeekModel(eng, out_statuses=DEFAULT_OUT + QUESTIONABLE).playable("0", use_status=False)  # gelecek haftalar
     assert out_statuses(WeeklyIn(team="1")) == DEFAULT_OUT
     assert set(out_statuses(WeeklyIn(team="1", questionable_out=True, sit_out=False))) == {"NA", "INJ", "SUSP", *QUESTIONABLE}
+
+
+def test_return_ramp_scales_rest_of_season_by_the_lost_minutes(data, tmp_path):  # noqa: F811
+    from fdo.inseason.injuries import DEFAULT_RAMP, apply_return_ramp, return_ramp, team_games_from
+
+    ret = dt.date(2026, 11, 7)
+    out = apply_injuries(data, _injuries([{"player_id": "1", "kind": "out_until", "return_date": ret},
+                                          {"player_id": "3", "kind": "day_to_day", "return_date": None}]))
+    before = out.stats[ROS].copy()
+    ramped = apply_return_ramp(out, (0.5, 0.75))
+    team = data.players.loc["1", "nba_team"]
+    left = sum(d >= ret for d in team_games_from(data.schedule)[team])
+    factor = (left - 0.75) / left
+    assert ramped.stats[ROS].loc["1", "gp"] == pytest.approx(before.loc["1", "gp"] * factor)
+    np.testing.assert_allclose(ramped.stats[ROS].loc["1", "pts"] / ramped.stats[ROS].loc["1", "gp"],
+                               before.loc["1", "pts"] / before.loc["1", "gp"])           # maç başı aynı
+    np.testing.assert_allclose(ramped.stats[ROS].loc["3"], before.loc["3"])               # dönüş tarihi yok
+    assert "dakika" in ramped.issues[-1] and ramped.fingerprint != out.fingerprint
+    assert apply_return_ramp(out, ()) is out and apply_return_ramp(data, (0.5,)) is data  # kapalı / sakatlık yok
+    assert return_ramp(tmp_path / "yok.yaml") == DEFAULT_RAMP
+    (tmp_path / "r.yaml").write_text("ramp: [0.6, 1.4]\n", encoding="utf-8")
+    assert return_ramp(tmp_path / "r.yaml") == (0.6, 1.0)

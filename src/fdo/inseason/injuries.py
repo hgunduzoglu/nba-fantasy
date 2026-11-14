@@ -62,6 +62,54 @@ def return_assumptions(path: str | Path | None = None) -> dict[str, int]:
     return out
 
 
+#: Dönüşten sonraki ilk maçlarda oynanan dakika / sakatlık öncesi dakika (medyan). NBA maç kayıtlarından ölçüldü:
+#: 2024-25 ve 2025-26'da ≥ 10 maç kaçırıp dönen, öncesinde ≥ 20 dakika oynayan 81 dönüş (``scripts/check_durability.py
+#: --ramp``). 6. maçtan sonra fark kalmıyor. ``config/returns.yaml`` içinde ``ramp`` ile değişir; boş liste kapatır.
+DEFAULT_RAMP = (0.78, 0.82, 0.85, 0.90, 0.93)
+
+
+def return_ramp(path: str | Path | None = None) -> tuple[float, ...]:
+    path = Path(path) if path else RETURNS_CONFIG
+    if path.exists():
+        value = (yaml.safe_load(path.read_text(encoding="utf-8")) or {}).get("ramp")
+        if value is not None:
+            return tuple(min(1.0, max(0.0, float(x))) for x in value)
+    return DEFAULT_RAMP
+
+
+def apply_return_ramp(data: TradeData, ramp: tuple[float, ...] | None = None) -> TradeData:
+    """Dönüş tarihi bilinen sakatın kalan sezon üretimini dönüş sonrası ilk maçlardaki dakika kaybı kadar kısar: ROS
+    toplamları ve maç sayısı ``(kalan − Σ(1 − rampa)) / kalan`` ile çarpılır (maç başı değer aynı; haftalık model
+    kaybı kalan maçlara yayar). Dayanıklılıktan sonra uygulanır (``AppState.data``)."""
+    ramp = return_ramp() if ramp is None else tuple(ramp)
+    inj = data.injuries
+    if not ramp or inj is None or not len(inj) or data.schedule is None:
+        return data
+    games = team_games_from(data.schedule)
+    stats = {k: v.copy() for k, v in data.stats.items()}
+    ros = stats[ROS]
+    cut = 0
+    for pid, r in inj.iterrows():
+        if r["kind"] != "out_until" or pd.isna(r["return_date"]) or pid not in ros.index:
+            continue
+        ret = pd.Timestamp(r["return_date"]).date()
+        if ret <= data.as_of:
+            continue
+        left = sum(d >= ret for d in games.get(normalize_team(data.players.loc[pid, "nba_team"] or ""), []))
+        gp = float(ros.loc[pid, "gp"])
+        if left <= 0 or not np.isfinite(gp) or gp <= 0:
+            continue
+        lost = sum(1 - x for x in ramp[:left])
+        ros.loc[pid, [*STATS, "gp"]] = ros.loc[pid, [*STATS, "gp"]] * max(0.0, (left - lost) / left)
+        cut += 1
+    if not cut:
+        return data
+    note = (f"Dönüş sonrası dakika artışı: dönüş tarihi bilinen {cut} sakatın ilk {len(ramp)} maçı eksik dakikayla "
+            f"sayıldı ({', '.join(f'%{100 * x:.0f}' for x in ramp)}; ölçülmüş medyan).")
+    return dataclasses.replace(data, stats=stats, fingerprint=f"{data.fingerprint}:ramp{cut}",
+                               issues=(*data.issues, note))
+
+
 def return_delay(path: str | Path | None = None) -> int:
     """Her analizde en erken dönüş tarihine eklenen gün (varsayılan 0 = CBS'in tarihi)."""
     return return_assumptions(path)["delay_days"]

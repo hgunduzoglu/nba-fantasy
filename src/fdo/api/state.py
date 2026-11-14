@@ -18,7 +18,7 @@ from fdo.evaluation.decisions import DecisionLog
 from fdo.ingest.archive import content_signature, latest as latest_batch
 from fdo.inseason.durability import apply_durability
 from fdo.inseason.fixtures import load_fixtures
-from fdo.inseason.injuries import latest_file, return_assumptions, with_injuries
+from fdo.inseason.injuries import apply_return_ramp, latest_file, return_assumptions, with_injuries
 from fdo.inseason.live import LiveLeague, load_live
 from fdo.inseason.roles import RoleBoost, load_logs, role_boosts
 from fdo.inseason.scenarios import basis_data
@@ -86,7 +86,7 @@ class AppState:
         if not injuries:
             return self._get(("data_dur", sig), lambda: apply_durability(base))
         return self._get(("data_inj", sig, delay),
-                         lambda: apply_durability(with_injuries(base, self.data_dir, delay)))
+                         lambda: apply_return_ramp(apply_durability(with_injuries(base, self.data_dir, delay))))
 
     def basis_data(self, injuries: bool = True, basis: str = "ros") -> TradeData:
         """``data`` + kalan sezon oranlarının temeli (``fdo.inseason.scenarios``; ``ros`` = Yahoo projeksiyonu,
