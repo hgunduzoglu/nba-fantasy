@@ -96,6 +96,7 @@ class SuggestIn(BaseModel):
     strategy: StrategyIn | None = None
     injuries: bool = True
     rank: str = Field(default="own", pattern="^(own|joint)$")   # sıralama politikası (fdo.trade.suggest.RANKINGS)
+    lineup_rank: bool = True                        # finalistleri günlük kadro farkıyla yeniden sırala
 
 
 class MoveIn(BaseModel):

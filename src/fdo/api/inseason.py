@@ -16,6 +16,7 @@ from fdo.inseason.adddrop import available_from, critical_categories, critical_s
 from fdo.inseason.drops import drop_plan, returning
 from fdo.inseason.fixtures import opponent as fixture_opponent
 from fdo.inseason.history import team_history
+from fdo.inseason.lineup_rank import lineup_deltas, rerank
 from fdo.inseason.managers import load_transactions, profiles
 from fdo.inseason.sitstart import plan_week, today_changes
 from fdo.inseason.waiver import drop_ranking, waiver_table
@@ -80,7 +81,8 @@ def register(app: FastAPI, state: AppState) -> None:
         opp_strats = assumed_strategies(eng, body.opponent_assumption, opps)
         try:
             sizes = tuple(tuple(int(x) for x in p.split("x")) for p in body.packages)
-            opts = SearchOptions(sizes, body.shortlist, int(body.max_evaluations), 20, body.min_fairness,
+            sim = state.season_sim(lid, body.injuries) if body.lineup_rank else None
+            opts = SearchOptions(sizes, body.shortlist, int(body.max_evaluations), 40 if sim else 20, body.min_fairness,
                                  body.min_gain, body.min_win / 100, body.auto_balance, body.ecw_weight,
                                  body.mode, body.perceived, body.min_balance, body.min_edge,
                                  body.min_view if body.mode == "mutual" else 0.0, body.require_reason,
@@ -90,11 +92,15 @@ def register(app: FastAPI, state: AppState) -> None:
                                    opponents=opps, options=opts)
         except (ValueError, TradeError) as e:
             raise HTTPException(400, str(e)) from e
+        lineups: list = [None] * len(found.suggestions)
+        if sim is not None:                     # README §13.47: finalistler günlük kadroyla yeniden sıralanır
+            found.suggestions, lineups = rerank(found.suggestions,
+                                                lineup_deltas(sim, eng, body.team, strategy, found.suggestions), 20)
         perceived = perceived_prices(eng, body.perceived)
         po_games = state.playoff_games(lid, body.injuries)
         plain_eng = engine(lid, body.injuries, False)
         rows = []
-        for s in found.suggestions:
+        for s, lu in zip(found.suggestions, lineups):
             r = s.request
             pair = {body.team: strategy, r.team_b: s.other_strategy}
             plain = plain_metrics(plain_eng, r, pair)
@@ -111,6 +117,7 @@ def register(app: FastAPI, state: AppState) -> None:
                          "give_a": [_brief(eng, p) for p in r.give_a], "give_b": [_brief(eng, p) for p in r.give_b],
                          "own_delta": s.own_strategy_delta, "other_delta": s.other_strategy_delta,
                          "own_delta_plain": plain[body.team]["strategy_delta"] if plain else None,
+                         "lineup_delta": lu.strategy if lu else None, "lineup_ecw_delta": lu.ecw if lu else None,
                          "own_win": s.own_win_delta, "other_win": s.other_win_delta, "fairness": s.fairness,
                          "perceived_balance": s.perceived_balance, "score": s.score, "mode": s.mode,
                          "acceptability": s.acceptability, "counterpart_reasons": list(s.counterpart_reasons),
@@ -124,7 +131,8 @@ def register(app: FastAPI, state: AppState) -> None:
                      "rejected_balance": found.rejected_fairness, "rejected_view": found.rejected_view,
                      "rejected_roster": found.rejected_roster, "rejected_reason": found.rejected_reason,
                      "rejected_overpay": found.rejected_overpay,
-                     "limit_reached": found.limit_reached, "message": found.message})
+                     "limit_reached": found.limit_reached, "message": found.message,
+                     "ranked_by": "lineup" if sim is not None else body.rank})
         out["decision_id"] = state.log_decision("recommendation", "trade_suggest", lid, body.model_dump(),
                                                 summarize(out))
         return out

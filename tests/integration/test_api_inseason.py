@@ -201,6 +201,12 @@ def test_suggest_rows_carry_category_playoff_and_view_details(client):
             "FG_PCT", "FT_PCT", "FG3M", "PTS", "REB", "AST", "STL", "BLK", "TOV"}
         assert isinstance(s["playoff_games"], int) and s["position_gap"] >= 0
         assert s["perceived_view"] is None or s["perceived_view"] > 0
+    assert r["ranked_by"] == "lineup" and len(r["suggestions"]) <= 20      # finalistler günlük kadroyla sıralı
+    lu = [s["lineup_delta"] for s in r["suggestions"] if s["lineup_delta"] is not None]
+    assert lu == sorted(lu, reverse=True)
+    fast = client.post("/api/leagues/L/trade/suggest", json={"team": "1", "max_evaluations": 300, "min_fairness": 0.1,
+                                                            "min_gain": 0.00001, "lineup_rank": False}).json()
+    assert fast["ranked_by"] == "own" and all(s["lineup_delta"] is None for s in fast["suggestions"])
 
 
 def test_multi_team_analyze_season_and_suggest(client):
