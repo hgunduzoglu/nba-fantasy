@@ -323,3 +323,13 @@ def test_trade_report_background_and_access(client, tmp_path, monkeypatch):
     assert ro.post("/api/leagues/L/trade/report", json=body).status_code == 401
     ok = ro.post("/api/leagues/L/trade/report", json=body, headers={"X-Report-Code": "gizli"})
     assert ok.status_code == 200 and ok.json()["status"] == "done"
+
+
+def test_manager_profiles_without_and_with_transactions(client, tmp_path):
+    empty = client.get("/api/leagues/L/managers").json()
+    assert empty["captured_at"] is None and {t["team_id"] for t in empty["teams"]} == {"1", "2", "3", "4"}
+    pd.DataFrame([{"league_id": "L", "team_ids": "2", "captured_at": "2026-10-31T10:00:00Z",
+                   "raw_text": "A PG Free Agent B SF To Waivers X Oct 30, 4:55 am"}]).to_csv(tmp_path / "transactions.csv",
+                                                                                       index=False)
+    two = next(t for t in client.get("/api/leagues/L/managers").json()["teams"] if t["team_id"] == "2")
+    assert (two["adds"], two["drops"], two["last_action"]) == (1, 1, "2026-10-30") and two["days_since"] is not None

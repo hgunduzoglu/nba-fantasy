@@ -16,6 +16,7 @@ from fdo.inseason.adddrop import available_from, critical_categories, critical_s
 from fdo.inseason.drops import drop_plan, returning
 from fdo.inseason.fixtures import opponent as fixture_opponent
 from fdo.inseason.history import team_history
+from fdo.inseason.managers import load_transactions, profiles
 from fdo.inseason.sitstart import plan_week, today_changes
 from fdo.inseason.waiver import drop_ranking, waiver_table
 from fdo.inseason.weekly import DEFAULT_OUT, QUESTIONABLE, Stint, WeekOutlook, acquisition_limit, vector_totals
@@ -166,6 +167,17 @@ def register(app: FastAPI, state: AppState) -> None:
         out["decision_id"] = state.log_decision("recommendation", "trade_complete", lid, body.model_dump(),
                                                 summarize(out))
         return out
+
+    @app.get("/api/leagues/{lid}/managers")
+    def managers(lid: str, injuries: bool = True):
+        """Menajerlerin işlem geçmişi (alım, bırakma, takas, son işlem); kabul olasılığı değildir, bağlamdır."""
+        eng = engine(lid, injuries)
+        prof, captured = profiles(load_transactions(state.data_dir), lid, eng.team_ids)
+        as_of = eng.data.as_of
+        return clean({"captured_at": captured, "teams": [
+            {"team_id": t, "team": eng.league.teams[t], "adds": p.adds, "drops": p.drops, "trades": p.trades,
+             "vetoed": p.vetoed, "last_action": p.last_action,
+             "days_since": (as_of - p.last_action).days if p.last_action else None} for t, p in prof.items()]})
 
     @app.get("/api/leagues/{lid}/trade/mispricing")
     def mispriced(lid: str, team: str, perceived: str = Query("blend", pattern="^(season_total|preseason|blend)$"),
