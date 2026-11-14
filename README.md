@@ -2281,6 +2281,29 @@ the teams in the trade (the decision maker acts now; same order in the no-trade 
 waiver priority (`standings_live.csv`). A manager with no transaction in the last 21 days makes none (`INACTIVE_DAYS`,
 an assumption). There is no weekly streaming.
 
+### 13.42 Validating scored rosters (14 November 2026)
+
+**Bug**: the post-trade free moves (`anchored_waiver`, §13.41) applied a pre-trade "add to the open spot" move even when
+the trade had filled that spot. A team with capacity 3 that gave 1 and got 2 was scored with 4 players. The roster on
+screen (`resolve`) looked legal while the score included an extra player's contribution. A second bug: when the trade
+moved an injured active player to IL to make room, the plan still dropped that player, who then appeared on IL but not
+on the roster.
+
+**Fix**:
+
+- A pre-trade move is applied as is when it still fits the post-trade roster (the player to cut is still active, or
+  there is an open spot). Otherwise the same free agent goes into an open spot if there is one, else replaces the
+  weakest active, **only if that strengthens the team**. A spot opened by the trade is filled by the best free agent
+  that strengthens the team. Total moves stay within the weekly acquisition limit.
+- **One validator** (`TradeEngine.check_rosters`) runs after every roster transformation (trade → forced drops → IL
+  changes → free-agent adds, free moves, the IL return plan). It checks: no player twice, IL players on the roster,
+  actives within capacity and IL within IL slots (a roster already over in the data may not grow), each player on one
+  team only. On failure it raises `RosterInvariantError`: such a roster is never scored silently.
+- **One object** (`RosterPlan`, `waiver_plans`): the score, the P(5+) matrix, the analysis notes and the moves on
+  screen come from the same plan. The analysis also shows the moves scored after the trade (when they differ).
+
+Banchero + Jackson → Jerome + Williams is unchanged (−0.011 / −0.034).
+
 ### 13.8 V3 candidates
 
 Beam search and H-score weight optimization; fitting the profile mix; covariance of game counts between

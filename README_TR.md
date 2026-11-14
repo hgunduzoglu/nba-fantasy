@@ -2256,6 +2256,29 @@ takastaki takımlar (karar veren şimdi hareket eder; takassız koşuda da aynı
 önceliğine göre (`standings_live.csv`). Son 21 günde işlem yapmayan menajer hamle yapmaz (`INACTIVE_DAYS`, varsayım).
 Haftalık streaming yok.
 
+### 13.42 Puanlanan kadroların doğrulanması (14 Kasım 2026)
+
+**Hata**: takas sonrası bedava hamleler (`anchored_waiver`, §13.41) takas öncesi plandaki "boş yere ekle" hamlesini,
+takas yeri doldurmuş olsa bile uyguluyordu. Kapasitesi 3 olan kadroda 1 verip 2 alan takım 4 oyuncuyla puanlanıyordu.
+Ekrandaki kadro (`resolve`) yasal görünürken puan fazladan bir oyuncunun katkısını içeriyordu. İkinci hata: takas,
+kapasite açmak için sakat bir aktifi IL'ye taşıdığında plan o oyuncuyu yine bırakıyordu; oyuncu IL'de görünüyor ama
+kadroda olmuyordu.
+
+**Düzeltme**:
+
+- Takas öncesi hamle, takas sonrası kadroya olduğu gibi uyuyorsa (bırakılacak oyuncu hâlâ aktif ya da boş yer var)
+  uygulanır. Uymuyorsa aynı boştaki, yer varsa boş yere, yoksa en zayıf aktifin yerine **yalnız takımı
+  güçlendiriyorsa** alınır. Takasın açtığı boş yer de takımı güçlendiren en iyi boştakiyle dolar. Toplam hamle haftalık
+  alım hakkını aşmaz.
+- **Ortak doğrulayıcı** (`TradeEngine.check_rosters`): her kadro dönüşümünden sonra çalışır (takas → zorunlu bırakma →
+  IL değişikliği → boştan ekleme, bedava hamleler, IL dönüşü planı). Kontroller: aynı oyuncu iki kez yok, IL'dekiler
+  kadroda, aktif sayısı kapasiteyi ve IL sayısı IL yerini aşmıyor (veride zaten aşan kadro daha da büyümüyor), bir
+  oyuncu yalnız bir takımda. Bozulursa `RosterInvariantError`: kadro sessizce puanlanmaz.
+- **Tek nesne** (`RosterPlan`, `waiver_plans`): puan, P(5+) matrisi, analiz notları ve ekrandaki hamle listesi aynı
+  plandan üretilir. Analiz ekranı takas sonrası puanlanan hamleleri de gösterir (takas öncesinden farklıysa).
+
+Banchero + Jackson → Jerome + Williams değişmedi (−0,011 / −0,034).
+
 ### 13.8 V3 adayları
 
 Beam search ve H-score ağırlık optimizasyonu; profil karışımı uyumu; oyuncular arası maç sayısı
