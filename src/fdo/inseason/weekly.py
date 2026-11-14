@@ -22,6 +22,7 @@ from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
 
+from fdo.inseason.injuries import presence, questionable_play
 from fdo.inseason.live import stat
 from fdo.inseason.waiver import swap_delta
 from fdo.matchup.ecw import category_corr_matrix, ecw_vs, p_at_least
@@ -102,8 +103,10 @@ class WeekModel:
     """``TradeEngine``'in kalan sezon (ROS) verisiyle tek bir haftanın eşleşmesini modeller."""
 
     def __init__(self, engine: TradeEngine, *, strategy: Strategy | None = None, out_statuses=DEFAULT_OUT,
-                 roles: dict | None = None):
-        """``roles``: oyuncu → ``fdo.inseason.roles.RoleBoost`` (takım arkadaşı yokken maç başı; ``until``'e kadar)."""
+                 roles: dict | None = None, questionable: float | None = None):
+        """``roles``: oyuncu → ``fdo.inseason.roles.RoleBoost`` (takım arkadaşı yokken maç başı; ``until``'e kadar).
+        ``questionable``: belirsiz (Q/GTD/DTD) oyuncunun takımının bir sonraki maçında oynama olasılığı (``None``:
+        ``config/returns.yaml``'deki ölçülmüş değer, yoksa 1)."""
         self.engine = engine
         self.config = engine.config
         self.strategy = strategy or Strategy()
@@ -167,6 +170,30 @@ class WeekModel:
         for pid, ret in self.return_date.items():
             i = engine.index[pid]
             team_left[i] = sum(d_ >= ret for d_ in games_by_team.get(self.team[i], []))
+        # Maç başına oynama ağırlığı (1 değilse): dönüşü bekleyen oyuncuda ölçülmüş gecikme dağılımıyla o maçta dönmüş
+        # olma olasılığı; belirsiz (Q) oyuncuda takımının bir sonraki maçında oynama olasılığı. Beklenen maç
+        # (``availability`` paydası) ağırlıkların toplamıdır: ROS'taki beklenen kayıp iki kez düşülmez.
+        self.play_weight: dict[str, dict[dt.date, float]] = {}
+        pmf = (data.sources.get("injuries") or {}).get("delay_pmf")
+        if pmf:
+            pmf = {int(k): float(v) for k, v in pmf.items()}
+            for pid, ret in self.return_date.items():
+                if ret == dt.date.max or ret <= data.as_of:
+                    continue
+                i = engine.index[pid]
+                g = sorted(d_ for d_ in games_by_team.get(self.team[i], []) if d_ >= ret)
+                pres = presence(len(g), pmf)
+                self.play_weight[pid] = dict(zip(g, pres))
+                team_left[i] = float(pres.sum())
+        self.questionable = questionable_play() if questionable is None else min(1.0, max(0.0, float(questionable)))
+        if self.questionable < 1:
+            status = data.players["injury_status"].reindex(list(engine.ids)).astype(str)
+            for pid in [p for p, st in status.items() if st in QUESTIONABLE and ok[engine.index[p]]]:
+                nxt = min((d_ for d_ in games_by_team.get(self.team[engine.index[pid]], []) if d_ >= data.as_of),
+                          default=None)
+                if nxt is not None:
+                    w_ = self.play_weight.setdefault(pid, {})
+                    w_[nxt] = w_.get(nxt, 1.0) * self.questionable
         self.availability = np.where(ok & (team_left > 0), np.clip(np.nan_to_num(gp) / np.maximum(team_left, 1), 0, 1),
                                      0.0)
         self.corr = category_corr_matrix(self.config)
@@ -229,13 +256,19 @@ class WeekModel:
             slots[d] = slot_assignment(elig, allowed[d], pr)
         counted_mask = slots >= 0
         counted = counted_mask.sum(axis=0)
+        weight = np.ones((D, n))                                  # maç başına oynama olasılığı (``play_weight``)
+        for j, pid in enumerate(ids):
+            pw = self.play_weight.get(pid)
+            if pw:
+                weight[:, j] = [pw.get(day, 1.0) for day in days]
+        played = counted_mask * weight
         vec = (acc.copy() if acc is not None else np.zeros(WEEK_DIM))
         if n:
-            vec += ((counted * self.availability[idx])[:, None] * self.unit[idx]).sum(axis=0)
+            vec += ((played.sum(axis=0) * self.availability[idx])[:, None] * self.unit[idx]).sum(axis=0)
             for j, i in enumerate(idx if D else ()):
                 until = self.boost_until[i]
                 if until > days[0]:
-                    early = counted_mask[[d for d, day in enumerate(days) if day < until], j].sum()
+                    early = played[[d for d, day in enumerate(days) if day < until], j].sum()
                     vec += early * self.availability[i] * (self.boost_unit[i] - self.unit[i])
         grid = pd.DataFrame("", index=ids, columns=[f"{day:%a %d}" for day in days])
         for d, day in enumerate(days):

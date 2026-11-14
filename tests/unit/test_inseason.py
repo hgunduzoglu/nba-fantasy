@@ -160,3 +160,27 @@ def test_real_default_team_is_user_flag():
     for lid, lg in d.leagues.items():
         if flagged.get(lid):
             assert lg.default_team_id == flagged[lid][0]
+
+
+def test_questionable_and_return_distribution_weight_the_games(data):
+    import dataclasses
+    from fdo.inseason.injuries import apply_injuries
+    from fdo.inseason.weekly import Stint
+    data.players.loc["0", "injury_status"] = "Q"
+    eng = TradeEngine(data, "L", utilization=1)
+    stints = [Stint(p, slot=k) for k, p in enumerate(eng.league.rosters["1"])]
+    full = WeekModel(eng, questionable=1.0).team_week("1", stints, WEEK3)
+    half = WeekModel(eng, questionable=.5).team_week("1", stints, WEEK3)
+    m = WeekModel(eng, questionable=.5)
+    i, nxt = eng.index["0"], min(d for d in WEEK3 if m.has_game("0", d))
+    assert m.play_weight["0"] == {nxt: .5}
+    if half.slots[WEEK3.index(nxt), 0] >= 0:                                 # ilk maçta kadroda: yarısı sayılır
+        np.testing.assert_allclose(full.vector - half.vector, .5 * m.availability[i] * m.unit[i])
+    # dönüş dağılımı: dönüşten sonraki maçlar dönmüş olma olasılığıyla, beklenen maç kadar
+    inj = pd.DataFrame([{"player_id": "1", "kind": "out_until", "return_date": dt.date(2026, 11, 3)}]).set_index("player_id")
+    d = apply_injuries(data, inj, pmf={0: .5, 1: .5})
+    assert d.sources["injuries"]["delay_pmf"] == {0: .5, 1: .5}
+    wm = WeekModel(TradeEngine(d, "L", utilization=1), questionable=1.0)
+    w = wm.play_weight["1"]
+    first = sorted(w)
+    assert w[first[0]] == pytest.approx(.5) and all(w[x] == pytest.approx(1) for x in first[1:])

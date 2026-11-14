@@ -84,3 +84,25 @@ def test_assumptions_file_and_shifted_returns(tmp_path):
     assert out.loc["1", "return_date"] == dt.date(2026, 11, 9) and out.loc["1", "stated_return"] == dt.date(2026, 11, 4)
     assert out.loc["2", "return_date"] is None and inj.loc["1", "return_date"] == dt.date(2026, 11, 4)
     assert shift_returns(inj, 0)["return_date"].tolist() == inj["return_date"].tolist()
+
+
+def test_delay_distribution_and_presence_follow_the_survival_curve(tmp_path):
+    from fdo.inseason.injuries import expected_left, presence, questionable_play, return_pmf
+    from fdo.inseason.returns import delay_pmf
+    obs = observed_returns(REPORTS, _logs(), PLAYERS, START)
+    pmf = delay_pmf(obs, "games_missed", 4)
+    assert sum(pmf.values()) == pytest.approx(1) and pmf[0] == pytest.approx(.5)     # 0 maçta 4'ten 2'si döndü
+    assert delay_pmf(obs.iloc[:0]) == {0: 1.0}
+    pres = presence(6, pmf)
+    assert pres[0] == pytest.approx(.5) and pres[-1] == pytest.approx(1) and (pres[1:] >= pres[:-1]).all()
+    assert expected_left(6, pmf) == pytest.approx(pres.sum()) and expected_left(6, None) == 6
+    f = tmp_path / "returns.yaml"
+    f.write_text("delay_games: {0: 1, 2: 1}\nquestionable_play: 0.4\n", encoding="utf-8")
+    assert return_pmf(f) == {0: .5, 2: .5} and questionable_play(f) == pytest.approx(.4)
+    assert return_pmf(tmp_path / "yok.yaml") is None and questionable_play(tmp_path / "yok.yaml") == 1.0
+
+
+def test_questionable_outcomes_check_the_next_team_game():
+    from fdo.inseason.returns import questionable_outcomes
+    q = questionable_outcomes(REPORTS, _logs(), PLAYERS, START).set_index("name")
+    assert list(q.index) == ["Eve Ely"] and q.loc["Eve Ely", "game"] == DAYS[0] and bool(q.loc["Eve Ely", "played"])

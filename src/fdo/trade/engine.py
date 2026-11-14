@@ -292,15 +292,27 @@ class TradeEngine:
                 unknown.append(pid)
                 share = self._seg_after_raw(ret) * weeks * 7 / max(H * 7 - max((ret - self.data.as_of).days, 0), 1)
             else:
-                key = (team, ret)
+                key = (team, ret, ret > self.data.as_of)
                 if key not in cache:
                     games = [d for d in self._team_games[team] if d >= ret]
-                    counts = np.array([sum(s.start <= d <= s.end for d in games) for s in self.segments], float)
-                    cache[key] = counts / len(games) if games else np.zeros(S)        # bilinen sıfır maç → 0
+                    # dönüşü bekleyen: her maçta dönmüş olma olasılığı (ölçülmüş gecikme dağılımı; yoksa 1)
+                    pres = self._presence(len(games)) if ret > self.data.as_of else np.ones(len(games))
+                    counts = np.array([sum(p_ for d, p_ in zip(games, pres) if s.start <= d <= s.end)
+                                       for s in self.segments], float)
+                    cache[key] = counts / pres.sum() if games and pres.sum() > 0 else np.zeros(S)   # bilinen 0 → 0
                 share = cache[key]
             out[:, i] = self.vecs[i][None, :] * (H * share / weeks)[:, None]
         self.timing_unknown = tuple(unknown)
         return out
+
+    def _presence(self, n: int) -> np.ndarray:
+        """Dönüşü bekleyen oyuncunun en erken tarihten sonraki ``n`` maçında dönmüş olma olasılığı (veride ölçülmüş
+        gecikme dağılımı varsa; ``fdo.inseason.injuries.presence``)."""
+        pmf = (self.data.sources.get("injuries") or {}).get("delay_pmf")
+        if not pmf:
+            return np.ones(n)
+        from fdo.inseason.injuries import presence
+        return presence(n, {int(k): float(v) for k, v in pmf.items()})
 
     def _seg_after(self, day: dt.date) -> np.ndarray:
         """Dönem başına ``day`` ve sonrasına düşen gün payı."""
@@ -414,7 +426,8 @@ class TradeEngine:
                 share = 0.0
             elif row is not None and row["kind"] == "out_until" and not pd.isna(row["return_date"]):
                 ret = pd.Timestamp(row["return_date"]).date()
-                share = sum(d >= ret for d in games) / len(games)
+                after = sum(d >= ret for d in games)
+                share = float(self._presence(after).sum()) / len(games) if ret > self.data.as_of else after / len(games)
             else:
                 gp = float(self.data.stats[ROS]["gp"].get(pid, 0.0) or 0.0)
                 share = min(1.0, gp / len(games))

@@ -1,0 +1,14 @@
+# scripts/calibrate_returns.py --write ile ölçüldü (CBS raporları + NBA maç kayıtları).
+delay_games:
+  0: 0.2527
+  1: 0.1099
+  2: 0.039
+  3: 0.0
+  4: 0.0798
+  5: 0.0864
+  6: 0.0
+  7: 0.0
+  8: 0.0
+  9: 0.0
+  10: 0.4321
+questionable_play: 0.444

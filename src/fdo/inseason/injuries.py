@@ -110,6 +110,45 @@ def apply_return_ramp(data: TradeData, ramp: tuple[float, ...] | None = None) ->
                                issues=(*data.issues, note))
 
 
+def _config(path: str | Path | None = None) -> dict:
+    path = Path(path) if path else RETURNS_CONFIG
+    return (yaml.safe_load(path.read_text(encoding="utf-8")) or {}) if path.exists() else {}
+
+
+def return_pmf(path: str | Path | None = None) -> dict[int, float] | None:
+    """Ölçülmüş dönüş gecikmesi dağılımı (``config/returns.yaml`` → ``delay_games``: k → olasılık; CBS'in en erken
+    tarihinden sonra k takım maçı daha kaçırma, son anahtar kuyruk). Yoksa ``None`` (CBS tarihi kesin sayılır).
+    ``scripts/calibrate_returns.py --write`` yazar."""
+    raw = _config(path).get("delay_games")
+    if not raw:
+        return None
+    pmf = {int(k): max(0.0, float(v)) for k, v in raw.items()}
+    total = sum(pmf.values())
+    return {k: v / total for k, v in sorted(pmf.items())} if total > 0 else None
+
+
+def questionable_play(path: str | Path | None = None) -> float:
+    """Belirsiz (Q/GTD/DTD) listelenen oyuncunun bir sonraki maçında oynama olasılığı (``questionable_play``;
+    ``scripts/calibrate_returns.py --write`` ölçer). Yoksa 1 (oynar sayılır)."""
+    v = _config(path).get("questionable_play")
+    return 1.0 if v is None else min(1.0, max(0.0, float(v)))
+
+
+def presence(n: int, pmf: dict[int, float] | None) -> np.ndarray:
+    """En erken tarihten sonraki ``n`` takım maçının her birinde oyuncunun dönmüş olma olasılığı ``P(T ≤ i)``
+    (``pmf`` yoksa hepsi 1). Kuyruk ("en az K maç") K. maçtan itibaren dönmüş sayılır."""
+    if not pmf:
+        return np.ones(n)
+    tail = max(pmf)
+    cdf = np.cumsum([pmf.get(k, 0.0) for k in range(tail + 1)])
+    return np.array([cdf[min(i, tail)] for i in range(n)])
+
+
+def expected_left(n: int, pmf: dict[int, float] | None) -> float:
+    """En erken tarihten sonraki ``n`` maçtan beklenen oynanacak maç (``presence`` toplamı)."""
+    return float(presence(n, pmf).sum())
+
+
 def return_delay(path: str | Path | None = None) -> int:
     """Her analizde en erken dönüş tarihine eklenen gün (varsayılan 0 = CBS'in tarihi)."""
     return return_assumptions(path)["delay_days"]
@@ -239,8 +278,11 @@ def team_games_from(schedule: pd.DataFrame) -> dict[str, list[dt.date]]:
     return {t: sorted(v) for t, v in out.items()}
 
 
-def apply_injuries(data: TradeData, injuries: pd.DataFrame, source: str = SOURCE_URL) -> TradeData:
-    """ROS toplamlarını dönüş tarihine göre kısar ve sakatlık tablosunu ekler (yeni ``TradeData``)."""
+def apply_injuries(data: TradeData, injuries: pd.DataFrame, source: str = SOURCE_URL,
+                   pmf: dict[int, float] | None = None) -> TradeData:
+    """ROS toplamlarını dönüş tarihine göre kısar ve sakatlık tablosunu ekler (yeni ``TradeData``). ``pmf``: dönüş
+    gecikmesi dağılımı (``return_pmf``); verilirse dönüş sonrası maçlar beklenen değerle sayılır (``expected_left``)
+    ve dağılım ``sources["injuries"]["delay_pmf"]``'te motora ve haftalık modele geçer."""
     games = team_games_from(data.schedule)
     stats = {k: v.copy() for k, v in data.stats.items()}
     ros = stats[ROS]
@@ -255,6 +297,8 @@ def apply_injuries(data: TradeData, injuries: pd.DataFrame, source: str = SOURCE
         elif r["kind"] != "season":
             continue
         left = 0 if r["kind"] == "season" else sum(d >= start for d in games.get(team, []))
+        if pmf and r["kind"] == "out_until" and start > data.as_of:
+            left = expected_left(left, pmf)                         # gecikme dağılımıyla beklenen maç
         gp = float(ros.loc[pid, "gp"]) if np.isfinite(ros.loc[pid, "gp"]) else np.nan
         new_gp = min(gp, left) if np.isfinite(gp) else np.nan
         if np.isfinite(gp) and gp > 0 and new_gp < gp:
@@ -265,17 +309,19 @@ def apply_injuries(data: TradeData, injuries: pd.DataFrame, source: str = SOURCE
                                                                       "ros_gp_after"]], how="left") \
         if rows else injuries.assign(games_after_return=np.nan, ros_gp_before=np.nan, ros_gp_after=np.nan)
     cut = int((table["ros_gp_after"] < table["ros_gp_before"]).sum())
-    sources = {**data.sources, "injuries": {"source_url": source, "kind": "injuries", "rows": len(table)}}
+    sources = {**data.sources, "injuries": {"source_url": source, "kind": "injuries", "rows": len(table),
+                                            **({"delay_pmf": dict(pmf)} if pmf else {})}}
     note = (f"Sakatlık dönüş tarihleri uygulandı ({len(table)} eşleşen oyuncu, {cut} oyuncunun kalan sezon "
             "maçı dönüş tarihine göre kısıldı).")
     return dataclasses.replace(data, stats=stats, sources=sources, injuries=table,
-                               fingerprint=f"{data.fingerprint}:inj{len(table)}:{cut}",
+                               fingerprint=f"{data.fingerprint}:inj{len(table)}:{cut}" + (":pmf" if pmf else ""),
                                issues=(*data.issues, note))
 
 
 def with_injuries(data: TradeData, directory: str | Path, delay: int | None = None) -> TradeData:
     """En yeni ``injuries_cbs_*.csv`` varsa eşleştirip uygular; yoksa ya da eşleşme yoksa ``data`` aynen döner.
-    ``delay``: en erken dönüş tarihine eklenen gün (``None``: ``return_delay()``)."""
+    ``delay``: en erken dönüş tarihine eklenen gün (``None``: ``return_delay()`` ve ölçülmüş gecikme dağılımı
+    ``return_pmf()``; açık gün verilirse (ör. "geç dönüş" senaryosu) tarih kaydırılır, dağılım kullanılmaz)."""
     path = latest_file(directory)
     if path is None:
         return data
@@ -285,10 +331,14 @@ def with_injuries(data: TradeData, directory: str | Path, delay: int | None = No
     note = f"{report.note()} ({path.name})"
     if matched.empty:
         return dataclasses.replace(data, issues=(*data.issues, note))
-    delay = return_delay() if delay is None else max(0, int(delay))
+    pmf = return_pmf() if delay is None else None
+    delay = (0 if pmf else return_delay()) if delay is None else max(0, int(delay))
     matched = shift_returns(matched, delay)
-    when = (f"CBS'in en erken tarihi + {delay} gün (varsayım)" if delay else
+    when = ("CBS'in en erken tarihinden sonra ölçülmüş gecikme dağılımı (beklenen değer; "
+            + ", ".join(f"{k}{'+' if k == max(pmf) else ''} maç %{100 * v:.0f}" for k, v in pmf.items() if v >= .005)
+            + ")" if pmf else
+            f"CBS'in en erken tarihi + {delay} gün (varsayım)" if delay else
             "CBS'in en erken tarihi (\"at least\"; gerçek dönüş çoğu zaman daha geç, gecikme varsayımı 0 gün)")
-    out = apply_injuries(data, matched, source=f"{SOURCE_URL} ({path.name})")
+    out = apply_injuries(data, matched, source=f"{SOURCE_URL} ({path.name})", pmf=pmf)
     return dataclasses.replace(out, issues=(*out.issues, note, f"Sakatlık dönüşü: {when}."),
                                fingerprint=f"{out.fingerprint}:d{delay}")

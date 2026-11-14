@@ -116,3 +116,58 @@ def median_delay(obs: pd.DataFrame, unit: str = "delay_days") -> float | None:
     """Dönüşlerin yarısının gerçekleştiği gecikme (Kaplan–Meier medyanı); gözlem yetmiyorsa ``None``."""
     return next((x for x, s in _survival(obs, unit) if s <= 0.5), None) if len(obs) else None
 
+
+
+def delay_pmf(obs: pd.DataFrame, unit: str = "games_missed", max_k: int = 10) -> dict[int, float]:
+    """Dönüş gecikmesi dağılımı (Kaplan–Meier'den): en erken tarihten sonra tam ``k`` takım maçı daha kaçırma
+    olasılığı ``P(T = k)``; son değer (``max_k``) kuyruktur, ``P(T ≥ max_k)``. Gözlem yoksa ``{0: 1}`` (CBS tarihi)."""
+    if not len(obs):
+        return {0: 1.0}
+    curve = _survival(obs, unit)
+
+    def survive(k: int) -> float:                                  # P(T > k)
+        return min((v for x, v in curve if x <= k), default=1.0)
+    out, prev = {}, 1.0
+    for k in range(max_k):
+        s = survive(k)
+        out[k] = max(0.0, prev - s)
+        prev = s
+    out[max_k] = max(0.0, prev)
+    return out
+
+
+def questionable_outcomes(reports: list[tuple[dt.date, pd.DataFrame]], logs: pd.DataFrame, players: pd.DataFrame,
+                          season_start: dt.date, overrides: pd.DataFrame | None = None) -> pd.DataFrame:
+    """Belirsiz (game time decision, day-to-day, questionable, probable, doubtful) listelenen oyuncuların takımının
+    rapordan sonraki ilk maçında oynayıp oynamadığı: oyuncu ve maç başına bir gözlem (ilk rapordan). Maç kayıtlarının
+    son gününden sonraki maçlar bilinmediği için dışarıda kalır."""
+    cols = ["player_id", "name", "report_date", "game", "played"]
+    if logs is None or logs.empty:
+        return pd.DataFrame(columns=cols)
+    logs = logs.assign(game_date=pd.to_datetime(logs["game_date"]).dt.date,
+                       nba_team=logs["nba_team"].map(normalize_team))
+    last = max(logs["game_date"])
+    resolve = Resolver(players, overrides, source="cbs")
+    one = Resolver(players, overrides)
+    keys = logs[["name", "nba_team"]].drop_duplicates()
+    ids = {(r.name, r.nba_team): one(r.name, r.nba_team).player_id for r in keys.itertuples()}
+    logs = logs.assign(player_id=[ids[(n, t)] for n, t in zip(logs["name"], logs["nba_team"])])
+    played = logs[logs["minutes"].fillna(0) > 0] if "minutes" in logs else logs
+    on = set(zip(played["player_id"], played["game_date"]))
+    team_days = {t: sorted(set(g)) for t, g in logs.groupby("nba_team")["game_date"]}
+    team_of = {p: t for p, t in logs.groupby("player_id")["nba_team"].last().items()}
+    seen: set[tuple[str, dt.date]] = set()
+    rows = []
+    for report_date, rep in sorted(reports, key=lambda x: x[0]):
+        for r in rep.itertuples():
+            if interpret(r.status_text, season_start)[0] != "day_to_day":
+                continue
+            pid = resolve(r.name, getattr(r, "nba_team", "")).player_id
+            team = team_of.get(pid) or normalize_team(str(getattr(r, "nba_team", "") or ""))
+            game = next((d for d in team_days.get(team, []) if d >= report_date), None)
+            if pid is None or game is None or game > last or (pid, game) in seen:
+                continue
+            seen.add((pid, game))
+            rows.append({"player_id": pid, "name": r.name, "report_date": report_date, "game": game,
+                         "played": (pid, game) in on})
+    return pd.DataFrame(rows, columns=cols)
