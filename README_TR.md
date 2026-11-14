@@ -2299,6 +2299,22 @@ ilk dönem hamlesiz kadroyla puanlanır. "Boştaki hamleler olmadan" satırı ek
 "normal" sayılıyordu; bugün kopyalanan eski bir export taze görünürdü. Şimdi yaşa bakılan bir bileşenin kaynak zamanı
 bilinmiyorsa takas ve sezonda koşullu, add/drop ve lineup'ta bekletilir.
 
+### 13.44 Açık sıralama politikası ve öneri bileşenleri (14 Kasım 2026)
+
+Karşılıklı fayda önerileri `(min(ga, gb) + √(ga·gb)) · (0,5 + 0,5 · denge)` ile sıralanıyordu: iki tarafın kazancını
+birlikte yükselten ve dengeyi ödüllendiren gizli bir puan. Bu, "rakip için makul gerekçesi olan seçenekler arasında
+benim hedefime en çok katkı" sorusuyla aynı değil. Şimdi sıralama politikası açık (`rank`, `RANKINGS`):
+
+- `own` (varsayılan): rakibin gerekçesi (eşikler, `counterpart`) ve değer dengesi **süzgeçtir**; geçen paketler
+  **senin** kazancına göre sıralanır. Tek takımlı arama, tamamlama ve çok takımlı arama aynı politikayı kullanır.
+- `joint`: eski ortak fayda puanı (API'de `rank: "joint"`).
+
+Her öneri bileşenlerini ayrı taşır (`components`): senin faydan, rakibin gerekçesi, piyasa dengesi, uygulanabilirlik
+(ekleme/bırakma ve bu haftanın alım hakkı) ve belirsizlik (sakat/dönüş bekleyen, modellenemeyen, takvimi bilinmeyen
+oyuncular; kazancın bedava hamlelere bağlı olması). Ekranda ⓘ rozeti hepsini gösterir; "⚠ alım hakkı", "sakat" ve
+"? veri" rozetleri sorunlu olanları işaretler. Öneriler hâlâ şampiyonluk olasılığını optimize etmez: sezon etkisi gölge
+değerlendirme olarak yanında gösterilir.
+
 ### 13.8 V3 adayları
 
 Beam search ve H-score ağırlık optimizasyonu; profil karışımı uyumu; oyuncular arası maç sayısı

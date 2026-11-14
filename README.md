@@ -2325,6 +2325,22 @@ is scored without them. The "without free moves" line is the trade's effect with
 a file time, counted as "normal", so an old export copied today looked fresh. Now an age-checked component without a
 known source time makes trades and the season view conditional and puts add/drop and lineup on hold.
 
+### 13.44 An explicit ranking policy and suggestion components (14 November 2026)
+
+Mutual-benefit suggestions were ranked by `(min(ga, gb) + √(ga·gb)) · (0.5 + 0.5 · balance)`: a hidden score that raises
+both sides' gains together and rewards balance. That is not the same question as "among options the other manager has a
+reasonable case for, which helps my goal most". The ranking policy is now explicit (`rank`, `RANKINGS`):
+
+- `own` (default): the counterpart's case (thresholds, `counterpart`) and value balance are **filters**; packages that
+  pass are ranked by **your** gain. Single-opponent search, completion and multi-team search use the same policy.
+- `joint`: the old mutual score (`rank: "joint"` in the API).
+
+Each suggestion carries its components separately (`components`): your gain, the counterpart's case, market balance,
+feasibility (adds/drops and this week's adds) and uncertainty (injured or awaiting return, unmodelled, unknown schedule;
+a gain that depends on free moves). On screen the ⓘ badge shows all of them; "⚠ alım hakkı", "sakat" and "? veri" flag
+the problem ones. Suggestions still do not optimise championship odds: the season effect is shown next to them as a
+shadow evaluation.
+
 ### 13.8 V3 candidates
 
 Beam search and H-score weight optimization; fitting the profile mix; covariance of game counts between
