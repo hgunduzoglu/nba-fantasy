@@ -128,3 +128,19 @@ def test_analysis_shows_the_free_moves_available_without_the_trade(client):
     assert free["moves"] and free["moves"][0]["drop"] is None and math.isfinite(free["ecw_gain"])
     assert free["ecw_gain"] > 0                                          # boş yeri bedava doldurmak takassız kazanç
     assert out["teams"]["b"]["free"]["moves"] == [] or out["teams"]["b"]["free"]["moves"][0]["add"] != free["moves"][0]["add"]
+
+
+def test_offers_record_features_and_answers(client):
+    body = {"team_a": "1", "team_b": "2", "give_a": ["0"], "give_b": ["3"]}
+    r = client.post("/api/leagues/L/trade/offer", json=body)
+    assert r.status_code == 200
+    oid = r.json()["decision_id"]
+    entry = next(e for e in client.app.state.fdo.decisions.entries("user_reported") if e["decision_id"] == oid)
+    f = entry["result"]["features"]
+    assert f["acceptability"] in ("high", "medium", "low") and 0 <= f["fairness"] <= 1 and f["reasons"]
+    assert client.get("/api/leagues/L/trade/offers").json()[0]["outcome"] == "pending"
+    assert client.post("/api/leagues/L/trade/offer", json={**body, "outcome": "accepted", "about": "yok"}).status_code == 404
+    assert client.post("/api/leagues/L/trade/offer", json={**body, "outcome": "accepted", "about": oid}).status_code == 200
+    rows = client.get("/api/leagues/L/trade/offers").json()
+    assert len(rows) == 1 and rows[0]["outcome"] == "accepted" and rows[0]["give_a"][0]["id"] == "0"
+    assert client.post("/api/leagues/L/trade/offer", json={**body, "outcome": "maybe"}).status_code == 422

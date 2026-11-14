@@ -22,6 +22,7 @@ from dataclasses import dataclass, field
 from typing import Callable
 
 import numpy as np
+import pandas as pd
 
 from fdo.trade.engine import TradeEngine, TradeError, TradeRequest
 from fdo.trade.perception import PERCEPTIONS, perceived_prices
@@ -338,6 +339,20 @@ def _gains(engine: TradeEngine, req: TradeRequest, sa: Strategy, sb: Strategy, w
     ga = w * m["strategy_delta"] / 9 + (1 - w) * m["win_delta"]
     gb = w * o["strategy_delta"] / 9 + (1 - w) * o["win_delta"]
     return m, o, ga, gb
+
+
+def offer_features(engine: TradeEngine, req: TradeRequest, sa: Strategy, sb: Strategy, perceived: pd.Series,
+                   w: float = .65) -> dict:
+    """Bir teklifin karar anındaki ölçüleri (teklif/cevap kaydı ve eşik ayarı için): iki tarafın kazancı, değer
+    dengesi, rakibin gözünde oran ve kabul gerekçesi düzeyi. ``perceived``: algılanan fiyatlar (``perceived_prices``)."""
+    m, o, ga, gb = _gains(engine, req, sa, sb, w)
+    given = float(perceived.reindex(list(req.give_a)).fillna(0).sum())
+    taken = float(perceived.reindex(list(req.give_b)).fillna(0).sum())
+    view = given / taken if taken > 0 else float("nan")
+    level, why = counterpart(gb, o["strategy_delta"], view)
+    return {"own_delta": float(m["strategy_delta"]), "other_delta": float(o["strategy_delta"]),
+            "own_gain": float(ga), "other_gain": float(gb), "fairness": float(engine.fairness(req)),
+            "perceived_view": view if np.isfinite(view) else None, "acceptability": level, "reasons": list(why)}
 
 
 def _tiered(req: TradeRequest, m: dict, o: dict, ga: float, gb: float, fair: float, view: float,

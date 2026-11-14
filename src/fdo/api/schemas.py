@@ -33,6 +33,14 @@ class TradeIn(BaseModel):
     basis: str = Field(default="ros", pattern="^(ros|season|recent|blend|late)$")   # kalan sezon temeli (§13.28)
 
 
+class OfferIn(TradeIn):
+    """Teklif kaydı (``offered``) ya da bir teklifin cevabı (``accepted`` / ``rejected`` / ``countered``; ``about``:
+    teklifin kayıt kimliği)."""
+
+    outcome: str = Field(default="offered", pattern="^(offered|accepted|rejected|countered)$")
+    about: str | None = None
+
+
 class ReportIn(TradeIn):
     refresh: bool = False                        # kayıtlı raporu yeniden üret (ücretli)
 

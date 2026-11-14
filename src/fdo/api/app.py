@@ -12,15 +12,17 @@ from fastapi.staticfiles import StaticFiles
 
 from fdo.api.serialize import (brief, categories_meta, clean, fixture_changes, player_row, presets,
                                return_timeline, season_effect, strategy_from, trade_result, value_ranks)
-from fdo.api.schemas import SeasonIn, SeasonManyIn, TradeIn
+from fdo.api.schemas import OfferIn, SeasonIn, SeasonManyIn, TradeIn
 from fdo.api.state import SOURCES, AppState
 from fdo.config import REPO_ROOT
 from fdo.evaluation.decisions import reconcile
+from fdo.evaluation.offers import offers as offer_rows
 from fdo.ingest.freshness import report as freshness_report
 from fdo.inseason.injuries import return_assumptions
 from fdo.inseason.scenarios import BASES, RATE_BASES, per_game_rates
 from fdo.trade import TradeError, TradeRequest
 from fdo.trade.perception import perceived_prices
+from fdo.trade.suggest import offer_features
 
 FRONTEND_DIST = REPO_ROOT / "frontend" / "dist"
 #: Sunucu kurulumu (README §14.2): veri bilgisayardan gönderilir; Yahoo senkronizasyonu ve haber yenileme kapalı.
@@ -190,6 +192,41 @@ def create_app(data_dir: str | Path | None = None, frontend_dir: str | Path | No
                  "give_a": [{"id": p, "name": e["result"]["names"].get(p, p)} for p in e["request"]["give_a"]],
                  "give_b": [{"id": p, "name": e["result"]["names"].get(p, p)} for p in e["request"]["give_b"]],
                  "status": reconcile(e, eng.league.rosters)} for e in reversed(rows[-20:])]
+
+    @app.post("/api/leagues/{lid}/trade/offer")
+    def trade_offer(lid: str, body: OfferIn):
+        """Teklif ettim (o anki ölçülerle) ya da teklife gelen cevap. Eşiklerin gerçek kayıtlarla ayarlanması için
+        (``fdo.evaluation.offers``); veriyi değiştirmez."""
+        eng = engine(lid, body.injuries)
+        if body.outcome != "offered":
+            known = {e["decision_id"] for e in state.decisions.entries("user_reported") if e["action"] == "trade_offer"}
+            if body.about not in known:
+                raise HTTPException(404, "Cevaplanan teklif kaydı yok")
+            did = state.log_decision("user_reported", "offer_response", lid,
+                                     {"about": body.about, "outcome": body.outcome}, {})
+        else:
+            sa, sb = _strategies(eng, body)
+            try:
+                features = offer_features(eng, _request(body), sa, sb, perceived_prices(eng, "blend"))
+            except (TradeError, ValueError) as e:
+                raise HTTPException(400, str(e)) from e
+            names = {p: eng.data.players.loc[p, "name"] for p in [*body.give_a, *body.give_b]}
+            did = state.log_decision("user_reported", "trade_offer", lid, body.model_dump(exclude={"outcome", "about"}),
+                                     {"names": names, "features": features})
+        if did is None:
+            raise HTTPException(503, "Karar günlüğü kapalı ya da yazılamadı")
+        return {"decision_id": did}
+
+    @app.get("/api/leagues/{lid}/trade/offers")
+    def trade_offers(lid: str):
+        """Kaydedilen teklifler (en yeni önce), son cevaplarıyla ve o anki kabul gerekçesi düzeyiyle."""
+        rows = offer_rows(state.decisions.entries("user_reported"), lid)
+        return clean([{"decision_id": r["decision_id"], "created_at": r["created_at"], "outcome": r["outcome"],
+                       "team_a": r["request"]["team_a"], "team_b": r["request"]["team_b"],
+                       "give_a": [{"id": p, "name": r["names"].get(p, p)} for p in r["request"]["give_a"]],
+                       "give_b": [{"id": p, "name": r["names"].get(p, p)} for p in r["request"]["give_b"]],
+                       "acceptability": r["features"].get("acceptability"),
+                       "perceived_view": r["features"].get("perceived_view")} for r in reversed(rows[-30:])])
 
     @app.post("/api/leagues/{lid}/trade/scenarios")
     def trade_scenarios(lid: str, body: TradeIn):
