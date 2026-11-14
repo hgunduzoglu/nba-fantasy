@@ -267,7 +267,7 @@ export interface TradeSide {
   /** Aynı takas bedava waiver hamleleri varsayılmadan (kadrolar olduğu gibi). */
   plain?: { ecw_delta: number; win_delta: number; strategy_delta: number } | null;
   /** Takassız alternatif: takas öncesi tabanın bedava waiver hamleleri (ortak havuz) ve tek başına kategori kazancı. */
-  free?: { moves: { drop: string | null; add: string }[]; ecw_gain: number };
+  free?: { moves: FreeMove[]; after_moves?: FreeMove[]; ecw_gain: number };
   team_id: string;
   team: string;
   strategy: string;
@@ -1028,3 +1028,5 @@ export interface SitStartOut {
   rounds: number;
   live: { captured_at: string; partial_today: boolean } | null;
 }
+
+export type FreeMove = { drop: string | null; add: string };

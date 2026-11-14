@@ -12,7 +12,7 @@ import { deltaClass, movesWarning } from "../components/common";
 import { fmtDate, fmtDelta, fmtNum, fmtPct, fmtStat } from "../format";
 import { useIsMobile } from "../hooks";
 import { downloadJson, useScenarios, type NamedId, type Scenario } from "../scenarios";
-import type { Basis, CompleteOut, ManagersOut, CompleteRow, FixtureTeam, League, Meta, Player, Roster, ScenariosOut, SeasonOut, Source, TradeIn, TradeOut, TradeSide } from "../types";
+import type { Basis, CompleteOut, FreeMove, ManagersOut, CompleteRow, FixtureTeam, League, Meta, Player, Roster, ScenariosOut, SeasonOut, Source, TradeIn, TradeOut, TradeSide } from "../types";
 import { ReportedTrades } from "../components/ReportedTrades";
 
 export interface TradeInit {
@@ -38,6 +38,10 @@ interface Props {
 }
 
 const MODE_ORDER = ["remaining_games_projection", "season_total", "preseason"];
+
+function freeText(moves: FreeMove[] | undefined): string {
+  return (moves ?? []).map((m) => (m.drop ? `${m.drop} yerine ${m.add}` : `boş yere ${m.add}`)).join(", ");
+}
 
 function toggle(set: Set<string>, id: string): Set<string> {
   const next = new Set(set);
@@ -116,8 +120,13 @@ function SideCard({ side, title, scale }: { side: TradeSide; title: string; scal
         )}
         {side.free && side.free.moves.length > 0 && (
           <p className="hint" title="Takas öncesi taban bu hamleleri zaten yapmış sayılır; yukarıdaki fark bunun üstündeki takas kazancıdır.">
-            Takassız da yapılabilir: {side.free.moves.map((m) => (m.drop ? `${m.drop} yerine ${m.add}` : `boş yere ${m.add}`)).join(", ")}
+            Takassız da yapılabilir: {freeText(side.free.moves)}
             {" "}(beklenen kategori {fmtDelta(side.free.ecw_gain, 3)} / hafta). Yukarıdaki fark bunun üstündeki takas kazancı.
+          </p>
+        )}
+        {side.free && freeText(side.free.after_moves) !== freeText(side.free.moves) && (
+          <p className="hint" title="Takas sonrası puanlanan kadroda varsayılan bedava hamleler: takas öncesi hamleler kadroya ve kapasiteye uyduğu kadar korunur.">
+            Takastan sonra puanlanan hamleler: {freeText(side.free.after_moves) || "yok"}.
           </p>
         )}
         <div className="section-title">Kategori kazanma olasılığı değişimi (puan)</div>

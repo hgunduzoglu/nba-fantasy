@@ -203,9 +203,12 @@ def return_timeline(eng: TradeEngine, roster, il, strategy, incoming=()) -> list
 def trade_result(eng: TradeEngine, result: TradeResult, *, perceived: pd.Series | None = None) -> dict:
     a, b = result.request.team_a, result.request.team_b
     names = eng.data.players["name"]
-    # Takassız alternatif: takas öncesi tabanın bedava waiver hamleleri (ortak havuz) ve tek başına kazancı.
-    free = eng.joint_waiver([(t, eng.league.rosters[t], eng._il(t, eng.league.rosters[t]), result.strategies[t])
-                             for t in (a, b)])
+    # Takassız alternatif: puanlanan takas öncesi ve sonrası kadroların bedava waiver hamleleri (``result.plans``,
+    # puanla aynı nesne) ve takas öncesi hamlelerin tek başına kazancı.
+    plans = result.plans or {"before": eng.waiver_plans(eng.league.rosters, result.strategies)}
+
+    def moves(plan) -> list[dict]:
+        return [{"drop": names[d] if d else None, "add": names[f]} for d, f in plan.moves] if plan else []
     teams = {}
     for side, tid in (("a", a), ("b", b)):
         i = eng.team_index[tid]
@@ -228,7 +231,8 @@ def trade_result(eng: TradeEngine, result: TradeResult, *, perceived: pd.Series 
                              for c, r in category_changes(result, mode, tid).iterrows()] for mode in MODES},
         }
         base = float(eng.baseline_p[i, keep].mean(axis=0).sum())
-        teams[side]["free"] = {"moves": [{"drop": names[d] if d else None, "add": names[f]} for d, f in free[tid][1]],
+        teams[side]["free"] = {"moves": moves(plans["before"].get(tid)),
+                               "after_moves": moves(plans.get("after", {}).get(tid)),
                                "ecw_gain": float(pb.sum()) - base}
     req = result.request
     balance = None
