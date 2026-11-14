@@ -2132,7 +2132,9 @@ Varsayımlar `config/returns.yaml` dosyasıyla değişir (dosya yoksa varsayıla
   aç" bütün analizi bu senaryoyla yeniler. Sakat bir oyuncu alırken ya da verirken kararın dönüş gecikmesine ne kadar
   bağlı olduğunu gösterir.
 
-Açık: Questionable / GTD oyuncular hâlâ oynar sayılır; dönüş sonrası dakika rampası yok.
+**Q senaryosu**: Bu Hafta ve Sit/Start'ta "Q/GTD de oynamasın (senaryo)" kutusu Q / GTD / DTD oyuncuları içinde bulunulan
+haftanın kalan günlerinde oturtur (`WeeklyIn.questionable_out`). Varsayılan model onları oynar sayar; gerçek oynama
+oranı ölçülmedi, iki ucu karşılaştırmak içindir. Açık: dönüş sonrası dakika rampası yok.
 
 ### 13.8 V3 adayları
 

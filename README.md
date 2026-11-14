@@ -2148,7 +2148,9 @@ The assumptions change with `config/returns.yaml` (defaults if the file is missi
   "Bu temelle aç" reruns the whole analysis under this scenario. It shows how much a decision to trade for or away an
   injured player depends on the return delay.
 
-Open: Questionable / GTD players still count as playing; there is no minutes ramp after a return.
+**Q scenario**: on the This Week and Sit/Start pages the "Q/GTD de oynamasın (senaryo)" box sits Q / GTD / DTD players for
+the remaining days of the current week (`WeeklyIn.questionable_out`). The default model counts them as playing; the real
+play rate was not measured, the box is for comparing the two ends. Open: there is no minutes ramp after a return.
 
 ### 13.8 V3 candidates
 
