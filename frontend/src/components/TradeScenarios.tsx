@@ -3,14 +3,18 @@ import { fmtDate, fmtDelta, fmtNum, fmtStat } from "../format";
 import type { Basis, CategoryKey, ReturnEvent, ScenariosOut } from "../types";
 
 export const BASIS_LABELS: Record<Basis, string> = {
-  ros: "Yahoo projeksiyonu", season: "Bu sezonki oranlar", recent: "Son 10 maç", blend: "Karma",
+  ros: "Yahoo projeksiyonu", season: "Bu sezonki oranlar", recent: "Son 10 maç", blend: "Karma", late: "Geç dönüş",
 };
-export const BASIS_SHORT: Record<Basis, string> = { ros: "Yahoo", season: "Bu sezon", recent: "Son 10 maç", blend: "Karma" };
+export const BASIS_SHORT: Record<Basis, string> = {
+  ros: "Yahoo", season: "Bu sezon", recent: "Son 10 maç", blend: "Karma", late: "Geç dönüş",
+};
 export const BASIS_HINT: Record<Basis, string> = {
   ros: "Yahoo'nun kalan sezon projeksiyonu (varsayılan)",
   season: "Bu sezonun gerçekleşen maç başı ortalamaları, kalan maçlara uygulanır (en az 3 maç; yoksa Yahoo)",
   recent: "Son 10 maçın ortalaması: rol değişimini en hızlı yansıtır (en az 3 maç)",
   blend: "Yahoo ile bu sezon arasında, oynanan maça göre ağırlık (10 maçta yarı yarıya)",
+  late: "Yahoo oranları; sakat oyuncular CBS'in \"en erken\" dönüş tarihinden bir süre sonra döner (senaryo, kalibre değil). " +
+    "Gerçekte oyuncuların çoğu en erken tarihte dönmüyor.",
 };
 
 const RATE_COLS: { key: CategoryKey; label: string }[] = [
@@ -97,7 +101,8 @@ export function TradeScenarios({ data, busy, current, onPick }: {
       </details>
       <p className="hint">Her temelde bütün lig (rakipler, boştakiler, IL dönüşünde kimin bırakılacağı) aynı oranlarla değerlenir; kalan maç
         sayısı hep Yahoo'nunkidir. Yahoo projeksiyonu yavaş güncellenir; bu sezon ve son maçlar rol değişimini hızlı yansıtır ama az maçta
-        gürültülüdür. Karma, oynanan maç arttıkça gerçekleşene yaslanır. Temeller aynı yönü gösteriyorsa karar sağlamdır; ayrışıyorsa
+        gürültülüdür. Karma, oynanan maç arttıkça gerçekleşene yaslanır. Geç dönüş oranları değiştirmez; sakat oyuncuların CBS'in "en erken"
+        tarihinden sonra döndüğü etiketli bir senaryodur (gün sayısı varsayım). Temeller aynı yönü gösteriyorsa karar sağlamdır; ayrışıyorsa
         sonuç hangi orana inandığına bağlıdır.</p>
     </>
   );

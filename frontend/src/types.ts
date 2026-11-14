@@ -41,6 +41,8 @@ export interface Meta {
   read_only?: boolean;
   /** Detaylı analiz (README §13.29): anahtar var mı, sunucuda erişim kodu gerekir mi. */
   report?: { available: boolean; needs_code: boolean };
+  /** Sakatlık dönüşü varsayımları (gün): her analizde eklenen gecikme ve "Geç dönüş" senaryosu. Doğrulanmadı. */
+  returns?: { delay_days: number; late_days: number };
 }
 
 /** Bileşen bazında veri güncelliği (``/api/freshness``). ``basis``: yaşın dayanağı — ``captured`` dosyadaki çekim
@@ -175,7 +177,8 @@ export interface TradeIn {
   basis?: Basis;
 }
 
-export type Basis = "ros" | "season" | "recent" | "blend";
+/** ``late``: Yahoo oranları, sakatlar en erken dönüş tarihinden ``meta.returns.late_days`` gün sonra döner (senaryo). */
+export type Basis = "ros" | "season" | "recent" | "blend" | "late";
 
 /** IL dönüş takvimi: kim döner, kim bırakılır (``self_cut``: dönen kadroya girmez). */
 export interface ReturnEvent {
