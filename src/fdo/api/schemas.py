@@ -72,6 +72,7 @@ class CompleteIn(TradeIn):
     max_extra: int = Field(default=3, ge=1, le=3)
     max_evaluations: int = Field(default=4000, ge=100, le=20000)
     rank: str = Field(default="own", pattern="^(own|joint)$")   # sıralama politikası (fdo.trade.suggest.RANKINGS)
+    lineup_rank: bool = True                        # finalistleri günlük kadro farkıyla yeniden sırala
 
 
 class SuggestIn(BaseModel):
@@ -134,6 +135,7 @@ class MultiSuggestIn(BaseModel):
     strategy: StrategyIn | None = None
     injuries: bool = True
     rank: str = Field(default="own", pattern="^(own|joint)$")   # sıralama politikası
+    lineup_rank: bool = True                        # finalistleri günlük kadro farkıyla yeniden sırala
 
 
 class WeeklyIn(BaseModel):

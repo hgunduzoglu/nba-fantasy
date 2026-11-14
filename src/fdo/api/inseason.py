@@ -81,7 +81,7 @@ def register(app: FastAPI, state: AppState) -> None:
         opp_strats = assumed_strategies(eng, body.opponent_assumption, opps)
         try:
             sizes = tuple(tuple(int(x) for x in p.split("x")) for p in body.packages)
-            sim = state.season_sim(lid, body.injuries) if body.lineup_rank else None
+            sim = state.season_sim(lid, body.injuries) if body.lineup_rank and body.rank == "own" else None
             opts = SearchOptions(sizes, body.shortlist, int(body.max_evaluations), 40 if sim else 20, body.min_fairness,
                                  body.min_gain, body.min_win / 100, body.auto_balance, body.ecw_weight,
                                  body.mode, body.perceived, body.min_balance, body.min_edge,
@@ -144,8 +144,10 @@ def register(app: FastAPI, state: AppState) -> None:
         team_check(eng, body.team_a)
         team_check(eng, body.team_b)
         sa, sb = _strategy(body.strategy_a, eng, body.team_a), _strategy(body.strategy_b, eng, body.team_b)
+        sim = state.season_sim(lid, body.injuries) if body.lineup_rank and body.rank == "own" else None
         try:
             opts = CompleteOptions(max_extra=body.max_extra, max_evaluations=body.max_evaluations,
+                                   max_results=24 if sim else 12,
                                    min_fairness=body.min_fairness, min_view=body.min_view, perceived=body.perceived,
                                    auto_balance=body.auto_balance, require_reason=body.require_reason,
                                    max_view=body.max_view, rank=body.rank)
@@ -156,8 +158,15 @@ def register(app: FastAPI, state: AppState) -> None:
         fixed = set(body.give_a) | set(body.give_b)
         pair = {body.team_a: sa, body.team_b: sb}
         plain_eng = engine(lid, body.injuries, False)
+        lineup: dict[int, object] = {}
+        if sim is not None:                     # README §13.47: günlük kadroyla yeniden sırala
+            listed = found.suggestions + ([found.current] if found.current else [])
+            ds = lineup_deltas(sim, eng, body.team_a, sa, listed)
+            lineup = {id(s): d for s, d in zip(listed, ds)}
+            found.suggestions, _ = rerank(found.suggestions, ds[:len(found.suggestions)], 12)
 
         def row(s):
+            lu = lineup.get(id(s))
             r = s.request
             rosters, adj, il = eng.resolve(r, pair)
             p, _ = eng.score(rosters, r.team_a, r.team_b, sa, sb, il)
@@ -166,6 +175,7 @@ def register(app: FastAPI, state: AppState) -> None:
                     "give_b": [{**_brief(eng, x), "added": x not in fixed} for x in r.give_b],
                     "tier": s.mode, "score": s.score, "own_delta": s.own_strategy_delta,
                     "own_delta_plain": plain[r.team_a]["strategy_delta"] if plain else None,
+                    "lineup_delta": lu.strategy if lu else None, "lineup_ecw_delta": lu.ecw if lu else None,
                     "other_delta": s.other_strategy_delta, "own_win": s.own_win_delta, "other_win": s.other_win_delta,
                     "fairness": s.fairness, "perceived_view": s.perceived_balance,
                     "acceptability": s.acceptability, "counterpart_reasons": list(s.counterpart_reasons),
@@ -179,7 +189,8 @@ def register(app: FastAPI, state: AppState) -> None:
                      "rejected_roster": found.rejected_roster, "rejected_reason": found.rejected_reason,
                      "rejected_overpay": found.rejected_overpay, "max_view": opts.max_view,
                      "limit_reached": found.limit_reached,
-                     "min_fairness": opts.min_fairness, "min_view": opts.min_view, "message": found.message})
+                     "min_fairness": opts.min_fairness, "min_view": opts.min_view, "message": found.message,
+                     "ranked_by": "lineup" if sim is not None else body.rank})
         out["decision_id"] = state.log_decision("recommendation", "trade_complete", lid, body.model_dump(),
                                                 summarize(out))
         return out

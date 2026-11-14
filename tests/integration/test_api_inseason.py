@@ -231,6 +231,9 @@ def test_multi_team_analyze_season_and_suggest(client):
     assert s["scanned"] > 0 and isinstance(s["suggestions"], list) and "1-1-1" in s["shapes"]
     for row in s["suggestions"]:
         assert all(t["strategy_delta"] >= 0 for t in row["teams"]) and len(row["moves"]) >= 3
+    assert s["ranked_by"] == "lineup" and len(s["suggestions"]) <= 20
+    lu = [row["lineup_delta"] for row in s["suggestions"] if row["lineup_delta"] is not None]
+    assert lu == sorted(lu, reverse=True)
     assert client.post("/api/leagues/L/trade/multi/suggest", json={"team": "1", "shapes": ["3-3-3"]}).status_code == 400
 
 
@@ -276,8 +279,14 @@ def test_trade_complete_endpoint(client):
     s = r["suggestions"][0]
     assert [p["added"] for p in s["give_a"]] == [False] and all(p["added"] for p in s["give_b"])
     assert set(s["my_categories"]) and s["tier"] in ("mutual", "own", "loss")
+    assert r["ranked_by"] == "lineup" and len(r["suggestions"]) <= 12
+    lu = [x["lineup_delta"] for x in r["suggestions"] if x["lineup_delta"] is not None]
+    assert lu and lu == sorted(lu, reverse=True)
     both = client.post("/api/leagues/L/trade/complete", json={**body, "give_b": ["4"]}).json()
     assert both["kind"] == "balance" and both["current"] is not None
+    assert both["current"]["lineup_delta"] is not None                     # seçili takasın kendisi de ölçülür
+    joint = client.post("/api/leagues/L/trade/complete", json={**body, "rank": "joint"}).json()
+    assert joint["ranked_by"] == "joint" and all(x["lineup_delta"] is None for x in joint["suggestions"])
     assert client.post("/api/leagues/L/trade/complete", json={**body, "give_a": []}).status_code == 400
 
 

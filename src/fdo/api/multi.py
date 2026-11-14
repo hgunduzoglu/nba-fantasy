@@ -8,6 +8,7 @@ from fdo.api.schemas import MultiSeasonIn, MultiSuggestIn, MultiTradeIn, Strateg
 from fdo.api.serialize import (assumed_strategies, brief, category_deltas, clean, fixture_changes, games_delta,
                                strategy_from)
 from fdo.api.state import AppState
+from fdo.inseason.lineup_rank import multi_lineup_deltas, rerank
 from fdo.trade import Strategy, TradeError
 from fdo.trade.data import MODES
 from fdo.trade.multi import (SHAPES, MultiSearchOptions, MultiTradeRequest, analyze_multi, resolve_multi,
@@ -122,28 +123,35 @@ def register(app: FastAPI, state: AppState) -> None:
         if body.team not in eng.league.rosters:
             raise HTTPException(404, f"Takım yok: {body.team}")
         opps = tuple(t for t in (body.opponents or eng.team_ids) if t != body.team)
+        sim = state.season_sim(lid, body.injuries) if body.lineup_rank and body.rank == "own" else None
         try:
             shapes = tuple(tuple(int(x) for x in s.split("-")) for s in body.shapes)
             opts = MultiSearchOptions(shapes, body.shortlist, min(body.shortlist4, body.shortlist),
                                       min_fairness=body.min_fairness, min_strategy_gain=body.min_gain,
                                       min_win_gain=body.min_win / 100, ecw_weight=body.ecw_weight,
-                                      min_opponent_view=body.min_view, rank=body.rank)
+                                      min_opponent_view=body.min_view, rank=body.rank,
+                                      max_results=40 if sim else 20)
             strategy = _strategy(body.strategy, eng, body.team)
             found = suggest_multi(eng, body.team, strategy=strategy,
                                   opponent_strategies=assumed_strategies(eng, body.opponent_assumption, opps),
                                   opponents=opps, options=opts)
         except (ValueError, TradeError) as e:
             raise HTTPException(400, str(e)) from e
+        lineups: list = [None] * len(found.suggestions)
+        if sim is not None:                     # README §13.47: günlük kadroyla yeniden sırala
+            found.suggestions, lineups = rerank(found.suggestions,
+                                                multi_lineup_deltas(sim, eng, body.team, found.suggestions), 20)
         names, teams = eng.data.players["name"], eng.league.teams
         po = state.playoff_games(lid, body.injuries)
         rows = []
-        for s in found.suggestions:
+        for s, lu in zip(found.suggestions, lineups):
             req = s.request
             rosters, adj, il = resolve_multi(eng, req, s.strategies)
             p, _ = eng.score_many(rosters, s.strategies, il)
             flow = value_flow(eng, req)
             rows.append({
                 "shape": "-".join(map(str, s.shape)), "shape_label": SHAPES[s.shape], "score": s.score,
+                "lineup_delta": lu.strategy if lu else None, "lineup_ecw_delta": lu.ecw if lu else None,
                 "fairness": s.fairness,
                 "moves": [{"player": brief(eng, pl), "from": a, "from_name": teams[a], "to": b, "to_name": teams[b]}
                           for pl, a, b in req.moves],
@@ -159,4 +167,5 @@ def register(app: FastAPI, state: AppState) -> None:
         return clean({"suggestions": rows, "strategy": {"name": strategy.name, "weights": list(strategy.weights)},
                       "scanned": found.scanned, "candidates": found.candidates, "evaluated": found.evaluated,
                       "eligible": found.eligible, "rejected_view": found.rejected_view, "message": found.message,
+                      "ranked_by": "lineup" if sim is not None else body.rank,
                       "shapes": {"-".join(map(str, k)): v for k, v in SHAPES.items()}})
