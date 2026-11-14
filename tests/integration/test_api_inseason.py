@@ -19,7 +19,7 @@ def client(data, tmp_path):  # noqa: F811
                   "losses": [2, 7, 4, 5], "ties": 0}).to_csv(tmp_path / "standings.csv", index=False)
     app = create_app(data_dir=tmp_path, frontend_dir=tmp_path / "yok")
     st = app.state.fdo
-    st.data = lambda injuries=True: data
+    st.data = lambda injuries=True, delay=None: data
     st.signature = lambda: "test"
     return TestClient(app)
 
@@ -27,7 +27,7 @@ def client(data, tmp_path):  # noqa: F811
 def test_roster_marks_durability_cut(data, tmp_path):  # noqa: F811
     data.stats["preseason"].loc["0", "gp"] = 41.0
     app = create_app(data_dir=tmp_path, frontend_dir=tmp_path / "yok")
-    app.state.fdo.data = lambda injuries=True: apply_durability(data)
+    app.state.fdo.data = lambda injuries=True, delay=None: apply_durability(data)
     app.state.fdo.signature = lambda: "test"
     c = TestClient(app)
     p = next(x for x in c.get("/api/leagues/L/roster/1").json()["players"] if x["id"] == "0")
@@ -120,7 +120,7 @@ def test_drops_need_when_roster_is_full(data, tmp_path):  # noqa: F811
     data.leagues["L"] = dataclasses.replace(lg, rosters={**lg.rosters, "1": lg.rosters["1"] + ("16",)},
                                             injury_rosters={**lg.injury_rosters, "1": frozenset({"16"})})
     app = create_app(data_dir=tmp_path, frontend_dir=tmp_path / "yok")
-    app.state.fdo.data = lambda injuries=True: data
+    app.state.fdo.data = lambda injuries=True, delay=None: data
     app.state.fdo.signature = lambda: "test"
     r = TestClient(app).post("/api/leagues/L/adddrop/drops", json={"team": "1", "week": 3}).json()
     assert r["capacity"] == 4 and r["active_count"] == 4 and r["activate"] == ["16"] and r["need"] == 1
@@ -278,10 +278,13 @@ def test_trade_complete_endpoint(client):
 def test_trade_scenarios_and_basis(client):
     body = {"team_a": "1", "team_b": "2", "give_a": ["0"], "give_b": ["4"]}
     s = client.post("/api/leagues/L/trade/scenarios", json=body).json()
-    assert [b["basis"] for b in s["bases"]] == ["ros", "season", "recent", "blend"]
+    assert [b["basis"] for b in s["bases"]] == ["ros", "season", "recent", "blend", "late"]
+    assert s["bases"][-1]["label"] == "Geç dönüş (+7 gün)"                     # etiketli senaryo, oran değiştirmez
     assert {p["id"] for p in s["players"]} == {"0", "4"} and set(s["players"][0]["rates"]) == {"ros", "season", "recent", "blend"}
     a = client.post("/api/leagues/L/trade/analyze", json={**body, "basis": "season"}).json()
     assert a["basis"] == "season" and isinstance(a["teams"]["a"]["returns"], list)
+    assert client.post("/api/leagues/L/trade/analyze", json={**body, "basis": "late"}).status_code == 200
+    assert client.get("/api/meta").json()["returns"] == {"delay_days": 0, "late_days": 7}
     assert client.post("/api/leagues/L/trade/analyze", json={**body, "basis": "uydurma"}).status_code == 422
 
 

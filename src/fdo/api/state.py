@@ -18,7 +18,7 @@ from fdo.evaluation.decisions import DecisionLog
 from fdo.ingest.archive import content_signature, latest as latest_batch
 from fdo.inseason.durability import apply_durability
 from fdo.inseason.fixtures import load_fixtures
-from fdo.inseason.injuries import latest_file, with_injuries
+from fdo.inseason.injuries import latest_file, return_assumptions, with_injuries
 from fdo.inseason.live import LiveLeague, load_live
 from fdo.inseason.roles import RoleBoost, load_logs, role_boosts
 from fdo.inseason.scenarios import basis_data
@@ -78,16 +78,21 @@ class AppState:
     def injury_file(self) -> Path | None:
         return latest_file(self.data_dir)
 
-    def data(self, injuries: bool = True) -> TradeData:
-        """Yahoo verisi + (istenirse) sakatlık dönüş tarihleri + dayanıklılık (kalan sezon maçı oynama oranıyla)."""
+    def data(self, injuries: bool = True, delay: int | None = None) -> TradeData:
+        """Yahoo verisi + (istenirse) sakatlık dönüş tarihleri + dayanıklılık (kalan sezon maçı oynama oranıyla).
+        ``delay``: en erken dönüş tarihine eklenen gün (``None``: ``config/returns.yaml``, varsayılan 0)."""
         sig = self.signature()
         base = self._get(("data", sig), lambda: load_trade_data(self.data_dir))
         if not injuries:
             return self._get(("data_dur", sig), lambda: apply_durability(base))
-        return self._get(("data_inj", sig), lambda: apply_durability(with_injuries(base, self.data_dir)))
+        return self._get(("data_inj", sig, delay),
+                         lambda: apply_durability(with_injuries(base, self.data_dir, delay)))
 
     def basis_data(self, injuries: bool = True, basis: str = "ros") -> TradeData:
-        """``data`` + kalan sezon oranlarının temeli (``fdo.inseason.scenarios``; ``ros`` = Yahoo projeksiyonu)."""
+        """``data`` + kalan sezon oranlarının temeli (``fdo.inseason.scenarios``; ``ros`` = Yahoo projeksiyonu,
+        ``late`` = Yahoo oranları ve gecikmeli sakatlık dönüşü)."""
+        if basis == "late":
+            return self.data(injuries, delay=return_assumptions()["late_days"])
         base = self.data(injuries)
         if basis == "ros":
             return base

@@ -17,7 +17,8 @@ from fdo.api.state import SOURCES, AppState
 from fdo.config import REPO_ROOT
 from fdo.evaluation.decisions import reconcile
 from fdo.ingest.freshness import report as freshness_report
-from fdo.inseason.scenarios import BASES, per_game_rates
+from fdo.inseason.injuries import return_assumptions
+from fdo.inseason.scenarios import BASES, RATE_BASES, per_game_rates
 from fdo.trade import TradeError, TradeRequest
 from fdo.trade.perception import perceived_prices
 
@@ -57,7 +58,10 @@ def scenario_rows(engine_for, body: TradeIn) -> tuple[list[dict], dict[str, dict
     """Takası her istatistik temelinde değerlendirir (README §13.28). ``engine_for(basis)`` o temelin motorunu verir.
     Dönüş: temel başına iki tarafın farkları ve IL dönüş takvimi; oyuncu başına temellerdeki maç başı oranlar."""
     bases, players = [], {p: {} for p in [*body.give_a, *body.give_b]}
+    late = return_assumptions()["late_days"]
     for basis, label in BASES.items():
+        if basis == "late":
+            label = f"{label} (+{late} gün)"
         eng = engine_for(basis)
         try:
             sa, sb = _strategies(eng, body)
@@ -74,8 +78,9 @@ def scenario_rows(engine_for, body: TradeIn) -> tuple[list[dict], dict[str, dict
                        "returns": return_timeline(eng, result.rosters_after[tid], il[tid], st, inc)}
         bases.append({"basis": basis, "label": label, "fairness": result.assessments["fairness_ratio"],
                       "mutual": result.assessments["mutual_benefit"], **side})
-        for x in players:
-            players[x][basis] = per_game_rates(eng.data, x)
+        if basis in RATE_BASES:
+            for x in players:
+                players[x][basis] = per_game_rates(eng.data, x)
     return bases, players
 
 
@@ -111,7 +116,7 @@ def create_app(data_dir: str | Path | None = None, frontend_dir: str | Path | No
                                   "preseason": "Sezon öncesi projeksiyon"},
                       "presets": presets(), "injury_file": inj.name if inj else None,
                       "issues": list(data.issues), "read_only": read_only,
-                      "report": report_status(read_only)})
+                      "report": report_status(read_only), "returns": return_assumptions()})
 
     @app.get("/api/leagues/{lid}/roster/{tid}")
     def roster(lid: str, tid: str, source: str = Query("ros", pattern="^(ros|season|preseason)$"),

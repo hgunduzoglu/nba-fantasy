@@ -12,7 +12,7 @@ from unit.test_trade import trade_data  # noqa: E402,F401  paylaşılan sentetik
 def client(trade_data, tmp_path):  # noqa: F811
     app = create_app(data_dir=tmp_path, frontend_dir=tmp_path / "yok")
     state = app.state.fdo
-    state.data = lambda injuries=True: trade_data
+    state.data = lambda injuries=True, delay=None: trade_data
     state.signature = lambda: "test"
     return TestClient(app)
 

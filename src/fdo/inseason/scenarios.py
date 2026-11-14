@@ -10,6 +10,9 @@ kimin bırakılacağı):
   ``min_games`` maç; yoksa bu sezon, o da yoksa Yahoo).
 * ``blend`` — Yahoo ile bu sezon arasında, oynanan maça göre ağırlık ``n / (n + prior_games)`` (10 maçta yarı yarıya):
   az maçta projeksiyona, maç biriktikçe gerçekleşene yaslanır.
+* ``late`` — oranlar Yahoo'nunki; sakat oyuncular CBS'in en erken dönüş tarihinden ``late_days`` gün sonra döner
+  (``fdo.inseason.injuries.return_assumptions``; etiketli senaryo, kalibre değil). Veri ``AppState.basis_data`` içinde
+  gecikmeli sakatlık tablosuyla kurulur; bu modüldeki oranlar ``ros`` ile aynıdır.
 """
 
 from __future__ import annotations
@@ -22,7 +25,10 @@ from fdo.inseason.roles import match_ids
 from fdo.trade.data import ROS, TradeData
 from fdo.types import STATS
 
-BASES = {"ros": "Yahoo projeksiyonu", "season": "Bu sezonki oranlar", "recent": "Son 10 maç", "blend": "Karma"}
+BASES = {"ros": "Yahoo projeksiyonu", "season": "Bu sezonki oranlar", "recent": "Son 10 maç", "blend": "Karma",
+         "late": "Geç dönüş"}
+#: Oranı değiştiren temeller (``late`` yalnız dönüş tarihini değiştirir).
+RATE_BASES = ("ros", "season", "recent", "blend")
 MIN_GAMES = 3
 RECENT_GAMES = 10
 PRIOR_GAMES = 10
@@ -39,7 +45,7 @@ def basis_rates(data: TradeData, basis: str, logs: pd.DataFrame | None = None, *
     if basis not in BASES:
         raise ValueError(f"Bilinmeyen değerlendirme temeli: {basis}")
     ros = data.stats[ROS]
-    if basis == "ros":
+    if basis in ("ros", "late"):
         return ros
     yahoo = _per_game(ros)
     season = data.stats["season_total"].reindex(ros.index)
