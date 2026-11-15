@@ -170,7 +170,7 @@ class SeasonSim:
             items = [(t, tuple(rosters[t]), eng._il(t, rosters[t], injuries), Strategy()) for t in rest]
             moved = eng.joint_waiver(items, taken=taken)
             for t, r, il, _ in items:
-                out[t] = RosterPlan(tuple(moved[t][0]), il, tuple(moved[t][1]), r, eng.budget(t))
+                out[t] = eng.roster_plan(t, r, il, moved[t][1])
         return out
 
     def with_waivers(self, rosters: dict[str, tuple[str, ...]], injuries: dict[str, frozenset[str]] | None = None,
@@ -186,17 +186,19 @@ class SeasonSim:
                injuries: dict[str, frozenset[str]] | None = None) -> dict[str, frozenset[str]]:
         return {t: self.engine._il(t, rosters[t], injuries) for t in self.teams}
 
-    def drop_schedule(self, roster: tuple[str, ...], il: frozenset[str]) -> dict[str, dt.date]:
+    def drop_schedule(self, roster: tuple[str, ...], il: frozenset[str],
+                      strategy: Strategy | None = None) -> dict[str, dt.date]:
         """IL dönüşünde kadrodan çıkan oyuncu → çıktığı gün (``TradeEngine.crunch_vector`` ile aynı kural,
-        dengeli değerle). Dönen oyuncu bırakılırsa kendisi listededir (hiç aktifleşmez)."""
-        key = (tuple(sorted(roster)), tuple(sorted(il)))
+        takımın stratejisine göre). Dönen oyuncu bırakılırsa kendisi listededir (hiç aktifleşmez)."""
+        strategy = strategy or Strategy()
+        key = (tuple(sorted(roster)), tuple(sorted(il)), strategy)
         if key in self._drop_cache:
             return self._drop_cache[key]
         eng = self.engine
         back = [p for p in il if p in set(roster) and eng.modeled[eng.index[p]] and eng.return_share(p) > 0]
         gone: dict[str, dt.date] = {}
         if back:
-            u = eng._utility_array(Strategy())
+            u = eng._utility_array(strategy)
             ret = {p: self.model.return_date.get(p) or self.as_of + dt.timedelta(days=7) for p in back}
             active = [p for p in roster if p not in il]
             free = self.league.capacity - len(active)
@@ -228,9 +230,11 @@ class SeasonSim:
             self._past_cache[key] = self.model.team_week(team, stints, days).vector if days else np.zeros(WEEK_DIM)
         return self._past_cache[key]
 
-    def vector(self, team: str, roster: tuple[str, ...], week: int, il: frozenset[str] | None = None) -> np.ndarray:
+    def vector(self, team: str, roster: tuple[str, ...], week: int, il: frozenset[str] | None = None,
+               strategy: Strategy | None = None) -> np.ndarray:
         il = self.engine._il(team, roster) if il is None else frozenset(il)
-        key = (team, tuple(sorted(roster)), tuple(sorted(il)), week)
+        strategy = strategy or Strategy()
+        key = (team, tuple(sorted(roster)), tuple(sorted(il)), week, strategy)
         if key not in self._vec_cache:
             if len(self._vec_cache) > 50_000:
                 self._vec_cache.clear()
@@ -238,7 +242,7 @@ class SeasonSim:
             days = self.weeks.days(week)
             if current:
                 days = [d for d in days if d >= self.as_of]
-            gone = self.drop_schedule(roster, il)
+            gone = self.drop_schedule(roster, il, strategy)
             stints = []
             for p in roster:
                 if current and p in il:
@@ -249,14 +253,15 @@ class SeasonSim:
                     if last < 0:
                         continue
                 stints.append(Stint(p, last=last, slot=len(stints)))
-            tw = self.model.team_week(team, stints, days, use_status=current)
+            tw = self.model.team_week(team, stints, days, use_status=current, strategy=strategy)
             self._vec_cache[key] = tw.vector + self._past(team, week) if current else tw.vector
         return self._vec_cache[key]
 
     def week_vectors(self, rosters: dict[str, tuple[str, ...]], week: int,
-                     il: dict[str, frozenset[str]] | None = None) -> np.ndarray:
+                     il: dict[str, frozenset[str]] | None = None,
+                     strategies: dict[str, Strategy] | None = None) -> np.ndarray:
         il = il or self.il_map(rosters)
-        return np.stack([self.vector(t, rosters[t], week, il[t]) for t in self.teams])
+        return np.stack([self.vector(t, rosters[t], week, il[t], (strategies or {}).get(t)) for t in self.teams])
 
     def fixture_outlook(self, team: str, rosters: dict[str, tuple[str, ...]] | None = None,
                         injuries: dict[str, frozenset[str]] | None = None) -> pd.DataFrame:
@@ -306,7 +311,7 @@ class SeasonSim:
         if not weeks:
             return None
         rosters, now, il = self._scored(dict(rosters or self.league.rosters), injuries, first, strategies)
-        return np.mean([self._week_profile(self.week_vectors(now if w == self.current_week else rosters, w, il))
+        return np.mean([self._week_profile(self.week_vectors(now if w == self.current_week else rosters, w, il, strategies))
                         for w in weeks], axis=0)
 
     # ------------------------------------------------------------- simülasyon
@@ -345,7 +350,7 @@ class SeasonSim:
         start = self.done + 1
         profile, n_weeks = 0.0, 0
         for w in [w for w in self.regular if w >= start]:
-            V = self.week_vectors(now if w == self.current_week else rosters, w, il)
+            V = self.week_vectors(now if w == self.current_week else rosters, w, il, strategies)
             profile = profile + self._week_profile(V)
             n_weeks += 1
             pairs = self.pairs.get(w, [])
@@ -365,7 +370,7 @@ class SeasonSim:
         order = np.argsort(-(pct + 1e-9 * rng.random((S, T))), axis=1, kind="stable")    # eşitlikte rastgele
         seeds = np.empty((S, T), dtype=int)
         np.put_along_axis(seeds, order, np.arange(1, T + 1)[None, :].repeat(S, 0), axis=1)
-        champion = self._playoffs(rosters, seeds, rng, S, lam, il)
+        champion = self._playoffs(rosters, seeds, rng, S, lam, il, strategies)
         n = self.playoff_size
         rounds = len(self.playoff_weeks)
         byes = max(0, 2 ** rounds - n) if rounds else 0
@@ -400,7 +405,7 @@ class SeasonSim:
         return out
 
     def _playoffs(self, rosters, seeds: np.ndarray, rng: np.random.Generator, S: int, lam: np.ndarray,
-                  il: dict[str, frozenset[str]]) -> np.ndarray:
+                  il: dict[str, frozenset[str]], strategies: dict[str, Strategy] | None = None) -> np.ndarray:
         T = len(self.teams)
         champion = np.zeros((S, T), dtype=bool)
         n, rounds = self.playoff_size, len(self.playoff_weeks)
@@ -415,7 +420,7 @@ class SeasonSim:
         current = bracket_order(size) if not self.reseed else list(range(1, size + 1))
         cur = np.array(current)[None, :].repeat(S, 0)                                     # (S, k) seed
         for r, week in enumerate(self.playoff_weeks):
-            V = self.week_vectors(rosters, week, il)
+            V = self.week_vectors(rosters, week, il, strategies)
             if self.reseed:
                 cur = np.sort(cur, axis=1)
                 k = cur.shape[1]

@@ -8,7 +8,7 @@ from fdo.api.schemas import MultiSeasonIn, MultiSuggestIn, MultiTradeIn, Strateg
 from fdo.api.serialize import (assumed_strategies, brief, category_deltas, clean, fixture_changes, games_delta,
                                strategy_from)
 from fdo.api.state import AppState
-from fdo.inseason.lineup_rank import multi_lineup_deltas, rerank
+from fdo.inseason.lineup_rank import multi_lineup_deltas, ranked_method, rerank
 from fdo.trade import Strategy, TradeError
 from fdo.trade.data import MODES
 from fdo.trade.multi import (SHAPES, MultiSearchOptions, MultiTradeRequest, analyze_multi, resolve_multi,
@@ -145,6 +145,16 @@ def register(app: FastAPI, state: AppState) -> None:
         po = state.playoff_games(lid, body.injuries)
         rows = []
         for s, lu in zip(found.suggestions, lineups):
+            if lu is not None and lu.strategy <= 1e-8:
+                continue
+            measured = lu is not None and all(t in lu.teams for t in s.request.teams)
+            requested = body.lineup_rank and body.rank == "own"
+            if measured:
+                decision = "mutual" if all(v > 1e-8 for v in lu.teams.values()) else "own"
+            elif requested:
+                decision = "unmeasured"
+            else:
+                decision = "mutual" if all(m["strategy_delta"] > 1e-8 for m in s.metrics.values()) else "own"
             req = s.request
             rosters, adj, il = resolve_multi(eng, req, s.strategies)
             p, _ = eng.score_many(rosters, s.strategies, il)
@@ -152,11 +162,13 @@ def register(app: FastAPI, state: AppState) -> None:
             rows.append({
                 "shape": "-".join(map(str, s.shape)), "shape_label": SHAPES[s.shape], "score": s.score,
                 "lineup_delta": lu.strategy if lu else None, "lineup_ecw_delta": lu.ecw if lu else None,
+                "decision": decision, "evaluation_method": "lineup" if measured else "fast_fallback" if requested else "fast",
                 "fairness": s.fairness,
                 "moves": [{"player": brief(eng, pl), "from": a, "from_name": teams[a], "to": b, "to_name": teams[b]}
                           for pl, a, b in req.moves],
                 "teams": [{"team_id": t, "team": teams[t], "strategy": s.strategies[t].name,
                            "weights": list(s.strategies[t].weights), "strategy_delta": s.metrics[t]["strategy_delta"],
+                           "lineup_delta": lu.teams.get(t) if lu else None,
                            "win_delta": s.metrics[t]["win_delta"], "ecw_delta": s.metrics[t]["ecw_delta"],
                            "value_in": flow[t][0], "value_out": flow[t][1],
                            "playoff_games": games_delta(po, eng.league.rosters[t], rosters[t]),
@@ -167,5 +179,5 @@ def register(app: FastAPI, state: AppState) -> None:
         return clean({"suggestions": rows, "strategy": {"name": strategy.name, "weights": list(strategy.weights)},
                       "scanned": found.scanned, "candidates": found.candidates, "evaluated": found.evaluated,
                       "eligible": found.eligible, "rejected_view": found.rejected_view, "message": found.message,
-                      "ranked_by": "lineup" if sim is not None else body.rank,
+                      "ranked_by": ranked_method(lineups, body.lineup_rank and body.rank == "own", body.rank),
                       "shapes": {"-".join(map(str, k)): v for k, v in SHAPES.items()}})

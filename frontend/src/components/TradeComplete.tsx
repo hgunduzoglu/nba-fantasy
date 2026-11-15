@@ -14,6 +14,7 @@ const TIER: Record<CompleteTier, { label: string; cls: string; tip: string }> = 
   own: { label: "sen kazanırsın", cls: "q",
          tip: "Model rakibin kaybettiğini söylüyor; rakip kendi gözünde (draft fiyatı + bu sezon) eşit ya da fazla aldığı için kabul edebilir" },
   loss: { label: "sen kaybedersin", cls: "out", tip: "Bu eşiklerde senin puanın artmıyor" },
+  unmeasured: { label: "koşullu · hızlı model", cls: "q", tip: "Günlük kadro etkisi ölçülemedi; rakamlar hızlı modelden. Karşılıklı fayda doğrulanmadı." },
 };
 
 export const sameIds = (set: Set<string>, ids: string[]) => set.size === ids.length && ids.every((x) => set.has(x));
@@ -114,10 +115,10 @@ export function TradeComplete({ data, busy, error, base, oppName, labels, mobile
           <>
             {data.current && (
               <div className="banner">
-                Şu anki seçim: <Tier t={data.current.tier} /> · sen <b className={sign(data.current.own_delta)}>{fmtDelta(data.current.own_delta, 3)}</b>
+                Şu anki seçim: <Tier t={data.current.tier} /> · hızlı model: sen <b className={sign(data.current.own_delta)}>{fmtDelta(data.current.own_delta, 3)}</b>
                 {data.current.lineup_delta != null && <>{" "}· günlük kadroyla <b className={sign(data.current.lineup_delta)}>{fmtDelta(data.current.lineup_delta, 3)}</b></>}
                 <LineupWarnBadge own={data.current.own_delta} lineup={data.current.lineup_delta} />
-                {" "}· {oppName} <b className={sign(data.current.other_delta)}>{fmtDelta(data.current.other_delta, 3)}</b>
+                {" "}· {oppName} ({data.current.other_lineup_delta != null ? "günlük kadro" : "hızlı model"}) <b className={sign(data.current.other_lineup_delta ?? data.current.other_delta)}>{fmtDelta(data.current.other_lineup_delta ?? data.current.other_delta, 3)}</b>
                 {" "}· değer dengesi <b>{fmtPct(data.current.fairness)}</b> · rakibin gözünde <b>{fmtNum(data.current.perceived_view, 2)}</b>
                 {" "}· rakip için gerekçe <AcceptBadge level={data.current.acceptability} reasons={data.current.counterpart_reasons} />
               </div>
@@ -133,9 +134,9 @@ export function TradeComplete({ data, busy, error, base, oppName, labels, mobile
                     <div className="m-line"><span className="m-lbl drop">Ver</span><Pkg players={r.give_a} /></div>
                     <div className="m-line"><span className="m-lbl add">Al</span><Pkg players={r.give_b} /></div>
                     <div className="m-line">
-                      <span className="m-kv">sen <b className={sign(r.own_delta)}>{fmtDelta(r.own_delta, 3)}</b></span>
+                      <span className="m-kv">sen (hızlı) <b className={sign(r.own_delta)}>{fmtDelta(r.own_delta, 3)}</b></span>
                       {r.lineup_delta != null && <span className="m-kv">günlük kadro <b className={sign(r.lineup_delta)}>{fmtDelta(r.lineup_delta, 3)}</b></span>}
-                      <span className="m-kv">rakip <b className={sign(r.other_delta)}>{fmtDelta(r.other_delta, 3)}</b></span>
+                      <span className="m-kv">rakip ({r.other_lineup_delta != null ? "günlük" : "hızlı"}) <b className={sign(r.other_lineup_delta ?? r.other_delta)}>{fmtDelta(r.other_lineup_delta ?? r.other_delta, 3)}</b></span>
                       <span className="m-kv">denge <b>{fmtPct(r.fairness)}</b></span>
                       <span className="m-kv">gözünde <b>{fmtNum(r.perceived_view, 2)}</b></span>
                       <span className="m-kv">kabul <AcceptBadge level={r.acceptability} reasons={r.counterpart_reasons} /> <ComponentBadges c={r.components} /></span>
@@ -155,9 +156,9 @@ export function TradeComplete({ data, busy, error, base, oppName, labels, mobile
                 <table className="data">
                   <thead><tr>
                     <th className="l">Tür</th><th className="l">Veriyorsun</th><th className="l">Alıyorsun</th>
-                    <th title="Senin stratejine göre kalan sezon puanı değişimi (hızlı puan)">Sen Δ</th>
+                    <th title="Senin stratejine göre kalan sezon puanı değişimi (hızlı puan)">Sen hızlı Δ</th>
                     <th title="Aynı fark, kalan normal sezonda haftalık modelin günlük kadro atamasıyla (pozisyon ve maç çakışmaları dahil). Varsayılan sıra buna göre.">Günlük kadro Δ</th>
-                    <th title="Rakibin stratejisine göre">Rakip Δ</th>
+                    <th title="Rakibin stratejisine göre günlük kadro farkı; ölçülemediyse hızlı model">Rakip son Δ</th>
                     <th title="Haftayı kazanma P(5+) değişimi, ortalama rakibe karşı">Sen P(5+)</th>
                     <th title="Küçük paket / büyük paket: modelin kalan sezon değerinde ya da menajerlerin algıladığı değerde (draft fiyatı + bu sezon), hangisi yüksekse">Değer dengesi</th>
                     <th title="Rakibin gözünden (bu sezon + isim değeri, yani draft fiyatı): aldığı / verdiği. 1 = eşit görür.">Rakibin gözünde</th>
@@ -174,7 +175,7 @@ export function TradeComplete({ data, busy, error, base, oppName, labels, mobile
                         <td className="l wrap"><Pkg players={r.give_b} /></td>
                         <td className={deltaClass(r.own_delta, 0.3)}>{fmtDelta(r.own_delta, 3)}</td>
                         <LineupCell d={r.lineup_delta} />
-                        <td className={deltaClass(r.other_delta, 0.3)}>{fmtDelta(r.other_delta, 3)}</td>
+                        <td className={deltaClass(r.other_lineup_delta ?? r.other_delta, 0.3)} title={r.other_lineup_delta != null ? "Günlük kadro" : "Hızlı model"}>{fmtDelta(r.other_lineup_delta ?? r.other_delta, 3)}</td>
                         <td>{fmtDelta(r.own_win * 100, 1)}</td>
                         <td>{fmtPct(r.fairness)}</td>
                         <td>{fmtNum(r.perceived_view, 2)}</td>

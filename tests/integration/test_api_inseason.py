@@ -201,7 +201,8 @@ def test_suggest_rows_carry_category_playoff_and_view_details(client):
             "FG_PCT", "FT_PCT", "FG3M", "PTS", "REB", "AST", "STL", "BLK", "TOV"}
         assert isinstance(s["playoff_games"], int) and s["position_gap"] >= 0
         assert s["perceived_view"] is None or s["perceived_view"] > 0
-    assert r["ranked_by"] == "lineup" and len(r["suggestions"]) <= 20      # finalistler günlük kadroyla sıralı
+    assert r["ranked_by"] in ("lineup", "fast_fallback") and len(r["suggestions"]) <= 20
+    assert r["ranked_by"] == "lineup" or not r["suggestions"]             # boş listede ölçüm iddiası yok
     lu = [s["lineup_delta"] for s in r["suggestions"] if s["lineup_delta"] is not None]
     assert lu == sorted(lu, reverse=True)
     fast = client.post("/api/leagues/L/trade/suggest", json={"team": "1", "max_evaluations": 300, "min_fairness": 0.1,
@@ -231,7 +232,8 @@ def test_multi_team_analyze_season_and_suggest(client):
     assert s["scanned"] > 0 and isinstance(s["suggestions"], list) and "1-1-1" in s["shapes"]
     for row in s["suggestions"]:
         assert all(t["strategy_delta"] >= 0 for t in row["teams"]) and len(row["moves"]) >= 3
-    assert s["ranked_by"] == "lineup" and len(s["suggestions"]) <= 20
+    assert s["ranked_by"] in ("lineup", "fast_fallback") and len(s["suggestions"]) <= 20
+    assert s["ranked_by"] == "lineup" or not s["suggestions"]
     lu = [row["lineup_delta"] for row in s["suggestions"] if row["lineup_delta"] is not None]
     assert lu == sorted(lu, reverse=True)
     assert client.post("/api/leagues/L/trade/multi/suggest", json={"team": "1", "shapes": ["3-3-3"]}).status_code == 400
@@ -288,6 +290,46 @@ def test_trade_complete_endpoint(client):
     joint = client.post("/api/leagues/L/trade/complete", json={**body, "rank": "joint"}).json()
     assert joint["ranked_by"] == "joint" and all(x["lineup_delta"] is None for x in joint["suggestions"])
     assert client.post("/api/leagues/L/trade/complete", json={**body, "give_a": []}).status_code == 400
+
+
+@pytest.mark.parametrize("own,other,tier", [(-.1, .2, "loss"), (.2, -.1, "own"), (.2, .1, "mutual")])
+def test_completion_final_tier_and_reasons_use_both_lineup_gains(client, monkeypatch, own, other, tier):
+    from fdo.inseason.lineup_rank import LineupDelta
+    monkeypatch.setattr("fdo.api.inseason.lineup_deltas", lambda sim, eng, team, strategy, rows:
+                        [LineupDelta(own, own, {"1": own, "2": other}) for _ in rows])
+    body = {"team_a": "1", "team_b": "2", "give_a": ["0"], "give_b": ["4"],
+            "min_fairness": 0, "min_view": 0, "max_evaluations": 100}
+    out = client.post("/api/leagues/L/trade/complete", json=body).json()
+    row = out["current"]
+    assert row["tier"] == tier and row["decision"] == tier and row["evaluation_method"] == "lineup"
+    assert row["other_lineup_delta"] == other
+    assert row["components"]["opponent"]["strategy_delta"] == other
+    assert ("kaybediyor" in row["counterpart_reasons"][0]) == (other < 0)
+
+
+def test_completion_unmeasured_results_do_not_claim_mutual_benefit(client, monkeypatch):
+    monkeypatch.setattr("fdo.api.inseason.lineup_deltas", lambda sim, eng, team, strategy, rows: [None for _ in rows])
+    out = client.post("/api/leagues/L/trade/complete", json={"team_a": "1", "team_b": "2", "give_a": ["0"],
+        "give_b": ["4"], "min_fairness": 0, "min_view": 0, "max_evaluations": 100}).json()
+    assert out["ranked_by"] == "fast_fallback"
+    assert out["current"]["tier"] == "unmeasured" and out["current"]["evaluation_method"] == "fast_fallback"
+
+
+@pytest.mark.parametrize("own,other,keep", [(-.1, .2, False), (.2, -.1, False), (.2, .1, True)])
+def test_mutual_recommendations_must_survive_both_final_lineup_checks(client, monkeypatch, own, other, keep):
+    from fdo.inseason.lineup_rank import LineupDelta
+    from fdo.trade import Strategy, TradeRequest
+    from fdo.trade.suggest import SearchResult, Suggestion
+    s = Suggestion(TradeRequest("1", "2", ("0",), ("4",)), .2, .2, .2, .1, .1, 1, Strategy(),
+                   perceived_balance=1.0, acceptability="high")
+    monkeypatch.setattr("fdo.api.inseason.suggest_trades", lambda *a, **kw: SearchResult(suggestions=[s]))
+    monkeypatch.setattr("fdo.api.inseason.lineup_deltas", lambda *a: [LineupDelta(own, own, {"1": own, "2": other})])
+    out = client.post("/api/leagues/L/trade/suggest", json={"team": "1"}).json()
+    assert bool(out["suggestions"]) == keep
+    if keep:
+        row = out["suggestions"][0]
+        assert row["decision"] == "mutual" and row["evaluation_method"] == "lineup"
+        assert row["components"]["opponent"]["strategy_delta"] == other
 
 
 def test_trade_scenarios_and_basis(client):

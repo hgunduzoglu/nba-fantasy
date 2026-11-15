@@ -304,7 +304,8 @@ def apply_injuries(data: TradeData, injuries: pd.DataFrame, source: str = SOURCE
                                issues=(*data.issues, note))
 
 
-def with_injuries(data: TradeData, directory: str | Path, delay: int | None = None) -> TradeData:
+def with_injuries(data: TradeData, directory: str | Path, delay: int | None = None, *,
+                  config_path: str | Path | None = None) -> TradeData:
     """En yeni ``injuries_cbs_*.csv`` varsa eşleştirip uygular; yoksa ya da eşleşme yoksa ``data`` aynen döner.
     ``delay``: en erken dönüş tarihine eklenen gün (``None``: ``return_delay()`` ve ölçülmüş gecikme dağılımı
     ``return_pmf()``; açık gün verilirse (ör. "geç dönüş" senaryosu) tarih kaydırılır, dağılım kullanılmaz)."""
@@ -317,8 +318,8 @@ def with_injuries(data: TradeData, directory: str | Path, delay: int | None = No
     note = f"{report.note()} ({path.name})"
     if matched.empty:
         return dataclasses.replace(data, issues=(*data.issues, note))
-    pmf = return_pmf() if delay is None else None
-    delay = (0 if pmf else return_delay()) if delay is None else max(0, int(delay))
+    pmf = return_pmf(config_path) if delay is None else None
+    delay = (0 if pmf else return_delay(config_path)) if delay is None else max(0, int(delay))
     matched = shift_returns(matched, delay)
     when = ("CBS'in en erken tarihinden sonra ölçülmüş gecikme dağılımı (beklenen değer; "
             + ", ".join(f"{k}{'+' if k == max(pmf) else ''} maç %{100 * v:.0f}" for k, v in pmf.items() if v >= .005)

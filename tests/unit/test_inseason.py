@@ -166,16 +166,18 @@ def test_questionable_and_return_distribution_weight_the_games(data):
     import dataclasses
     from fdo.inseason.injuries import apply_injuries
     from fdo.inseason.weekly import Stint
+    from fdo.matchup.player_week import attendance_vectors
     data.players.loc["0", "injury_status"] = "Q"
     eng = TradeEngine(data, "L", utilization=1)
-    stints = [Stint(p, slot=k) for k, p in enumerate(eng.league.rosters["1"])]
+    stints = [Stint("0")]
     full = WeekModel(eng, questionable=1.0).team_week("1", stints, WEEK3)
     half = WeekModel(eng, questionable=.5).team_week("1", stints, WEEK3)
     m = WeekModel(eng, questionable=.5)
     i, nxt = eng.index["0"], min(d for d in WEEK3 if m.has_game("0", d))
     assert m.play_weight["0"] == {nxt: .5}
-    if half.slots[WEEK3.index(nxt), 0] >= 0:                                 # ilk maçta kadroda: yarısı sayılır
-        np.testing.assert_allclose(full.vector - half.vector, .5 * m.availability[i] * m.unit[i])
+    assert half.slots[WEEK3.index(nxt), 0] >= 0
+    expected = attendance_vectors(m.unit[i], m.availability[i]) - attendance_vectors(m.unit[i], .5 * m.availability[i])
+    np.testing.assert_allclose(full.vector - half.vector, expected, atol=1e-10)
     # dönüş dağılımı: dönüşten sonraki maçlar dönmüş olma olasılığıyla, beklenen maç kadar
     inj = pd.DataFrame([{"player_id": "1", "kind": "out_until", "return_date": dt.date(2026, 11, 3)}]).set_index("player_id")
     d = apply_injuries(data, inj, pmf={0: .5, 1: .5})

@@ -39,7 +39,7 @@ export function ComponentBadges({ c }: { c?: SuggestionComponents }) {
   const f = c.feasibility, u = c.uncertainty;
   const n = (v: number, d = 3) => (v >= 0 ? "+" : "") + v.toFixed(d);
   const tip = [
-    `Senin faydan: ${n(c.own.strategy_delta)} kategori/hafta, haftayı kazanma ${n(c.own.win_delta * 100, 1)} puan`,
+    `Senin faydan: ${n(c.own.strategy_delta)} kategori/hafta, hızlı modelde haftayı kazanma ${n(c.own.win_delta * 100, 1)} puan`,
     `Rakibin gerekçesi: ${c.opponent.reasons.join(" · ")}`,
     `Piyasa dengesi: değer ${(c.market.value_balance * 100).toFixed(0)}%` + (c.market.their_view != null ? `, rakibin gözünde ${c.market.their_view.toFixed(2)}` : ""),
     `Uygulanabilirlik: ${f.adds} ekleme, ${f.drops} bırakma; bu hafta kalan alım hakkı ${f.adds_left}${f.adds_known ? "" : " (kullanım bilinmiyor, limit varsayıldı)"}`,
@@ -146,6 +146,16 @@ export function LineupWarnBadge({ own, lineup }: { own: number; lineup?: number 
 /** Günlük kadroyla kalan normal sezon farkı hücresi (ölçülmediyse —). */
 export function LineupCell({ d }: { d?: number | null }) {
   return <td className={d != null ? deltaClass(d, 0.3) : "muted"}>{d != null ? fmtDelta(d, 3) : "—"}</td>;
+}
+
+export function DecisionBadge({ decision, method }: { decision?: string; method?: string }) {
+  if (!decision) return null;
+  const label = decision === "mutual" ? "ikisi de kazanır" : decision === "own" ? "yalnız senin faydan" :
+    decision === "loss" ? "olumsuz senaryo" : decision === "unmeasured" ? "koşullu · hızlı model" : null;
+  if (!label) return null;
+  return <span className={"badge " + (decision === "mutual" ? "fa" : decision === "loss" ? "out" : "q")}
+    title={method === "lineup" ? "İki taraf aynı günlük kadro yöntemiyle değerlendirildi." :
+      "Hızlı model değerlendirmesi; günlük kadroyla karşılıklı fayda doğrulanmadı."}>{label}</span>;
 }
 
 export function InlineBar({ value, max = 1 }: { value: number; max?: number }) {

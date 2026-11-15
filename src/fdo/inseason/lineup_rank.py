@@ -10,7 +10,7 @@ takımlı öneri aynı ölçüyü kullanır.
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TypeVar
 
 import numpy as np
@@ -19,7 +19,7 @@ from fdo.inseason.season import SeasonSim
 from fdo.trade import Strategy, TradeError
 from fdo.trade.engine import RosterInvariantError, TradeEngine
 from fdo.trade.multi import MultiSuggestion, resolve_multi
-from fdo.trade.suggest import Suggestion
+from fdo.trade.suggest import Suggestion, counterpart
 
 T = TypeVar("T")
 
@@ -29,6 +29,7 @@ class LineupDelta:
     """Takımın kalan normal sezonda rakip başına haftalık kategori farkı, günlük kadroyla."""
     strategy: float     # takımın stratejisinin ağırlıklarıyla (``strategy_delta`` ile aynı ölçek; sıralama ölçüsü)
     ecw: float          # ağırlıksız (``SeasonResult.ecw`` farkı)
+    teams: dict[str, float] = field(default_factory=dict)
 
 
 class LineupMeter:
@@ -54,8 +55,38 @@ class LineupMeter:
         base = self._bases[key]
         if after is None or base is None:
             return None
-        d = (after - base)[self.i]
-        return LineupDelta(float(d @ strategies[self.team].normalized * 9), float(d.sum()))
+        diff = after - base
+        d = diff[self.i]
+        teams = {t: float(diff[self.sim.tix[t]] @ strategies[t].normalized * 9) for t in first}
+        return LineupDelta(teams[self.team], float(d.sum()), teams)
+
+
+def final_decision(s: Suggestion, delta: LineupDelta | None, requested: bool) -> dict:
+    """Authoritative classification, using the same final method for both teams."""
+    if delta is None:
+        fast_tier = s.mode if s.mode in ("mutual", "own", "loss") else (
+            "loss" if s.own_strategy_delta <= 1e-8 else "mutual" if s.other_strategy_delta > 1e-8 else "own")
+        return {"decision": "unmeasured" if requested else fast_tier,
+                "evaluation_method": "fast_fallback" if requested else "fast",
+                "acceptability": s.acceptability,
+                "counterpart_reasons": [f"Hızlı model: {r}" for r in s.counterpart_reasons]}
+    other = delta.teams.get(s.request.team_b)
+    if other is None:
+        return {"decision": "unmeasured", "evaluation_method": "fast_fallback",
+                "acceptability": "low", "counterpart_reasons": ["Rakibin günlük kadro faydası ölçülemedi."]}
+    tier = "loss" if delta.strategy <= 1e-8 else "mutual" if other > 1e-8 else "own"
+    level, reasons = counterpart(other, other, s.perceived_balance)
+    return {"decision": tier, "evaluation_method": "lineup", "acceptability": level,
+            "counterpart_reasons": [f"Günlük kadro: {r}" for r in reasons], "other_lineup_delta": other,
+            "own_lineup_delta": delta.strategy}
+
+
+def ranked_method(deltas: Sequence[LineupDelta | None], requested: bool, fallback: str) -> str:
+    if not requested:
+        return fallback
+    if not deltas or not any(d is not None for d in deltas):
+        return "fast_fallback"
+    return "lineup" if all(d is not None for d in deltas) else "lineup_partial"
 
 
 def lineup_deltas(sim: SeasonSim, engine: TradeEngine, team: str, strategy: Strategy,

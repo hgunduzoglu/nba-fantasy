@@ -368,9 +368,15 @@ export interface CompletePlayer extends BriefPlayer {
   added: boolean;
 }
 
-export type CompleteTier = "mutual" | "own" | "loss";
+export type CompleteTier = "mutual" | "own" | "loss" | "unmeasured";
 
-export interface CompleteRow {
+export interface FinalDecision {
+  decision?: CompleteTier;
+  evaluation_method?: "lineup" | "fast" | "fast_fallback";
+  other_lineup_delta?: number | null;
+}
+
+export interface CompleteRow extends FinalDecision {
   /** Senin farkın bedava waiver hamleleri varsayılmadan. */
   own_delta_plain?: number | null;
   /** Günlük kadroyla kalan normal sezon farkı: stratejinin ağırlıklarıyla (sıralama ölçüsü) ve ağırlıksız. */
@@ -437,7 +443,7 @@ export interface SuggestIn {
   injuries: boolean;
 }
 
-export interface Suggestion {
+export interface Suggestion extends FinalDecision {
   own_delta_plain?: number | null;
   /** Günlük kadroyla kalan normal sezon farkı: stratejinin ağırlıklarıyla (sıralama ölçüsü) ve ağırlıksız. */
   lineup_delta?: number | null;
@@ -849,6 +855,7 @@ export interface MultiSuggestIn {
 }
 
 export interface MultiSuggestTeam {
+  lineup_delta?: number | null;
   team_id: string;
   team: string;
   strategy: string;
@@ -863,7 +870,7 @@ export interface MultiSuggestTeam {
   adjustments: Record<"drop" | "add" | "move_to_il", string[]>;
 }
 
-export interface MultiSuggestion {
+export interface MultiSuggestion extends FinalDecision {
   shape: string;
   shape_label: string;
   score: number;

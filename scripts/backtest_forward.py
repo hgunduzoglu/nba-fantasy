@@ -1,13 +1,14 @@
 """İleriye dönük test: arşivdeki bir günün verisiyle modelin tahmini, sonra gerçekleşenle (``fdo.evaluation.forward``).
 
-    python scripts/backtest_forward.py --day 2026-10-31 --league 93992 --team 7
-    python scripts/backtest_forward.py --day 2026-10-31 --league 93992 --team 7 --no-pairs   # yalnız oyuncu düzeyi
+    python scripts/backtest_forward.py --day 2026-10-31 --league 93992 --team 7 --model <frozen-model-dir>
+    # Yalnız oyuncu düzeyi: yukarıdaki komuta --no-pairs ekle.
 
 Oyuncu düzeyinde beklenen maç ve değer gerçekleşenle karşılaştırılır; dönüş bekleyen sakatlarda ölçülmüş gecikme
 dağılımı (``config/returns.yaml``) ile CBS tarihini kesin sayan varsayım yan yana. Takas düzeyinde takımın bütün 1'e 1
 takaslarında modelin puanı ve oyuncu tahmini, pencerede gerçekleşen değer farkıyla (işaret uyumu, sıra korelasyonu).
 Sonuç ``<veri>/evaluation/forward_<gün>_<lig>_<takım>.json`` (git dışı). Dağılım aynı raporlardan ölçüldüyse sakat
-karşılaştırması örneklem içidir.
+karşılaştırması örneklem içidir. Bu yüzden --model zorunludur: modelin trained_through tarihi karar gününden
+önce olmalı. Sonuç oyuncu değeri yönünü ölçen teşhis raporudur; tam takas karar faydası değildir.
 """
 
 from __future__ import annotations
@@ -25,8 +26,9 @@ sys.path.insert(0, str(ROOT / "src"))
 import numpy as np  # noqa: E402
 
 from fdo.api.state import AppState  # noqa: E402
-from fdo.evaluation.forward import (forecast, pair_test, realized, snapshot_dir, summary, value,  # noqa: E402
+from fdo.evaluation.forward import (forecast, pair_test, realized, replay_model, snapshot_dir, snapshot_id, summary, value,  # noqa: E402
                                     value_scales)
+from fdo.config import load_config  # noqa: E402
 from fdo.inseason.identity import load_overrides  # noqa: E402
 from fdo.inseason.roles import load_logs  # noqa: E402
 from fdo.trade import TradeEngine  # noqa: E402
@@ -39,13 +41,17 @@ def main() -> int:
     ap.add_argument("--league", required=True)
     ap.add_argument("--team", required=True)
     ap.add_argument("--no-pairs", action="store_true", help="takas düzeyini atla (hızlı)")
+    ap.add_argument("--model", required=True, help="karardan önce eğitilmiş dondurulmuş model dizini (manifest.json)")
     args = ap.parse_args()
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     day = dt.date.fromisoformat(args.day)
+    model_dir = Path(args.model)
+    model_meta = replay_model(model_dir, day)
     with tempfile.TemporaryDirectory() as tmp:
         work = snapshot_dir(args.data, day, Path(tmp) / "data")
-        st = AppState(work)
+        st = AppState(work, config=load_config(model_dir / "league.yaml", model_dir / "model.yaml"),
+                      returns_config=model_dir / "returns.yaml")
         st.decisions.enabled = False
         eng = st.engine(args.league)                                       # ölçülmüş gecikme dağılımıyla (varsa)
         plain = TradeEngine(st.data(True, delay=0), args.league)           # CBS tarihi kesin
@@ -60,6 +66,9 @@ def main() -> int:
         vr, vf, vf0 = value(real, scales), value(fc, scales), value(fc0.reindex(fc.index).fillna(0.0), scales)
         ret = fc.index[fc["returning"].astype(bool)]
         out = {"day": str(start), "end": str(end), "days": (end - start).days + 1, "league": args.league,
+               "data_snapshot_id": snapshot_id(work), "model_version": model_meta["model_version"],
+               "trained_through": model_meta["trained_through"], "policy_version": model_meta["policy_version"],
+               "evaluation_scope": "player_value_direction_diagnostic",
                "team": args.team, "players": len(fc), "unresolved_log_names": missing,
                "games_mae": float((fc["games"] - real["games"]).abs().mean()),
                "games_mae_no_delay": float((fc0["games"].reindex(fc.index) - real["games"]).abs().mean()),

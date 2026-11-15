@@ -2431,6 +2431,43 @@ The tail of the return distribution (§13.46: the 43% not back within ~5 games o
 game 10) shrinks as the archive grows: each run of the script sees a longer horizon. For the range not yet observable
 it stays an assumption.
 
+### 13.49 Acquisition limits, expected lineups and replay provenance (15 November 2026)
+
+All FA additions (manual, automatic filling and optional waiver improvements) now use one acquisition queue.
+Automatic filling leaves the slot open when this week's budget is spent. Manual adds beyond the remaining budget
+return a validation error; known waiver release dates are checked before an immediate add. Optional improvements
+that exceed the remaining budget stay conditional next-week moves and contribute nothing in `week_roster`.
+The same queue is used by trade scoring and season simulations. Future FA availability is conditional, and unknown
+acquisition usage still assumes the league limit.
+
+Daily lineup choices use expected game production, including attendance probability and temporary roles, before
+position assignment. Feasible competing lineups are compared on joint category totals, including shooting volumes
+and turnovers, using a bounded local search against a league reference. Team strategies now affect lineup and IL
+return decisions throughout the regular season, playoffs and lineup re-ranking; cache keys include the strategy.
+Sit/start marginal values are computed per day with the same attendance moments.
+
+For a game played with probability p, variance is `p * conditional_variance + p * (1-p) * mean²`. Shooting moments
+also include the corresponding makes/attempts covariance. The 24-component model still uses the configured copula
+for cross-category dependence; it does not sample a shared attendance event across categories or correlated return
+events across several games. Lineup selection remains approximate and does not model intraday lock times.
+
+Finalist evaluation measures every participating team's daily-lineup gain with its own strategy. A negative own
+gain is excluded from normal recommendations, and completion shows it as a loss scenario. Mutual benefit requires
+both teams to gain with the same final method. Acceptance reasons and component badges use that final evaluation.
+Unmeasured rows are conditional (`decision: unmeasured`, `evaluation_method: fast_fallback`); empty or entirely
+unmeasured results no longer claim they were ranked with daily lineups. Fast-model values remain separately visible.
+
+Forward replay no longer borrows today's undated league settings, standings, logs, variance or identity overrides.
+These must exist in the historical snapshot; dated player/projection/ADP exports and injury reports may only come
+from on/before the decision day. Missing historical inputs are not reconstructed from today's state.
+`scripts/backtest_forward.py` now requires `--model <frozen-model-directory>` containing `league.yaml`, `model.yaml`,
+`returns.yaml` and `manifest.json`. Calibration with `scripts/calibrate_returns.py --write` creates such a bundle
+under `<data>/model_snapshots/<model_version>/`. Replay verifies content hashes, the policy version and
+`trained_through < decision_time`, and records `data_snapshot_id`, `model_version`, `trained_through` and
+`policy_version` in its report. Existing undated calibrations cannot establish historical out-of-sample validity.
+The realized trade metric remains a **player-value-direction diagnostic**, not the realized utility of a full
+lineup/waiver/category decision; same-day snapshot timing must also be considered when interpreting results.
+
 ### 13.8 V3 candidates
 
 Beam search and H-score weight optimization; fitting the profile mix; covariance of game counts between

@@ -56,10 +56,10 @@ def _score(model: WeekModel, mine: np.ndarray, opp: np.ndarray) -> Score:
 
 def _marginal(model: WeekModel, tw: TeamWeek, idx: np.ndarray, opp: np.ndarray, days: list[dt.date]
               ) -> tuple[np.ndarray, np.ndarray]:
-    """Oyuncu başına bir maçın strateji puanı ve kategori olasılığı katkısı (mevcut düzende)."""
+    """Gün ve oyuncu başına beklenen maçın strateji puanı ve kategori olasılığı katkısı."""
     v = tw.vector
-    step = model.availability[idx][:, None] * model.game_unit(idx, days)          # (n, 24)
-    counted = (tw.counted.to_numpy() > 0)[:, None]
+    step = model.daily_vectors(idx, days)                                    # (day, n, 24)
+    counted = (tw.slots >= 0)[..., None]
     lo, hi = np.where(counted, v - step, v), np.where(counted, v, v + step)
     dp = p_win(hi, opp, model.config) - p_win(lo, opp, model.config)              # (n, C)
     return 9 * dp @ model.strategy.normalized, dp
@@ -76,13 +76,17 @@ def plan_week(model: WeekModel, team: str, opp: str, days: list[dt.date], *, acc
     sit = np.zeros((len(days), len(ids)), dtype=bool)
     for rounds in range(1, MAX_ROUNDS + 1):
         value, _ = _marginal(model, tw, idx, opp_vec, days)
-        sit = tw.playing & (value < SIT_BELOW)[None, :]
+        sit = tw.playing & (value < SIT_BELOW)
         nxt = model.team_week(team, stints, days, acc, priority=value, sit=sit)
         same = np.array_equal(nxt.slots >= 0, tw.slots >= 0)
         tw = nxt
         if same:
             break
     value, dp = _marginal(model, tw, idx, opp_vec, days)
+    # UI summaries remain per player; actual decisions above are per game/day.
+    games = np.maximum(tw.playing.sum(axis=0), 1)
+    value = (value * tw.playing).sum(axis=0) / games
+    dp = (dp * tw.playing[..., None]).sum(axis=0) / games[:, None]
     return SitStartPlan(days, ids, active_slot_names(model.config), tw, sit, value, dp,
                         _score(model, base.mine.vector, opp_vec), _score(model, tw.vector, opp_vec), rounds)
 

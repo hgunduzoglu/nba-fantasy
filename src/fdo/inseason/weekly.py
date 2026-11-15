@@ -25,15 +25,14 @@ import pandas as pd
 from fdo.inseason.injuries import presence, questionable_play
 from fdo.inseason.live import stat
 from fdo.inseason.waiver import swap_delta
-from fdo.matchup.ecw import category_corr_matrix, ecw_vs, p_at_least
-from fdo.matchup.player_week import RATIO_OFFSETS, WEEK_DIM, per_game_variance, weekly_vectors
+from fdo.matchup.ecw import category_corr_matrix, ecw_vs, p_at_least, p_win
+from fdo.matchup.player_week import RATIO_OFFSETS, WEEK_DIM, attendance_vectors, per_game_variance, weekly_vectors
 from fdo.schedule.calendar import normalize_team
 from fdo.schedule.lineup import active_eligibility, slot_assignment
 from fdo.trade.data import ROS
 from fdo.trade.engine import TradeEngine
 from fdo.trade.strategy import Strategy
 from fdo.types import STATS
-from fdo.valuation import value_players
 
 #: Bu durumlar haftada oynamaz sayılır (NA: takımda değil; O: out). Q (questionable) oynar.
 DEFAULT_OUT = ("NA", "O", "INJ", "SUSP")
@@ -135,10 +134,6 @@ class WeekModel:
             for p in rp:
                 self.boost_unit[engine.index[p]] = bunit.loc[p].to_numpy(float)
                 self.boost_until[engine.index[p]] = self.roles[p].until
-        # öncelik: stratejiye göre maç başı z (oturma/oynatma kararı)
-        z = value_players(proj, self.config, basis="per_game", method="z").scores
-        w = pd.Series(self.strategy.normalized, index=list(z.columns)) if len(z.columns) == 9 else 1.0
-        self.priority = (z * w).sum(axis=1).reindex(list(engine.ids)).fillna(-99.0).to_numpy(float)
         sched = data.schedule.copy()
         sched["game_date"] = pd.to_datetime(sched["game_date"]).dt.date
         self.games: dict[dt.date, set[str]] = {}
@@ -185,7 +180,10 @@ class WeekModel:
                 pres = presence(len(g), pmf)
                 self.play_weight[pid] = dict(zip(g, pres))
                 team_left[i] = float(pres.sum())
-        self.questionable = questionable_play() if questionable is None else min(1.0, max(0.0, float(questionable)))
+        configured_q = (data.sources.get("attendance") or {}).get("questionable_play")
+        if questionable is None:
+            questionable = questionable_play() if configured_q is None else configured_q
+        self.questionable = min(1.0, max(0.0, float(questionable)))
         if self.questionable < 1:
             status = data.players["injury_status"].reindex(list(engine.ids)).astype(str)
             for pid in [p for p, st in status.items() if st in QUESTIONABLE and ok[engine.index[p]]]:
@@ -199,6 +197,7 @@ class WeekModel:
         self.corr = category_corr_matrix(self.config)
         self.positions = {p: frozenset(str(engine.data.players.loc[p, "yahoo_positions"]).split(","))
                           for p in engine.ids}
+        self.lineup_reference = engine.baseline_vectors.mean(axis=0) / 7
 
     # ------------------------------------------------------------- yardımcılar
     def playable(self, pid: str, use_status: bool = True) -> bool:
@@ -235,8 +234,8 @@ class WeekModel:
 
     def team_week(self, team_id: str, stints: list[Stint], days: list[dt.date],
                   acc: np.ndarray | None = None, *, use_status: bool = True, priority: np.ndarray | None = None,
-                  sit: np.ndarray | None = None) -> TeamWeek:
-        """``priority``: stint başına öncelik (varsayılan stratejiye göre maç başı z); ``sit``: (gün, stint) maçı olsa da
+                  sit: np.ndarray | None = None, strategy: Strategy | None = None) -> TeamWeek:
+        """``priority``: stint veya gün/stint başına öncelik (varsayılan beklenen kategori katkısı); ``sit``: (gün, stint) maçı olsa da
         oturtulan (sit/start önerisi)."""
         ids = [s.player_id for s in stints]
         n, D = len(ids), len(days)
@@ -249,27 +248,24 @@ class WeekModel:
                 playing[d, j] = (can[j] and s.first <= d <= s.last and self.team[idx[j]] in teams
                                  and day >= self.return_date.get(s.player_id, day))
         elig = active_eligibility([self.positions[p] for p in ids], self.config)
-        pr = self.priority[idx] if priority is None else np.asarray(priority, float)
         allowed = playing & ~sit if sit is not None else playing
+        # A role boost is conditional production, and availability/return/Q
+        # probabilities describe the same attendance event. Form its moments
+        # once, before either selecting a lineup or aggregating production.
+        expected = self.daily_vectors(np.asarray(idx, int), days)
         slots = np.full((D, n), -1)
         for d in range(D):
-            slots[d] = slot_assignment(elig, allowed[d], pr)
+            if priority is not None:
+                pr = np.asarray(priority, float)
+                pr = pr[d] if pr.ndim == 2 else pr
+                slots[d] = slot_assignment(elig, allowed[d], pr)
+            else:
+                slots[d] = self._expected_assignment(elig, allowed[d], expected[d], strategy or self.strategy, acc)
         counted_mask = slots >= 0
         counted = counted_mask.sum(axis=0)
-        weight = np.ones((D, n))                                  # maç başına oynama olasılığı (``play_weight``)
-        for j, pid in enumerate(ids):
-            pw = self.play_weight.get(pid)
-            if pw:
-                weight[:, j] = [pw.get(day, 1.0) for day in days]
-        played = counted_mask * weight
         vec = (acc.copy() if acc is not None else np.zeros(WEEK_DIM))
         if n:
-            vec += ((played.sum(axis=0) * self.availability[idx])[:, None] * self.unit[idx]).sum(axis=0)
-            for j, i in enumerate(idx if D else ()):
-                until = self.boost_until[i]
-                if until > days[0]:
-                    early = played[[d for d, day in enumerate(days) if day < until], j].sum()
-                    vec += early * self.availability[i] * (self.boost_unit[i] - self.unit[i])
+            vec += expected[counted_mask].sum(axis=0)
         grid = pd.DataFrame("", index=ids, columns=[f"{day:%a %d}" for day in days])
         for d, day in enumerate(days):
             for j, s in enumerate(stints):
@@ -280,6 +276,59 @@ class WeekModel:
                     grid.iat[j, d] = "▶" if counted_mask[d, j] else ("✕" if out_today else "B")
         return TeamWeek(team_id, list(stints), vec, grid, pd.Series(counted, index=ids),
                         int(playing.sum()), int(playing.sum() - counted.sum()), slots, playing)
+
+    def _expected_assignment(self, elig: np.ndarray, allowed: np.ndarray, units: np.ndarray,
+                             strategy: Strategy, acc: np.ndarray | None) -> np.ndarray:
+        """Choose expected category contribution, then compare feasible lineup swaps.
+
+        Ratios and turnovers are scored jointly on team totals rather than
+        multiplying possibly negative z-scores by attendance probabilities.
+        This is a bounded local search, not an exhaustive lineup optimizer.
+        """
+        if not allowed.any():
+            return np.full(len(allowed), -1)
+        reference = self.lineup_reference
+        context = np.zeros(WEEK_DIM) if acc is None else acc
+        w = strategy.normalized
+        priority = p_win(context + units, reference, self.config) @ w
+        slots = slot_assignment(elig, allowed, priority)
+        # Full lineups that fit have no competing alternatives.
+        for _ in range(2):
+            selected = slots >= 0
+            benched = np.flatnonzero(allowed & ~selected)
+            if not len(benched):
+                break
+            total = context + units[selected].sum(axis=0)
+            choices, vectors = [], []
+            for incoming in benched:
+                for outgoing in np.flatnonzero(selected):
+                    pick = selected.copy()
+                    pick[outgoing], pick[incoming] = False, True
+                    assignment = slot_assignment(elig, pick)
+                    if np.count_nonzero(assignment >= 0) == np.count_nonzero(selected):
+                        choices.append(assignment)
+                        vectors.append(total + units[incoming] - units[outgoing])
+            if not vectors:
+                break
+            scores = p_win(np.stack([total, *vectors]), reference, self.config) @ w
+            best = int(np.argmax(scores))
+            if best == 0 or scores[best] <= scores[0] + 1e-12:
+                break
+            slots = choices[best - 1]
+        return slots
+
+    def daily_vectors(self, idx: np.ndarray, days: list[dt.date]) -> np.ndarray:
+        """(Day, player, moment) including attendance and temporary role production."""
+        idx = np.asarray(idx, int)
+        units = np.broadcast_to(self.unit[idx], (len(days), len(idx), WEEK_DIM)).copy()
+        weight = np.ones((len(days), len(idx)))
+        for j, i in enumerate(idx):
+            pw = self.play_weight.get(self.engine.ids[i], {})
+            weight[:, j] = [pw.get(day, 1.0) for day in days]
+        for d, day in enumerate(days):
+            boosted = day < self.boost_until[idx]
+            units[d, boosted] = self.boost_unit[idx[boosted]]
+        return attendance_vectors(units, weight * self.availability[idx])
 
     def _score(self, p: np.ndarray) -> float:
         return float(9 * p @ self.strategy.normalized)
@@ -317,8 +366,10 @@ class WeekModel:
         if not fa:
             return [], np.zeros((0, len(base.p)))
         idx = np.array([self.engine.index[p] for p in fa])
-        g = np.array([sum(self._can_start(p, d, avail) for d in base.days) for p in fa], dtype=float)
-        cand = base.mine.vector[None, :] + (g * self.availability[idx])[:, None] * self.game_unit(idx, base.days)
+        playing = np.array([[self._can_start(p, d, avail) and d >= self.return_date.get(p, d)
+                             for p in fa] for d in base.days], dtype=bool).reshape(len(base.days), len(fa))
+        contribution = (self.daily_vectors(idx, base.days) * playing[..., None]).sum(axis=0)
+        cand = base.mine.vector[None, :] + contribution
         dp = ecw_vs(cand, base.opp.vector[None, None, :], self.config)[:, 0, :] - base.p[None, :]
         order = np.argsort(-(dp @ self.strategy.normalized), kind="stable")[:size]
         return [fa[i] for i in order], dp[order]

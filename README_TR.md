@@ -5,6 +5,14 @@
 Trade Lab'in kapsamı, veri denetimi, model formülleri, testleri ve açık sınırlamaları:
 [Claude / geliştirici devir raporu](docs/TRADE_LAB_HANDOFF.md).
 
+15 Kasım 2026 düzeltmeleri: FA eklemeleri ortak alım bütçesinden geçer; hak bitince otomatik doldurma slotu boş
+bırakır. Günlük kadro seçimi oynama ihtimalini ve takım stratejisini seçimden önce kullanır. Oynamama belirsizliği
+varyansa, şut isabet/deneme kovaryansı da oran hesabına eklenir. Son öneri etiketi iki tarafın günlük kadro
+faydasına göre belirlenir; ölçülemeyenler koşullu gösterilir. Forward replay artık güncel lig ayarlarını ödünç
+almaz ve karar gününden önce eğitilmiş, sürümü kayıtlı `--model` paketi gerektirir.
+Tam ortak oynama senaryoları ve gün içi lineup kilitleri hâlâ modellenmez; takas backtest metriği oyuncu değeri yönü
+için teşhis ölçümüdür. Ayrıntılar: [README §13.49](README.md#1349-acquisition-limits-expected-lineups-and-replay-provenance-15-november-2026).
+
 ## Sezon içi Trade Lab
 
 `streamlit run src/fdo/ui/app.py` ile açılır. Varsayılan başlangıç artık Trade Lab'dir;

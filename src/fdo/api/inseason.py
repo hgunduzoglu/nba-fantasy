@@ -16,7 +16,7 @@ from fdo.inseason.adddrop import available_from, critical_categories, critical_s
 from fdo.inseason.drops import drop_plan, returning
 from fdo.inseason.fixtures import opponent as fixture_opponent
 from fdo.inseason.history import team_history
-from fdo.inseason.lineup_rank import lineup_deltas, rerank
+from fdo.inseason.lineup_rank import final_decision, lineup_deltas, ranked_method, rerank
 from fdo.inseason.managers import load_transactions, profiles
 from fdo.inseason.sitstart import plan_week, today_changes
 from fdo.inseason.waiver import drop_ranking, waiver_table
@@ -101,6 +101,11 @@ def register(app: FastAPI, state: AppState) -> None:
         plain_eng = engine(lid, body.injuries, False)
         rows = []
         for s, lu in zip(found.suggestions, lineups):
+            decision = final_decision(s, lu, body.lineup_rank and body.rank == "own")
+            # Normal recommendations must survive the final evaluation. Losses
+            # remain inspectable in completion/current-scenario results.
+            if decision["decision"] == "loss" or (body.mode == "mutual" and decision["decision"] == "own"):
+                continue
             r = s.request
             pair = {body.team: strategy, r.team_b: s.other_strategy}
             plain = plain_metrics(plain_eng, r, pair)
@@ -121,7 +126,9 @@ def register(app: FastAPI, state: AppState) -> None:
                          "own_win": s.own_win_delta, "other_win": s.other_win_delta, "fairness": s.fairness,
                          "perceived_balance": s.perceived_balance, "score": s.score, "mode": s.mode,
                          "acceptability": s.acceptability, "counterpart_reasons": list(s.counterpart_reasons),
-                         "components": components(eng, s, adj, plain[body.team]["strategy_delta"] if plain else None),
+                         **decision,
+                         "components": components(eng, s, adj, plain[body.team]["strategy_delta"] if plain else None,
+                                                  final=decision),
                          "key_players": list(s.key_players), "other_strategy": s.other_strategy.name,
                          "other_weights": list(s.other_strategy.weights),
                          "adjustments": {t: {k: [eng.data.players.loc[p, "name"] for p in v] for k, v in a.items()}
@@ -132,7 +139,7 @@ def register(app: FastAPI, state: AppState) -> None:
                      "rejected_roster": found.rejected_roster, "rejected_reason": found.rejected_reason,
                      "rejected_overpay": found.rejected_overpay,
                      "limit_reached": found.limit_reached, "message": found.message,
-                     "ranked_by": "lineup" if sim is not None else body.rank})
+                     "ranked_by": ranked_method(lineups, body.lineup_rank and body.rank == "own", body.rank)})
         out["decision_id"] = state.log_decision("recommendation", "trade_suggest", lid, body.model_dump(),
                                                 summarize(out))
         return out
@@ -167,19 +174,22 @@ def register(app: FastAPI, state: AppState) -> None:
 
         def row(s):
             lu = lineup.get(id(s))
+            decision = final_decision(s, lu, body.lineup_rank and body.rank == "own")
             r = s.request
             rosters, adj, il = eng.resolve(r, pair)
             p, _ = eng.score(rosters, r.team_a, r.team_b, sa, sb, il)
             plain = plain_metrics(plain_eng, r, pair)
             return {"give_a": [{**_brief(eng, x), "added": x not in fixed} for x in r.give_a],
                     "give_b": [{**_brief(eng, x), "added": x not in fixed} for x in r.give_b],
-                    "tier": s.mode, "score": s.score, "own_delta": s.own_strategy_delta,
+                    "tier": decision["decision"], "score": s.score, "own_delta": s.own_strategy_delta,
                     "own_delta_plain": plain[r.team_a]["strategy_delta"] if plain else None,
                     "lineup_delta": lu.strategy if lu else None, "lineup_ecw_delta": lu.ecw if lu else None,
                     "other_delta": s.other_strategy_delta, "own_win": s.own_win_delta, "other_win": s.other_win_delta,
                     "fairness": s.fairness, "perceived_view": s.perceived_balance,
                     "acceptability": s.acceptability, "counterpart_reasons": list(s.counterpart_reasons),
-                    "components": components(eng, s, adj, plain[r.team_a]["strategy_delta"] if plain else None),
+                    **decision,
+                    "components": components(eng, s, adj, plain[r.team_a]["strategy_delta"] if plain else None,
+                                             final=decision),
                     "my_categories": category_deltas(eng, p, r.team_a, pair),
                     "adjustments": {t: {k: [eng.data.players.loc[x, "name"] for x in v] for k, v in a.items()}
                                     for t, a in adj.items()}}
@@ -190,7 +200,7 @@ def register(app: FastAPI, state: AppState) -> None:
                      "rejected_overpay": found.rejected_overpay, "max_view": opts.max_view,
                      "limit_reached": found.limit_reached,
                      "min_fairness": opts.min_fairness, "min_view": opts.min_view, "message": found.message,
-                     "ranked_by": "lineup" if sim is not None else body.rank})
+                     "ranked_by": ranked_method(list(lineup.values()), body.lineup_rank and body.rank == "own", body.rank)})
         out["decision_id"] = state.log_decision("recommendation", "trade_complete", lid, body.model_dump(),
                                                 summarize(out))
         return out

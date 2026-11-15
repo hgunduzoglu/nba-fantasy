@@ -94,10 +94,17 @@ def main() -> int:
             cfg["questionable_source"] = q_source
             wrote.append(f"questionable_play ({q_source}, {len(q)} gözlem)")
         if wrote:
+            # A calibrated parameter is not eligible for decisions on/before its
+            # last observed input day. Keep a complete immutable model bundle.
+            trained = max(max(logs["game_date"]), data.as_of, max(d for d, _ in reports))
+            cfg["trained_through"] = str(trained)
             path.write_text("# scripts/calibrate_returns.py --write ile ölçüldü (CBS raporları, Yahoo kadro anlık "
                             "görüntüleri + NBA maç kayıtları).\n"
                             + yaml.safe_dump(cfg, sort_keys=False, allow_unicode=True), encoding="utf-8")
             print(f"Yazıldı: {path} → {', '.join(wrote)}")
+            from fdo.evaluation.forward import freeze_model
+            bundle = freeze_model(ROOT / "config", Path(args.data) / "model_snapshots", trained, returns_path=path)
+            print(f"Dondurulmuş model: {bundle} (trained_through={trained})")
         else:
             print(f"Yazılmadı: gözlem en az {args.min} olmalı.")
     if args.list:

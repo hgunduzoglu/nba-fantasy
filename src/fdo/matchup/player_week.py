@@ -33,6 +33,26 @@ RATIO_OFFSETS: dict[str, int] = {"fg": 2 * N_COUNT, "ft": 2 * N_COUNT + 5}
 WEEK_DIM = 2 * N_COUNT + 10
 
 
+def attendance_vectors(unit: np.ndarray, probability) -> np.ndarray:
+    """One scheduled game's moments when attendance is Bernoulli(p).
+
+    Includes both conditional production variance and p(1-p) mu². Shooting
+    moments include Cov(makes, attempts); cross-category dependence continues
+    to use the configured copula approximation.
+    """
+    unit = np.asarray(unit, dtype=float)
+    p = np.clip(np.asarray(probability, dtype=float), 0, 1)
+    out = unit * p[..., None]
+    extra = p * (1 - p)
+    out[..., VAR_SLICE] += extra[..., None] * unit[..., MEAN_SLICE] ** 2
+    for o in RATIO_OFFSETS.values():
+        m, a = unit[..., o], unit[..., o + 1]
+        out[..., o + 2] += extra * m ** 2
+        out[..., o + 3] += extra * m * a
+        out[..., o + 4] += extra * a ** 2
+    return out
+
+
 def per_game_variance(proj: pd.DataFrame, variance: pd.DataFrame | None,
                       phi: dict[str, float]) -> tuple[pd.DataFrame, pd.Series]:
     """Maç başına varyans tablosu (index ``player_id``, kolonlar ``STATS``).

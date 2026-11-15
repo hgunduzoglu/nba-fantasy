@@ -17,6 +17,9 @@ eksi). Pencere kısa olduğu için gürültü büyüktür; sonuç örnek boyutuy
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
+import json
+import re
 import shutil
 from pathlib import Path
 
@@ -29,30 +32,91 @@ from fdo.trade.data import ROS
 
 COUNTS = ("fg3m", "pts", "reb", "ast", "stl", "blk", "tov")
 STATS_USED = ("fgm", "fga", "ftm", "fta", *COUNTS)
-#: Kopyadan alınan (o günü temsil eden) dosyalar; geri kalanı veri dizininden.
-SNAPSHOT_FILES = ("rosters.json", "player_stat_pages.json", "matchups.json")
+POLICY_VERSION = "expected-lineup-v2"
+# Undated mutable inputs (settings, live scores, overrides, standings, logs,
+# variance, etc.) must come from the archive, never today's directory.
+DATED_INPUTS = ("players_yahoo_", "projections_yahoo_", "adp_yahoo_", "injuries_cbs_")
 
 
 def snapshot_dir(data_dir: str | Path, day: dt.date, work: str | Path) -> Path:
-    """``day`` günü bilineni içeren veri dizini: güncel dizin, o günün kopyası (kadrolar, projeksiyon) ve en geç o
-    günkü CBS raporu. Canlı hafta ve sonraki sakatlık raporları alınmaz."""
+    """Archive inputs plus explicitly dated pre-decision exports. No current
+    settings/live/log/variance fallback. Missing historical inputs stay missing.
+    ``work`` must be empty, so a mistaken path cannot delete existing data.
+    """
     data_dir, work = Path(data_dir), Path(work)
     snap = data_dir / "snapshots" / day.isoformat()
     if not (snap / "rosters.json").exists():
         raise FileNotFoundError(f"Kopya yok: {snap}")
-    if work.exists():
-        shutil.rmtree(work)
-    work.mkdir(parents=True)
+    roster = json.loads((snap / "rosters.json").read_text(encoding="utf-8-sig"))
+    if roster.get("roster_date") != day.isoformat():
+        raise ValueError("Arşiv kadrosunun tarihi decision_time ile eşleşmiyor")
+    if work.exists() and any(work.iterdir()):
+        raise ValueError(f"Replay çalışma dizini boş olmalı: {work}")
+    work.mkdir(parents=True, exist_ok=True)
+    for p in snap.iterdir():
+        if p.is_file() and not p.name.startswith("yahoo_live"):
+            dates = re.findall(r"\d{4}-\d{2}-\d{2}", p.name)
+            if not dates or max(dates) <= day.isoformat():
+                shutil.copy2(p, work / p.name)
     for p in data_dir.iterdir():
-        if not p.is_file() or p.name in SNAPSHOT_FILES or p.name.startswith("yahoo_live"):
+        if not p.is_file() or (work / p.name).exists() or not p.name.startswith(DATED_INPUTS):
             continue
-        if p.name.startswith("injuries_cbs_") and p.stem[len("injuries_cbs_"):] > day.isoformat():
-            continue
-        shutil.copy2(p, work / p.name)
-    for name in SNAPSHOT_FILES:
-        if (snap / name).exists():
-            shutil.copy2(snap / name, work / name)
+        dates = re.findall(r"\d{4}-\d{2}-\d{2}", p.name)
+        if dates and max(dates) <= day.isoformat():
+            shutil.copy2(p, work / p.name)
     return work
+
+
+def snapshot_id(directory: str | Path) -> str:
+    root = Path(directory)
+    digest = hashlib.sha256()
+    for p in sorted(root.iterdir()):
+        if p.is_file():
+            digest.update(p.name.encode())
+            digest.update(hashlib.sha256(p.read_bytes()).digest())
+    return digest.hexdigest()
+
+
+def freeze_model(config_dir: str | Path, destination: str | Path, trained_through: dt.date, *,
+                 returns_path: str | Path | None = None) -> Path:
+    """Freeze all YAML model inputs; content-addressed, with training/policy provenance."""
+    config_dir, destination = Path(config_dir), Path(destination)
+    files = {name: (config_dir / name).read_bytes() for name in ("league.yaml", "model.yaml", "returns.yaml")}
+    if returns_path is not None:
+        files["returns.yaml"] = Path(returns_path).read_bytes()
+    hashes = {name: hashlib.sha256(raw).hexdigest() for name, raw in files.items()}
+    provenance = {"files": hashes, "trained_through": str(trained_through), "policy_version": POLICY_VERSION}
+    version = hashlib.sha256(json.dumps(provenance, sort_keys=True).encode()).hexdigest()
+    root = destination / version
+    manifest = {"model_version": version, **provenance}
+    if root.exists():
+        if (json.loads((root / "manifest.json").read_text(encoding="utf-8")) != manifest
+                or any((root / n).read_bytes() != raw for n, raw in files.items())):
+            raise ValueError("Mevcut dondurulmuş model değişmiş; üzerine yazılamaz")
+        return root
+    root.mkdir(parents=True, exist_ok=True)
+    for name, raw in files.items():
+        (root / name).write_bytes(raw)
+    (root / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    return root
+
+
+def replay_model(directory: str | Path, decision_day: dt.date) -> dict:
+    """Reject missing provenance, changed parameters, future training and foreign policies."""
+    root = Path(directory)
+    manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+    trained = dt.date.fromisoformat(manifest["trained_through"])
+    if trained >= decision_day:
+        raise ValueError("Dış örneklem replay için trained_through < decision_time olmalı")
+    if manifest["policy_version"] != POLICY_VERSION:
+        raise ValueError("Replay policy_version bu kod sürümüyle eşleşmiyor")
+    expected = manifest["files"]
+    hashes = {n: hashlib.sha256((root / n).read_bytes()).hexdigest()
+              for n in ("league.yaml", "model.yaml", "returns.yaml")}
+    provenance = {"files": hashes, "trained_through": str(trained), "policy_version": POLICY_VERSION}
+    if hashes != expected or hashlib.sha256(json.dumps(provenance, sort_keys=True).encode()).hexdigest() != manifest["model_version"]:
+        raise ValueError("Dondurulmuş model dosyaları model_version ile eşleşmiyor")
+    return manifest
 
 
 def realized(logs: pd.DataFrame, players: pd.DataFrame, start: dt.date, end: dt.date,

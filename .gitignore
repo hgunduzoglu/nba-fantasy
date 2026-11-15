@@ -79,5 +79,6 @@ frontend/dist/
 /data/real/cases*.json
 /data/real/evaluation/
 /data/real/decisions/
+/data/real/model_snapshots/
 # Elle oyuncu kimliği düzeltmeleri (fdo.ingest.identity)
 /data/real/id_overrides.csv

@@ -78,7 +78,7 @@ def file_signature(directory: str | Path) -> str:
                                   for p in sorted(paths) if p.exists()).encode()).hexdigest()[:20]
 
 
-def _config(settings: dict[str, str], n_teams: int, season: str, name: str) -> Config:
+def _config(settings: dict[str, str], n_teams: int, season: str, name: str, base: Config | None = None) -> Config:
     if settings.get("Scoring Type") != "Head-to-Head - Categories":
         raise ValueError(f"{name}: desteklenmeyen scoring türü")
     expected = ("FG%", "FT%", "3PTM", "PTS", "REB", "AST", "ST", "BLK", "TO")
@@ -92,7 +92,7 @@ def _config(settings: dict[str, str], n_teams: int, season: str, name: str) -> C
     lock = {"Daily - Today": "daily_today", "Daily - Tomorrow": "daily_tomorrow",
             "Weekly": "weekly"}.get(settings.get("Weekly Deadline"))
     # Takım sayısı Max Teams kapasitesi değil, anlık görüntüdeki gerçek takım sayısıdır.
-    base = load_config()
+    base = base or load_config()
     mix = {key: 0 for key in base.model.bots.mix}
     mix["MarketFollower"] = n_teams - 1
     return base.with_overrides({
@@ -152,7 +152,7 @@ def preseason_file(directory: Path, season: str, schedule: pd.DataFrame | None) 
     return (max(candidates) if start is not None else min(candidates))[1]
 
 
-def load_trade_data(directory: str | Path | None = None) -> TradeData:
+def load_trade_data(directory: str | Path | None = None, *, config: Config | None = None) -> TradeData:
     directory = Path(directory) if directory else REPO_ROOT / "data" / "real"
     read = lambda n: json.loads((directory / n).read_text(encoding="utf-8-sig"))
     root, info = read("rosters.json"), read("league_info.json")
@@ -195,7 +195,7 @@ def load_trade_data(directory: str | Path | None = None) -> TradeData:
         preferred = (flagged[0] if flagged else str(collected[0]["team_id"]) if len(collected) == 1
                      else next(iter(team_names)))
         leagues[lid] = TradeLeague(lid, lg["league_name"], team_names, rosters, injury, settings,
-                                  _config(settings, len(rosters), root["season"], lg["league_name"]),
+                                  _config(settings, len(rosters), root["season"], lg["league_name"], config),
                                   preferred if preferred in team_names else next(iter(team_names)), as_of, lineups)
     stats, sources = {}, {}
     sp = sorted(directory.glob("schedule*.csv"))

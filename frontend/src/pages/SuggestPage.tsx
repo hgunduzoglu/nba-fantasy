@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
-import { AcceptBadge, CategoryChips, ComponentBadges, ErrorBanner, LineupWarnBadge, Loading, MovesWarnBadge, PlayerName, SeasonDeltaCell, SeasonWarnBadge, deltaClass, seasonWarning } from "../components/common";
+import { AcceptBadge, CategoryChips, ComponentBadges, DecisionBadge, ErrorBanner, LineupWarnBadge, Loading, MovesWarnBadge, PlayerName, SeasonDeltaCell, SeasonWarnBadge, deltaClass, seasonWarning } from "../components/common";
 import { BALANCED, StrategyPicker, strategyLabel, toStrategyIn, type StrategyChoice } from "../components/StrategyPicker";
 import { fmtDelta, fmtNum, fmtPct } from "../format";
 import type { League, Meta, MispricedRow, Perceived, SeasonEffect, SuggestMode, SuggestOut, Suggestion } from "../types";
@@ -384,7 +384,7 @@ export function SuggestPage({ meta, league, team, injuries, onOpen }: Props) {
                   <th title="Seçili yönlerin kaçında senin kazancın pozitif (üstüne gel: yön yön)">Sağlamlık</th>
                   <th title="Ağırlıksız beklenen kategori değişimi (rakip başına haftalık)">Sen ΔECW</th>
                   <th title="Haftayı kazanma olasılığı değişimi (puan)">Sen P(5+)</th>
-                  <th title="Rakibin (varsayılan stratejisiyle) kazancı">Rakip Δ</th>
+                  <th title="Rakibin günlük kadro kazancı; ölçülemediyse hızlı model">Rakip son Δ</th>
                   <th className="l" title="En çok değişen 3 kategori (kazanma olasılığı, puan)">Kategori etkisi</th>
                   <th title="Fantezi playoff haftalarında kadronun toplam NBA maçı farkı (otomatik bırak/ekle dahil)">PO maç</th>
                   <th title="Kalan sezon değeri: küçük paket / büyük paket">Değer dengesi</th>
@@ -413,13 +413,14 @@ export function SuggestPage({ meta, league, team, injuries, onOpen }: Props) {
                           <SeasonWarnBadge show={!!e && e !== "err" && seasonWarning(ecw, e.me.playoff)} />
                           <MovesWarnBadge own={s.own_delta} plain={s.own_delta_plain} />
                           <LineupWarnBadge own={s.own_delta} lineup={s.lineup_delta} />
+                          <DecisionBadge decision={s.decision} method={s.evaluation_method} />
                           <ComponentBadges c={s.components} />
                         </td>
                         {view !== "all" && <td className={deltaClass(s.own_delta, 0.3)}>{fmtDelta(s.own_delta, 3)}</td>}
                         <td title={rob.tip} className={rob.n === rob.total ? "good" : rob.n === 0 ? "bad" : ""}>{rob.n}/{rob.total}</td>
                         <td className={deltaClass(ecw, 0.3)}>{fmtDelta(ecw, 3)}</td>
                         <td>{fmtDelta(s.own_win * 100, 1)}</td>
-                        <td className={deltaClass(s.other_delta, 0.3)}>{fmtDelta(s.other_delta, 3)}</td>
+                        <td className={deltaClass(s.other_lineup_delta ?? s.other_delta, 0.3)} title={s.other_lineup_delta != null ? "Günlük kadro" : "Hızlı model"}>{fmtDelta(s.other_lineup_delta ?? s.other_delta, 3)}</td>
                         <td className="l"><CategoryChips deltas={s.my_categories} labels={labels} /></td>
                         <td className={s.playoff_games === null ? "muted" : s.playoff_games > 0 ? "good" : s.playoff_games < 0 ? "bad" : ""}>
                           {s.playoff_games === null ? "—" : fmtDelta(s.playoff_games, 0)}</td>

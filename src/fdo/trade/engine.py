@@ -175,7 +175,8 @@ class TradeEngine:
 
     def __init__(self, data: TradeData, league_id: str, *, utilization: float = .987,
                  horizon_weeks: float | None = None, segments: tuple[Segment, ...] | None = None,
-                 free_moves: bool = True, adds_used: dict[str, int] | None = None, adds_limit: int | None = None):
+                 free_moves: bool = True, adds_used: dict[str, int] | None = None, adds_limit: int | None = None,
+                 available_from: dict[str, dt.date] | None = None):
         """``segments``: kalan sezonun dönemleri. Birden fazlaysa takas puanı zamanlamayı görür: her oyuncunun katkısı
         dönem dönem, o dönemde oynayacağı maçlardan (bilinen dönüş tarihinden sonra) hesaplanır; kategori olasılıkları
         dönem başına bulunup ağırlıklı ortalanır. Verilmezse kalan sezon tek dönemdir (üretim haftalara eşit yayılır)."""
@@ -196,6 +197,8 @@ class TradeEngine:
         #: Bu hafta kullanılmış alım hakları (bilinen takımlar; genelde yalnız kullanıcının takımı, canlı hafta verisi).
         self.adds_used = {str(t): int(u) for t, u in (adds_used or {}).items() if u is not None}
         self._weekly_limit = int(adds_limit) if adds_limit is not None else self._max_moves
+        self._max_moves = max(0, min(self._max_moves, self._weekly_limit))
+        self.available_from = dict(available_from or {})
         if horizon_weeks is None:
             if data.schedule is None:
                 raise ValueError("Haftalık modele NBA takvimi veya açık horizon_weeks gerekiyor")
@@ -519,7 +522,8 @@ class TradeEngine:
         """Boştaki modellenebilen oyuncular, stratejiye göre faydası azalan (ilk 40)."""
         if strategy not in self._fa_cache:
             u = self._utility_array(strategy)
-            self._fa_cache[strategy] = sorted(self.free_agents, key=lambda p: -u[self.index[p]])[:40]
+            pool = [p for p in self.free_agents if self.available_from.get(p, self.data.as_of) <= self.data.as_of]
+            self._fa_cache[strategy] = sorted(pool, key=lambda p: -u[self.index[p]])[:40]
         return self._fa_cache[strategy]
 
     def waiver_best(self, roster, il=frozenset(), strategy: Strategy | None = None, exclude: frozenset[str] = frozenset()
@@ -714,13 +718,31 @@ class TradeEngine:
         items = [(t, tuple(rosters[t]), self._il(t, rosters[t], injuries), s or Strategy()) for t, s in strategies.items()]
         same = all(set(r) == set(self.league.rosters[t]) for t, r, _, _ in items)
         moved = self.joint_waiver(items) if same or not self.free_moves else self.anchored_waiver(items)
-        owned = self._owned
-        plans = {t: RosterPlan(tuple(moved[t][0]), il, tuple(moved[t][1]), r,
-                               self.budget(t, sum(p not in owned for p in r)))
-                 for t, r, il, _ in items}
+        # resolve_moves describes the eventual roster. FA additions in that roster are
+        # acquisitions too; they must not sneak into the budget-free starting roster.
+        # Explicit/auto-fill adds go first, then optional improvements, in one queue.
+        plans = {}
+        for t, r, il, _ in items:
+            plans[t] = self.roster_plan(t, r, il, moved[t][1])
         self.check_rosters("bedava hamle", {t: (r, il) for t, r, il, _ in items},
                            {t: (p.roster, p.il) for t, p in plans.items()}, rosters)
         return plans
+
+    def roster_plan(self, team: str, roster: tuple[str, ...], il: frozenset[str], moves) -> RosterPlan:
+        """One acquisition queue for explicit adds, auto-fill and optional waivers.
+
+        At most one weekly quota is planned; exhausted current-week actions are
+        conditional next-week actions, never contributions in week_roster.
+        """
+        additions = tuple((None, p) for p in roster if p not in self._owned)
+        base = tuple(p for p in roster if p in self._owned)
+        optional = tuple(moves)[:max(0, self._weekly_limit - len(additions))]
+        current = list(roster)
+        for d, f in optional:
+            if d is not None:
+                current.remove(d)
+            current.append(f)
+        return RosterPlan(tuple(current), il, additions + optional, base, self.budget(team))
 
     def plan_vectors(self, plans: dict[str, RosterPlan], strategies: dict[str, Strategy]) -> dict[str, np.ndarray]:
         """Planlardaki kadroların takım vektörleri (dönemliyse dönem vektörleri), IL dönüşü bedeli dahil."""
@@ -887,6 +909,11 @@ class TradeEngine:
         strategies = strategies or {}
         for tid in sent:
             out, drp, add = tuple(sent[tid]), tuple(drops.get(tid, ())), tuple(adds.get(tid, ()))
+            if len(add) > self.budget(tid).remaining:
+                raise TradeError(f"{self.league.teams[tid]}: bu hafta kalan alım hakkı {self.budget(tid).remaining}; "
+                                 f"{len(add)} oyuncu eklenemez")
+            if any(self.available_from.get(p, self.data.as_of) > self.data.as_of for p in add):
+                raise TradeError("Seçilen oyuncu henüz waiver'dan alınabilir değil")
             incoming = list(received.get(tid, []))
             inc_ids = tuple(pid for pid, _ in incoming)
             roster = [p for p in original[tid] if p not in set(out + drp)] + list(inc_ids + add)
@@ -920,9 +947,10 @@ class TradeEngine:
             # Önceden var olan boşluklar takasın kazancıymış gibi otomatik doldurulmaz.
             target = min(self.league.capacity, len(original[tid]) - len(injuries[tid]))
             if auto_fill:
-                count = max(0, target - (len(roster) - len(il)))
+                count = min(max(0, target - (len(roster) - len(il))), self.budget(tid, len(add)).remaining)
                 used = owned | set(added) | {p for adj in adjustments.values() for p in adj["add"]}
-                free = [p for p in self.ids if p not in used and self.modeled[self.index[p]]]
+                free = [p for p in self.ids if p not in used and self.modeled[self.index[p]]
+                        and self.available_from.get(p, self.data.as_of) <= self.data.as_of]
                 for pid in self._utility(free, strategy).sort_values(ascending=False, kind="stable").index[:count]:
                     roster.append(pid)
                     automatic_adds.append(pid)

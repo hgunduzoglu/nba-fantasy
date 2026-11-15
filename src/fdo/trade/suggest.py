@@ -501,7 +501,8 @@ def complete_trade(engine: TradeEngine, team_a: str, team_b: str, give_a: tuple[
     return result
 
 
-def components(engine: TradeEngine, s: Suggestion, adjustments: dict, own_plain: float | None = None) -> dict:
+def components(engine: TradeEngine, s: Suggestion, adjustments: dict, own_plain: float | None = None,
+               *, final: dict | None = None) -> dict:
     """Önerinin sıralamadan bağımsız bileşenleri: senin faydan, rakibin gerekçesi, piyasa dengesi, uygulanabilirlik
     (bırakma/ekleme ve bu haftanın alım hakkı) ve belirsizlik (sakat/dönüşü bekleyen, modellenemeyen, takvimi
     bilinmeyen oyuncular; kazancın bedava hamlelere bağlı olması). ``adjustments``: ``resolve`` çıktısı;
@@ -516,7 +517,7 @@ def components(engine: TradeEngine, s: Suggestion, adjustments: dict, own_plain:
     hurt = [names[p] for p in involved if engine._status.get(p) in OUT_STATUSES or engine.return_day(p)]
     unmodeled = [names[p] for p in involved if not engine.modeled[engine.index[p]]]
     timing = [names[p] for p in involved if p in set(engine.timing_unknown)]
-    return {
+    out = {
         "own": {"strategy_delta": s.own_strategy_delta, "win_delta": s.own_win_delta},
         "opponent": {"strategy_delta": s.other_strategy_delta, "win_delta": s.other_win_delta,
                      "level": s.acceptability, "reasons": list(s.counterpart_reasons)},
@@ -526,3 +527,12 @@ def components(engine: TradeEngine, s: Suggestion, adjustments: dict, own_plain:
         "uncertainty": {"injured": hurt, "unmodeled": unmodeled, "timing_unknown": timing,
                         "moves_dependent": bool(own_plain is not None and s.own_strategy_delta > 0 >= own_plain)},
     }
+    if final is not None:
+        out["evaluation_method"] = final["evaluation_method"]
+        out["opponent"].update(level=final["acceptability"], reasons=final["counterpart_reasons"])
+        if final["evaluation_method"] == "lineup":
+            out["own"]["strategy_delta"] = final["own_lineup_delta"]
+            out["opponent"]["strategy_delta"] = final["other_lineup_delta"]
+            # Weekly win changes come from the fast model; keep their origin explicit.
+            out["win_evaluation_method"] = "fast"
+    return out

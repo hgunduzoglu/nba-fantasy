@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api";
 import { CategoryImpact } from "../components/CategoryImpact";
 import { FixtureImpact } from "../components/FixtureImpact";
-import { CategoryChips, ErrorBanner, LineupCell, LineupWarnBadge, Loading, PlayerName, deltaClass } from "../components/common";
+import { CategoryChips, DecisionBadge, ErrorBanner, LineupCell, LineupWarnBadge, Loading, PlayerName, deltaClass } from "../components/common";
 import { RosterTable } from "../components/RosterTable";
 import { BALANCED, StrategyPicker, toStrategyIn, type StrategyChoice } from "../components/StrategyPicker";
 import { fmtDelta, fmtNum, fmtPct, fmtStat } from "../format";
@@ -614,7 +614,7 @@ function MultiSuggest({ meta, league, team, injuries, onOpen }: Props & { onOpen
                   <th title="Aynı fark, kalan normal sezonda haftalık modelin günlük kadro atamasıyla (pozisyon ve maç çakışmaları dahil). Varsayılan sıra buna göre.">Günlük kadro Δ</th>
                   <th title="Haftayı kazanma olasılığı değişimi (puan)">Sen P(5+)</th>
                   <th title="Ağırlıksız beklenen kategori değişimi">Sen ΔECW</th>
-                  <th className="l" title="Diğer takımların (varsayılan stratejileriyle) kazancı">Diğer takımlar Δ</th>
+                  <th className="l" title="Diğer takımların günlük kadro kazancı; ölçülemediyse hızlı model">Diğer takımlar son Δ</th>
                   <th className="l">Kategori etkisi (sen)</th>
                   <th title="Playoff haftalarında kadronun toplam NBA maçı farkı (sen; otomatik bırak/ekle dahil)">PO maç</th>
                   <th title="Takastaki en dengesiz takımın değer oranı">Değer dengesi</th>
@@ -626,7 +626,7 @@ function MultiSuggest({ meta, league, team, injuries, onOpen }: Props & { onOpen
                     const others = s.teams.filter((t) => t.team_id !== team);
                     return (
                       <tr key={i}>
-                        <td className="l muted">{s.shape_label}<LineupWarnBadge own={me.strategy_delta} lineup={s.lineup_delta} /></td>
+                        <td className="l muted">{s.shape_label}<LineupWarnBadge own={me.strategy_delta} lineup={s.lineup_delta} /><DecisionBadge decision={s.decision} method={s.evaluation_method} /></td>
                         <td className="l wrap">
                           <div className="flow">
                             {s.moves.map((m) => (
@@ -644,7 +644,7 @@ function MultiSuggest({ meta, league, team, injuries, onOpen }: Props & { onOpen
                         <td className="l wrap">
                           {others.map((t) => (
                             <div key={t.team_id} title={`${t.team} · strateji: ${t.strategy} · P(5+) ${fmtDelta(t.win_delta * 100, 1)} puan`}>
-                              <span className="muted">{t.team}</span> <span className={t.strategy_delta > 0 ? "good" : "bad"}>{fmtDelta(t.strategy_delta, 3)}</span>
+                              <span className="muted">{t.team}</span> <span title={t.lineup_delta != null ? "Günlük kadro" : "Hızlı model"} className={(t.lineup_delta ?? t.strategy_delta) > 0 ? "good" : "bad"}>{fmtDelta(t.lineup_delta ?? t.strategy_delta, 3)}</span>
                             </div>
                           ))}
                         </td>

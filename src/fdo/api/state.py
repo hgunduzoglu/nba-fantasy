@@ -7,18 +7,21 @@ Uvicorn istekleri iş parçacıklarında çalıştırdığı için kurulum bir k
 from __future__ import annotations
 
 import threading
+from dataclasses import replace
 from collections import OrderedDict
 from pathlib import Path
 from typing import Callable
 
 import pandas as pd
 
-from fdo.config import REPO_ROOT
+from fdo.config import Config, REPO_ROOT
 from fdo.evaluation.decisions import DecisionLog
 from fdo.ingest.archive import content_signature, latest as latest_batch
 from fdo.inseason.durability import apply_durability
+from fdo.inseason.adddrop import available_from
 from fdo.inseason.fixtures import load_fixtures
-from fdo.inseason.injuries import apply_return_ramp, latest_file, return_assumptions, with_injuries
+from fdo.inseason.injuries import (apply_return_ramp, latest_file, questionable_play, return_assumptions,
+                                   return_ramp, with_injuries)
 from fdo.inseason.live import LiveLeague, load_live
 from fdo.inseason.managers import load_transactions, waiver_order
 from fdo.inseason.roles import RoleBoost, load_logs, role_boosts
@@ -39,8 +42,10 @@ SOURCES = {"ros": "remaining_games_projection", "season": "season_total", "prese
 
 
 class AppState:
-    def __init__(self, data_dir: str | Path | None = None, *, max_items: int = 48):
+    def __init__(self, data_dir: str | Path | None = None, *, max_items: int = 48,
+                 config: Config | None = None, returns_config: str | Path | None = None):
         self.data_dir = Path(data_dir) if data_dir else DEFAULT_DATA
+        self.config, self.returns_config = config, returns_config
         self._lock = threading.RLock()
         self._cache: OrderedDict[tuple, object] = OrderedDict()
         self.max_items = max_items
@@ -83,17 +88,25 @@ class AppState:
         """Yahoo verisi + (istenirse) sakatlık dönüş tarihleri + dayanıklılık (kalan sezon maçı oynama oranıyla).
         ``delay``: en erken dönüş tarihine eklenen gün (``None``: ``config/returns.yaml``, varsayılan 0)."""
         sig = self.signature()
-        base = self._get(("data", sig), lambda: load_trade_data(self.data_dir))
+        def load():
+            data = load_trade_data(self.data_dir, config=self.config)
+            if self.returns_config is not None:
+                data = replace(data, sources={**data.sources, "attendance": {
+                    "questionable_play": questionable_play(self.returns_config)}})
+            return data
+        base = self._get(("data", sig), load)
         if not injuries:
             return self._get(("data_dur", sig), lambda: apply_durability(base))
         return self._get(("data_inj", sig, delay),
-                         lambda: apply_return_ramp(apply_durability(with_injuries(base, self.data_dir, delay))))
+                         lambda: apply_return_ramp(apply_durability(with_injuries(
+                             base, self.data_dir, delay, config_path=self.returns_config)),
+                             ramp=return_ramp(self.returns_config)))
 
     def basis_data(self, injuries: bool = True, basis: str = "ros") -> TradeData:
         """``data`` + kalan sezon oranlarının temeli (``fdo.inseason.scenarios``; ``ros`` = Yahoo projeksiyonu,
         ``late`` = Yahoo oranları ve gecikmeli sakatlık dönüşü)."""
         if basis == "late":
-            return self.data(injuries, delay=return_assumptions()["late_days"])
+            return self.data(injuries, delay=return_assumptions(self.returns_config)["late_days"])
         base = self.data(injuries)
         if basis == "ros":
             return base
@@ -122,7 +135,8 @@ class AppState:
         def build():
             segments = trade_segments(weeks, data.as_of) if weeks is not None else None
             return TradeEngine(data, str(league_id), segments=segments, free_moves=free_moves, adds_used=dict(used),
-                               adds_limit=limit)
+                               adds_limit=limit, available_from=available_from(lv.waivers, data.as_of, lg.settings)
+                               if lv is not None and lv.as_of == data.as_of else None)
         return self._get(("engine", data.fingerprint, str(league_id), free_moves, used, limit), build)
 
     def weeks(self, league_id: str, injuries: bool = True) -> LeagueWeeks:
