@@ -89,6 +89,42 @@ def ranked_method(deltas: Sequence[LineupDelta | None], requested: bool, fallbac
     return "lineup" if all(d is not None for d in deltas) else "lineup_partial"
 
 
+def final_rejection(s: Suggestion, decision: dict, *, mode: str, require_reason: bool,
+                    min_gain: float = 0.0, inspect_losses: bool = False) -> str | None:
+    """Apply eligibility to the final measurements, independently of search ranking.
+
+    Completion may expose explicitly labelled loss scenarios; ordinary mutual,
+    sell-high and buy-low recommendations must still benefit the user.
+    """
+    own = decision.get("own_lineup_delta", s.own_strategy_delta)
+    other = decision.get("other_lineup_delta", s.other_strategy_delta)
+    if not np.isfinite(own) or (not inspect_losses and (own <= 1e-8 or own < min_gain)):
+        return "gain"
+    if mode == "mutual" and (not np.isfinite(other) or other <= 1e-8 or other < min_gain):
+        return "mode"
+    if require_reason and decision["acceptability"] == "low":
+        return "reason"
+    return None
+
+
+def executable_plans(engine: TradeEngine, rosters: dict, injuries: dict, strategies: dict):
+    """Validate the same immediate acquisition queue used for final scoring.
+
+    Optional next-week actions stay conditional. Required FA additions cannot be
+    deferred into that queue and still be presented as executable today.
+    """
+    plans = engine.waiver_plans(rosters, strategies, injuries)
+    engine.check_rosters("son işlem planı", {t: (rosters[t], injuries[t]) for t in strategies},
+                         {t: (p.week_roster, p.il) for t, p in plans.items()}, rosters)
+    for t, p in plans.items():
+        immediate = [f for _, f in p.moves[:p.now]]
+        required = set(rosters[t]) - engine._owned
+        if (not required <= set(immediate) or len(immediate) > engine.budget(t).remaining
+                or any(engine.available_from.get(f, engine.data.as_of) > engine.data.as_of for f in immediate)):
+            raise TradeError("Son işlem planı bu haftanın alım hakkı veya waiver koşullarını aşamaz")
+    return plans
+
+
 def lineup_deltas(sim: SeasonSim, engine: TradeEngine, team: str, strategy: Strategy,
                   suggestions: Sequence[Suggestion]) -> list[LineupDelta | None]:
     """İki takımlı öneriler (``suggest_trades``, ``complete_trade``): ``team`` takasın ``team_a``'sıdır."""

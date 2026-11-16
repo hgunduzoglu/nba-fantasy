@@ -16,13 +16,14 @@ from fdo.inseason.adddrop import available_from, critical_categories, critical_s
 from fdo.inseason.drops import drop_plan, returning
 from fdo.inseason.fixtures import opponent as fixture_opponent
 from fdo.inseason.history import team_history
-from fdo.inseason.lineup_rank import final_decision, lineup_deltas, ranked_method, rerank
+from fdo.inseason.lineup_rank import executable_plans, final_decision, final_rejection, lineup_deltas, ranked_method, rerank
 from fdo.inseason.managers import load_transactions, profiles
 from fdo.inseason.sitstart import plan_week, today_changes
 from fdo.inseason.waiver import drop_ranking, waiver_table
 from fdo.inseason.weekly import DEFAULT_OUT, QUESTIONABLE, Stint, WeekOutlook, acquisition_limit, vector_totals
 from fdo.roster.assignment import best_assignment
 from fdo.trade import Strategy, TradeError
+from fdo.trade.engine import RosterInvariantError
 from fdo.trade.data import MODES, ROS
 from fdo.trade.perception import mispricing, perceived_prices
 from fdo.trade.strategy import CATEGORIES
@@ -95,22 +96,29 @@ def register(app: FastAPI, state: AppState) -> None:
         lineups: list = [None] * len(found.suggestions)
         if sim is not None:                     # README §13.47: finalistler günlük kadroyla yeniden sıralanır
             found.suggestions, lineups = rerank(found.suggestions,
-                                                lineup_deltas(sim, eng, body.team, strategy, found.suggestions), 20)
+                                                lineup_deltas(sim, eng, body.team, strategy, found.suggestions))
         perceived = perceived_prices(eng, body.perceived)
         po_games = state.playoff_games(lid, body.injuries)
         plain_eng = engine(lid, body.injuries, False)
-        rows = []
+        rows, kept_lineups = [], []
+        rejected_final = dict.fromkeys(("gain", "mode", "reason", "roster"), 0)
         for s, lu in zip(found.suggestions, lineups):
             decision = final_decision(s, lu, body.lineup_rank and body.rank == "own")
-            # Normal recommendations must survive the final evaluation. Losses
-            # remain inspectable in completion/current-scenario results.
-            if decision["decision"] == "loss" or (body.mode == "mutual" and decision["decision"] == "own"):
-                continue
             r = s.request
             pair = {body.team: strategy, r.team_b: s.other_strategy}
+            try:
+                rosters, adj, il = eng.resolve(r, pair)
+                plans = executable_plans(eng, rosters, il, pair)
+            except (TradeError, ValueError, RosterInvariantError):
+                rejected_final["roster"] += 1
+                continue
+            rejection = final_rejection(s, decision, mode=body.mode, require_reason=body.require_reason,
+                                        min_gain=body.min_gain)
+            if rejection:
+                rejected_final[rejection] += 1
+                continue
             plain = plain_metrics(plain_eng, r, pair)
-            rosters, adj, il = eng.resolve(r, pair)
-            p, _ = eng.score(rosters, body.team, r.team_b, strategy, s.other_strategy, il)
+            p, _ = eng.score_many(rosters, pair, il, plans=plans)
             taken = float(perceived.reindex(list(r.give_b)).fillna(0).sum())
             active = [x for x in rosters[body.team] if x not in il[body.team]]
             rows.append({"my_categories": category_deltas(eng, p, body.team, pair),
@@ -133,13 +141,18 @@ def register(app: FastAPI, state: AppState) -> None:
                          "other_weights": list(s.other_strategy.weights),
                          "adjustments": {t: {k: [eng.data.players.loc[p, "name"] for p in v] for k, v in a.items()}
                                          for t, a in adj.items()}})
+            kept_lineups.append(lu)
+            if len(rows) == 20:
+                break
         out = clean({"suggestions": rows, "strategy": {"name": strategy.name, "weights": list(strategy.weights)},
                      "examined": found.examined, "eligible": found.eligible,
                      "rejected_balance": found.rejected_fairness, "rejected_view": found.rejected_view,
-                     "rejected_roster": found.rejected_roster, "rejected_reason": found.rejected_reason,
+                     "rejected_roster": found.rejected_roster + rejected_final["roster"],
+                     "rejected_reason": found.rejected_reason + rejected_final["reason"],
+                     "rejected_final": rejected_final,
                      "rejected_overpay": found.rejected_overpay,
                      "limit_reached": found.limit_reached, "message": found.message,
-                     "ranked_by": ranked_method(lineups, body.lineup_rank and body.rank == "own", body.rank)})
+                     "ranked_by": ranked_method(kept_lineups, body.lineup_rank and body.rank == "own", body.rank)})
         out["decision_id"] = state.log_decision("recommendation", "trade_suggest", lid, body.model_dump(),
                                                 summarize(out))
         return out
@@ -170,14 +183,15 @@ def register(app: FastAPI, state: AppState) -> None:
             listed = found.suggestions + ([found.current] if found.current else [])
             ds = lineup_deltas(sim, eng, body.team_a, sa, listed)
             lineup = {id(s): d for s, d in zip(listed, ds)}
-            found.suggestions, _ = rerank(found.suggestions, ds[:len(found.suggestions)], 12)
+            found.suggestions, _ = rerank(found.suggestions, ds[:len(found.suggestions)])
 
         def row(s):
             lu = lineup.get(id(s))
             decision = final_decision(s, lu, body.lineup_rank and body.rank == "own")
             r = s.request
             rosters, adj, il = eng.resolve(r, pair)
-            p, _ = eng.score(rosters, r.team_a, r.team_b, sa, sb, il)
+            plans = executable_plans(eng, rosters, il, pair)
+            p, _ = eng.score_many(rosters, pair, il, plans=plans)
             plain = plain_metrics(plain_eng, r, pair)
             return {"give_a": [{**_brief(eng, x), "added": x not in fixed} for x in r.give_a],
                     "give_b": [{**_brief(eng, x), "added": x not in fixed} for x in r.give_b],
@@ -193,14 +207,33 @@ def register(app: FastAPI, state: AppState) -> None:
                     "my_categories": category_deltas(eng, p, r.team_a, pair),
                     "adjustments": {t: {k: [eng.data.players.loc[x, "name"] for x in v] for k, v in a.items()}
                                     for t, a in adj.items()}}
-        out = clean({"kind": found.kind, "suggestions": [row(s) for s in found.suggestions],
+        rows, kept_lineups = [], []
+        rejected_final = dict.fromkeys(("gain", "mode", "reason", "roster"), 0)
+        for s in found.suggestions:
+            decision = final_decision(s, lineup.get(id(s)), body.lineup_rank and body.rank == "own")
+            rejection = final_rejection(s, decision, mode="completion", require_reason=body.require_reason,
+                                        inspect_losses=True)
+            if rejection:
+                rejected_final[rejection] += 1
+                continue
+            try:
+                rows.append(row(s))
+            except (TradeError, ValueError, RosterInvariantError):
+                rejected_final["roster"] += 1
+                continue
+            kept_lineups.append(lineup.get(id(s)))
+            if len(rows) == 12:
+                break
+        out = clean({"kind": found.kind, "suggestions": rows,
                      "current": row(found.current) if found.current else None, "examined": found.examined,
                      "rejected_balance": found.rejected_fairness, "rejected_view": found.rejected_view,
-                     "rejected_roster": found.rejected_roster, "rejected_reason": found.rejected_reason,
+                     "rejected_roster": found.rejected_roster + rejected_final["roster"],
+                     "rejected_reason": found.rejected_reason + rejected_final["reason"],
+                     "rejected_final": rejected_final,
                      "rejected_overpay": found.rejected_overpay, "max_view": opts.max_view,
                      "limit_reached": found.limit_reached,
                      "min_fairness": opts.min_fairness, "min_view": opts.min_view, "message": found.message,
-                     "ranked_by": ranked_method(list(lineup.values()), body.lineup_rank and body.rank == "own", body.rank)})
+                     "ranked_by": ranked_method(kept_lineups, body.lineup_rank and body.rank == "own", body.rank)})
         out["decision_id"] = state.log_decision("recommendation", "trade_complete", lid, body.model_dump(),
                                                 summarize(out))
         return out

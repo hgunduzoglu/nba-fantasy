@@ -2457,6 +2457,11 @@ both teams to gain with the same final method. Acceptance reasons and component 
 Unmeasured rows are conditional (`decision: unmeasured`, `evaluation_method: fast_fallback`); empty or entirely
 unmeasured results no longer claim they were ranked with daily lineups. Fast-model values remain separately visible.
 
+Final eligibility (16 November): after re-ranking, mode and minimum benefit requirements, `require_reason` and
+the immediate transaction plan are checked together. A newly low counterpart reason is rejected when required;
+the perceived-even threshold remains 0.95. Filtering precedes the result limit, so rejected finalists do not crowd
+out valid candidates. Completion rechecks reasons and feasibility too; the selected scenario remains inspectable.
+
 Forward replay no longer borrows today's undated league settings, standings, logs, variance or identity overrides.
 These must exist in the historical snapshot; dated player/projection/ADP exports and injury reports may only come
 from on/before the decision day. Missing historical inputs are not reconstructed from today's state.
