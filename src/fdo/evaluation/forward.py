@@ -26,6 +26,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from fdo.ingest.archive import batches, read_object
 from fdo.inseason.identity import Resolver
 from fdo.schedule.calendar import normalize_team
 from fdo.trade.data import ROS
@@ -38,26 +39,56 @@ POLICY_VERSION = "b2b-attendance-v5"
 DATED_INPUTS = ("players_yahoo_", "projections_yahoo_", "adp_yahoo_", "injuries_cbs_")
 
 
+def _archived_day(data_dir: Path, day: dt.date) -> dict[str, str]:
+    """Kadrosu ``day`` tarihli arşiv partilerinin dosyaları (ad → sha256), her ad onu içeren en erken partiden; yoksa
+    boş. Arşiv değişmezdir: o gün yakalanmış girdiler meşru geçmiş verisidir."""
+    out: dict[str, str] = {}
+    for b in batches(data_dir):
+        info = b.get("files", {}).get("rosters.json")
+        if not info:
+            continue
+        try:
+            roster = json.loads(read_object(data_dir, info["sha256"]).decode("utf-8-sig"))
+        except (OSError, ValueError):
+            continue
+        if roster.get("roster_date") == day.isoformat():
+            for n, i in b["files"].items():
+                out.setdefault(n, i["sha256"])
+    return out
+
+
+def _usable(name: str, day: dt.date) -> bool:
+    dates = re.findall(r"\d{4}-\d{2}-\d{2}", name)
+    return not name.startswith("yahoo_live") and (not dates or max(dates) <= day.isoformat())
+
+
 def snapshot_dir(data_dir: str | Path, day: dt.date, work: str | Path) -> Path:
     """Archive inputs plus explicitly dated pre-decision exports. No current
     settings/live/log/variance fallback. Missing historical inputs stay missing.
     ``work`` must be empty, so a mistaken path cannot delete existing data.
+
+    Files come from ``snapshots/<day>/`` and, for names missing there, from the
+    earliest immutable archive batch whose roster is dated ``day``.
     """
     data_dir, work = Path(data_dir), Path(work)
     snap = data_dir / "snapshots" / day.isoformat()
-    if not (snap / "rosters.json").exists():
+    archived = _archived_day(data_dir, day)
+    if not (snap / "rosters.json").exists() and "rosters.json" not in archived:
         raise FileNotFoundError(f"Kopya yok: {snap}")
-    roster = json.loads((snap / "rosters.json").read_text(encoding="utf-8-sig"))
-    if roster.get("roster_date") != day.isoformat():
-        raise ValueError("Arşiv kadrosunun tarihi decision_time ile eşleşmiyor")
+    if (snap / "rosters.json").exists():
+        roster = json.loads((snap / "rosters.json").read_text(encoding="utf-8-sig"))
+        if roster.get("roster_date") != day.isoformat():
+            raise ValueError("Arşiv kadrosunun tarihi decision_time ile eşleşmiyor")
     if work.exists() and any(work.iterdir()):
         raise ValueError(f"Replay çalışma dizini boş olmalı: {work}")
     work.mkdir(parents=True, exist_ok=True)
-    for p in snap.iterdir():
-        if p.is_file() and not p.name.startswith("yahoo_live"):
-            dates = re.findall(r"\d{4}-\d{2}-\d{2}", p.name)
-            if not dates or max(dates) <= day.isoformat():
+    if snap.exists():
+        for p in snap.iterdir():
+            if p.is_file() and _usable(p.name, day):
                 shutil.copy2(p, work / p.name)
+    for name, digest in archived.items():
+        if "/" not in name and not (work / name).exists() and _usable(name, day):
+            (work / name).write_bytes(read_object(data_dir, digest))
     for p in data_dir.iterdir():
         if not p.is_file() or (work / p.name).exists() or not p.name.startswith(DATED_INPUTS):
             continue

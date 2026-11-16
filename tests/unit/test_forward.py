@@ -91,3 +91,20 @@ def test_realized_category_wins_use_the_lineup_capacity_and_compare_weekly():
     s = ecw_summary(pairs)
     assert s["n_moved"] == 2 and s["model_sign"] == 1.0 and s["forecast_sign"] == .5
     assert np.isfinite(s["model_spearman"])
+
+
+def test_snapshot_dir_completes_missing_inputs_from_the_same_day_archive_batch(tmp_path):
+    from fdo.ingest.archive import archive
+    data = tmp_path / "real"
+    data.mkdir()
+    (data / "rosters.json").write_text(json.dumps({"roster_date": D.isoformat()}), encoding="utf-8")
+    (data / "league_info.json").write_text('{"v": "o gün"}', encoding="utf-8")
+    (data / "yahoo_live.json").write_text("{}", encoding="utf-8")
+    archive(data, source="test")
+    (data / "rosters.json").write_text(json.dumps({"roster_date": "2026-11-20"}), encoding="utf-8")
+    (data / "league_info.json").write_text('{"v": "sonra"}', encoding="utf-8")
+    archive(data, source="test")                                   # daha sonraki gün: kullanılmaz
+    work = snapshot_dir(data, D, tmp_path / "work")
+    assert json.loads((work / "league_info.json").read_text(encoding="utf-8"))["v"] == "o gün"
+    assert json.loads((work / "rosters.json").read_text(encoding="utf-8"))["roster_date"] == D.isoformat()
+    assert not (work / "yahoo_live.json").exists()
