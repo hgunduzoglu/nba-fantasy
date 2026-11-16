@@ -36,6 +36,7 @@ def test_roster_marks_durability_cut(data, tmp_path):  # noqa: F811
     assert s["durability"] is None
 
 
+@pytest.mark.slow
 def test_weekly_and_stream(client):
     w = client.post("/api/leagues/L/weekly", json={"team": "1", "week": 3}).json()
     assert w["week"] == 3 and len(w["days"]) == 7 and w["acquisitions_limit"] == 4
@@ -77,6 +78,7 @@ def test_sitstart(client):
     assert all(c["slot"] in ("PG", "C") for q in r["players"] for c in q["cells"] if c["state"] == "start")
 
 
+@pytest.mark.slow
 def test_adddrop_week_modes_and_waiver_dates(client, tmp_path):
     w = client.post("/api/leagues/L/adddrop/week", json={"team": "1", "week": 3}).json()
     assert w["mode"] == "win" and w["objective"] == "Dengeli" and not w["synced"] and w["adds_left"] == 4

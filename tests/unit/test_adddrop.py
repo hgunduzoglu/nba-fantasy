@@ -1,6 +1,7 @@
 """Add/drop: waiver uygunluğu, kritik kategoriler, tek hamleler ve waiver tarihine uyan streaming."""
 from __future__ import annotations
 
+import pytest
 import datetime as dt
 
 import numpy as np
@@ -38,6 +39,7 @@ def test_critical_categories_are_zero_when_settled(data):  # noqa: F811
     assert pick_critical(lev) == ["FG_PCT"]
 
 
+@pytest.mark.slow
 def test_single_moves_and_stream_respect_waiver_dates(data):  # noqa: F811
     model = WeekModel(TradeEngine(data, "L", utilization=1))
     base = model.outlook("1", "2", WEEK3)

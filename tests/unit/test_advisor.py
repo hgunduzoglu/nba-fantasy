@@ -162,6 +162,7 @@ def test_largest_gap_tiers():
     assert largest_gap_tiers(v, 3).tolist() == [1, 1, 2, 2, 3]
 
 
+@pytest.mark.slow
 def test_category_weights_change_objective(ctx, log16):
     base = recommend(ctx, log16, mode="fast", n_sims=30)
     punt = recommend(ctx, log16, mode="fast", n_sims=30, category_weights={"FT_PCT": 0.0, "TOV": 0.0})

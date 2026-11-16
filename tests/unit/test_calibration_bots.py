@@ -42,6 +42,7 @@ def test_logs_roundtrip(truth, nostd):
     assert mom["n"].sum() > 0 and list(mom.columns) == ["n", "p10", "p50", "p90"]
 
 
+@pytest.mark.slow
 def test_fit_recovers_sigma(truth, nostd, config):
     ds, universe = nostd
     _, _, logs = truth

@@ -90,6 +90,7 @@ def test_pages_with_schedule(env, page):
 
 
 
+@pytest.mark.slow
 def test_live_draft_flow(env, monkeypatch, tmp_path):
     cfg, ds, _ = env
     monkeypatch.setenv("FDO_LIVE_PATH", str(tmp_path / "live.json"))

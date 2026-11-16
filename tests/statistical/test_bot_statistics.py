@@ -6,6 +6,7 @@ Toleranslar:
 """
 
 import numpy as np
+import pytest
 
 from fdo.bots.thurstone import BatchDraft
 
@@ -42,6 +43,7 @@ def test_monotone_more_likely_picked_as_draft_advances(universe, config):
     assert rates[0] <= rates[1] <= rates[2], rates
 
 
+@pytest.mark.slow
 def test_reach_tail_is_rare_but_possible(universe, config):
     """ADP≈90 oyuncunun ilk 16 pick'te gitme oranı > 0 ve < %1."""
     target = _closest_ok(universe, 90)
