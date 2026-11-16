@@ -2529,6 +2529,51 @@ the read-only server the refresh needs the report access code and stops at a dai
 (`FDO_INJURY_DAILY_CAP`, $3 by default). `scripts/push_data.py` does not overwrite the server's `injury_intel.json`. A
 trial with three players cost $0.41 (six searches, one call).
 
+### 13.51 Realized category wins in the forward test, a noise floor, strategy advice, a deeper stream plan and a Today page (16 November 2026)
+
+**Realized measure** (`fdo.evaluation.forward.realized_pair_test`): each one-for-one trade is also scored by what
+actually happened. The window's box scores go day by day through both rosters into the active slots, with position
+eligibility; when more players play than there are slots, the decision day's expected per-game value picks them, never
+hindsight. Weekly category totals are compared against every other team, giving realized category wins; the trade's
+effect is the difference from the roster without the trade. Replay inputs missing from `snapshots/<day>/` now come from
+the earliest immutable archive batch whose roster is dated that day.
+
+First out-of-sample run: 9 November decision, METU IE team 7, a bundle frozen from the two previous seasons only
+(back-to-back rates, no 2026-27 data), window 9–15 November, 3,217 trades that changed a lineup.
+
+| Measure | Sign agreement | Rank correlation |
+|---|---|---|
+| Fast trade score | 60% | 0.39 |
+| Naive player forecast (window games × projection) | 70% | 0.53 |
+| Daily-lineup delta, same week only (200-trade sample) | 66% | 0.44 |
+| Daily-lineup delta, rest of season (same sample) | 56% | 0.40 |
+| Realized player value (upper bound) | 84% | 0.86 |
+
+When horizons match, the daily-lineup delta beats the fast score, which supports re-ranking finalists by it. The naive
+forecast is still slightly better over one week. By projection basis, the player forecast's rank correlation is 0.68
+(Yahoo), 0.72 (season rates) and 0.71 (blend); the defaults stay unchanged on one week of evidence.
+`scripts/backtest_forward.py` takes `--bases`, `--lineup-sample N`, `--pairs-out` and `--write-floor`.
+
+**Noise floor** (`fdo.evaluation.noise`, `config/noise.yaml`): by fast-score magnitude, sign agreement with the realized
+week is 50–58% below 0.2, 64% at 0.2–0.3 and 90% above 0.3. Suggestion, completion and multi-team rows carry
+`signal: weak | clear` from the ranking measure against that floor (0.3); weak rows get a badge and are not hidden. One
+week of outcomes is noisy, so the floor is conservative and should fall as longer windows accumulate.
+
+**Strategy advice** (`/api/leagues/{lid}/strategy-advice`, Season page): the season is simulated with the same seed under
+every preset for the team's own lineup, waiver and IL decisions, giving paired playoff and title differences against
+balanced, with simulation errors. Opponents' strategies do not change. On 16 November, for example, AST punt raised one
+team's playoff odds from 25% to 32% (±0.5), while BLK punt lowered another's by 6 points.
+
+**Stream plan:** `WeekModel.stream(beam=k)` keeps the k best partial plans at each step (1 = the greedy plan as before).
+With k = 3 it found +0.04–0.07 more expected category wins for two of four teams and the same plan for the other two, at
+about twice the time; the Add/Drop page offers it as "Derin plan".
+
+**Today page** (`/api/today`, `fdo.api.today`): for each league's own team, this week's opponent, expected category
+wins and the stream plan, the best rest-of-season add, playoff and title odds, roster alerts (a player in an IL slot
+without an eligible status blocks every transaction on Yahoo) and how many injury analyses are stale. It is computed in
+the background once per data signature and stored in `today.json`; on the read-only server a background thread
+recomputes it after each data push (`FDO_PRECOMPUTE`, on by default there). `scripts/push_data.py` does not overwrite it.
+
 ### 13.8 V3 candidates
 
 Beam search and H-score weight optimization; fitting the profile mix; covariance of game counts between

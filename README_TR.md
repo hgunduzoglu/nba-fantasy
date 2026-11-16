@@ -2451,6 +2451,51 @@ yenileme takas raporunun erişim kodunu ister ve günlük harcama sınırında d
 `scripts/push_data.py` sunucunun `injury_intel.json`'ını ezmez. Üç oyunculuk deneme $0,41 tuttu (altı arama, tek
 çağrı).
 
+### 13.51 İleriye dönük testte gerçekleşen kategori galibiyeti, gürültü eşiği, strateji önerisi, derin streaming planı ve Bugün sayfası (16 Kasım 2026)
+
+**Gerçekleşen ölçü** (`fdo.evaluation.forward.realized_pair_test`): her 1'e 1 takas gerçekte olanla da puanlanır.
+Penceredeki kutu skorları gün gün iki kadrodan aktif slotlara pozisyon uygunluğuyla geçer; slottan fazla oyuncu
+oynadıysa seçim karar günündeki beklenen maç başı değerle yapılır, sonradan bilinenle değil. Haftalık kategori toplamları
+diğer bütün takımlarla karşılaştırılır ve gerçekleşen kategori galibiyeti çıkar. Takasın etkisi, takassız kadroya göre
+farktır. Replay'de `snapshots/<gün>/`'de olmayan girdiler artık kadrosu o gün tarihli en erken değişmez arşiv
+partisinden gelir.
+
+İlk örneklem dışı koşu: 9 Kasım kararı, METU IE takım 7, yalnız önceki iki sezondan dondurulmuş paket (B2B oranları,
+2026-27 verisi yok), pencere 9–15 Kasım, kadroyu değiştiren 3.217 takas.
+
+| Ölçü | İşaret uyumu | Sıra korelasyonu |
+|---|---|---|
+| Hızlı takas puanı | %60 | 0,39 |
+| Basit oyuncu tahmini (penceredeki maç × projeksiyon) | %70 | 0,53 |
+| Günlük kadro farkı, yalnız aynı hafta (200 takaslık örneklem) | %66 | 0,44 |
+| Günlük kadro farkı, kalan sezon (aynı örneklem) | %56 | 0,40 |
+| Gerçekleşen oyuncu değeri (üst sınır) | %84 | 0,86 |
+
+Ufuklar eşleşince günlük kadro farkı hızlı puanı geçiyor; bu, finalistleri onunla yeniden sıralamayı destekler. Bir
+haftada basit tahmin hâlâ biraz daha iyi. Projeksiyon temeline göre oyuncu tahmininin sıra korelasyonu 0,68 (Yahoo),
+0,72 (bu sezonki oranlar) ve 0,71 (karma); bir haftalık kanıtla varsayılanlar değişmedi. `scripts/backtest_forward.py`
+`--bases`, `--lineup-sample N`, `--pairs-out` ve `--write-floor` alır.
+
+**Gürültü eşiği** (`fdo.evaluation.noise`, `config/noise.yaml`): hızlı puanın büyüklüğüne göre gerçekleşen haftayla işaret
+uyumu 0,2'nin altında %50–58, 0,2–0,3'te %64, 0,3'ün üstünde %90. Öneri, tamamlama ve çok takımlı satırlar sıralama
+ölçüsünün bu eşiğe (0,3) göre `signal: weak | clear` alanını taşır; zayıflar rozetle işaretlenir, gizlenmez. Bir haftalık
+sonuç gürültülü olduğu için eşik temkinlidir; pencereler uzadıkça düşmesi beklenir.
+
+**Strateji önerisi** (`/api/leagues/{lid}/strategy-advice`, Sezon sayfası): sezon, takımın kendi kadro, waiver ve IL
+kararları için her hazır stratejiyle aynı tohumla simüle edilir; dengeliye göre eşleşmeli play-off ve şampiyonluk farkı
+ve simülasyon hatası döner. Rakiplerin stratejisi değişmez. 16 Kasım'da örneğin AST punt bir takımın play-off
+olasılığını %25'ten %32'ye çıkardı (±0,5), BLK punt bir başkasınınkini 6 puan düşürdü.
+
+**Streaming planı:** `WeekModel.stream(beam=k)` her adımda en iyi k kısmi planı tutar (1 = önceki açgözlü plan). k = 3
+dört takımın ikisinde +0,04–0,07 daha fazla beklenen kategori galibiyeti buldu, diğer ikisinde aynı planı; süre yaklaşık
+iki katı. Add/Drop sayfasında "Derin plan" olarak seçilebilir.
+
+**Bugün sayfası** (`/api/today`, `fdo.api.today`): her ligde kendi takımın için bu haftanın rakibi, beklenen kategori
+galibiyeti ve streaming planı, kalan sezon için en iyi alım, play-off ve şampiyonluk olasılığı, kadro uyarıları (Yahoo'da
+IL slotunda uygun durumu olmayan oyuncu bütün işlemleri engeller) ve eskimiş sakatlık analizi sayısı. Veri imzası başına
+arka planda bir kez hesaplanıp `today.json`'a yazılır; salt okunur sunucuda bir arka plan iş parçacığı her veri
+gönderiminden sonra yeniden hesaplar (`FDO_PRECOMPUTE`, orada varsayılan açık). `scripts/push_data.py` bu dosyayı ezmez.
+
 ### 13.8 V3 adayları
 
 Beam search ve H-score ağırlık optimizasyonu; profil karışımı uyumu; oyuncular arası maç sayısı
