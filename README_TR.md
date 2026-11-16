@@ -13,6 +13,10 @@ almaz ve karar gününden önce eğitilmiş, sürümü kayıtlı `--model` paket
 Tam ortak oynama senaryoları ve gün içi lineup kilitleri hâlâ modellenmez; takas backtest metriği oyuncu değeri yönü
 için teşhis ölçümüdür. Ayrıntılar: [README §13.49](README.md#1349-acquisition-limits-expected-lineups-and-replay-provenance-15-november-2026).
 
+16 Kasım düzeltmesi: hafta ortasında birikmiş skor, tek günlük referans yerine rakibin aynı haftaya ait toplam
+beklentisiyle karşılaştırılır; diğer günlerin seçilmiş katkısı da slot kararına katılır. Son takas değerlendirmesi
+`require_reason`, öneri modu, fayda eşiği ve uygulanabilir alım planını yeniden denetler. Gerekçe eşiği `0.95` kaldı.
+
 ## Sezon içi Trade Lab
 
 `streamlit run src/fdo/ui/app.py` ile açılır. Varsayılan başlangıç artık Trade Lab'dir;

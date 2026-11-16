@@ -253,8 +253,14 @@ class SeasonSim:
                     if last < 0:
                         continue
                 stints.append(Stint(p, last=last, slot=len(stints)))
-            tw = self.model.team_week(team, stints, days, use_status=current, strategy=strategy)
-            self._vec_cache[key] = tw.vector + self._past(team, week) if current else tw.vector
+            past, reference = None, None
+            if current:
+                past = self._past(team, week)
+                other_past = np.mean([self._past(t, week) for t in self.teams if t != team], axis=0)
+                reference = other_past + self.model.lineup_reference * len(days)
+            tw = self.model.team_week(team, stints, days, past, use_status=current, strategy=strategy,
+                                      reference=reference)
+            self._vec_cache[key] = tw.vector
         return self._vec_cache[key]
 
     def week_vectors(self, rosters: dict[str, tuple[str, ...]], week: int,

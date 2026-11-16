@@ -32,7 +32,7 @@ from fdo.trade.data import ROS
 
 COUNTS = ("fg3m", "pts", "reb", "ast", "stl", "blk", "tov")
 STATS_USED = ("fgm", "fga", "ftm", "fta", *COUNTS)
-POLICY_VERSION = "expected-lineup-v2"
+POLICY_VERSION = "weekly-lineup-v3"
 # Undated mutable inputs (settings, live scores, overrides, standings, logs,
 # variance, etc.) must come from the archive, never today's directory.
 DATED_INPUTS = ("players_yahoo_", "projections_yahoo_", "adp_yahoo_", "injuries_cbs_")

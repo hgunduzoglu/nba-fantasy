@@ -2446,6 +2446,14 @@ and turnovers, using a bounded local search against a league reference. Team str
 return decisions throughout the regular season, playoffs and lineup re-ranking; cache keys include the strategy.
 Sit/start marginal values are computed per day with the same attendance moments.
 
+Midweek reference correction (16 November): daily priorities only bootstrap a lineup without accumulated scores.
+Final slot choices compare the complete week's accumulated and selected remaining production against an opponent
+on the same horizon, including the other days' selected players. Weekly matchup, streaming and drop analysis use
+the opponent's full accumulated-plus-remaining vector. Season scoring brings actual past production into lineup
+selection, with the other teams' past production plus the remaining league forecast as its weekly reference.
+Changes are accepted only when that weekly objective improves. This is still a bounded local search; the policy
+version is now `weekly-lineup-v3`.
+
 For a game played with probability p, variance is `p * conditional_variance + p * (1-p) * mean²`. Shooting moments
 also include the corresponding makes/attempts covariance. The 24-component model still uses the configured copula
 for cross-category dependence; it does not sample a shared attendance event across categories or correlated return

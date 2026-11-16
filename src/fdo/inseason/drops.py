@@ -79,10 +79,11 @@ def drop_plan(model: WeekModel, team_id: str, opp_id: str, days: list[dt.date], 
     # bu hafta: rakibin aktif kadrosuna karşı kalan günler
     a_m = accumulated_vector(acc_mine)
     opp_tw = model.team_week(opp_id, [Stint(p, slot=k) for k, p in enumerate(model.active_roster(opp_id))], days,
-                             accumulated_vector(acc_opp))
+                             accumulated_vector(acc_opp), reference=a_m + model.lineup_reference * len(days))
 
     def week(ids):
-        tw = model.team_week(team_id, [Stint(p, slot=k) for k, p in enumerate(ids)], days, a_m)
+        tw = model.team_week(team_id, [Stint(p, slot=k) for k, p in enumerate(ids)], days, a_m,
+                             reference=opp_tw.vector)
         return (tw, *model.evaluate(tw, opp_tw))
 
     tw0, p0, ew0, sc0, p50 = week(active)

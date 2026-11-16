@@ -234,9 +234,11 @@ class WeekModel:
 
     def team_week(self, team_id: str, stints: list[Stint], days: list[dt.date],
                   acc: np.ndarray | None = None, *, use_status: bool = True, priority: np.ndarray | None = None,
-                  sit: np.ndarray | None = None, strategy: Strategy | None = None) -> TeamWeek:
+                  sit: np.ndarray | None = None, strategy: Strategy | None = None,
+                  reference: np.ndarray | None = None) -> TeamWeek:
         """``priority``: stint veya gün/stint başına öncelik (varsayılan beklenen kategori katkısı); ``sit``: (gün, stint) maçı olsa da
-        oturtulan (sit/start önerisi)."""
+        oturtulan (sit/start önerisi). ``reference``: rakibin birikmiş + kalan haftalık vektörü; slot adayları,
+        diğer günlerin seçilmiş katkıları ve ``acc`` ile birlikte bu aynı haftalık hedefe göre karşılaştırılır."""
         ids = [s.player_id for s in stints]
         n, D = len(ids), len(days)
         idx = [self.engine.index[p] for p in ids]
@@ -253,6 +255,7 @@ class WeekModel:
         # probabilities describe the same attendance event. Form its moments
         # once, before either selecting a lineup or aggregating production.
         expected = self.daily_vectors(np.asarray(idx, int), days)
+        policy = strategy or self.strategy
         slots = np.full((D, n), -1)
         for d in range(D):
             if priority is not None:
@@ -260,7 +263,30 @@ class WeekModel:
                 pr = pr[d] if pr.ndim == 2 else pr
                 slots[d] = slot_assignment(elig, allowed[d], pr)
             else:
-                slots[d] = self._expected_assignment(elig, allowed[d], expected[d], strategy or self.strategy, acc)
+                # Bootstrap on a daily horizon without accumulated weekly scores.
+                pr = p_win(expected[d], self.lineup_reference, self.config) @ policy.normalized
+                slots[d] = slot_assignment(elig, allowed[d], pr)
+        competing_days = np.flatnonzero((allowed & (slots < 0)).any(axis=1))
+        if priority is None and len(competing_days):
+            total = (acc.copy() if acc is not None else np.zeros(WEEK_DIM)) + expected[slots >= 0].sum(axis=0)
+            # A known opponent supplies its accumulated + remaining weekly total.
+            # Otherwise the league reference spans the same forecast window (a
+            # whole week when past production is included), never just one day.
+            if reference is None:
+                horizon = max(7, D) if acc is not None and np.any(acc) else D
+                reference = self.lineup_reference * horizon
+            score = float(p_win(total, reference, self.config) @ policy.normalized)
+            for _ in range(2):
+                changed = False
+                for d in competing_days:
+                    context = total - expected[d, slots[d] >= 0].sum(axis=0)
+                    candidate = self._expected_assignment(elig, allowed[d], expected[d], policy, context, reference)
+                    trial = context + expected[d, candidate >= 0].sum(axis=0)
+                    trial_score = float(p_win(trial, reference, self.config) @ policy.normalized)
+                    if trial_score > score + 1e-12:
+                        slots[d], total, score, changed = candidate, trial, trial_score, True
+                if not changed:
+                    break
         counted_mask = slots >= 0
         counted = counted_mask.sum(axis=0)
         vec = (acc.copy() if acc is not None else np.zeros(WEEK_DIM))
@@ -278,7 +304,8 @@ class WeekModel:
                         int(playing.sum()), int(playing.sum() - counted.sum()), slots, playing)
 
     def _expected_assignment(self, elig: np.ndarray, allowed: np.ndarray, units: np.ndarray,
-                             strategy: Strategy, acc: np.ndarray | None) -> np.ndarray:
+                             strategy: Strategy, acc: np.ndarray | None,
+                             reference: np.ndarray | None = None) -> np.ndarray:
         """Choose expected category contribution, then compare feasible lineup swaps.
 
         Ratios and turnovers are scored jointly on team totals rather than
@@ -287,7 +314,7 @@ class WeekModel:
         """
         if not allowed.any():
             return np.full(len(allowed), -1)
-        reference = self.lineup_reference
+        reference = self.lineup_reference if reference is None else reference
         context = np.zeros(WEEK_DIM) if acc is None else acc
         w = strategy.normalized
         priority = p_win(context + units, reference, self.config) @ w
@@ -345,7 +372,8 @@ class WeekModel:
         mine = self.team_week(team_id, [Stint(p, slot=k) for k, p in enumerate(self.active_roster(team_id))],
                               week_days, a_m)
         opp = self.team_week(opp_id, [Stint(p, slot=k) for k, p in enumerate(self.active_roster(opp_id))],
-                             week_days, a_o)
+                             week_days, a_o, reference=mine.vector)
+        mine = self.team_week(team_id, mine.stints, week_days, a_m, reference=opp.vector)
         p, ew, sc, p5 = self.evaluate(mine, opp)
         return WeekOutlook(week, week_days, mine, opp, p, ew, sc, p5)
 
@@ -392,7 +420,7 @@ class WeekModel:
                 for t in (k for k in range(first_t, end + 1) if self._can_start(f_id, days[k], available_from)):
                     trial = [*stints[:j], Stint(d_id, s0.first, t - 1, s0.slot), *stints[j + 1:],
                              Stint(f_id, t, s0.last, s0.slot)]
-                    tw = self.team_week(team_id, trial, days, acc)
+                    tw = self.team_week(team_id, trial, days, acc, reference=opp.vector)
                     p, ew, sc, p5 = self.evaluate(tw, opp)
                     yield sc, trial, tw, p, ew, p5, d_id, f_id, t
 
