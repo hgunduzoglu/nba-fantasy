@@ -130,7 +130,7 @@ def register(app: FastAPI, state: AppState) -> None:
                                       min_fairness=body.min_fairness, min_strategy_gain=body.min_gain,
                                       min_win_gain=body.min_win / 100, ecw_weight=body.ecw_weight,
                                       min_opponent_view=body.min_view, rank=body.rank,
-                                      max_results=40 if sim else 20)
+                                      max_results=40 if sim else 20, time_budget=body.time_budget)
             strategy = _strategy(body.strategy, eng, body.team)
             found = suggest_multi(eng, body.team, strategy=strategy,
                                   opponent_strategies=assumed_strategies(eng, body.opponent_assumption, opps),
@@ -179,5 +179,6 @@ def register(app: FastAPI, state: AppState) -> None:
         return clean({"suggestions": rows, "strategy": {"name": strategy.name, "weights": list(strategy.weights)},
                       "scanned": found.scanned, "candidates": found.candidates, "evaluated": found.evaluated,
                       "eligible": found.eligible, "rejected_view": found.rejected_view, "message": found.message,
+                      "truncated": found.truncated, "jobs": found.jobs, "jobs_done": found.jobs_done,
                       "ranked_by": ranked_method(lineups, body.lineup_rank and body.rank == "own", body.rank),
                       "shapes": {"-".join(map(str, k)): v for k, v in SHAPES.items()}})

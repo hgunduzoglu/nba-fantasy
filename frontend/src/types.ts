@@ -891,6 +891,9 @@ export interface MultiSuggestOut {
   eligible: number;
   rejected_view?: number;
   message: string;
+  truncated?: boolean;
+  jobs?: number;
+  jobs_done?: number;
   shapes: Record<string, string>;
   ranked_by?: string;
 }

@@ -136,6 +136,7 @@ class MultiSuggestIn(BaseModel):
     injuries: bool = True
     rank: str = Field(default="own", pattern="^(own|joint)$")   # sıralama politikası
     lineup_rank: bool = True                        # finalistleri günlük kadro farkıyla yeniden sırala
+    time_budget: float | None = Field(default=60, gt=0, le=900)   # saniye; None = sınırsız
 
 
 class WeeklyIn(BaseModel):

@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import datetime as dt
 import itertools
+import time
 from dataclasses import dataclass, field
 from typing import Callable
 
@@ -208,6 +209,7 @@ class MultiSearchOptions:
     ecw_weight: float = .65
     min_opponent_view: float = 0.0       # diğer takımların gözünde (algılanan değer) aldığı / verdiği; 0 = kapalı
     rank: str = "own"                    # sıralama: own = senin kazancın (diğerlerinin kazancı süzgeç); joint = ortak
+    time_budget: float | None = None     # saniye; dolunca tarama durur, bulunan adaylar değerlendirilir (None = sınırsız)
 
     def __post_init__(self):
         if self.rank not in ("own", "joint"):
@@ -215,7 +217,8 @@ class MultiSearchOptions:
         if (self.min_opponent_view < 0 or not self.shapes or any(tuple(s) not in SHAPES for s in self.shapes) or not 2 <= self.shortlist <= 10
                 or not 2 <= self.shortlist4 <= self.shortlist or self.candidates < 1 or self.max_results < 1
                 or self.per_group < 1 or self.per_package < 1 or not 0 <= self.min_fairness <= 1 or not 0 <= self.ecw_weight <= 1
-                or self.min_strategy_gain < 0 or not -1 <= self.min_win_gain <= 1):
+                or self.min_strategy_gain < 0 or not -1 <= self.min_win_gain <= 1
+                or (self.time_budget is not None and self.time_budget <= 0)):
             raise ValueError("Geçersiz çok takımlı öneri ayarları")
 
 
@@ -238,6 +241,9 @@ class MultiSearchResult:
     eligible: int = 0                    # tüm eşikleri geçen
     rejected_roster: int = 0
     rejected_view: int = 0               # diğer bir takımın gözünde dengesiz
+    jobs: int = 0                        # taranacak takım dizilimi
+    jobs_done: int = 0                   # süre bütçesi içinde taranan
+    truncated: bool = False              # süre bütçesi doldu; tarama ya da değerlendirme yarım
     message: str = ""
 
 
@@ -384,11 +390,20 @@ def suggest_multi(engine: TradeEngine, team_id: str, *, strategy: Strategy | Non
     local = _Local(engine, strategies, short, options.ecw_weight, seen.to_numpy(float))
     slack_s, slack_w = .02, .01                      # yerel yaklaşım payı; kesin eşikler sonra
     pool: list[tuple[float, tuple[int, ...], tuple[str, ...], tuple[int, ...]]] = []
-    jobs = []
-    for shape in options.shapes:
-        k = len(shape)
-        jobs += [(tuple(shape), (team_id, *combo)) for combo in itertools.permutations(others, k - 1)]
+    start = time.monotonic()
+    scan_until = eval_until = None
+    if options.time_budget is not None:                 # taramaya %70, kesin değerlendirmeye kalan
+        scan_until, eval_until = start + .7 * options.time_budget, start + options.time_budget
+    # Şekiller dönüşümlü sıralanır: bütçe dolup tarama kesilirse her şekilden dizilim görülmüş olur.
+    per_shape = [[(tuple(shape), (team_id, *combo)) for combo in itertools.permutations(others, len(shape) - 1)]
+                 for shape in options.shapes]
+    jobs = [j for group in itertools.zip_longest(*per_shape) for j in group if j is not None]
+    result.jobs = len(jobs)
     for n_job, (shape, teams) in enumerate(jobs):
+        if scan_until is not None and time.monotonic() > scan_until:
+            result.truncated = True
+            break
+        result.jobs_done = n_job + 1
         k = len(teams)
         tabs = []
         for i, t in enumerate(teams):
@@ -441,6 +456,9 @@ def suggest_multi(engine: TradeEngine, team_id: str, *, strategy: Strategy | Non
                    [(lambda x: frozenset(x[2]), 15), (my_package, 5 * options.per_package)])
     found = []
     for _, shape, teams, idx in chosen:
+        if eval_until is not None and time.monotonic() > eval_until:
+            result.truncated = True
+            break
         k = len(teams)
         moves = []
         for i, t in enumerate(teams):
@@ -477,7 +495,10 @@ def suggest_multi(engine: TradeEngine, team_id: str, *, strategy: Strategy | Non
                                       [(lambda s: frozenset(s.request.teams), options.per_group),
                                        (lambda s: frozenset(s.request.sent(team_id)), options.per_package)]),
                                 key=lambda s: -s.score)
+    if result.truncated:
+        result.message = (f"Süre sınırı ({options.time_budget:.0f} sn) doldu: {result.jobs_done}/{result.jobs} takım "
+                          f"dizilimi tarandı, {result.evaluated}/{len(chosen)} aday değerlendirildi. ")
     if not result.suggestions:
-        result.message = ("Bu aralıkta takastaki her takıma fayda sağlayan çok takımlı döngü bulunamadı. Eşikleri "
+        result.message += ("Bu aralıkta takastaki her takıma fayda sağlayan çok takımlı döngü bulunamadı. Eşikleri "
                           "gevşetmeyi, kısa listeyi büyütmeyi ya da rakip strateji varsayımını değiştirmeyi dene.")
     return result

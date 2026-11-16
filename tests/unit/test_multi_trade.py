@@ -99,6 +99,19 @@ def test_suggested_cycles_help_every_team_under_the_full_model(eng):
     assert np.isfinite(scores).all()
 
 
+def test_time_budget_stops_the_scan_and_reports_it(eng, monkeypatch):
+    import fdo.trade.multi as multi
+    clock = iter(range(0, 10_000, 5))                    # her okuma 5 sn ilerler
+    monkeypatch.setattr(multi.time, "monotonic", lambda: next(clock))
+    opts = MultiSearchOptions(shortlist=3, shortlist4=3, time_budget=30)
+    res = suggest_multi(eng, "1", options=opts)
+    assert res.truncated and 0 < res.jobs_done < res.jobs and "Süre sınırı" in res.message
+    full = suggest_multi(eng, "1", options=MultiSearchOptions(shortlist=3, shortlist4=3))
+    assert not full.truncated and full.jobs_done == full.jobs
+    with pytest.raises(ValueError):
+        MultiSearchOptions(time_budget=0)
+
+
 def test_multi_suggestions_stop_after_deadline(eng):
     res = suggest_multi(eng, "1", analysis_date=dt.date(2027, 3, 5))
     assert not res.suggestions and "son tarihi" in res.message
