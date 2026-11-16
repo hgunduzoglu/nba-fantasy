@@ -26,8 +26,8 @@ sys.path.insert(0, str(ROOT / "src"))
 import numpy as np  # noqa: E402
 
 from fdo.api.state import AppState  # noqa: E402
-from fdo.evaluation.forward import (forecast, pair_test, realized, replay_model, snapshot_dir, snapshot_id, summary, value,  # noqa: E402
-                                    value_scales)
+from fdo.evaluation.forward import (daily_box, ecw_summary, forecast, realized, realized_pair_test,  # noqa: E402
+                                    replay_model, snapshot_dir, snapshot_id, summary, value, value_scales)
 from fdo.config import load_config  # noqa: E402
 from fdo.inseason.identity import load_overrides  # noqa: E402
 from fdo.inseason.roles import load_logs  # noqa: E402
@@ -90,13 +90,22 @@ def main() -> int:
                   f"hata {r['mae']:.2f} / {r['mae_no_delay']:.2f}")
         print(f"Oyuncu değeri sıra korelasyonu (tahmin ↔ gerçekleşen): {out['value_spearman']:.2f}")
         if not args.no_pairs:
-            pairs = pair_test(eng, args.team, vf, vr)
+            box = daily_box(logs, eng.data.players, start, end, load_overrides(args.data))
+            per_game = (vf / fc["games"].where(fc["games"] > 0)).fillna(0.0)
+            pairs = realized_pair_test(eng, args.team, vf, vr, box, per_game)
             out["pairs"] = summary(pairs)
+            out["pairs_ecw"] = ecw_summary(pairs)
+            out["evaluation_scope"] = "player_value_direction_and_realized_category_wins"
             p = out["pairs"]
             if p["n"]:
                 print(f"1'e 1 takaslar ({p['n']}): işaret uyumu model %{100 * p['model_sign']:.0f}, oyuncu tahmini "
                       f"%{100 * p['forecast_sign']:.0f}; sıra korelasyonu model {p['model_spearman']:.2f}, oyuncu tahmini "
                       f"{p['forecast_spearman']:.2f}")
+                e = out["pairs_ecw"]
+                print(f"Gerçekleşen kategori galibiyetine göre ({e['n_moved']} takas kadroyu değiştirdi): işaret uyumu "
+                      f"model %{100 * e['model_sign']:.0f}, oyuncu tahmini %{100 * e['forecast_sign']:.0f}, gerçekleşen "
+                      f"oyuncu değeri %{100 * e['player_value_sign']:.0f}; sıra korelasyonu model {e['model_spearman']:.2f}, "
+                      f"oyuncu tahmini {e['forecast_spearman']:.2f}, gerçekleşen oyuncu değeri {e['player_value_spearman']:.2f}")
     dest = Path(args.data) / "evaluation" / f"forward_{args.day}_{args.league}_{args.team}.json"
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(json.dumps(out, ensure_ascii=False, indent=2, default=lambda x: None if x is np.nan else str(x)),

@@ -218,3 +218,113 @@ def summary(pairs: pd.DataFrame) -> dict:
     return {"n": len(pairs), "model_sign": sign("model"), "forecast_sign": sign("forecast"),
             "model_spearman": _spearman(pairs["model"], pairs["realized"]),
             "forecast_spearman": _spearman(pairs["forecast"], pairs["realized"])}
+
+
+# --------------------------------------------------------------------------- gerçekleşen kategori galibiyeti
+RAW = ("fgm", "fga", "ftm", "fta", "fg3m", "pts", "reb", "ast", "stl", "blk", "tov")
+
+
+def daily_box(logs: pd.DataFrame, players: pd.DataFrame, start: dt.date, end: dt.date,
+              overrides: pd.DataFrame | None = None) -> dict[dt.date, pd.DataFrame]:
+    """Gün → o gün oynayan oyuncuların kutu skoru (``RAW``; kimliği bulunamayanlar dışarıda)."""
+    w = logs[(logs["game_date"] >= start) & (logs["game_date"] <= end) & (logs["minutes"].fillna(0) > 0)].copy()
+    one = Resolver(players, overrides)
+    keys = w[["name", "nba_team"]].drop_duplicates()
+    ids = {(r.name, r.nba_team): one(r.name, r.nba_team).player_id for r in keys.itertuples()}
+    w["player_id"] = [ids[(n, t)] for n, t in zip(w["name"], w["nba_team"])]
+    w = w[w["player_id"].notna()]
+    return {d: g.groupby("player_id")[list(RAW)].sum() for d, g in w.groupby("game_date")}
+
+
+def _week(d: dt.date) -> dt.date:
+    return d - dt.timedelta(days=d.weekday())
+
+
+def realized_week_totals(engine, roster, box: dict[dt.date, pd.DataFrame], priority: pd.Series) -> dict[dt.date, np.ndarray]:
+    """Kadronun gerçekleşen haftalık ham toplamları (``RAW``): her gün oynayan kadro oyuncuları aktif slotlara
+    pozisyon uygunluğuyla yerleşir; slottan fazlası varsa karar günündeki beklenen maç başı değere göre seçilir (yöneticinin
+    kadrosu; sonradan bilinen kullanılmaz)."""
+    from fdo.schedule.lineup import active_eligibility, day_assignment
+    roster = [p for p in roster if p in engine.data.players.index]
+    pos = [frozenset(str(engine.data.players.loc[p, "yahoo_positions"]).split(",")) for p in roster]
+    elig = active_eligibility(pos, engine.config)
+    pr = priority.reindex(roster).fillna(0.0).to_numpy(float)
+    out: dict[dt.date, np.ndarray] = {}
+    for day, g in box.items():
+        playing = np.array([p in g.index for p in roster])
+        tot = out.setdefault(_week(day), np.zeros(len(RAW)))
+        if not playing.any():
+            continue
+        on = day_assignment(elig, playing, pr)
+        for p, keep in zip(roster, on):
+            if keep:
+                tot += g.loc[p].to_numpy(float)
+    return out
+
+
+def _cats(t: np.ndarray) -> np.ndarray:
+    """Ham toplam → dokuz kategori (FG%, FT%, 3PM, PTS, REB, AST, STL, BLK, TO)."""
+    fg = t[0] / t[1] if t[1] > 0 else 0.0
+    ft = t[2] / t[3] if t[3] > 0 else 0.0
+    return np.array([fg, ft, *t[4:]])
+
+
+def realized_ecw(totals: dict[str, dict[dt.date, np.ndarray]], team: str) -> float:
+    """Takımın pencerede rakip başına haftalık kategori galibiyeti ortalaması (beraberlik yarım; TO'da az olan kazanır)."""
+    mine = totals[team]
+    scores = []
+    for week, t in mine.items():
+        a = _cats(t)
+        for other, ot in totals.items():
+            if other == team or week not in ot:
+                continue
+            b = _cats(ot[week])
+            win = np.where(np.isclose(a, b), .5, (a > b).astype(float))
+            win[-1] = .5 if np.isclose(a[-1], b[-1]) else float(a[-1] < b[-1])
+            scores.append(win.sum())
+    return float(np.mean(scores)) if scores else float("nan")
+
+
+def realized_pair_test(engine, team: str, fc: pd.Series, real: pd.Series, box: dict[dt.date, pd.DataFrame],
+                       priority: pd.Series, strategy=None) -> pd.DataFrame:
+    """``pair_test`` + her takasın gerçekleşen kategori etkisi: takas sonrası kadrolarla (kadro çözümü ve bedava hamleler
+    dahil) gerçek kutu skorlarından takımın haftalık kategori galibiyeti, takassız kadroya göre fark."""
+    from fdo.trade import TradeError, TradeRequest
+    from fdo.trade.strategy import Strategy
+    s = strategy or Strategy()
+    base = {t: realized_week_totals(engine, r, box, priority) for t, r in engine.league.rosters.items()}
+    before = realized_ecw(base, team)
+    ok = set(fc.index) & set(real.index)
+    mine = [p for p in engine.league.rosters[team] if p in ok]
+    rows = []
+    for other in engine.team_ids:
+        if other == team:
+            continue
+        for give in mine:
+            for get in [p for p in engine.league.rosters[other] if p in ok]:
+                req = TradeRequest(team, other, (give,), (get,), auto_drop=True, auto_fill=True)
+                try:
+                    rosters, _, il = engine.resolve(req, {team: s, other: Strategy()})
+                    _, m = engine.score(rosters, team, other, s, Strategy(), il)
+                except TradeError:
+                    continue
+                after = {**base, team: realized_week_totals(engine, rosters[team], box, priority),
+                         other: realized_week_totals(engine, rosters[other], box, priority)}
+                rows.append({"team_b": other, "give": give, "get": get, "model": m[team]["strategy_delta"],
+                             "forecast": float(fc[get] - fc[give]), "realized": float(real[get] - real[give]),
+                             "realized_ecw": realized_ecw(after, team) - before})
+    return pd.DataFrame(rows)
+
+
+def ecw_summary(pairs: pd.DataFrame) -> dict:
+    """Gerçekleşen kategori etkisine göre: model, oyuncu tahmini ve gerçekleşen oyuncu değeri farkının işaret uyumu ve
+    sıra korelasyonu. Sıfır etkili takaslar (kadroya girmeyen oyuncular) işaret uyumunda dışarıda."""
+    if pairs.empty:
+        return {"n": 0}
+    moved = pairs[~np.isclose(pairs["realized_ecw"], 0)]
+    sign = lambda col: float((np.sign(moved[col]) == np.sign(moved["realized_ecw"])).mean()) if len(moved) else float("nan")
+    return {"n": len(pairs), "n_moved": len(moved), "model_sign": sign("model"), "forecast_sign": sign("forecast"),
+            "player_value_sign": sign("realized"),
+            "model_spearman": _spearman(pairs["model"], pairs["realized_ecw"]),
+            "forecast_spearman": _spearman(pairs["forecast"], pairs["realized_ecw"]),
+            "player_value_spearman": _spearman(pairs["realized"], pairs["realized_ecw"])}

@@ -64,3 +64,30 @@ def test_snapshot_dir_uses_the_days_files_and_drops_later_reports(tmp_path):
     assert not (work / "yahoo_live.json").exists()
     with pytest.raises(FileNotFoundError):
         snapshot_dir(data, dt.date(2026, 10, 1), tmp_path / "w2")
+
+
+def test_realized_category_wins_use_the_lineup_capacity_and_compare_weekly():
+    import numpy as np
+
+    from fdo.evaluation.forward import RAW, ecw_summary, realized_ecw, realized_week_totals
+    from fdo.trade import TradeEngine
+    from unit.test_inseason import data as data_fixture
+    d = data_fixture.__wrapped__()                     # sentetik lig: aktif slot PG + C
+    eng = TradeEngine(d, "L", utilization=1)
+    mon = dt.date(2026, 11, 2)
+
+    def line(pts, reb=5.0):
+        return dict(zip(RAW, [5, 10, 2, 2, 1, pts, reb, 2, 1, 1, 1]))
+    roster = eng.league.rosters["1"]                    # 0, 1, 2, 3 (çift = C, tek = PG)
+    box = {mon: pd.DataFrame([line(30), line(20), line(10), line(40)], index=list(roster))}
+    prio = pd.Series({roster[0]: 3.0, roster[1]: 2.0, roster[2]: 1.0, roster[3]: 0.0})
+    tot = realized_week_totals(eng, roster, box, prio)[mon]
+    # bir C (0: öncelik 3 > 2'nin 1'i) ve bir PG (1: öncelik 2 > 3'ün 0'ı); 3 en çok sayı attı ama sırası en düşük
+    assert tot[RAW.index("pts")] == 50 and tot[RAW.index("fga")] == 20
+    totals = {"1": {mon: tot}, "2": {mon: tot * .5}}
+    assert realized_ecw(totals, "1") == pytest.approx(7.0)        # 6 sayım kazanır, yüzdeler berabere (1), TO kaybeder
+    pairs = pd.DataFrame({"model": [1, -1, 1], "forecast": [1, 1, -1], "realized": [1, -1, 1],
+                          "realized_ecw": [.5, -.5, 0.0]})
+    s = ecw_summary(pairs)
+    assert s["n_moved"] == 2 and s["model_sign"] == 1.0 and s["forecast_sign"] == .5
+    assert np.isfinite(s["model_spearman"])
