@@ -12,6 +12,7 @@ from fdo.api.serialize import (assumed_strategies, brief, category_deltas, clean
                                plain_metrics, player_row, strategy_from, value_ranks)
 from fdo.api.state import AppState
 from fdo.evaluation.cases import summarize
+from fdo.evaluation.noise import floor as noise_floor, signal
 from fdo.inseason.adddrop import available_from, critical_categories, critical_strategy, pick_critical
 from fdo.inseason.drops import drop_plan, returning
 from fdo.inseason.fixtures import opponent as fixture_opponent
@@ -131,6 +132,7 @@ def register(app: FastAPI, state: AppState) -> None:
                          "own_delta": s.own_strategy_delta, "other_delta": s.other_strategy_delta,
                          "own_delta_plain": plain[body.team]["strategy_delta"] if plain else None,
                          "lineup_delta": lu.strategy if lu else None, "lineup_ecw_delta": lu.ecw if lu else None,
+                         "signal": signal(lu.strategy if lu else s.own_strategy_delta, noise_floor()),
                          "own_win": s.own_win_delta, "other_win": s.other_win_delta, "fairness": s.fairness,
                          "perceived_balance": s.perceived_balance, "score": s.score, "mode": s.mode,
                          "acceptability": s.acceptability, "counterpart_reasons": list(s.counterpart_reasons),
@@ -198,6 +200,7 @@ def register(app: FastAPI, state: AppState) -> None:
                     "tier": decision["decision"], "score": s.score, "own_delta": s.own_strategy_delta,
                     "own_delta_plain": plain[r.team_a]["strategy_delta"] if plain else None,
                     "lineup_delta": lu.strategy if lu else None, "lineup_ecw_delta": lu.ecw if lu else None,
+                    "signal": signal(lu.strategy if lu else s.own_strategy_delta, noise_floor()),
                     "other_delta": s.other_strategy_delta, "own_win": s.own_win_delta, "other_win": s.other_win_delta,
                     "fairness": s.fairness, "perceived_view": s.perceived_balance,
                     "acceptability": s.acceptability, "counterpart_reasons": list(s.counterpart_reasons),
@@ -400,11 +403,13 @@ def register(app: FastAPI, state: AppState) -> None:
                 for r in singles.itertuples()] if len(singles) else []
         plan = None
         if body.plan and left > 0 and droppable:
-            st = model.stream(base, moves=left, droppable=droppable, acc_mine=acc_mine, available_from=avail)
+            st = model.stream(base, moves=left, droppable=droppable, acc_mine=acc_mine, available_from=avail,
+                              beam=body.beam)
             plan = {"moves": [{"day": m.day, "add": {**_brief(eng, m.add), "availability": avail_info(m.add)},
                                "drop": _brief(eng, m.drop), "ros_delta": m.ros_delta,
                                "games": sum(model.has_game(m.add, d) for d in st.days if d >= m.day)} for m in st.moves],
-                    "after": {"p": list(st.p), "expected_wins": st.expected_wins, "p5": st.p5}}
+                    "after": {"p": list(st.p), "expected_wins": st.expected_wins, "p5": st.p5,
+                              "strategy_score": st.strategy_score}, "beam": body.beam}
         mine = lv is not None and body.team == lv.my_team
         return clean({"week": wk, "current_week": current, "weeks": _weeks_list(weeks, current), "days": days,
                       "opponent": opp, "opponent_name": eng.league.teams[opp], "fixture_opponent": fx_opp,

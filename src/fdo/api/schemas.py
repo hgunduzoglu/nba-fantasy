@@ -172,6 +172,7 @@ class AddDropWeekIn(WeeklyIn):
     droppable: list[str] | None = None                      # None → kalan sezon değeri en düşük 3 aktif oyuncu
     used: int | None = None                                 # None → Yahoo'daki bu hafta kullanılan alım
     plan: bool = True
+    beam: int = Field(default=1, ge=1, le=5)                # streaming planında tutulan kısmi plan sayısı (1 = açgözlü)
 
 
 class DropIn(WeeklyIn):

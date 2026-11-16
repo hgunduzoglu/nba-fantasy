@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
-import { AcceptBadge, CategoryChips, ComponentBadges, DecisionBadge, ErrorBanner, LineupWarnBadge, Loading, MovesWarnBadge, PlayerName, SeasonDeltaCell, SeasonWarnBadge, deltaClass, seasonWarning } from "../components/common";
+import { AcceptBadge, CategoryChips, ComponentBadges, DecisionBadge, ErrorBanner, LineupWarnBadge, Loading, MovesWarnBadge, SignalBadge, PlayerName, SeasonDeltaCell, SeasonWarnBadge, deltaClass, seasonWarning } from "../components/common";
 import { BALANCED, StrategyPicker, strategyLabel, toStrategyIn, type StrategyChoice } from "../components/StrategyPicker";
 import { fmtDelta, fmtNum, fmtPct } from "../format";
 import type { League, Meta, MispricedRow, Perceived, SeasonEffect, SuggestMode, SuggestOut, Suggestion } from "../types";
@@ -412,7 +412,7 @@ export function SuggestPage({ meta, league, team, injuries, onOpen }: Props) {
                           {s.position_gap > 0 && <span className="badge out" title={`Takastan sonra ${s.position_gap} aktif pozisyon doldurulamıyor`}>⚠ pozisyon</span>}
                           <SeasonWarnBadge show={!!e && e !== "err" && seasonWarning(ecw, e.me.playoff)} />
                           <MovesWarnBadge own={s.own_delta} plain={s.own_delta_plain} />
-                          <LineupWarnBadge own={s.own_delta} lineup={s.lineup_delta} />
+                          <LineupWarnBadge own={s.own_delta} lineup={s.lineup_delta} /><SignalBadge signal={s.signal} />
                           <DecisionBadge decision={s.decision} method={s.evaluation_method} />
                           <ComponentBadges c={s.components} />
                         </td>

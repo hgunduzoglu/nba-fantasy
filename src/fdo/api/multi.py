@@ -8,6 +8,7 @@ from fdo.api.schemas import MultiSeasonIn, MultiSuggestIn, MultiTradeIn, Strateg
 from fdo.api.serialize import (assumed_strategies, brief, category_deltas, clean, fixture_changes, games_delta,
                                strategy_from)
 from fdo.api.state import AppState
+from fdo.evaluation.noise import floor as noise_floor, signal
 from fdo.inseason.lineup_rank import multi_lineup_deltas, ranked_method, rerank
 from fdo.trade import Strategy, TradeError
 from fdo.trade.data import MODES
@@ -162,6 +163,7 @@ def register(app: FastAPI, state: AppState) -> None:
             rows.append({
                 "shape": "-".join(map(str, s.shape)), "shape_label": SHAPES[s.shape], "score": s.score,
                 "lineup_delta": lu.strategy if lu else None, "lineup_ecw_delta": lu.ecw if lu else None,
+                "signal": signal(lu.strategy if lu else s.metrics[body.team]["strategy_delta"], noise_floor()),
                 "decision": decision, "evaluation_method": "lineup" if measured else "fast_fallback" if requested else "fast",
                 "fairness": s.fairness,
                 "moves": [{"player": brief(eng, pl), "from": a, "from_name": teams[a], "to": b, "to_name": teams[b]}

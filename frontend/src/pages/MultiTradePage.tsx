@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api";
 import { CategoryImpact } from "../components/CategoryImpact";
 import { FixtureImpact } from "../components/FixtureImpact";
-import { CategoryChips, DecisionBadge, ErrorBanner, LineupCell, LineupWarnBadge, Loading, PlayerName, deltaClass } from "../components/common";
+import { CategoryChips, DecisionBadge, ErrorBanner, LineupCell, LineupWarnBadge, Loading, SignalBadge, PlayerName, deltaClass } from "../components/common";
 import { RosterTable } from "../components/RosterTable";
 import { BALANCED, StrategyPicker, toStrategyIn, type StrategyChoice } from "../components/StrategyPicker";
 import { fmtDelta, fmtNum, fmtPct, fmtStat } from "../format";
@@ -626,7 +626,7 @@ function MultiSuggest({ meta, league, team, injuries, onOpen }: Props & { onOpen
                     const others = s.teams.filter((t) => t.team_id !== team);
                     return (
                       <tr key={i}>
-                        <td className="l muted">{s.shape_label}<LineupWarnBadge own={me.strategy_delta} lineup={s.lineup_delta} /><DecisionBadge decision={s.decision} method={s.evaluation_method} /></td>
+                        <td className="l muted">{s.shape_label}<LineupWarnBadge own={me.strategy_delta} lineup={s.lineup_delta} /><SignalBadge signal={s.signal} /><DecisionBadge decision={s.decision} method={s.evaluation_method} /></td>
                         <td className="l wrap">
                           <div className="flow">
                             {s.moves.map((m) => (

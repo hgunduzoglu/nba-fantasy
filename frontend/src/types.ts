@@ -382,6 +382,7 @@ export interface CompleteRow extends FinalDecision {
   /** Günlük kadroyla kalan normal sezon farkı: stratejinin ağırlıklarıyla (sıralama ölçüsü) ve ağırlıksız. */
   lineup_delta?: number | null;
   lineup_ecw_delta?: number | null;
+  signal?: "weak" | "clear" | null;
   give_a: CompletePlayer[];
   give_b: CompletePlayer[];
   tier: CompleteTier;
@@ -448,6 +449,7 @@ export interface Suggestion extends FinalDecision {
   /** Günlük kadroyla kalan normal sezon farkı: stratejinin ağırlıklarıyla (sıralama ölçüsü) ve ağırlıksız. */
   lineup_delta?: number | null;
   lineup_ecw_delta?: number | null;
+  signal?: "weak" | "clear" | null;
   team_b: string;
   team_b_name: string;
   give_a: BriefPlayer[];
@@ -677,6 +679,7 @@ export interface AddDropWeekIn extends WeeklyIn {
   categories: CategoryKey[] | null;
   droppable: string[] | null;
   used: number | null;
+  beam?: number;
 }
 
 export interface DropIn extends WeeklyIn {
@@ -879,6 +882,7 @@ export interface MultiSuggestion extends FinalDecision {
   /** Senin günlük kadroyla kalan normal sezon farkın: stratejinin ağırlıklarıyla (sıralama ölçüsü) ve ağırlıksız. */
   lineup_delta?: number | null;
   lineup_ecw_delta?: number | null;
+  signal?: "weak" | "clear" | null;
   fairness: number;
   moves: { player: BriefPlayer; from: string; from_name: string; to: string; to_name: string }[];
   teams: MultiSuggestTeam[];

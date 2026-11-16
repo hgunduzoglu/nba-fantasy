@@ -143,6 +143,12 @@ export function LineupWarnBadge({ own, lineup }: { own: number; lineup?: number 
   return <span className="badge out" title={`Hızlı puanda kazanç (${fmtDelta(own, 3)}) var ama günlük kadroyla kalan sezonda kayıp (${fmtDelta(lineup, 3)}): pozisyon ya da maç çakışması yüzünden alınan oyuncunun maçları bench'te kalıyor.`}>⚠ günlük kadro</span>;
 }
 
+/** Takas farkı ileriye dönük testteki eşiğin altında: tek haftalık sonuçlarda işaret isabeti yazı tura düzeyine yakın. */
+export function SignalBadge({ signal }: { signal?: string | null }) {
+  if (signal !== "weak") return null;
+  return <span className="badge muted" title="Fark, ileriye dönük testte ölçülen eşiğin (config/noise.yaml) altında: bu büyüklükteki farkların yönü bir haftalık gerçek sonuçlarda ancak %50–64 doğru çıktı. Tek başına karar sebebi değil.">zayıf sinyal</span>;
+}
+
 /** Günlük kadroyla kalan normal sezon farkı hücresi (ölçülmediyse —). */
 export function LineupCell({ d }: { d?: number | null }) {
   return <td className={d != null ? deltaClass(d, 0.3) : "muted"}>{d != null ? fmtDelta(d, 3) : "—"}</td>;

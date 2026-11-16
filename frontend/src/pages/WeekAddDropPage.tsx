@@ -32,11 +32,12 @@ export function WeekAddDropPage({ meta, league, team, injuries }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(true);
   const [allSingles, setAllSingles] = useState(false);
+  const [deep, setDeep] = useState(false);              // ışın araması: 3 kısmi plan (yavaş)
 
   const body: AddDropWeekIn = useMemo(() => ({
     team, sit_out: true, injuries, strategy: toStrategyIn(strategy), mode, categories: mode === "critical" ? cats : null,
-    droppable, used,
-  }), [team, injuries, strategy, mode, cats, droppable, used]);
+    droppable, used, beam: deep ? 3 : 1,
+  }), [team, injuries, strategy, mode, cats, droppable, used, deep]);
 
   useEffect(() => {
     setBusy(true);
@@ -63,7 +64,11 @@ export function WeekAddDropPage({ meta, league, team, injuries }: Props) {
 
   const planCard = (
     <div className="card">
-      <div className="card-h"><h3>Plan ({data.adds_left} alım hakkıyla)</h3><span className="muted">gün gün stream: eklenen oyuncu sonraki gün yeniden bırakılabilir</span></div>
+      <div className="card-h"><h3>Plan ({data.adds_left} alım hakkıyla)</h3><span className="muted">gün gün stream: eklenen oyuncu sonraki gün yeniden bırakılabilir</span>
+        <span className="spacer" />
+        <label className="muted" title="Her adımda en iyi 3 kısmi planı birlikte arar: birbirini etkileyen alımları (hafta başı alıp aynı yeri sonra değiştirmek gibi) daha iyi bulur, süresi yaklaşık iki katı.">
+          <input type="checkbox" checked={deep} onChange={(e) => setDeep(e.target.checked)} /> Derin plan
+        </label></div>
       <div className="card-b">
         {data.adds_left === 0 && <div className="banner">Bu hafta alım hakkın kalmadı.</div>}
         {data.plan && data.plan.moves.length === 0 && <div className="banner">Bu haftayı belirgin iyileştiren bir alım bulunamadı.</div>}

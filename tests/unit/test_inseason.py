@@ -132,6 +132,17 @@ def test_stream_keeps_roster_size_and_chains(eng):
     assert all(mv.add in fa for mv in s.moves)
 
 
+def test_beam_stream_is_never_worse_than_greedy_and_keeps_the_roster(eng):
+    m = WeekModel(eng)
+    base = m.outlook("1", "2", WEEK3, week=3)
+    greedy = m.stream(base, moves=3, droppable=["0", "1"], min_gain=0.0)
+    wide = m.stream(base, moves=3, droppable=["0", "1"], min_gain=0.0, beam=3)
+    assert wide.strategy_score >= greedy.strategy_score - 1e-9 and len(wide.moves) <= 3
+    n = len(base.mine.stints)
+    for d in range(len(WEEK3)):
+        assert sum(st.first <= d <= st.last for st in wide.mine.stints) == n
+
+
 def test_waiver_table_matches_swap_delta(eng):
     s = Strategy.preset("Punt FT_PCT")
     t = waiver_table(eng, "2", s)

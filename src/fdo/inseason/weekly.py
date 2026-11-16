@@ -489,34 +489,51 @@ class WeekModel:
 
     def stream(self, base: WeekOutlook, *, moves: int, droppable: list[str], acc_mine=None,
                shortlist: int = 30, min_gain: float = 0.01,
-               available_from: dict[str, dt.date] | None = None) -> WeekOutlook:
-        """Açgözlü streaming planı; ``base`` aynı günler için ``outlook`` sonucudur. ``available_from``: waiver'daki
-        oyuncunun serbest kaldığı gün (öncesinde alınamaz)."""
+               available_from: dict[str, dt.date] | None = None, beam: int = 1) -> WeekOutlook:
+        """Streaming planı; ``base`` aynı günler için ``outlook`` sonucudur. ``available_from``: waiver'daki oyuncunun
+        serbest kaldığı gün (öncesinde alınamaz). ``beam``: her adımda tutulan kısmi plan sayısı (1 = açgözlü; daha
+        büyüğü birbirini etkileyen hamleleri, ör. hafta başı alıp aynı yerde sonra değiştirmeyi, birlikte arar)."""
         days = base.days
         avail = available_from or {}
         a_m = accumulated_vector(acc_mine)
         opp = base.opp
-        stints = [Stint(s.player_id, s.first, s.last, s.slot) for s in base.mine.stints]
-        added: set[str] = set()
         out = WeekOutlook(base.week, days, base.mine, opp, base.p, base.expected_wins, base.strategy_score, base.p5)
-        fa, _ = self.shortlist(base, avail, shortlist)
-        if not fa or moves <= 0 or not droppable:
+        fa0, _ = self.shortlist(base, avail, shortlist)
+        if not fa0 or moves <= 0 or not droppable:
             return out
-        drop_pool = list(dict.fromkeys(droppable))
-        current = out
+        start = {"outlook": out, "stints": [Stint(s.player_id, s.first, s.last, s.slot) for s in base.mine.stints],
+                 "drop_pool": list(dict.fromkeys(droppable)), "added": set(), "fa": list(fa0)}
+        frontier, best = [start], start
+        width = max(1, int(beam))
         for _ in range(moves):
-            best = max(self._moves(base.mine.team_id, stints, drop_pool, fa, added, days, a_m, opp, avail),
-                       key=lambda c: c[0], default=None)
-            if best is None or best[0] - current.strategy_score < min_gain:
+            children = []
+            for plan in frontier:
+                cands = sorted(self._moves(base.mine.team_id, plan["stints"], plan["drop_pool"], plan["fa"],
+                                           plan["added"], days, a_m, opp, avail), key=lambda c: -c[0])
+                current = plan["outlook"]
+                for sc, trial, tw, p, ew, p5, d_id, f_id, t in cands[:width]:
+                    if sc - current.strategy_score < min_gain:
+                        break
+                    move = Move(days[t], f_id, d_id, sc - current.strategy_score,
+                                swap_delta(self.engine, base.mine.team_id, d_id, f_id, self.strategy))
+                    children.append({"outlook": WeekOutlook(base.week, days, tw, opp, p, ew, sc, p5,
+                                                            [*current.moves, move]),
+                                     "stints": [s for s in trial if s.first <= s.last],
+                                     "drop_pool": [*plan["drop_pool"], f_id], "added": plan["added"] | {f_id},
+                                     "fa": [x for x in plan["fa"] if x != f_id]})
+            if not children:
                 break
-            sc, trial, tw, p, ew, p5, d_id, f_id, t = best
-            move = Move(days[t], f_id, d_id, sc - current.strategy_score,
-                        swap_delta(self.engine, base.mine.team_id, d_id, f_id, self.strategy))
-            stints = [s for s in trial if s.first <= s.last]
-            drop_pool.append(f_id)
-            added.add(f_id)
-            fa.remove(f_id)
-            current = WeekOutlook(base.week, days, tw, opp, p, ew, sc, p5, [*current.moves, move])
+            seen, frontier = set(), []
+            for c in sorted(children, key=lambda c: -c["outlook"].strategy_score):
+                key = frozenset((s.player_id, s.first, s.last, s.slot) for s in c["stints"])
+                if key not in seen:
+                    seen.add(key)
+                    frontier.append(c)
+                if len(frontier) >= width:
+                    break
+            if frontier[0]["outlook"].strategy_score > best["outlook"].strategy_score:
+                best = frontier[0]
+        current = best["outlook"]
         current.moves = self.transactions(base.mine.team_id, base.mine.stints, current.mine.stints, days)
         return current
 
