@@ -551,13 +551,15 @@ def register(app: FastAPI, state: AppState) -> None:
                       "schedule": sched, "playoff_games": playoff_games})
 
     @app.get("/api/leagues/{lid}/strategy-advice")
-    def strategy_advice(lid: str, team: str, n: int = 2000, injuries: bool = True):
+    def strategy_advice(lid: str, team: str, n: int = 2000, injuries: bool = True,
+                        basis: str = Query("ros", pattern="^(ros|season|blend)$")):
         """Takımın kendi stratejisinin sezona etkisi: her hazır strateji ile kalan sezon aynı tohumla simüle edilir
         (kadro, waiver ve günlük kadro kararları stratejiyle), dengeliye göre eşleşmeli P(playoff) ve P(şampiyon) farkı
-        ve simülasyon standart hatası. Rakiplerin stratejisi değişmez. Veri değişene kadar önbellekte."""
+        ve simülasyon standart hatası. Rakiplerin stratejisi değişmez. Veri değişene kadar önbellekte. ``basis``: kalan
+        sezon oranlarının temeli; punt kazancı temele göre değişebilir (üçünde de pozitifse sağlam)."""
         eng = engine(lid, injuries)
         team_check(eng, team)
-        sim = state.season_sim(lid, injuries)
+        sim = state.season_sim(lid, injuries, basis)
         if sim is None:
             raise HTTPException(409, "Bu lig için fikstür yok; sezon simülasyonu yapılamıyor.")
         n = max(500, min(n, 5000))
@@ -574,8 +576,8 @@ def register(app: FastAPI, state: AppState) -> None:
                                 for k, d in eff.items() if k in ("playoff", "champion", "seed")}})
             key = "playoff" if any("playoff" in r for r in rows) else "champion"
             rows.sort(key=lambda r: -(r.get(key) or {}).get("delta", 0.0))
-            return {"n_sims": n, "rank_by": key, "rows": rows}
-        out = state._get(("strategy_advice", state.signature(), lid, team, n, injuries), build)
+            return {"n_sims": n, "rank_by": key, "basis": basis, "rows": rows}
+        out = state._get(("strategy_advice", state.signature(), lid, team, n, injuries, basis), build)
         return clean(out)
 
     # ------------------------------------------------------------- sıralamalar

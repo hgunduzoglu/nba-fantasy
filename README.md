@@ -2518,7 +2518,9 @@ with its active lineup. Roster totals (bench and IL included) keep their own ran
 
 **Multi-team search:** a time budget (`time_budget`, 60 s by default in the API, `null` for none) stops the scan at 70%
 of the budget and the exact evaluation at 100%. Shapes are interleaved so a cut scan has seen every shape. The response
-reports `truncated`, `jobs` and `jobs_done`.
+reports `truncated`, `jobs` and `jobs_done`. On real data (METU IE team 7) a 60 s call scanned 11 of 2,184 team
+orders and found nothing: most of the time goes into building the first pair tables. The budget only prevents the
+5–7 minute hang; multi-team search stays of little practical use until candidates are ordered by complementary needs.
 
 **Injury research** (`fdo.inseason.injury_intel`, News tab): for a team's injured or questionable players,
 `claude-fable-5-2` (`FDO_INJURY_MODEL`) searches the web (`web_search_20260209`) and returns structured fields: injury,
@@ -2563,8 +2565,9 @@ windows accumulate.
 
 **Strategy advice** (`/api/leagues/{lid}/strategy-advice`, Season page): the season is simulated with the same seed under
 every preset for the team's own lineup, waiver and IL decisions, giving paired playoff and title differences against
-balanced, with simulation errors. Opponents' strategies do not change. On 16 November, for example, AST punt raised one
-team's playoff odds from 25% to 32% (±0.5), while BLK punt lowered another's by 6 points.
+balanced, with simulation errors (`basis`: ros, season or blend; about a minute per basis). Opponents' strategies do
+not change. Punt gains depend on the basis: on Yahoo's projection almost every punt beat balanced for one team, while
+AST punt was +7.2 on Yahoo, −1.8 on season rates and +1.2 on the blend; trust a strategy only when all three agree. BLK punt lowered another team's playoff odds by 6 points on the Yahoo basis.
 
 **Stream plan:** `WeekModel.stream(beam=k)` keeps the k best partial plans at each step (1 = the greedy plan as before).
 With k = 3 it found +0.04–0.07 more expected category wins for two of four teams and the same plan for the other two, at

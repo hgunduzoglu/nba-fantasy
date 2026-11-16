@@ -15,9 +15,10 @@ export function StrategyAdvice({ league, team, injuries }: { league: string; tea
   const [data, setData] = useState<StrategyAdviceOut | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [basis, setBasis] = useState<"ros" | "season" | "blend">("ros");
   const run = () => {
     setBusy(true);
-    api.strategyAdvice(league, team, injuries).then((d) => { setData(d); setError(null); })
+    api.strategyAdvice(league, team, injuries, basis).then((d) => { setData(d); setError(null); })
       .catch((e: Error) => setError(e.message)).finally(() => setBusy(false));
   };
   const key = data?.rank_by ?? "playoff";
@@ -26,6 +27,11 @@ export function StrategyAdvice({ league, team, injuries }: { league: string; tea
       <div className="card-h"><h3>Strateji önerisi</h3>
         <span className="muted">Kadro, waiver ve günlük kadro kararlarını hangi stratejiyle verirsen sezonun nasıl değişir</span>
         <span className="spacer" />
+        <div className="seg" title="Kalan sezon oranlarının temeli">
+          {([["ros", "Yahoo"], ["season", "Bu sezon"], ["blend", "Karma"]] as const).map(([k, l]) => (
+            <button key={k} aria-pressed={basis === k} onClick={() => { setBasis(k); setData(null); }}>{l}</button>
+          ))}
+        </div>
         <button className="btn" onClick={run} disabled={busy}>{busy ? <><span className="spinner" /> Simüle ediliyor…</> : data ? "↻ Yeniden" : "Hesapla"}</button>
       </div>
       {error && <div className="banner err" style={{ margin: 12 }}>{error}</div>}
@@ -51,6 +57,7 @@ export function StrategyAdvice({ league, team, injuries }: { league: string; tea
       <div className="hint" style={{ padding: "0 14px 12px" }}>
         {data ? `${data.n_sims} simülasyon, aynı çekilişler. Renkli farklar gürültüden ayrılıyor; gri olanlar ayrılmıyor. ` : ""}
         Rakiplerin stratejisi sabit. Strateji fiziksel kategori olasılıklarını değiştirmez; hangi oyuncuyu oynatacağını, alacağını ve bırakacağını değiştirir.
+        Punt kazancı projeksiyon temeline göre değişebilir: bir stratejiye ancak üç temelde de pozitifse güven.
       </div>
     </div>
   );

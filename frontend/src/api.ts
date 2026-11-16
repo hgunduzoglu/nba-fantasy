@@ -95,8 +95,8 @@ export const api = {
   injuryIntelRefresh: (league: string, body: { team: string; injuries: boolean }, code?: string) =>
     request<JobStatus>(`/api/leagues/${league}/injury-intel/refresh`, { ...post(body), headers: codeHeader(code) }),
   today: () => request<TodayOut>("/api/today"),
-  strategyAdvice: (league: string, team: string, injuries: boolean) =>
-    request<StrategyAdviceOut>(`/api/leagues/${league}/strategy-advice?team=${encodeURIComponent(team)}&injuries=${injuries}`),
+  strategyAdvice: (league: string, team: string, injuries: boolean, basis = "ros") =>
+    request<StrategyAdviceOut>(`/api/leagues/${league}/strategy-advice?team=${encodeURIComponent(team)}&injuries=${injuries}&basis=${basis}`),
   injuryIntelStatus: () => request<JobStatus>("/api/injury-intel/status"),
   sitstart: (league: string, body: WeeklyIn) => request<SitStartOut>(`/api/leagues/${league}/sitstart`, post(body)),
   syncStatus: () => request<SyncStatus>("/api/sync"),

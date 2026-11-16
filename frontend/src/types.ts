@@ -1131,6 +1131,7 @@ export interface PairedEffect { after: number; delta: number; se: number; clear:
 export interface StrategyAdviceOut {
   n_sims: number;
   rank_by: "playoff" | "champion";
+  basis?: string;
   rows: { strategy: string; weights: number[]; playoff?: PairedEffect; champion?: PairedEffect; seed?: PairedEffect }[];
 }
 

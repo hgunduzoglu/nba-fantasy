@@ -2440,7 +2440,9 @@ olasılığından gelir. Kadro toplamları (bench ve IL dahil) toplamlar görün
 
 **Çok takımlı arama:** süre bütçesi (`time_budget`, API'de varsayılan 60 sn, `null` sınırsız) taramayı bütçenin %70'inde,
 kesin değerlendirmeyi %100'ünde durdurur. Şekiller dönüşümlü taranır; yarıda kesilen tarama her şekli görmüş olur.
-Yanıtta `truncated`, `jobs` ve `jobs_done` var.
+Yanıtta `truncated`, `jobs` ve `jobs_done` var. Gerçek veride (METU IE takım 7) 60 saniyelik çağrı 2.184 takım
+diziliminin 11'ini tarayıp öneri bulamadı: zamanın çoğu ilk takım çifti tablolarına gidiyor. Bütçe yalnız 5–7 dakikalık
+kilitlenmeyi önler; adaylar tamamlayıcı ihtiyaca göre sıralanana kadar çok takımlı arama pratikte az işe yarar.
 
 **Sakatlık araştırması** (`fdo.inseason.injury_intel`, Haberler sekmesi): takımın sakat ya da belirsiz oyuncuları için
 `claude-fable-5-2` (`FDO_INJURY_MODEL`) web'de arar (`web_search_20260209`) ve yapılandırılmış alanlar döner: sakatlık,
@@ -2484,8 +2486,9 @@ kalan sezon puanını bir haftalık sonuçla karşılaştırır; pencereler uzad
 
 **Strateji önerisi** (`/api/leagues/{lid}/strategy-advice`, Sezon sayfası): sezon, takımın kendi kadro, waiver ve IL
 kararları için her hazır stratejiyle aynı tohumla simüle edilir; dengeliye göre eşleşmeli play-off ve şampiyonluk farkı
-ve simülasyon hatası döner. Rakiplerin stratejisi değişmez. 16 Kasım'da örneğin AST punt bir takımın play-off
-olasılığını %25'ten %32'ye çıkardı (±0,5), BLK punt bir başkasınınkini 6 puan düşürdü.
+ve simülasyon hatası döner (`basis`: ros, season ya da blend; temel başına yaklaşık bir dakika). Rakiplerin stratejisi
+değişmez. Punt kazancı temele bağlı: bir takımda Yahoo projeksiyonuyla neredeyse her punt dengeliyi geçti, AST punt ise
+Yahoo'da +7,2, sezon oranlarında −1,8, karmada +1,2 çıktı; bir stratejiye ancak üç temelde de aynı yöndeyse güvenilmeli. BLK punt Yahoo temelinde bir başka takımın play-off olasılığını 6 puan düşürdü.
 
 **Streaming planı:** `WeekModel.stream(beam=k)` her adımda en iyi k kısmi planı tutar (1 = önceki açgözlü plan). k = 3
 dört takımın ikisinde +0,04–0,07 daha fazla beklenen kategori galibiyeti buldu, diğer ikisinde aynı planı; süre yaklaşık
