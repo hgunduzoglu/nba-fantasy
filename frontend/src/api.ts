@@ -1,7 +1,7 @@
 import type {
   AddDropWeekIn, AddDropWeekOut, CompleteOut, Freshness, ReportedTrade, ReportRecord, ScenariosOut, DropIn, DropOut, FixtureTeam, HistoryOut, NewsOut, NewsStatus, Meta, MispricedRow, MultiSeasonOut, MultiSuggestIn, MultiSuggestOut, MultiTradeIn, MultiTradeOut, Perceived, Player,
   ManagersOut, OfferOutcome, OfferRow, RankingsOut, Roster, SeasonManyOut, SeasonOut, SeasonPageOut, SitStartOut, Source, StreamOut, StrategyIn, SuggestIn, SuggestOut, SyncStatus, TradeIn,
-  TradeOut, WaiverOut, WeeklyIn, WeeklyOut, InjuryIntelOut, JobStatus,
+  TradeOut, WaiverOut, WeeklyIn, WeeklyOut, InjuryIntelOut, JobStatus, StrategyAdviceOut,
 } from "./types";
 
 export class ApiError extends Error {
@@ -94,6 +94,8 @@ export const api = {
     request<InjuryIntelOut>(`/api/leagues/${league}/injury-intel?team=${encodeURIComponent(team)}&injuries=${injuries}`),
   injuryIntelRefresh: (league: string, body: { team: string; injuries: boolean }, code?: string) =>
     request<JobStatus>(`/api/leagues/${league}/injury-intel/refresh`, { ...post(body), headers: codeHeader(code) }),
+  strategyAdvice: (league: string, team: string, injuries: boolean) =>
+    request<StrategyAdviceOut>(`/api/leagues/${league}/strategy-advice?team=${encodeURIComponent(team)}&injuries=${injuries}`),
   injuryIntelStatus: () => request<JobStatus>("/api/injury-intel/status"),
   sitstart: (league: string, body: WeeklyIn) => request<SitStartOut>(`/api/leagues/${league}/sitstart`, post(body)),
   syncStatus: () => request<SyncStatus>("/api/sync"),

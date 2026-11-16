@@ -450,3 +450,14 @@ def test_injury_intel_lists_injured_players_and_guards_refresh(client, tmp_path,
     monkeypatch.setenv(injury_api.DAILY_CAP_ENV, "0")
     capped = ro.post("/api/leagues/L/injury-intel/refresh", json={"team": "1"}, headers={"X-Report-Code": "gizli"})
     assert capped.status_code == 429
+
+
+def test_strategy_advice_compares_presets_against_balanced(client):
+    from fdo.trade.strategy import PRESETS
+    out = client.get("/api/leagues/L/strategy-advice?team=1&n=500").json()
+    assert len(out["rows"]) == len(PRESETS) and out["n_sims"] == 500
+    base = next(r for r in out["rows"] if r["strategy"] == "Dengeli")
+    key = out["rank_by"]
+    assert base[key]["delta"] == 0 and base[key]["se"] == 0
+    deltas = [r[key]["delta"] for r in out["rows"]]
+    assert deltas == sorted(deltas, reverse=True)

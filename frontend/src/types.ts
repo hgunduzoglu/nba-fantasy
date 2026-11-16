@@ -1120,3 +1120,12 @@ export interface InjuryIntelOut {
   spent_today: number;
   daily_cap: number;
 }
+
+// ------------------------------------------------------------------ strateji önerisi
+export interface PairedEffect { after: number; delta: number; se: number; clear: boolean }
+
+export interface StrategyAdviceOut {
+  n_sims: number;
+  rank_by: "playoff" | "champion";
+  rows: { strategy: string; weights: number[]; playoff?: PairedEffect; champion?: PairedEffect; seed?: PairedEffect }[];
+}

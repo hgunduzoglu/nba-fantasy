@@ -26,7 +26,7 @@ from fdo.trade import Strategy, TradeError
 from fdo.trade.engine import RosterInvariantError
 from fdo.trade.data import MODES, ROS
 from fdo.trade.perception import mispricing, perceived_prices
-from fdo.trade.strategy import CATEGORIES
+from fdo.trade.strategy import CATEGORIES, PRESETS
 from fdo.trade.suggest import CompleteOptions, SearchOptions, complete_trade, components, suggest_trades
 from fdo.types import CATEGORY_LABELS
 
@@ -544,6 +544,34 @@ def register(app: FastAPI, state: AppState) -> None:
                       "byes": byes, "playoff_weeks": sim.playoff_weeks, "reseed": sim.reseed,
                       "standings_known": sim.standings is not None, "notes": res.notes, "table": table,
                       "schedule": sched, "playoff_games": playoff_games})
+
+    @app.get("/api/leagues/{lid}/strategy-advice")
+    def strategy_advice(lid: str, team: str, n: int = 2000, injuries: bool = True):
+        """Takımın kendi stratejisinin sezona etkisi: her hazır strateji ile kalan sezon aynı tohumla simüle edilir
+        (kadro, waiver ve günlük kadro kararları stratejiyle), dengeliye göre eşleşmeli P(playoff) ve P(şampiyon) farkı
+        ve simülasyon standart hatası. Rakiplerin stratejisi değişmez. Veri değişene kadar önbellekte."""
+        eng = engine(lid, injuries)
+        team_check(eng, team)
+        sim = state.season_sim(lid, injuries)
+        if sim is None:
+            raise HTTPException(409, "Bu lig için fikstür yok; sezon simülasyonu yapılamıyor.")
+        n = max(500, min(n, 5000))
+
+        def build():
+            runs = {name: sim.run(n_sims=n, seed=1, first=(team,), strategies={team: Strategy.preset(name)})
+                    for name in PRESETS}
+            base = runs["Dengeli"]
+            rows = []
+            for name, r in runs.items():
+                eff = sim.effect(base, r, team)
+                rows.append({"strategy": name, "weights": list(Strategy.preset(name).weights),
+                             **{k: {"after": d.after, "delta": d.delta, "se": d.se, "clear": d.clear}
+                                for k, d in eff.items() if k in ("playoff", "champion", "seed")}})
+            key = "playoff" if any("playoff" in r for r in rows) else "champion"
+            rows.sort(key=lambda r: -(r.get(key) or {}).get("delta", 0.0))
+            return {"n_sims": n, "rank_by": key, "rows": rows}
+        out = state._get(("strategy_advice", state.signature(), lid, team, n, injuries), build)
+        return clean(out)
 
     # ------------------------------------------------------------- sıralamalar
     @app.get("/api/leagues/{lid}/rankings")

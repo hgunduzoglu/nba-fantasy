@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import { ErrorBanner, InlineBar, Loading, probClass } from "../components/common";
+import { StrategyAdvice } from "../components/StrategyAdvice";
 import { fmtDate, fmtDelta, fmtNum, fmtPct } from "../format";
 import type { League, SeasonPageOut } from "../types";
 
@@ -48,6 +49,8 @@ export function SeasonPage({ league, team, injuries }: { league: League; team: s
             <div className="metric"><div className="k">Beklenen kayıt</div><div className="v num">{me.exp_w.toFixed(0)}-{me.exp_l.toFixed(0)}-{me.exp_t.toFixed(0)}</div>
               <div className="d muted">şu an {me.record_now || "—"}</div></div>
           </div>
+
+          <StrategyAdvice league={league.id} team={team} injuries={injuries} />
 
           <div className="card">
             <div className="card-h"><h3>Lig</h3>
