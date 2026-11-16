@@ -2549,15 +2549,17 @@ First out-of-sample run: 9 November decision, METU IE team 7, a bundle frozen fr
 | Daily-lineup delta, rest of season (same sample) | 56% | 0.40 |
 | Realized player value (upper bound) | 84% | 0.86 |
 
-When horizons match, the daily-lineup delta beats the fast score, which supports re-ranking finalists by it. The naive
-forecast is still slightly better over one week. By projection basis, the player forecast's rank correlation is 0.68
+The rest-of-season lineup delta, the one used for ranking, scored 56% against the fast score's 58% on the same sample;
+restricted to the window's week it scored 66%. The gap is a horizon mismatch: one week of outcomes cannot judge a
+rest-of-season measure, so this run neither confirms nor rejects the lineup re-ranking. Longer windows will. By projection basis, the player forecast's rank correlation is 0.68
 (Yahoo), 0.72 (season rates) and 0.71 (blend); the defaults stay unchanged on one week of evidence.
 `scripts/backtest_forward.py` takes `--bases`, `--lineup-sample N`, `--pairs-out` and `--write-floor`.
 
 **Noise floor** (`fdo.evaluation.noise`, `config/noise.yaml`): by fast-score magnitude, sign agreement with the realized
 week is 50–58% below 0.2, 64% at 0.2–0.3 and 90% above 0.3. Suggestion, completion and multi-team rows carry
-`signal: weak | clear` from the ranking measure against that floor (0.3); weak rows get a badge and are not hidden. One
-week of outcomes is noisy, so the floor is conservative and should fall as longer windows accumulate.
+`signal: weak | clear` from the ranking measure against that floor (0.3); weak rows get a badge and are not hidden. The
+floor is provisional: it compares a rest-of-season score with one week of outcomes, so it is re-measured as longer
+windows accumulate.
 
 **Strategy advice** (`/api/leagues/{lid}/strategy-advice`, Season page): the season is simulated with the same seed under
 every preset for the team's own lineup, waiver and IL decisions, giving paired playoff and title differences against
@@ -2570,7 +2572,7 @@ about twice the time; the Add/Drop page offers it as "Derin plan".
 
 **Today page** (`/api/today`, `fdo.api.today`): for each league's own team, this week's opponent, expected category
 wins and the stream plan, the best rest-of-season add, playoff and title odds, roster alerts (a player in an IL slot
-without an eligible status blocks every transaction on Yahoo) and how many injury analyses are stale. It is computed in
+without an eligible status; Yahoo usually blocks transactions until it is fixed, to be checked in Yahoo) and how many injury analyses are stale. It is computed in
 the background once per data signature and stored in `today.json`; on the read-only server a background thread
 recomputes it after each data push (`FDO_PRECOMPUTE`, on by default there). `scripts/push_data.py` does not overwrite it.
 

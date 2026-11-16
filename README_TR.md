@@ -2471,15 +2471,16 @@ partisinden gelir.
 | Günlük kadro farkı, kalan sezon (aynı örneklem) | %56 | 0,40 |
 | Gerçekleşen oyuncu değeri (üst sınır) | %84 | 0,86 |
 
-Ufuklar eşleşince günlük kadro farkı hızlı puanı geçiyor; bu, finalistleri onunla yeniden sıralamayı destekler. Bir
-haftada basit tahmin hâlâ biraz daha iyi. Projeksiyon temeline göre oyuncu tahmininin sıra korelasyonu 0,68 (Yahoo),
+Sıralamada kullanılan kalan sezon günlük kadro farkı aynı örneklemde %56, hızlı puan %58; pencerenin haftasıyla
+sınırlanınca %66. Fark ufuk uyumsuzluğundan: bir haftalık sonuç kalan sezon ölçüsünü yargılayamaz. Bu koşu günlük kadroyla
+yeniden sıralamayı ne doğruluyor ne çürütüyor; daha uzun pencereler gösterecek. Projeksiyon temeline göre oyuncu tahmininin sıra korelasyonu 0,68 (Yahoo),
 0,72 (bu sezonki oranlar) ve 0,71 (karma); bir haftalık kanıtla varsayılanlar değişmedi. `scripts/backtest_forward.py`
 `--bases`, `--lineup-sample N`, `--pairs-out` ve `--write-floor` alır.
 
 **Gürültü eşiği** (`fdo.evaluation.noise`, `config/noise.yaml`): hızlı puanın büyüklüğüne göre gerçekleşen haftayla işaret
 uyumu 0,2'nin altında %50–58, 0,2–0,3'te %64, 0,3'ün üstünde %90. Öneri, tamamlama ve çok takımlı satırlar sıralama
-ölçüsünün bu eşiğe (0,3) göre `signal: weak | clear` alanını taşır; zayıflar rozetle işaretlenir, gizlenmez. Bir haftalık
-sonuç gürültülü olduğu için eşik temkinlidir; pencereler uzadıkça düşmesi beklenir.
+ölçüsünün bu eşiğe (0,3) göre `signal: weak | clear` alanını taşır; zayıflar rozetle işaretlenir, gizlenmez. Eşik geçicidir:
+kalan sezon puanını bir haftalık sonuçla karşılaştırır; pencereler uzadıkça yeniden ölçülür.
 
 **Strateji önerisi** (`/api/leagues/{lid}/strategy-advice`, Sezon sayfası): sezon, takımın kendi kadro, waiver ve IL
 kararları için her hazır stratejiyle aynı tohumla simüle edilir; dengeliye göre eşleşmeli play-off ve şampiyonluk farkı
@@ -2491,8 +2492,8 @@ dört takımın ikisinde +0,04–0,07 daha fazla beklenen kategori galibiyeti bu
 iki katı. Add/Drop sayfasında "Derin plan" olarak seçilebilir.
 
 **Bugün sayfası** (`/api/today`, `fdo.api.today`): her ligde kendi takımın için bu haftanın rakibi, beklenen kategori
-galibiyeti ve streaming planı, kalan sezon için en iyi alım, play-off ve şampiyonluk olasılığı, kadro uyarıları (Yahoo'da
-IL slotunda uygun durumu olmayan oyuncu bütün işlemleri engeller) ve eskimiş sakatlık analizi sayısı. Veri imzası başına
+galibiyeti ve streaming planı, kalan sezon için en iyi alım, play-off ve şampiyonluk olasılığı, kadro uyarıları (IL slotunda uygun
+durumu olmayan oyuncu; Yahoo genelde düzeltilene kadar işlemleri engeller, Yahoo'da kontrol edilmeli) ve eskimiş sakatlık analizi sayısı. Veri imzası başına
 arka planda bir kez hesaplanıp `today.json`'a yazılır; salt okunur sunucuda bir arka plan iş parçacığı her veri
 gönderiminden sonra yeniden hesaplar (`FDO_PRECOMPUTE`, orada varsayılan açık). `scripts/push_data.py` bu dosyayı ezmez.
 

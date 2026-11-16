@@ -146,7 +146,7 @@ export function LineupWarnBadge({ own, lineup }: { own: number; lineup?: number 
 /** Takas farkı ileriye dönük testteki eşiğin altında: tek haftalık sonuçlarda işaret isabeti yazı tura düzeyine yakın. */
 export function SignalBadge({ signal }: { signal?: string | null }) {
   if (signal !== "weak") return null;
-  return <span className="badge muted" title="Fark, ileriye dönük testte ölçülen eşiğin (config/noise.yaml) altında: bu büyüklükteki farkların yönü bir haftalık gerçek sonuçlarda ancak %50–64 doğru çıktı. Tek başına karar sebebi değil.">zayıf sinyal</span>;
+  return <span className="badge muted" title="Fark, ileriye dönük testte ölçülen geçici eşiğin (config/noise.yaml) altında: bu büyüklükteki farkların yönü tek bir haftanın gerçek sonuçlarında ancak %50–64 doğru çıktı. Eşik daha uzun pencerelerle yeniden ölçülecek; tek başına karar sebebi değil.">zayıf sinyal</span>;
 }
 
 /** Günlük kadroyla kalan normal sezon farkı hücresi (ölçülmediyse —). */

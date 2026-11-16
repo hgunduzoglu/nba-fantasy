@@ -2,7 +2,8 @@
 
 ``scripts/backtest_forward.py --write-floor`` gerçekleşen haftalık kategori galibiyetine göre takasları farkın
 büyüklüğüne göre dilimler ve işaret isabetinin belirgin biçimde arttığı eşiği yazar. Eşiğin altındaki öneriler gizlenmez,
-"zayıf sinyal" olarak işaretlenir: bir haftalık sonuç gürültülüdür, sezon boyu birikmiş etki daha güvenilirdir.
+"zayıf sinyal" olarak işaretlenir. Eşik geçicidir: kalan sezon puanını bir haftalık sonuçla karşılaştırır (bir haftalık
+sonuç gürültülüdür); pencereler uzadıkça yeniden ölçülür.
 """
 
 from __future__ import annotations
