@@ -176,7 +176,11 @@ def test_waiver_season_rankings(client):
     assert se["standings_known"] and se["start_week"] == 2 and len(se["table"]) == 4
     assert sum(r["p_champion"] for r in se["table"]) == pytest.approx(1)
     rk = client.get("/api/leagues/L/rankings?source=ros").json()
-    assert len(rk["teams"]) == 4 and "ecw" in rk["teams"][0]
+    assert len(rk["teams"]) == 4 and "ecw" in rk["teams"][0] and rk["rank_basis"] == "probability"
+    for t in rk["teams"]:                       # sıra = kategori kazanma olasılığının sırası
+        best = max(rk["teams"], key=lambda x: x["p"]["REB"])
+        assert (t["ranks"]["REB"] == 1) == (t is best)
+    assert [t["avg_rank"] for t in rk["teams"]] == sorted(t["avg_rank"] for t in rk["teams"])
     assert "ecw" not in client.get("/api/leagues/L/rankings?source=season").json()["teams"][0]
 
 

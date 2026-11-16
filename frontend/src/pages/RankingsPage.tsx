@@ -75,7 +75,7 @@ export function RankingsPage({ meta, league, team, injuries }: { meta: Meta; lea
                     <td className="l pname">{t.team}</td>
                     {meta.categories.map((c) => {
                       if (show === "probs" && t.p) return <td key={c.key} className={probClass(t.p[c.key])}>{fmtPct(t.p[c.key])}</td>;
-                      if (show === "totals") return <td key={c.key} className={rankClass(t.ranks[c.key], n)}>{c.key === "FG_PCT" || c.key === "FT_PCT" ? fmtStat(c.key, t.totals[c.key]) : fmtNum(t.totals[c.key], 0)}</td>;
+                      if (show === "totals") return <td key={c.key} className={rankClass((t.total_ranks ?? t.ranks)[c.key], n)}>{c.key === "FG_PCT" || c.key === "FT_PCT" ? fmtStat(c.key, t.totals[c.key]) : fmtNum(t.totals[c.key], 0)}</td>;
                       return <td key={c.key} className={rankClass(t.ranks[c.key], n)}>{fmtNum(t.ranks[c.key], 0)}</td>;
                     })}
                     <td className="pname">{fmtNum(t.avg_rank)}</td>
@@ -87,7 +87,9 @@ export function RankingsPage({ meta, league, team, injuries }: { meta: Meta; lea
             </table>
           </div>
           <div className="hint" style={{ padding: "0 14px 12px" }}>
-            {data.mode_label}: mevcut kadroların oyuncu toplamları (bench ve IL dahil). 1 = en iyi; TO'da az olan iyidir. FG% = toplam FGM / toplam FGA.
+            {data.rank_basis === "probability"
+              ? <>Sıralar ve ortalama sıra: aktif kadroyla tipik haftada kategori kazanma olasılığına göre (1 = en iyi). Toplamlar: mevcut kadroların oyuncu toplamları (bench ve IL dahil; kalabalık kadroyu şişirir).</>
+              : <>{data.mode_label}: mevcut kadroların oyuncu toplamları (bench ve IL dahil). 1 = en iyi; TO'da az olan iyidir.</>} FG% = toplam FGM / toplam FGA.
           </div>
         </div>
       )}

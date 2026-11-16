@@ -766,6 +766,7 @@ export interface RankTeam {
   team: string;
   totals: Record<CategoryKey, number | null>;
   ranks: Record<CategoryKey, number | null>;
+  total_ranks?: Record<CategoryKey, number | null>;
   avg_rank: number;
   coverage: { roster: number; complete: number; modeled_ros: number };
   ecw?: number;
@@ -777,6 +778,7 @@ export interface RankingsOut {
   source: Source;
   mode_label: string;
   teams: RankTeam[];
+  rank_basis?: "probability" | "totals";
 }
 
 // ------------------------------------------------------------------ çok takımlı takas

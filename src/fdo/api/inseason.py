@@ -552,12 +552,16 @@ def register(app: FastAPI, state: AppState) -> None:
         mode = {"ros": ROS, "season": "season_total", "preseason": "preseason"}[source]
         view = eng.before[mode]
         probs = eng.league_probabilities() if mode == ROS else None
+        # Kalan sezonda sıra, aktif kadroyla kategori kazanma olasılığından: oyuncu toplamları bench ve IL'yi de
+        # sayar, kalabalık kadroları sayım kategorilerinde şişirir. Toplamların sırası ``total_ranks``'te kalır.
+        ranks = (probs[list(CATEGORIES)].rank(ascending=False, method="average") if probs is not None else view.ranks)
         teams = []
         for tid in eng.team_ids:
             row = {"team_id": tid, "team": eng.league.teams[tid],
                    "totals": {c: view.totals.loc[tid, c] for c in CATEGORIES},
-                   "ranks": {c: view.ranks.loc[tid, c] for c in CATEGORIES},
-                   "avg_rank": float(view.ranks.loc[tid].mean()),
+                   "ranks": {c: ranks.loc[tid, c] for c in CATEGORIES},
+                   "total_ranks": {c: view.ranks.loc[tid, c] for c in CATEGORIES},
+                   "avg_rank": float(ranks.loc[tid].mean()),
                    "coverage": {k: int(v) for k, v in view.coverage.loc[tid].items()}}
             if probs is not None:
                 row["ecw"] = probs.loc[tid, "ECW"]
@@ -566,5 +570,6 @@ def register(app: FastAPI, state: AppState) -> None:
             teams.append(row)
         teams.sort(key=lambda r: r["avg_rank"])
         return clean({"source": source, "mode_label": MODES[mode], "teams": teams,
+                      "rank_basis": "probability" if probs is not None else "totals",
                       "labels": {c: CATEGORY_LABELS[c] for c in CATEGORIES}})
 
