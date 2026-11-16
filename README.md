@@ -1627,8 +1627,10 @@ Uses the full H2H schedule (`fixtures*.csv`, four leagues, 56 teams, 519 matchup
 - In a league with full standings, a completed week is taken as `(W+L+T)/9` and the simulation starts from the real W-L-T;
   in a league without standings (currently 229303, 104375) everything is simulated from week 1 (a warning is shown).
 - Each team's strength in each week uses that week's NBA schedule and daily lineup (`WeekModel.team_week`);
-  the current week uses current injuries and IL, later weeks use the full roster (missed games are in ROS GP).
-  Rosters are fixed for the season.
+  current injury statuses apply to the current week. A dated roster plan keeps IL players inactive until their
+  activation date, including within the current week. Activation and any required capacity drop happen together;
+  a player kept on IL triggers no drop. Before activation, the backup remains available. Unknown IL return dates
+  are assumed to be seven days after the data date; return probabilities and missed games still come from the injury/ROS model.
 - **The current week**: the real score for the days before the data date is not in the data (the matchup record only has finished
   weeks). These days are the expected contribution of the real pre-trade roster and are the same in every scenario; the post-trade
   roster plays only on the remaining days from the data date on. Previously, the post-trade roster was applied to the whole week (26 October – 1 November
@@ -1648,8 +1650,8 @@ Uses the full H2H schedule (`fixtures*.csv`, four leagues, 56 teams, 519 matchup
   are computed with the same setting.
 - Standings come from three sources, including `standings*.csv` (league_id, team_id, wins, losses, ties); the standings of all four leagues
   were completed on 31 October, and all start from the real result of week 1.
-- Limits: category ties, roster changes, injury return timing and game covariance between players
-  are not modeled; the probabilities are uncalibrated.
+- Limits: ongoing streaming, intraday transaction locks and game covariance between players are not modeled;
+  the probabilities and unknown IL return dates are uncalibrated assumptions.
 
 ### 13.15 Suggestion types: mutual benefit, sell high, buy low (`fdo.trade.perception`, `suggest.py`)
 

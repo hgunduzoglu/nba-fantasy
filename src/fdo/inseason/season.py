@@ -3,10 +3,10 @@
 * **Başlangıç**: tam sıralama varsa tamamlanan hafta ``(W+L+T)/9`` kabul edilir ve gerçek W-L-T'den
   başlanır; yoksa 1. haftadan itibaren her hafta simüle edilir.
 * **Haftalık güç**: her takımın o haftaki vektörü ``WeekModel.team_week`` ile (gerçek NBA takvimi, günlük
-  lineup, uygunluk). İçinde bulunulan hafta güncel sakatlık durumu ve IL ile; gelecek haftalarda bütün
-  kadro (IL dahil) durumdan bağımsız (kaçırılacak maçlar ROS GP'de). Kadrolar sezon boyu sabit; tek istisna
-  IL dönüşü: boş aktif yer yoksa dönüş gününden itibaren en düşük değerli aktif oyuncu (dengeli değer) kadrodan
-  çıkar, dönen oyuncu daha zayıfsa kendisi hiç aktifleşmez (``drop_schedule``). Dönüş tarihi bilinmeyen IL
+  lineup, uygunluk). İçinde bulunulan hafta güncel sakatlık durumu ile; gelecek haftalarda durumdan bağımsız
+  (kaçırılacak maçlar ROS GP'de). IL oyuncusunun aktif dönemi dönüş tarihinde başlar. Boş aktif yer yoksa aynı
+  tarihte en düşük değerli aktif oyuncu kadrodan çıkar; dönen oyuncu daha zayıfsa IL'de kalır ve kimse
+  çıkarılmaz (``drop_schedule``). Karar takımın stratejisine göredir. Dönüş tarihi bilinmeyen IL
   oyuncusu gelecek hafta döner sayılır.
 * **İçinde bulunulan hafta**: yalnız veri tarihinden itibaren kalan günler senaryonun (takas sonrası) kadrosuyla
   oynanır. Geçmiş günler Yahoo senkronizasyonunun gerçek hafta toplamıdır (``realized``, §13.20); yoksa takas öncesi
@@ -104,6 +104,37 @@ class SeasonResult:
     ecw: np.ndarray | None = None
 
 
+@dataclass(frozen=True)
+class RosterState:
+    day: dt.date
+    roster: tuple[str, ...]
+    il: frozenset[str]
+    activated: frozenset[str] = frozenset()
+
+    @property
+    def active(self) -> tuple[str, ...]:
+        return tuple(p for p in self.roster if p not in self.il)
+
+
+@dataclass(frozen=True)
+class RosterChange:
+    day: dt.date
+    add: str
+    drop: str | None = None
+    activation: bool = False
+
+
+@dataclass(frozen=True)
+class DatedRosterPlan:
+    """Owned/IL states and the atomic transactions that start each period."""
+
+    states: tuple[RosterState, ...]
+    changes: tuple[RosterChange, ...]
+
+    def effective(self, day: dt.date) -> RosterState:
+        return next(s for s in reversed(self.states) if s.day <= day)
+
+
 class SeasonSim:
     def __init__(self, model: WeekModel, weeks: LeagueWeeks, fixtures: pd.DataFrame,
                  standings: pd.DataFrame | None, as_of: dt.date,
@@ -144,7 +175,7 @@ class SeasonSim:
         self.corr = model.corr
         self._vec_cache: dict[tuple, np.ndarray] = {}
         self._past_cache: dict[tuple[str, int], np.ndarray] = {}
-        self._drop_cache: dict[tuple, dict[str, dt.date]] = {}
+        self._roster_cache: dict[tuple, DatedRosterPlan] = {}
         if self.current_week is not None and any(d < as_of for d in weeks.days(self.current_week)):
             if set(self.teams) <= set(self.realized):
                 self.notes.append(f"{self.current_week}. hafta sürüyor: geçmiş günler Yahoo'daki gerçek skordur; takas "
@@ -188,33 +219,62 @@ class SeasonSim:
 
     def drop_schedule(self, roster: tuple[str, ...], il: frozenset[str],
                       strategy: Strategy | None = None) -> dict[str, dt.date]:
-        """IL dönüşünde kadrodan çıkan oyuncu → çıktığı gün (``TradeEngine.crunch_vector`` ile aynı kural,
-        takımın stratejisine göre). Dönen oyuncu bırakılırsa kendisi listededir (hiç aktifleşmez)."""
+        """Actual capacity drops, coupled to an accepted IL activation on the same day."""
+        plan = self.roster_plan(roster, il, strategy)
+        return {c.drop: c.day for c in plan.changes if c.activation and c.drop is not None}
+
+    def roster_plan(self, roster: tuple[str, ...], il: frozenset[str],
+                    strategy: Strategy | None = None) -> DatedRosterPlan:
+        """Start IL players' active periods on their return dates; decline both activation and drop together."""
         strategy = strategy or Strategy()
-        key = (tuple(sorted(roster)), tuple(sorted(il)), strategy)
-        if key in self._drop_cache:
-            return self._drop_cache[key]
+        key = (tuple(roster), frozenset(il), strategy)
+        if key in self._roster_cache:
+            return self._roster_cache[key]
         eng = self.engine
-        back = [p for p in il if p in set(roster) and eng.modeled[eng.index[p]] and eng.return_share(p) > 0]
-        gone: dict[str, dt.date] = {}
-        if back:
-            u = eng._utility_array(strategy)
-            ret = {p: self.model.return_date.get(p) or self.as_of + dt.timedelta(days=7) for p in back}
-            active = [p for p in roster if p not in il]
-            free = self.league.capacity - len(active)
-            pool = sorted((p for p in active if eng.modeled[eng.index[p]]), key=lambda p: u[eng.index[p]])
-            for r in sorted(back, key=lambda p: ret[p]):
-                if free > 0:
-                    free -= 1
-                elif not pool or u[eng.index[r]] <= u[eng.index[pool[0]]]:
-                    gone[r] = ret[r]
+        owned, held, activated = list(roster), set(il) & set(roster), set()
+        states = [RosterState(dt.date.min, tuple(owned), frozenset(held))]
+        changes = []
+        u = eng._utility_array(strategy)
+        ret = {p: max(self.as_of, self.model.return_date.get(p) or self.as_of + dt.timedelta(days=7))
+               for p in owned if p in held and eng.modeled[eng.index[p]] and eng.return_share(p) > 0}
+        for r in sorted(ret, key=lambda p: (ret[p], p)):
+            active = [p for p in owned if p not in held]
+            drop = None
+            if len(active) >= self.league.capacity:
+                pool = [p for p in active if eng.modeled[eng.index[p]]]
+                if not pool:
                     continue
-                else:
-                    gone[pool.pop(0)] = ret[r]
-                pool.append(r)
-                pool.sort(key=lambda p: u[eng.index[p]])
-        self._drop_cache[key] = gone
-        return gone
+                drop = min(pool, key=lambda p: (u[eng.index[p]], p))
+                if u[eng.index[r]] <= u[eng.index[drop]]:
+                    continue
+                owned.remove(drop)
+            held.remove(r)
+            activated.add(r)
+            changes.append(RosterChange(ret[r], r, drop, activation=True))
+            states.append(RosterState(ret[r], tuple(owned), frozenset(held), frozenset(activated)))
+        plan = DatedRosterPlan(tuple(states), tuple(changes))
+        if len(self._roster_cache) > 50_000:
+            self._roster_cache.clear()
+        self._roster_cache[key] = plan
+        return plan
+
+    def _stints(self, plan: DatedRosterPlan, days: list[dt.date], current: bool) -> list[Stint]:
+        active = []
+        for day in days:
+            state = plan.effective(day)
+            active.append(tuple(p for p in state.active
+                                if self.model.playable(p, use_status=current and p not in state.activated)))
+        stints = []
+        for p in dict.fromkeys(p for roster in active for p in roster):
+            first = None
+            for i in range(len(days) + 1):
+                present = i < len(days) and p in active[i]
+                if present and first is None:
+                    first = i
+                elif not present and first is not None:
+                    stints.append(Stint(p, first=first, last=i - 1, slot=len(stints)))
+                    first = None
+        return stints
 
     def _past(self, team: str, week: int) -> np.ndarray:
         """İçinde bulunulan haftanın veri tarihinden önceki günleri: Yahoo'daki gerçek toplam, yoksa takas öncesi gerçek
@@ -231,10 +291,11 @@ class SeasonSim:
         return self._past_cache[key]
 
     def vector(self, team: str, roster: tuple[str, ...], week: int, il: frozenset[str] | None = None,
-               strategy: Strategy | None = None) -> np.ndarray:
+               strategy: Strategy | None = None, *, plan: DatedRosterPlan | None = None) -> np.ndarray:
         il = self.engine._il(team, roster) if il is None else frozenset(il)
         strategy = strategy or Strategy()
-        key = (team, tuple(sorted(roster)), tuple(sorted(il)), week, strategy)
+        plan = plan or self.roster_plan(roster, il, strategy)
+        key = (team, plan, week, strategy)
         if key not in self._vec_cache:
             if len(self._vec_cache) > 50_000:
                 self._vec_cache.clear()
@@ -242,23 +303,13 @@ class SeasonSim:
             days = self.weeks.days(week)
             if current:
                 days = [d for d in days if d >= self.as_of]
-            gone = self.drop_schedule(roster, il, strategy)
-            stints = []
-            for p in roster:
-                if current and p in il:
-                    continue
-                last = 10_000
-                if p in gone:
-                    last = sum(d < gone[p] for d in days) - 1                  # çıktığı günden önceki son gün
-                    if last < 0:
-                        continue
-                stints.append(Stint(p, last=last, slot=len(stints)))
+            stints = self._stints(plan, days, current)
             past, reference = None, None
             if current:
                 past = self._past(team, week)
                 other_past = np.mean([self._past(t, week) for t in self.teams if t != team], axis=0)
                 reference = other_past + self.model.lineup_reference * len(days)
-            tw = self.model.team_week(team, stints, days, past, use_status=current, strategy=strategy,
+            tw = self.model.team_week(team, stints, days, past, use_status=False, strategy=strategy,
                                       reference=reference)
             self._vec_cache[key] = tw.vector
         return self._vec_cache[key]

@@ -124,7 +124,9 @@ def test_returning_il_player_pushes_the_weakest_active_off_the_roster(sim):
     assert gone == {worst: sim.as_of + dt.timedelta(days=7)}       # dönüş tarihi bilinmiyor → gelecek hafta
     days = sim.weeks.days(3)                                         # dönüş haftası (2–8 Kasım)
     last = sum(d < gone[worst] for d in days) - 1
-    stints = [Stint(p, last=last if p == worst else 10_000, slot=k) for k, p in enumerate(roster)
+    first = sum(d < sim.as_of + dt.timedelta(days=7) for d in days)
+    stints = [Stint(p, first=first if p in il else 0, last=last if p == worst else 10_000, slot=k)
+              for k, p in enumerate(roster)
               if not (p == worst and last < 0)]
     expected = sim.model.team_week("2", stints, days, use_status=False).vector
     np.testing.assert_allclose(sim.vector("2", roster, 3, il), expected)
