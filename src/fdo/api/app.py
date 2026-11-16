@@ -333,9 +333,10 @@ def create_app(data_dir: str | Path | None = None, frontend_dir: str | Path | No
     inseason.register(app, state)
     multi.register(app, state)
     app.state.news = news.register(app, state, read_only=read_only)
-    from fdo.api import injury, report
+    from fdo.api import injury, report, today
     app.state.reports = report.register(app, state, engine, read_only=read_only)
     app.state.injury_intel = injury.register(app, state, read_only=read_only)
+    app.state.today = today.register(app, state, read_only=read_only)
     after = [lambda log: news.refresh_logs(state), lambda log: news.refresh_news(state, log)]
     app.state.sync = sync.register(app, state, sync.SyncJob(state, after=after), read_only=read_only)
 

@@ -29,6 +29,7 @@ SKIP_DIRS = ("snapshots/",                                         # değiştiri
 SKIP_NAMES = frozenset({"managers.csv", "managers.json",          # iletişim bilgileri; uygulama okumaz
                         "trade_reports.json",                       # sunucunun kendi analizleri ezilmesin
                         "injury_intel.json",                        # sunucunun kendi sakatlık analizleri
+                        "today.json",                               # sunucunun kendi "Bugün" özeti
                         "cases.json"})                              # referans vakalar (yerel ölçüm)
 SKIP_SUFFIXES = (".tmp", ".txt", "_capture.json")
 

@@ -8,6 +8,7 @@ import { RankingsPage } from "./pages/RankingsPage";
 import { SeasonPage } from "./pages/SeasonPage";
 import { SitStartPage } from "./pages/SitStartPage";
 import { SuggestPage } from "./pages/SuggestPage";
+import { TodayPage } from "./pages/TodayPage";
 import { TradePage, type TradeInit } from "./pages/TradePage";
 import { WeeklyPage } from "./pages/WeeklyPage";
 import { Icon, Sheet } from "./components/Mobile";
@@ -18,9 +19,10 @@ import type { League, Meta } from "./types";
 
 type Theme = "auto" | "light" | "dark";
 type Scale = "gr" | "br";
-type Tab = "trade" | "suggest" | "multi" | "weekly" | "sitstart" | "fa" | "news" | "history" | "season" | "ranks";
+type Tab = "today" | "trade" | "suggest" | "multi" | "weekly" | "sitstart" | "fa" | "news" | "history" | "season" | "ranks";
 
 const TABS: { id: Tab; label: string; short: string; hint: string }[] = [
+  { id: "today", label: "Bugün", short: "Bugün", hint: "dört ligde bu haftanın planı, uyarılar ve sezon özeti" },
   { id: "trade", label: "Takas Analizi", short: "Takas", hint: "iki takım arası takası değerlendir" },
   { id: "suggest", label: "Takas Önerileri", short: "Öneriler", hint: "sana uygun takaslar" },
   { id: "multi", label: "Çok Takımlı Takas", short: "Çok takımlı", hint: "üç ve daha çok takımlı takas" },
@@ -33,7 +35,7 @@ const TABS: { id: Tab; label: string; short: string; hint: string }[] = [
   { id: "ranks", label: "Lig Sıralamaları", short: "Sıralamalar", hint: "takımların güç sıralaması" },
 ];
 /** Telefonda alt çubukta duranlar; diğerleri "Daha" panelinde. */
-const PRIMARY: Tab[] = ["weekly", "sitstart", "fa", "news"];
+const PRIMARY: Tab[] = ["today", "weekly", "fa", "news"];
 
 function stored<T extends string>(key: string, fallback: T): T {
   try {
@@ -73,7 +75,7 @@ export default function App() {
     if (TABS.some((t) => t.id === h)) return h;
     const last = stored<Tab | "">("tl.tab", "");
     if (last && TABS.some((t) => t.id === last)) return last;
-    return window.matchMedia("(max-width: 760px)").matches ? "weekly" : "trade";
+    return "today";
   });
   const [pending, setPending] = useState<{ trade: TradeInit; seq: number } | null>(null);
   const [version, setVersion] = useState(0);              // senkronizasyondan sonra sayfalar yeniden yüklenir
@@ -217,6 +219,7 @@ export default function App() {
         </>
       )}
       <main key={version}>
+        {tab === "today" && <TodayPage go={(id, t) => { pickLeague(id); go(t); }} />}
         {tab === "trade" && (
           <TradePage key={`${league.id}-${team}-${pending?.seq ?? 0}`} meta={meta} league={league} team={team}
                      injuries={injuries} initial={pending?.trade ?? null} />

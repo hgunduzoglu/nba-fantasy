@@ -461,3 +461,23 @@ def test_strategy_advice_compares_presets_against_balanced(client):
     assert base[key]["delta"] == 0 and base[key]["se"] == 0
     deltas = [r[key]["delta"] for r in out["rows"]]
     assert deltas == sorted(deltas, reverse=True)
+
+
+def test_today_computes_in_background_and_caches_by_signature(client):
+    import time
+
+    from fdo.api.today import alerts
+    first = client.get("/api/today").json()
+    assert first["fresh"] is False
+    job = client.app.state.today
+    for _ in range(600):
+        if not job.running:
+            break
+        time.sleep(.2)
+    assert job.error is None, job.error
+    out = client.get("/api/today").json()
+    assert out["fresh"] is True and out["leagues"]
+    lg = out["leagues"][0]
+    assert lg["league_id"] == "L" and "week" in lg and "season" in lg
+    roster = {"players": [{"name": "A", "il": True, "status": ""}, {"name": "B", "il": True, "status": "O"}]}
+    assert [a["player"] for a in alerts(roster)] == ["A"]

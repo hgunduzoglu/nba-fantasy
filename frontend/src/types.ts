@@ -1133,3 +1133,29 @@ export interface StrategyAdviceOut {
   rank_by: "playoff" | "champion";
   rows: { strategy: string; weights: number[]; playoff?: PairedEffect; champion?: PairedEffect; seed?: PairedEffect }[];
 }
+
+// ------------------------------------------------------------------ bugün
+export interface TodayLeague {
+  league: string;
+  league_id: string;
+  team_id: string;
+  team?: string;
+  error?: string;
+  alerts: { kind: string; player: string; text: string }[];
+  week?: {
+    week: number; opponent: string; expected_wins: number; p_win: number; adds_left: number | null; adds_limit: number | null;
+    plan_expected_wins: number | null; plan_p_win: number | null; moves: { day: string; add: string; drop: string }[];
+  };
+  season?: { record: string; p_playoff: number; p_champion: number; mean_seed: number; playoff_size: number };
+  waiver?: { add: string; drop: string; delta_ecw: number | null };
+  injuries?: { players: number; stale: number };
+}
+
+export interface TodayOut {
+  fresh: boolean;
+  job: JobStatus;
+  signature?: string;
+  computed_at?: string;
+  as_of?: string;
+  leagues: TodayLeague[];
+}

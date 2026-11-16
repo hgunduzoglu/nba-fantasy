@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import os
+
 import pytest
+
+os.environ.setdefault("FDO_PRECOMPUTE", "0")       # testlerde arka plan "Bugün" hesabı yok
 
 from fdo.config import load_config
 
