@@ -10,6 +10,7 @@ from fdo.inseason.season import SeasonSim
 from fdo.inseason.weekly import WeekModel
 from fdo.inseason.weeks import LeagueWeeks
 from fdo.trade import TradeEngine
+from fdo.trade.engine import RosterPlan, TransactionBudget
 from fdo.trade.strategy import Strategy
 from unit.test_trade import trade_data  # noqa: F401
 from unit.test_season import _fixtures
@@ -110,3 +111,111 @@ def test_unknown_return_in_a_long_current_week_starts_on_assumed_date(dated_sim)
     assert plan.effective(MONDAY + dt.timedelta(days=7)).active == ("1",)
     # The stale snapshot INJ status cannot suppress an explicitly planned activation.
     assert sim.vector("1", ("0", "1"), 1, frozenset({"1"}), PTS)[1] == 80
+
+
+def deferred_plan(sim, monkeypatch, *, il=frozenset()):
+    """OLD=0 is replaced by NEW_FA=2 only when the weekly acquisition budget resets."""
+    base = ("0", "1") if il else ("0",)
+    final = ("1", "2") if il else ("2",)
+    waiver = RosterPlan(final, il, (("0", "2"),), base, TransactionBudget(1, used=1))
+    monkeypatch.setattr(sim, "plans", lambda *args, **kwargs: {"1": waiver})
+    return waiver
+
+
+def record_vectors(sim, monkeypatch):
+    seen = []
+    original = sim.vector
+    def record(team, roster, week, *args, **kwargs):
+        if team == "1":
+            seen.append((week, set(roster)))
+        return original(team, roster, week, *args, **kwargs)
+    monkeypatch.setattr(sim, "vector", record)
+    return seen
+
+
+def test_fixture_outlook_does_not_use_next_weeks_acquisition_early(dated_sim, monkeypatch):
+    sim = dated_sim
+    deferred_plan(sim, monkeypatch)
+    seen = record_vectors(sim, monkeypatch)
+    sim.fixture_outlook("1", injuries={"1": frozenset()})
+    assert seen == [(1, {"0"}), (2, {"2"})]
+
+
+def test_current_playoff_week_does_not_use_next_weeks_acquisition_early(dated_sim, monkeypatch):
+    sim = dated_sim
+    deferred_plan(sim, monkeypatch)
+    sim.regular = []
+    sim.playoff_weeks, sim.playoff_size = [1, 2], 4
+    seen = record_vectors(sim, monkeypatch)
+    sim.run(n_sims=8, injuries={"1": frozenset()})
+    assert seen == [(1, {"0"}), (2, {"2"})]
+
+
+def test_all_season_consumers_share_one_resolved_plan_and_strategy(dated_sim, monkeypatch):
+    sim = dated_sim
+    waiver = deferred_plan(sim, monkeypatch)
+    sim.model.unit[sim.engine.index["2"], 1] = 50.
+    calls, vectors = [], []
+    def plans(rosters, injuries, first, strategies):
+        calls.append((first, strategies))
+        return {"1": waiver}
+    monkeypatch.setattr(sim, "plans", plans)
+    original = sim.vector
+    def record(team, roster, week, il, strategy, *, plan):
+        result = original(team, roster, week, il, strategy, plan=plan)
+        if team == "1":
+            vectors.append((week, plan, strategy, result))
+        return result
+    monkeypatch.setattr(sim, "vector", record)
+    sim.playoff_weeks, sim.playoff_size = [1, 2], 4
+    options = {"injuries": {"1": frozenset()}, "first": ("1",), "strategies": {"1": PTS}}
+    result = sim.run(n_sims=8, team="1", **options)
+    assert calls == [(("1",), {"1": PTS})]                     # schedule does not re-resolve waivers
+    assert [w for w, *_ in vectors] == [1, 2, 1, 2, 1, 2]       # regular, playoffs, fixtures
+    assert [v[1] for _, _, _, v in vectors] == [20, 100, 20, 100, 20, 100]
+    assert all(plan is vectors[0][1] and strategy == PTS for _, plan, strategy, _ in vectors)
+    assert vectors[0][1].changes[0].day == MONDAY + dt.timedelta(days=7)
+    for week in (1, 2):
+        results = [v for w, _, _, v in vectors if w == week]
+        for v in results[1:]:
+            np.testing.assert_array_equal(v, results[0])
+    np.testing.assert_allclose(sim.lineup_profile(**options).sum(axis=1), result.ecw)
+    pd.testing.assert_frame_equal(sim.fixture_outlook("1", **options), result.schedule)
+
+
+def test_deferred_move_does_not_undo_an_earlier_il_activation(dated_sim, monkeypatch):
+    sim = dated_sim
+    deferred_plan(sim, monkeypatch, il=frozenset({"1"}))
+    plan = sim.season_plan(strategies={"1": PTS})
+    timeline = plan.teams["1"]
+    assert timeline.effective(MONDAY).active == ("0",)
+    assert timeline.effective(TUESDAY).active == ("1",)
+    assert timeline.effective(MONDAY + dt.timedelta(days=7)).active == ("1",)
+    assert [(c.day, c.add, c.drop) for c in timeline.changes] == [(TUESDAY, "1", "0")]
+    assert all(len(s.active) <= 1 for s in timeline.states)
+    assert sim.week_vectors(plan, 1)[0, 1] == 40
+    assert sim.week_vectors(plan, 2)[0, 1] == 60
+
+
+def test_deferred_acquisition_waits_until_a_long_fantasy_week_ends(dated_sim, monkeypatch):
+    sim = dated_sim
+    deferred_plan(sim, monkeypatch)
+    sim.weeks.weeks.loc[1, "end"] = MONDAY + dt.timedelta(days=13)
+    sim.weeks.weeks.loc[2, "start"] = MONDAY + dt.timedelta(days=14)
+    sim.weeks.weeks.loc[2, "end"] = MONDAY + dt.timedelta(days=20)
+    timeline = sim.season_plan(injuries={"1": frozenset()}).teams["1"]
+    assert timeline.effective(MONDAY + dt.timedelta(days=7)).active == ("0",)
+    assert timeline.effective(MONDAY + dt.timedelta(days=14)).active == ("2",)
+
+
+def test_available_acquisition_precedes_later_il_activation_decision(dated_sim):
+    sim = dated_sim
+    utility = sim.engine._utility_array(PTS).copy()
+    utility[sim.engine.index["2"]] = 4.                    # newly acquired player is better than the IL returner
+    sim.engine._utility_cache[PTS] = utility
+    waiver = RosterPlan(("1", "2"), frozenset({"1"}), (("0", "2"),), ("0", "1"), TransactionBudget(1, used=0))
+    timeline = sim.roster_plan(("0", "1"), frozenset({"1"}), PTS, waiver=waiver)
+    assert timeline.effective(MONDAY).active == ("2",)
+    assert timeline.effective(TUESDAY).active == ("2",)
+    assert timeline.effective(TUESDAY).il == frozenset({"1"})
+    assert [(c.day, c.add, c.drop, c.activation) for c in timeline.changes] == [(MONDAY, "2", "0", False)]

@@ -1631,6 +1631,11 @@ Uses the full H2H schedule (`fixtures*.csv`, four leagues, 56 teams, 519 matchup
   activation date, including within the current week. Activation and any required capacity drop happen together;
   a player kept on IL triggers no drop. Before activation, the backup remains available. Unknown IL return dates
   are assumed to be seven days after the data date; return probabilities and missed games still come from the injury/ROS model.
+- `SeasonSim.season_plan` resolves waiver choices once and records dated roster states and paired transactions.
+  Normal-season simulation, lineup profiles, fixture outlooks and playoff rounds use that same plan. Acquisitions
+  beyond the current budget start on the day after the current fantasy week ends (including a 14-day week).
+  A conditional acquisition whose drop is no longer owned after an IL activation is skipped as a pair;
+  it cannot undo that activation or create an extra active player. Future FA availability remains conditional.
 - **The current week**: the real score for the days before the data date is not in the data (the matchup record only has finished
   weeks). These days are the expected contribution of the real pre-trade roster and are the same in every scenario; the post-trade
   roster plays only on the remaining days from the data date on. Previously, the post-trade roster was applied to the whole week (26 October – 1 November
@@ -2454,7 +2459,8 @@ on the same horizon, including the other days' selected players. Weekly matchup,
 the opponent's full accumulated-plus-remaining vector. Season scoring brings actual past production into lineup
 selection, with the other teams' past production plus the remaining league forecast as its weekly reference.
 Changes are accepted only when that weekly objective improves. This is still a bounded local search; the policy
-version is now `weekly-lineup-v3`.
+version for that lineup correction was `weekly-lineup-v3`. The dated roster consistency correction uses
+`dated-roster-v4`, invalidating calibration artifacts from the earlier season policy.
 
 For a game played with probability p, variance is `p * conditional_variance + p * (1-p) * mean²`. Shooting moments
 also include the corresponding makes/attempts covariance. The 24-component model still uses the configured copula

@@ -135,6 +135,12 @@ class DatedRosterPlan:
         return next(s for s in reversed(self.states) if s.day <= day)
 
 
+@dataclass
+class SeasonRosterPlan:
+    teams: dict[str, DatedRosterPlan]
+    strategies: dict[str, Strategy]
+
+
 class SeasonSim:
     def __init__(self, model: WeekModel, weeks: LeagueWeeks, fixtures: pd.DataFrame,
                  standings: pd.DataFrame | None, as_of: dt.date,
@@ -224,39 +230,73 @@ class SeasonSim:
         return {c.drop: c.day for c in plan.changes if c.activation and c.drop is not None}
 
     def roster_plan(self, roster: tuple[str, ...], il: frozenset[str],
-                    strategy: Strategy | None = None) -> DatedRosterPlan:
-        """Start IL players' active periods on their return dates; decline both activation and drop together."""
+                    strategy: Strategy | None = None, *, waiver: RosterPlan | None = None) -> DatedRosterPlan:
+        """Execute acquisitions and coupled IL activations in date order, preserving capacity at every step."""
         strategy = strategy or Strategy()
-        key = (tuple(roster), frozenset(il), strategy)
+        key = (tuple(roster), frozenset(il), strategy, waiver)
         if key in self._roster_cache:
             return self._roster_cache[key]
         eng = self.engine
-        owned, held, activated = list(roster), set(il) & set(roster), set()
+        base = waiver.base if waiver is not None and waiver.moves else (waiver.roster if waiver else roster)
+        owned, held, activated = list(base), set(il) & set(base), set()
         states = [RosterState(dt.date.min, tuple(owned), frozenset(held))]
         changes = []
+        acquisitions: dict[dt.date, list[tuple[str | None, str]]] = {}
+        if waiver is not None:
+            for i, move in enumerate(waiver.moves):
+                day = self.as_of if i < waiver.now else self._deferred_day()
+                acquisitions.setdefault(day, []).append(move)
         u = eng._utility_array(strategy)
         ret = {p: max(self.as_of, self.model.return_date.get(p) or self.as_of + dt.timedelta(days=7))
                for p in owned if p in held and eng.modeled[eng.index[p]] and eng.return_share(p) > 0}
-        for r in sorted(ret, key=lambda p: (ret[p], p)):
-            active = [p for p in owned if p not in held]
-            drop = None
-            if len(active) >= self.league.capacity:
-                pool = [p for p in active if eng.modeled[eng.index[p]]]
-                if not pool:
+        for day in sorted(set(ret.values()) | set(acquisitions)):
+            for drop, add in acquisitions.get(day, ()):
+                # A previous IL activation can invalidate a conditional drop/add.
+                # Never execute only half the pair or retarget its drop silently.
+                if add in owned or (drop is not None and drop not in owned):
                     continue
-                drop = min(pool, key=lambda p: (u[eng.index[p]], p))
-                if u[eng.index[r]] <= u[eng.index[drop]]:
+                candidate = [p for p in owned if p != drop] + [add]
+                remaining_il = held - {drop}
+                if len(candidate) - len(remaining_il) > self.league.capacity:
                     continue
-                owned.remove(drop)
-            held.remove(r)
-            activated.add(r)
-            changes.append(RosterChange(ret[r], r, drop, activation=True))
-            states.append(RosterState(ret[r], tuple(owned), frozenset(held), frozenset(activated)))
+                owned, held = candidate, remaining_il
+                changes.append(RosterChange(day, add, drop))
+            for r in sorted((p for p in held if p in ret and ret[p] <= day), key=lambda p: (ret[p], p)):
+                active = [p for p in owned if p not in held]
+                drop = None
+                if len(active) >= self.league.capacity:
+                    pool = [p for p in active if eng.modeled[eng.index[p]]]
+                    if not pool:
+                        continue
+                    drop = min(pool, key=lambda p: (u[eng.index[p]], p))
+                    if u[eng.index[r]] <= u[eng.index[drop]]:
+                        continue
+                    owned.remove(drop)
+                held.remove(r)
+                activated.add(r)
+                changes.append(RosterChange(day, r, drop, activation=True))
+            states.append(RosterState(day, tuple(owned), frozenset(held), frozenset(activated)))
         plan = DatedRosterPlan(tuple(states), tuple(changes))
         if len(self._roster_cache) > 50_000:
             self._roster_cache.clear()
         self._roster_cache[key] = plan
         return plan
+
+    def _deferred_day(self) -> dt.date:
+        if self.current_week is not None:
+            return self.weeks.weeks.loc[self.current_week, "end"] + dt.timedelta(days=1)
+        future = self.weeks.weeks.loc[self.weeks.weeks["start"] > self.as_of, "start"]
+        return min(future) if len(future) else self.as_of + dt.timedelta(days=7)
+
+    def season_plan(self, rosters: dict[str, tuple[str, ...]] | None = None,
+                    injuries: dict[str, frozenset[str]] | None = None, first: tuple[str, ...] = (),
+                    strategies: dict[str, Strategy] | None = None) -> SeasonRosterPlan:
+        """Resolve waiver choices once, then share the same dated transactions across all season consumers."""
+        given = dict(rosters or self.league.rosters)
+        waivers = self.plans(given, injuries, first, strategies)
+        il = self.il_map(given, injuries)
+        return SeasonRosterPlan({t: self.roster_plan(given[t], il[t], (strategies or {}).get(t), waiver=waivers.get(t))
+                                 for t in self.teams}, dict(strategies or {}))
 
     def _stints(self, plan: DatedRosterPlan, days: list[dt.date], current: bool) -> list[Stint]:
         active = []
@@ -314,18 +354,29 @@ class SeasonSim:
             self._vec_cache[key] = tw.vector
         return self._vec_cache[key]
 
-    def week_vectors(self, rosters: dict[str, tuple[str, ...]], week: int,
+    def _planned_vector(self, team: str, week: int, plan: SeasonRosterPlan) -> np.ndarray:
+        timeline = plan.teams[team]
+        day = self.weeks.weeks.loc[week, "start"]
+        if week == self.current_week:
+            day = max(day, self.as_of)
+        state = timeline.effective(day)
+        return self.vector(team, state.roster, week, state.il, plan.strategies.get(team), plan=timeline)
+
+    def week_vectors(self, rosters: dict[str, tuple[str, ...]] | SeasonRosterPlan, week: int,
                      il: dict[str, frozenset[str]] | None = None,
                      strategies: dict[str, Strategy] | None = None) -> np.ndarray:
+        if isinstance(rosters, SeasonRosterPlan):
+            return np.stack([self._planned_vector(t, week, rosters) for t in self.teams])
         il = il or self.il_map(rosters)
         return np.stack([self.vector(t, rosters[t], week, il[t], (strategies or {}).get(t)) for t in self.teams])
 
     def fixture_outlook(self, team: str, rosters: dict[str, tuple[str, ...]] | None = None,
-                        injuries: dict[str, frozenset[str]] | None = None) -> pd.DataFrame:
+                        injuries: dict[str, frozenset[str]] | None = None, *, first: tuple[str, ...] = (),
+                        strategies: dict[str, Strategy] | None = None,
+                        plan: SeasonRosterPlan | None = None) -> pd.DataFrame:
         """Takımın kalan normal sezon haftaları: rakip, beklenen kategori ve haftayı kazanma olasılığı (nokta
         tahmini, güç belirsizliği yok). Takas sonrası kadrolarla çağrılırsa iki tarafın değişimi de yansır."""
-        rosters = self.with_waivers(dict(rosters or self.league.rosters), injuries)
-        il = self.il_map(rosters, injuries)
+        plan = plan or self.season_plan(rosters, injuries, first, strategies)
         me = self.tix[team]
         rows = []
         for w in [w for w in self.regular if w >= self.done + 1]:
@@ -333,8 +384,8 @@ class SeasonSim:
                 if me not in (x, y):
                     continue
                 o = self.teams[y if me == x else x]
-                vm = self.vector(team, rosters[team], w, il[team])
-                vo = self.vector(o, rosters[o], w, il[o])
+                vm = self._planned_vector(team, w, plan)
+                vo = self._planned_vector(o, w, plan)
                 pm = ecw_vs(vm, vo[None, :], self.engine.config)[0]
                 rows.append({"week": w, "start": self.weeks.weeks.loc[w, "start"] if w in self.weeks.weeks.index else None,
                              "opponent": o, "exp_cats": float(pm.sum()),
@@ -344,14 +395,6 @@ class SeasonSim:
         return out
 
     # ------------------------------------------------------------- günlük kadro profili
-    def _scored(self, given: dict[str, tuple[str, ...]], injuries: dict[str, frozenset[str]] | None,
-                first: tuple[str, ...], strategies: dict[str, Strategy] | None):
-        """Puanlanan kadrolar (``plans``), içinde bulunulan haftanın kadroları (alım hakkını aşan hamleler yok) ve IL."""
-        plans = self.plans(given, injuries, first, strategies)
-        rosters = {**given, **{t: p.roster for t, p in plans.items()}}
-        now = {**given, **{t: p.week_roster for t, p in plans.items()}}
-        return rosters, now, self.il_map(rosters, injuries)
-
     def _week_profile(self, V: np.ndarray) -> np.ndarray:
         """Bir haftanın ``(T, C)`` profili: her takımın diğer takımlara karşı ortalama kategori kazanma olasılığı."""
         P = p_win(V[:, None, :], V[None, :, :], self.engine.config)                   # (T, T, C)
@@ -367,8 +410,8 @@ class SeasonSim:
         weeks = [w for w in self.regular if w >= self.done + 1]
         if not weeks:
             return None
-        rosters, now, il = self._scored(dict(rosters or self.league.rosters), injuries, first, strategies)
-        return np.mean([self._week_profile(self.week_vectors(now if w == self.current_week else rosters, w, il, strategies))
+        plan = self.season_plan(rosters, injuries, first, strategies)
+        return np.mean([self._week_profile(self.week_vectors(plan, w))
                         for w in weeks], axis=0)
 
     # ------------------------------------------------------------- simülasyon
@@ -391,8 +434,7 @@ class SeasonSim:
         """``injuries``: takas sonrası IL kümeleri (``TradeEngine.resolve``); yoksa lig IL'i ∩ kadro. ``first``: waiver
         hamlelerini önce yapan takımlar (takastakiler; takassız koşuda da aynısı verilmeli ki fark eşleşsin);
         ``strategies``: onların stratejileri (takas puanıyla aynı)."""
-        given = dict(rosters or self.league.rosters)
-        rosters, now, il = self._scored(given, injuries, first, strategies)
+        plan = self.season_plan(rosters, injuries, first, strategies)
         T, S = len(self.teams), int(n_sims)
         rng = np.random.default_rng(seed)
         lam = np.exp(strength_sd * rng.standard_normal((S, T)))                         # (S, T) sezonluk güç çarpanı
@@ -407,7 +449,7 @@ class SeasonSim:
         start = self.done + 1
         profile, n_weeks = 0.0, 0
         for w in [w for w in self.regular if w >= start]:
-            V = self.week_vectors(now if w == self.current_week else rosters, w, il, strategies)
+            V = self.week_vectors(plan, w)
             profile = profile + self._week_profile(V)
             n_weeks += 1
             pairs = self.pairs.get(w, [])
@@ -427,7 +469,7 @@ class SeasonSim:
         order = np.argsort(-(pct + 1e-9 * rng.random((S, T))), axis=1, kind="stable")    # eşitlikte rastgele
         seeds = np.empty((S, T), dtype=int)
         np.put_along_axis(seeds, order, np.arange(1, T + 1)[None, :].repeat(S, 0), axis=1)
-        champion = self._playoffs(rosters, seeds, rng, S, lam, il, strategies)
+        champion = self._playoffs(plan, seeds, rng, S, lam)
         n = self.playoff_size
         rounds = len(self.playoff_weeks)
         byes = max(0, 2 ** rounds - n) if rounds else 0
@@ -440,7 +482,7 @@ class SeasonSim:
             "p_bye": (seeds <= byes).mean(0) if byes else np.nan,
             "p_first": (seeds == 1).mean(0), "p_champion": champion.mean(0),
         }, index=self.teams)
-        sched = self.fixture_outlook(team, given, injuries) if team is not None else pd.DataFrame()
+        sched = self.fixture_outlook(team, plan=plan) if team is not None else pd.DataFrame()
         notes = list(self.notes) + [f"Takım gücü belirsizliği: sezonluk ±%{100 * strength_sd:.0f} (kalibre edilmedi)."]
         return SeasonResult(table, sched, seeds, champion, start, S, n, notes,
                             profile.sum(axis=1) / n_weeks if n_weeks else None)
@@ -461,8 +503,8 @@ class SeasonSim:
             out["playoff"] = paired(base.seeds[:, i] <= n, after.seeds[:, i] <= n)
         return out
 
-    def _playoffs(self, rosters, seeds: np.ndarray, rng: np.random.Generator, S: int, lam: np.ndarray,
-                  il: dict[str, frozenset[str]], strategies: dict[str, Strategy] | None = None) -> np.ndarray:
+    def _playoffs(self, plan: SeasonRosterPlan, seeds: np.ndarray, rng: np.random.Generator,
+                  S: int, lam: np.ndarray) -> np.ndarray:
         T = len(self.teams)
         champion = np.zeros((S, T), dtype=bool)
         n, rounds = self.playoff_size, len(self.playoff_weeks)
@@ -477,7 +519,7 @@ class SeasonSim:
         current = bracket_order(size) if not self.reseed else list(range(1, size + 1))
         cur = np.array(current)[None, :].repeat(S, 0)                                     # (S, k) seed
         for r, week in enumerate(self.playoff_weeks):
-            V = self.week_vectors(rosters, week, il, strategies)
+            V = self.week_vectors(plan, week)
             if self.reseed:
                 cur = np.sort(cur, axis=1)
                 k = cur.shape[1]
