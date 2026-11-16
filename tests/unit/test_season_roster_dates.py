@@ -42,7 +42,7 @@ def dated_sim(trade_data):
     utility = np.ones(len(eng.ids))
     utility[eng.index["1"]] = 3.
     eng._utility_cache[PTS] = utility
-    model = WeekModel(eng, questionable=1)
+    model = WeekModel(eng, questionable=1, b2b={})
     model.unit = np.zeros_like(model.unit)
     model.unit[:, 1] = 10.
     model.unit[1, 1] = 30.
