@@ -21,7 +21,7 @@ jobs:
       - name: Bağımlılıklar
         run: pip install -e ".[dev,web]"
       - name: Testler
-        run: pytest -q -p no:warnings
+        run: pytest -q -p no:warnings --durations=25
 
   frontend:
     name: React arayüzü (tip kontrolü + derleme)
