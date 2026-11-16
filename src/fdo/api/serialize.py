@@ -97,12 +97,17 @@ def games_delta(games: dict[str, int], before, after) -> int | None:
     return sum(games.get(p, 0) for p in after) - sum(games.get(p, 0) for p in before)
 
 
-def fixture_changes(sim, teams, rosters: dict, injuries: dict) -> list[dict]:
+def fixture_changes(sim, teams, rosters: dict, injuries: dict,
+                    strategies: dict[str, Strategy] | None = None) -> list[dict]:
     """Takastaki her takım için kalan normal sezon haftaları: rakip ve haftayı kazanma olasılığı önce/sonra
     (``SeasonSim.fixture_outlook``, nokta tahmini). ``partner``: rakip de takasta (onun kadrosu da değişti)."""
+    teams = tuple(teams)
+    before_plan = sim.season_plan(first=teams, strategies=strategies)
+    after_plan = sim.season_plan(rosters, injuries, first=teams, strategies=strategies)
     out = []
     for t in teams:
-        before, after = sim.fixture_outlook(t), sim.fixture_outlook(t, rosters, injuries)
+        before = sim.fixture_outlook(t, plan=before_plan)
+        after = sim.fixture_outlook(t, plan=after_plan)
         weeks = [{"week": int(b.week), "start": b.start, "opponent": b.opponent, "opponent_name": b.opponent_name,
                   "p_before": b.p_win, "p_after": a.p_win, "exp_before": b.exp_cats, "exp_after": a.exp_cats,
                   "partner": b.opponent in teams}

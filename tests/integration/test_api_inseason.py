@@ -256,6 +256,40 @@ def test_trade_fixture_changes_for_both_sides(client):
     assert client.post("/api/leagues/L/trade/fixtures", json={**body, "give_b": []}).status_code == 400
 
 
+@pytest.mark.parametrize("multi", [False, True])
+def test_fixture_comparisons_share_priorities_strategies_and_dated_plans(client, monkeypatch, multi):
+    weights = [0, 0, 0, 1, 0, 0, 0, 0, 0]
+    strategy = {"name": "PTS", "weights": weights}
+    teams = ("1", "2", "3") if multi else ("1", "2")
+    body = ({"moves": [{"player": "0", "from_team": "1", "to_team": "2"},
+                       {"player": "4", "from_team": "2", "to_team": "3"},
+                       {"player": "8", "from_team": "3", "to_team": "1"}], "strategies": {"1": strategy}}
+            if multi else {"team_a": "1", "team_b": "2", "give_a": ["0"], "give_b": ["4"], "strategy_a": strategy})
+    sim = client.app.state.fdo.season_sim("L")
+    resolved, consumed = [], []
+    original_plan, original_outlook = sim.season_plan, sim.fixture_outlook
+    def record_plan(*args, **kwargs):
+        plan = original_plan(*args, **kwargs)
+        resolved.append((kwargs, plan))
+        return plan
+    def record_outlook(*args, **kwargs):
+        consumed.append(kwargs.get("plan"))
+        return original_outlook(*args, **kwargs)
+    monkeypatch.setattr(sim, "season_plan", record_plan)
+    monkeypatch.setattr(sim, "fixture_outlook", record_outlook)
+    path = "/api/leagues/L/trade/" + ("multi/" if multi else "") + "fixtures"
+    response = client.post(path, json=body)
+    assert response.status_code == 200
+    assert [t["team_id"] for t in response.json()["teams"]] == list(teams)
+    assert len(resolved) == 2                                   # one before/after plan for every team view
+    for options, plan in resolved:
+        assert options["first"] == teams
+        assert set(plan.strategies) == set(teams)
+        assert plan.strategies["1"].weights == tuple(weights)
+    assert all(consumed[2 * i] is resolved[0][1] and consumed[2 * i + 1] is resolved[1][1]
+               for i in range(len(teams)))
+
+
 def test_season_effect_of_many_trades_is_paired_with_the_single_trade(client):
     one = {"team_a": "1", "team_b": "2", "give_a": ["0"], "give_b": ["4"]}
     single = client.post("/api/leagues/L/trade/season", json={**one, "n_sims": 300}).json()

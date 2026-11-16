@@ -115,7 +115,7 @@ def register(app: FastAPI, state: AppState) -> None:
             rosters, _, il = resolve_multi(eng, req, strategies)
         except (TradeError, ValueError) as e:
             raise HTTPException(400, str(e)) from e
-        return clean({"teams": fixture_changes(sim, req.teams, rosters, il)})
+        return clean({"teams": fixture_changes(sim, req.teams, rosters, il, strategies)})
 
     @app.post("/api/leagues/{lid}/trade/multi/suggest")
     def suggest(lid: str, body: MultiSuggestIn):

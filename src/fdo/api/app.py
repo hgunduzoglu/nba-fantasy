@@ -315,7 +315,8 @@ def create_app(data_dir: str | Path | None = None, frontend_dir: str | Path | No
             rosters, _, il = eng.resolve(_request(body), {body.team_a: sa, body.team_b: sb})
         except (TradeError, ValueError) as e:
             raise HTTPException(400, str(e)) from e
-        return clean({"teams": fixture_changes(sim, (body.team_a, body.team_b), rosters, il)})
+        return clean({"teams": fixture_changes(sim, (body.team_a, body.team_b), rosters, il,
+                                              {body.team_a: sa, body.team_b: sb})})
 
     @app.get("/api/sources")
     def sources():
