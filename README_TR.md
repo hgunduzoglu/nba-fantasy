@@ -2428,7 +2428,8 @@ ortalama ≥22 dakika oynadıktan sonra art arda en az 5 takım maçı kaçırma
 `scripts/calibrate_returns.py --write` bunları `config/returns.yaml`'a `b2b_play` olarak yazar. Haftalık model her
 ikinci gece maçının oynama ağırlığını bu oranla düşürür (dönüş penceresi gerçek dönüşten değil, CBS'in en erken
 tarihinden sayılır) ve diğer maçları beklenen toplam değişmeyecek şekilde artırır: Yahoo'nun maç projeksiyonu dinlenmeyi
-zaten içerir, değişen yalnız günlere ve haftalara dağılımdır. `WeekModel(b2b={})` kapatır.
+zaten içerir, değişen yalnız günlere ve haftalara dağılımdır. `WeekModel(b2b={})` kapatır. Replay politika sürümü artık `b2b-attendance-v5`; `dated-roster-v4` ile dondurulmuş
+paketler artık oynatılmaz.
 
 **Yeniden kalibrasyon (16 Kasım):** 108 dönüş gözlemi (en erken tarihte %25, bir maç sonra %11, izlenen sürede
 dönmeyen %37, 10. maçta dönüyor sayılır); Yahoo Q/GTD/DTD oynama oranı %54 (25/46). §13.46 ve §13.48'deki rakamların

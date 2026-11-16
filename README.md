@@ -2506,7 +2506,8 @@ played; an absence spell is at least 5 missed team games after averaging ≥22 m
 `scripts/calibrate_returns.py --write` stores these as `b2b_play` in `config/returns.yaml`. The weekly model lowers the
 play weight of each second-night game by the ratio (the post-return window counts from the CBS earliest date, not the
 actual return) and raises the other games so the expected total is unchanged: Yahoo's games-played projection already
-includes rest, only its placement across days and weeks changes. `WeekModel(b2b={})` turns it off.
+includes rest, only its placement across days and weeks changes. `WeekModel(b2b={})` turns it off. The replay policy version is now `b2b-attendance-v5`; bundles frozen under
+`dated-roster-v4` no longer replay.
 
 **Recalibration (16 November):** 108 return observations (25% back on the earliest date, 11% one game later, 37% not
 back within the observed span, assumed back at game 10); the Yahoo Q/GTD/DTD play rate is 54% (25/46). These replace
