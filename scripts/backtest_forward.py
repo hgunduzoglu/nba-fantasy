@@ -34,6 +34,70 @@ from fdo.inseason.roles import load_logs  # noqa: E402
 from fdo.trade import TradeEngine  # noqa: E402
 
 
+def write_floor(pairs, source: str) -> str:
+    """Hızlı puanın büyüklük dilimlerine göre işaret isabeti ve eşik (``fdo.evaluation.noise``) → config/noise.yaml."""
+    import yaml
+
+    from fdo.evaluation.noise import NOISE_CONFIG, agreement_bins, find_floor
+    bins = agreement_bins(pairs)
+    fl = find_floor(bins)
+    cfg = {"strategy_delta_floor": fl, "source": f"forward test {source}",
+           "agreement": [{"from": float(b.left), "to": float(b.right), "n": int(n), "sign_agreement": round(float(m), 3)}
+                         for b, n, m in zip(bins["bin"], bins["size"], bins["mean"])]}
+    NOISE_CONFIG.write_text("# scripts/backtest_forward.py --write-floor ile ölçüldü (gerçekleşen haftalık kategori "
+                            "galibiyetine göre işaret isabeti).\n" + yaml.safe_dump(cfg, sort_keys=False, allow_unicode=True),
+                            encoding="utf-8")
+    return f"Eşik {fl} → {NOISE_CONFIG}"
+
+
+def compare_bases(st, league: str, start, end, scales, vr, pairs, vf_ros) -> dict:
+    """Oyuncu tahmini farklı temellerle (``fdo.inseason.scenarios``): gerçekleşen oyuncu değeriyle sıra korelasyonu ve
+    1'e 1 takaslarda (alınan − verilen tahmini) gerçekleşen kategori etkisiyle işaret uyumu."""
+    from fdo.evaluation.forward import _spearman
+    moved = pairs[~np.isclose(pairs["realized_ecw"], 0)]
+    out = {}
+    for basis in ("ros", "season", "blend"):
+        vb = vf_ros if basis == "ros" else value(forecast(st.engine(league, True, basis), start, end), scales)
+        vb = vb.reindex(vr.index).fillna(0.0)
+        diff = np.array([vb.get(g, 0.0) - vb.get(k, 0.0) for g, k in zip(moved["get"], moved["give"])])
+        out[basis] = {"value_spearman": float(vb.rank().corr(vr.rank())),
+                      "pair_sign": float((np.sign(diff) == np.sign(moved["realized_ecw"].to_numpy())).mean()),
+                      "pair_spearman": _spearman(diff, moved["realized_ecw"].to_numpy())}
+    return out
+
+
+def lineup_sample(st, eng, league: str, team: str, pairs, n: int, seed: int = 7, pairs_window=None) -> dict:
+    """Rastgele ``n`` takasın günlük kadro farkı (``fdo.inseason.lineup_rank``) ve aynı alt kümede hızlı puan ile oyuncu
+    tahmininin gerçekleşen kategori etkisine göre işaret uyumu. ``pairs_window``: pencerenin günleri verilirse günlük
+    kadro farkı yalnız pencerenin haftalarında ölçülür (gerçekleşenle aynı ufuk)."""
+    from fdo.evaluation.forward import _spearman
+    from fdo.inseason.lineup_rank import LineupMeter
+    from fdo.trade import Strategy, TradeRequest
+    sim = st.season_sim(league, True)
+    moved = pairs[~np.isclose(pairs["realized_ecw"], 0)]
+    sample = moved.sample(min(n, len(moved)), random_state=seed).copy()
+    span = {sim.weeks.week_of(eng.data.as_of + dt.timedelta(days=k))
+            for k in range((max(pairs_window) - eng.data.as_of).days + 1)} if pairs_window else None
+    meter = LineupMeter(sim, team, tuple(w for w in span if w) if span else None)
+    vals = []
+    for r in sample.itertuples():
+        pair = {team: Strategy(), r.team_b: Strategy()}
+        req = TradeRequest(team, r.team_b, (r.give,), (r.get,), auto_drop=True, auto_fill=True)
+
+        def resolve(req=req, pair=pair):
+            rosters, _, il = eng.resolve(req, pair)
+            return rosters, il
+        d = meter.measure((team, r.team_b), pair, resolve)
+        vals.append(np.nan if d is None else d.strategy)
+    sample["lineup"] = vals
+    sample = sample[np.isfinite(sample["lineup"])]
+    sign = lambda col: float((np.sign(sample[col]) == np.sign(sample["realized_ecw"])).mean())
+    return {"n": len(sample), "lineup_sign": sign("lineup"), "model_sign": sign("model"), "forecast_sign": sign("forecast"),
+            "lineup_spearman": _spearman(sample["lineup"], sample["realized_ecw"]),
+            "model_spearman": _spearman(sample["model"], sample["realized_ecw"]),
+            "forecast_spearman": _spearman(sample["forecast"], sample["realized_ecw"])}
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--data", default=str(ROOT / "data" / "real"))
@@ -41,6 +105,13 @@ def main() -> int:
     ap.add_argument("--league", required=True)
     ap.add_argument("--team", required=True)
     ap.add_argument("--no-pairs", action="store_true", help="takas düzeyini atla (hızlı)")
+    ap.add_argument("--pairs-out", help="takas satırlarını bu CSV'ye yaz (gürültü eşiği ölçümü için)")
+    ap.add_argument("--write-floor", action="store_true",
+                    help="takas farkının sinyal eşiğini (gerçekleşen kategoriye göre işaret isabeti) config/noise.yaml'a yaz")
+    ap.add_argument("--bases", action="store_true",
+                    help="oyuncu tahminini Yahoo projeksiyonu yanında bu sezonki oranlar ve karma temelle de ölç")
+    ap.add_argument("--lineup-sample", type=int, default=0,
+                    help="rastgele bu kadar takası günlük kadro farkıyla da ölç (yavaş; 0 = kapalı)")
     ap.add_argument("--model", required=True, help="karardan önce eğitilmiş dondurulmuş model dizini (manifest.json)")
     args = ap.parse_args()
     if hasattr(sys.stdout, "reconfigure"):
@@ -95,6 +166,23 @@ def main() -> int:
             pairs = realized_pair_test(eng, args.team, vf, vr, box, per_game)
             out["pairs"] = summary(pairs)
             out["pairs_ecw"] = ecw_summary(pairs)
+            if args.pairs_out:
+                pairs.to_csv(args.pairs_out, index=False)
+            if args.write_floor and len(pairs):
+                print(write_floor(pairs, f"{args.day} {args.league}/{args.team} → {end}"))
+            if args.bases and len(pairs):
+                out["bases"] = compare_bases(st, args.league, start, end, scales, vr, pairs, vf)
+                for b, r in out["bases"].items():
+                    print(f"Temel {b}: oyuncu değeri sıra korelasyonu {r['value_spearman']:.2f}; takas işaret uyumu "
+                          f"(gerçekleşen kategori) %{100 * r['pair_sign']:.0f}, sıra korelasyonu {r['pair_spearman']:.2f}")
+            if args.lineup_sample and len(pairs):
+                out["lineup_sample"] = lineup_sample(st, eng, args.league, args.team, pairs, args.lineup_sample,
+                                                     pairs_window=[end])
+                ls = out["lineup_sample"]
+                print(f"Günlük kadro farkı, rastgele {ls['n']} takas (gerçekleşen kategori etkisiyle): işaret uyumu "
+                      f"günlük kadro %{100 * ls['lineup_sign']:.0f}, hızlı puan %{100 * ls['model_sign']:.0f}, oyuncu tahmini "
+                      f"%{100 * ls['forecast_sign']:.0f}; sıra korelasyonu {ls['lineup_spearman']:.2f} / "
+                      f"{ls['model_spearman']:.2f} / {ls['forecast_spearman']:.2f}")
             out["evaluation_scope"] = "player_value_direction_and_realized_category_wins"
             p = out["pairs"]
             if p["n"]:

@@ -403,11 +403,12 @@ class SeasonSim:
 
     def lineup_profile(self, rosters: dict[str, tuple[str, ...]] | None = None, *,
                        injuries: dict[str, frozenset[str]] | None = None, first: tuple[str, ...] = (),
-                       strategies: dict[str, Strategy] | None = None) -> np.ndarray | None:
+                       strategies: dict[str, Strategy] | None = None,
+                       weeks: tuple[int, ...] | None = None) -> np.ndarray | None:
         """Kalan normal sezon haftalarının ortalama ``(T, C)`` profili, haftalık modelin günlük kadro atamasıyla ve
         ``run`` ile aynı kadrolarla (simülasyon yok, gürültüsüz). Toplamı ``SeasonResult.ecw``; kalan hafta yoksa
-        ``None``."""
-        weeks = [w for w in self.regular if w >= self.done + 1]
+        ``None``. ``weeks``: yalnız bu haftalar (kalanlar içinden; ör. ileriye dönük testin penceresi)."""
+        weeks = [w for w in self.regular if w >= self.done + 1 and (weeks is None or w in weeks)]
         if not weeks:
             return None
         plan = self.season_plan(rosters, injuries, first, strategies)

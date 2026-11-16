@@ -36,8 +36,8 @@ class LineupMeter:
     """``team``'in günlük kadro farkını ölçer. Takassız taban, takastaki takımlar ve stratejileri başına bir kez
     hesaplanır (waiver sırası takaslı koşuyla aynı olmalı)."""
 
-    def __init__(self, sim: SeasonSim, team: str):
-        self.sim, self.team = sim, team
+    def __init__(self, sim: SeasonSim, team: str, weeks: tuple[int, ...] | None = None):
+        self.sim, self.team, self.weeks = sim, team, weeks
         self.i = sim.tix[team]
         self._bases: dict[tuple, np.ndarray | None] = {}
 
@@ -47,9 +47,9 @@ class LineupMeter:
         key = tuple((t, strategies[t]) for t in first)
         try:
             if key not in self._bases:
-                self._bases[key] = self.sim.lineup_profile(first=first, strategies=strategies)
+                self._bases[key] = self.sim.lineup_profile(first=first, strategies=strategies, weeks=self.weeks)
             rosters, il = resolve()
-            after = self.sim.lineup_profile(rosters, injuries=il, first=first, strategies=strategies)
+            after = self.sim.lineup_profile(rosters, injuries=il, first=first, strategies=strategies, weeks=self.weeks)
         except (TradeError, ValueError, RosterInvariantError):
             return None
         base = self._bases[key]
