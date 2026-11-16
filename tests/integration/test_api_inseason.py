@@ -428,3 +428,25 @@ def test_manager_profiles_without_and_with_transactions(client, tmp_path):
                                                                                        index=False)
     two = next(t for t in client.get("/api/leagues/L/managers").json()["teams"] if t["team_id"] == "2")
     assert (two["adds"], two["drops"], two["last_action"]) == (1, 1, "2026-10-30") and two["days_since"] is not None
+
+
+def test_injury_intel_lists_injured_players_and_guards_refresh(client, tmp_path, monkeypatch):
+    from fdo.api import injury as injury_api
+    from fdo.inseason import injury_intel
+    monkeypatch.setattr(injury_api, "load_env_key", lambda: True)
+    got = client.get("/api/leagues/L/injury-intel?team=1").json()
+    assert all(p["fantasy_team"] == "1" for p in got["players"]) and got["model"] == injury_intel.model_name()
+    calls = []
+    monkeypatch.setattr(injury_intel, "refresh", lambda d, rows, **kw: calls.append(rows) or {"analyzed": 0})
+    started = client.post("/api/leagues/L/injury-intel/refresh", json={"team": "1"})
+    assert started.status_code == 200
+    ro = TestClient(create_app(data_dir=tmp_path, frontend_dir=tmp_path / "yok", read_only=True))
+    ro.app.state.fdo.data = client.app.state.fdo.data
+    ro.app.state.fdo.signature = lambda: "test"
+    monkeypatch.delenv("FDO_REPORT_CODE", raising=False)
+    assert ro.post("/api/leagues/L/injury-intel/refresh", json={"team": "1"}).status_code == 403
+    monkeypatch.setenv("FDO_REPORT_CODE", "gizli")
+    assert ro.post("/api/leagues/L/injury-intel/refresh", json={"team": "1"}).status_code == 401
+    monkeypatch.setenv(injury_api.DAILY_CAP_ENV, "0")
+    capped = ro.post("/api/leagues/L/injury-intel/refresh", json={"team": "1"}, headers={"X-Report-Code": "gizli"})
+    assert capped.status_code == 429

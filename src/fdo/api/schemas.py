@@ -139,6 +139,16 @@ class MultiSuggestIn(BaseModel):
     time_budget: float | None = Field(default=60, gt=0, le=900)   # saniye; None = sınırsız
 
 
+class InjuryIntelIn(BaseModel):
+    """Sakatlık analizi yenileme (``fdo.inseason.injury_intel``): takımın sakat/belirsiz oyuncuları, en çok
+    ``max_players`` (eskimiş olanlar; ``force`` hepsi)."""
+
+    team: str
+    max_players: int = Field(default=8, ge=1, le=12)
+    force: bool = False
+    injuries: bool = True
+
+
 class WeeklyIn(BaseModel):
     team: str
     week: int | None = None

@@ -1071,3 +1071,52 @@ export type SuggestionComponents = {
   feasibility: { adds: number; drops: number; adds_left: number; adds_known: boolean; fits_this_week: boolean };
   uncertainty: { injured: string[]; unmodeled: string[]; timing_unknown: string[]; moves_dependent: boolean };
 };
+
+// ------------------------------------------------------------------ sakatlık analizi
+export interface JobStatus {
+  running: boolean;
+  log: string[];
+  started_at: string | null;
+  finished_at: string | null;
+  error: string | null;
+  result: Record<string, unknown> | null;
+}
+
+export interface InjuryAnalysis {
+  injury: string;
+  status: string;
+  latest_report_date: string;
+  official_timeline: string;
+  return_earliest: string;
+  return_latest: string;
+  return_confidence: string;
+  minutes_restriction: string;
+  b2b_rest: string;
+  b2b_rest_weeks: number;
+  reinjury_risk: string;
+  summary_tr: string;
+  sources: { url: string; title: string; date: string }[];
+}
+
+export interface InjuryIntelRow {
+  id: string;
+  name: string;
+  team: string;
+  yahoo_status: string;
+  cbs: { injury: string; status_text: string; return_date: string } | null;
+  fantasy_team: string;
+  analysis: InjuryAnalysis | null;
+  analyzed_at: string | null;
+  model: string | null;
+  stale: boolean;
+}
+
+export interface InjuryIntelOut {
+  players: InjuryIntelRow[];
+  job: JobStatus;
+  model: string;
+  available: boolean;
+  needs_code: boolean;
+  spent_today: number;
+  daily_cap: number;
+}

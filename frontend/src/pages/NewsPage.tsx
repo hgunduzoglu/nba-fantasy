@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
 import { ErrorBanner, Loading } from "../components/common";
+import { InjuryIntel } from "../components/InjuryIntel";
 import { fmtDate, fmtDelta, fmtStamp } from "../format";
 import { useIsMobile } from "../hooks";
 import type { League, NewsEvent, NewsOut, NewsPerson, NewsStatus } from "../types";
@@ -118,6 +119,7 @@ export function NewsPage({ league, team, injuries }: Props) {
     <div className="stack">
       <p className="desc">RotoWire (CBS) oyuncu notları ve ESPN haberleri, Claude ile özetlenip lige göre etiketlenir: kimin oynamadığı,
         ne zaman döneceği, yerine kimin süre alacağı. Altta, bu sezonun maç kayıtlarından ölçülen rol değişimleri.</p>
+      <InjuryIntel league={league.id} team={team} injuries={injuries} />
       <div className="toolbar" style={{ marginBottom: 0 }}>
         <div className="seg" role="group" aria-label="Haber filtresi">
           <button aria-pressed={filter === "mine"} onClick={() => setFilter("mine")}>{mobile ? "Senin" : "Senin için"} ({counts("mine")})</button>
