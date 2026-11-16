@@ -19,8 +19,8 @@ beklentisiyle karşılaştırılır; diğer günlerin seçilmiş katkısı da sl
 
 ## Sezon içi Trade Lab
 
-`streamlit run src/fdo/ui/app.py` ile açılır. Varsayılan başlangıç artık Trade Lab'dir;
-önceki draft araçları arşiv menülerinden kullanılabilir.
+`python run_app.py` ile açılır (React arayüzü + FastAPI; gerekirse önce arayüzü derler, bkz. "Kurulum ve
+çalıştırma"). Eski Streamlit arayüzü (`streamlit run src/fdo/ui/app.py`) draft araçlarını arşiv menülerinde tutar.
 
 - **Üç ayrı lig sıralaması:** sezon öncesi projeksiyon, gerçekleşen sezon toplamı ve güncel
   kalan sezon projeksiyonu. Her biri güncel kadroları kullanır. Gerçekleşen görünüm,

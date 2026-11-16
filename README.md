@@ -7,8 +7,9 @@ Trade Lab's scope, data audit, model formulas, tests and open limitations:
 
 ## In-season Trade Lab
 
-Launch it with `streamlit run src/fdo/ui/app.py`. The default start page is now Trade Lab;
-the earlier draft tools are still available from the archive menus.
+Launch it with `python run_app.py` (React interface + FastAPI; builds the interface first if needed, see
+"Installation and running"). The older Streamlit interface (`streamlit run src/fdo/ui/app.py`) still holds the
+draft tools in its archive menus.
 
 - **Three separate league rankings:** preseason projection, realized season totals and the current
   rest-of-season projection. Each uses the current rosters. The realized view is the players'
