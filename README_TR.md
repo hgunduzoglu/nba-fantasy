@@ -2412,6 +2412,44 @@ oynuyor sayılmaya devam eder.
 Dönüş dağılımının kuyruğu (§13.46, en erken tarihten sonra ~5 maçta dönmeyen %43, 10. maçta dönüyor sayılır) arşiv
 uzadıkça kısalır: betik her çalıştığında izlenen ufuk büyür. Şu an ölçülemeyen bölge için varsayım olarak kalır.
 
+### 13.50 B2B, yeniden kalibrasyon, sıralama ölçüsü, çok takımlı arama süresi ve sakatlık araştırması (16 Kasım 2026)
+
+**Arka arkaya maçlar (B2B)** (`fdo.inseason.returns.b2b_play_rates`, `WeekModel`): son üç sezonun NBA maç kayıtlarından
+B2B'nin ikinci gecesinde oynama oranı, diğer maçlara göre. Takım takvimi takımın oynadığı günlerdir; sakatlık vekili
+ortalama ≥22 dakika oynadıktan sonra art arda en az 5 takım maçı kaçırmaktır.
+
+| Grup | İkinci gece oynama | Diğer maçlar | Oran |
+|---|---|---|---|
+| Sağlıklı düzenli oyuncu | %81,5 (4.993 maç) | %86,6 | 0,94 |
+| Dönüşten sonraki 1–14 gün | %66,8 (325) | %87,4 | 0,76 |
+| 15–30 gün | %72,9 (284) | %81,1 | 0,90 |
+| 31–60 gün | %74,3 (362) | %80,7 | 0,92 |
+
+`scripts/calibrate_returns.py --write` bunları `config/returns.yaml`'a `b2b_play` olarak yazar. Haftalık model her
+ikinci gece maçının oynama ağırlığını bu oranla düşürür (dönüş penceresi gerçek dönüşten değil, CBS'in en erken
+tarihinden sayılır) ve diğer maçları beklenen toplam değişmeyecek şekilde artırır: Yahoo'nun maç projeksiyonu dinlenmeyi
+zaten içerir, değişen yalnız günlere ve haftalara dağılımdır. `WeekModel(b2b={})` kapatır.
+
+**Yeniden kalibrasyon (16 Kasım):** 108 dönüş gözlemi (en erken tarihte %25, bir maç sonra %11, izlenen sürede
+dönmeyen %37, 10. maçta dönüyor sayılır); Yahoo Q/GTD/DTD oynama oranı %54 (25/46). §13.46 ve §13.48'deki rakamların
+yerini alır.
+
+**Sıralamalar:** kalan sezonda kategori sıraları ve ortalama sıra, her takımın aktif kadrosuyla kategori kazanma
+olasılığından gelir. Kadro toplamları (bench ve IL dahil) toplamlar görünümünde kendi sıralarını korur.
+
+**Çok takımlı arama:** süre bütçesi (`time_budget`, API'de varsayılan 60 sn, `null` sınırsız) taramayı bütçenin %70'inde,
+kesin değerlendirmeyi %100'ünde durdurur. Şekiller dönüşümlü taranır; yarıda kesilen tarama her şekli görmüş olur.
+Yanıtta `truncated`, `jobs` ve `jobs_done` var.
+
+**Sakatlık araştırması** (`fdo.inseason.injury_intel`, Haberler sekmesi): takımın sakat ya da belirsiz oyuncuları için
+`claude-fable-5-2` (`FDO_INJURY_MODEL`) web'de arar (`web_search_20260209`) ve yapılandırılmış alanlar döner: sakatlık,
+son raporun tarihi, takvim, güvenle birlikte dönüş penceresi, beklenen dakika kısıtlaması, B2B'de dinlendirilme beklentisi
+ve süresi, tekrar riski, Türkçe özet ve tarihli kaynaklar. Sonuçlar yalnız gösterilir; model CBS tarihlerini ve ölçülen
+oranları kullanmaya devam eder. 20 saatten eski ya da Yahoo/CBS durumu değişmiş olanlar yenilenir. Salt okunur sunucuda
+yenileme takas raporunun erişim kodunu ister ve günlük harcama sınırında durur (`FDO_INJURY_DAILY_CAP`, varsayılan $3).
+`scripts/push_data.py` sunucunun `injury_intel.json`'ını ezmez. Üç oyunculuk deneme $0,41 tuttu (altı arama, tek
+çağrı).
+
 ### 13.8 V3 adayları
 
 Beam search ve H-score ağırlık optimizasyonu; profil karışımı uyumu; oyuncular arası maç sayısı

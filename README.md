@@ -2490,6 +2490,44 @@ under `<data>/model_snapshots/<model_version>/`. Replay verifies content hashes,
 The realized trade metric remains a **player-value-direction diagnostic**, not the realized utility of a full
 lineup/waiver/category decision; same-day snapshot timing must also be considered when interpreting results.
 
+### 13.50 Back-to-backs, recalibration, ranking basis, a multi-team time budget and injury research (16 November 2026)
+
+**Back-to-backs** (`fdo.inseason.returns.b2b_play_rates`, `WeekModel`): three seasons of NBA game logs give the share of
+games played on the second night of a back-to-back relative to other games. The team schedule is the days the team
+played; an absence spell is at least 5 missed team games after averaging ≥22 minutes.
+
+| Group | Second night played | Other games | Ratio |
+|---|---|---|---|
+| Healthy regulars | 81.5% (4,993 games) | 86.6% | 0.94 |
+| 1–14 days after a return | 66.8% (325) | 87.4% | 0.76 |
+| 15–30 days | 72.9% (284) | 81.1% | 0.90 |
+| 31–60 days | 74.3% (362) | 80.7% | 0.92 |
+
+`scripts/calibrate_returns.py --write` stores these as `b2b_play` in `config/returns.yaml`. The weekly model lowers the
+play weight of each second-night game by the ratio (the post-return window counts from the CBS earliest date, not the
+actual return) and raises the other games so the expected total is unchanged: Yahoo's games-played projection already
+includes rest, only its placement across days and weeks changes. `WeekModel(b2b={})` turns it off.
+
+**Recalibration (16 November):** 108 return observations (25% back on the earliest date, 11% one game later, 37% not
+back within the observed span, assumed back at game 10); the Yahoo Q/GTD/DTD play rate is 54% (25/46). These replace
+the figures in §13.46 and §13.48.
+
+**Rankings:** rest-of-season category ranks and the average rank now come from each team's category win probability
+with its active lineup. Roster totals (bench and IL included) keep their own ranks for the totals view.
+
+**Multi-team search:** a time budget (`time_budget`, 60 s by default in the API, `null` for none) stops the scan at 70%
+of the budget and the exact evaluation at 100%. Shapes are interleaved so a cut scan has seen every shape. The response
+reports `truncated`, `jobs` and `jobs_done`.
+
+**Injury research** (`fdo.inseason.injury_intel`, News tab): for a team's injured or questionable players,
+`claude-fable-5-2` (`FDO_INJURY_MODEL`) searches the web (`web_search_20260209`) and returns structured fields: injury,
+latest report date, timeline, a return window with confidence, expected minutes restriction, expected back-to-back
+rest and for how long, re-injury risk, a Turkish summary and dated sources. Results are shown only; the model keeps
+using CBS dates and the measured rates. Results older than 20 hours or whose Yahoo/CBS status changed are refreshed. On
+the read-only server the refresh needs the report access code and stops at a daily spend cap
+(`FDO_INJURY_DAILY_CAP`, $3 by default). `scripts/push_data.py` does not overwrite the server's `injury_intel.json`. A
+trial with three players cost $0.41 (six searches, one call).
+
 ### 13.8 V3 candidates
 
 Beam search and H-score weight optimization; fitting the profile mix; covariance of game counts between
