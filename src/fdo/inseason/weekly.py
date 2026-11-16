@@ -192,12 +192,53 @@ class WeekModel:
                 if nxt is not None:
                     w_ = self.play_weight.setdefault(pid, {})
                     w_[nxt] = w_.get(nxt, 1.0) * self.questionable
+        b2b = (data.sources.get("attendance") or {}).get("b2b")
+        if b2b:
+            self._apply_b2b(b2b, games_by_team, data.as_of, ids)
         self.availability = np.where(ok & (team_left > 0), np.clip(np.nan_to_num(gp) / np.maximum(team_left, 1), 0, 1),
                                      0.0)
         self.corr = category_corr_matrix(self.config)
         self.positions = {p: frozenset(str(engine.data.players.loc[p, "yahoo_positions"]).split(","))
                           for p in engine.ids}
         self.lineup_reference = engine.baseline_vectors.mean(axis=0) / 7
+
+    def _apply_b2b(self, b2b: dict, games_by_team: dict[str, list[dt.date]], as_of: dt.date, ids) -> None:
+        """Arka arkaya maçın ikinci gününde daha düşük oynama (``config/returns.yaml`` → ``b2b_play``, maç kayıtlarından
+        ölçülmüş oran): sağlıklı oyuncuda ``healthy``; dönüş tarihi bilinen sakatta dönüşten sonraki gün aralıklarında
+        ``after_return`` (ör. ilk 14 gün). Kalan maçlardaki beklenen toplam değişmez (ROS maç sayısı dinlenmeyi zaten
+        içerir): diğer maçların ağırlığı aynı oranda artar, yalnız günlere ve haftalara dağılım değişir."""
+        healthy = min(1.0, max(0.0, float(b2b.get("healthy", 1.0))))
+        after = sorted((int(k), min(1.0, max(0.0, float(v)))) for k, v in (b2b.get("after_return") or {}).items())
+        second: dict[str, tuple[list[dt.date], set[dt.date]]] = {}
+        for team, days in games_by_team.items():
+            all_days = set(days)
+            future = sorted(d for d in days if d >= as_of)
+            second[team] = (future, {d for d in future if d - dt.timedelta(days=1) in all_days})
+        for pid in ids:
+            future, b2 = second.get(self.team[self.engine.index[pid]], ([], set()))
+            if not b2:
+                continue
+            current = self.play_weight.get(pid, {})
+            ret = self.return_date.get(pid)
+            ret = ret if ret is not None and ret != dt.date.max and ret > as_of else None
+            domain = sorted(current) if ret is not None and current else [d for d in future if ret is None or d >= ret]
+
+            def factor(d: dt.date) -> float:
+                if ret is not None:
+                    since = (d - ret).days
+                    for window, rate in after:
+                        if 0 < since <= window:
+                            return rate
+                return healthy
+
+            w = {d: current.get(d, 1.0) for d in domain}
+            hit = {d: factor(d) for d in domain if d in b2}
+            other = sum(v for d, v in w.items() if d not in hit)
+            if not hit or other <= 0 or all(f >= 1.0 for f in hit.values()):
+                continue
+            total = sum(w.values())
+            scale = (total - sum(w[d] * f for d, f in hit.items())) / other
+            self.play_weight[pid] = {**current, **{d: w[d] * hit.get(d, scale) for d in domain}}
 
     # ------------------------------------------------------------- yardımcılar
     def playable(self, pid: str, use_status: bool = True) -> bool:
@@ -355,7 +396,7 @@ class WeekModel:
         for d, day in enumerate(days):
             boosted = day < self.boost_until[idx]
             units[d, boosted] = self.boost_unit[idx[boosted]]
-        return attendance_vectors(units, weight * self.availability[idx])
+        return attendance_vectors(units, np.minimum(weight * self.availability[idx], 1.0))
 
     def _score(self, p: np.ndarray) -> float:
         return float(9 * p @ self.strategy.normalized)

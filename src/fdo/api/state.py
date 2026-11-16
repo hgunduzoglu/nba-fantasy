@@ -20,7 +20,7 @@ from fdo.ingest.archive import content_signature, latest as latest_batch
 from fdo.inseason.durability import apply_durability
 from fdo.inseason.adddrop import available_from
 from fdo.inseason.fixtures import load_fixtures
-from fdo.inseason.injuries import (apply_return_ramp, latest_file, questionable_play, return_assumptions,
+from fdo.inseason.injuries import (apply_return_ramp, b2b_play, latest_file, questionable_play, return_assumptions,
                                    return_ramp, with_injuries)
 from fdo.inseason.live import LiveLeague, load_live
 from fdo.inseason.managers import load_transactions, waiver_order
@@ -92,7 +92,8 @@ class AppState:
             data = load_trade_data(self.data_dir, config=self.config)
             if self.returns_config is not None:
                 data = replace(data, sources={**data.sources, "attendance": {
-                    "questionable_play": questionable_play(self.returns_config)}})
+                    "questionable_play": questionable_play(self.returns_config),
+                    "b2b": b2b_play(self.returns_config)}})
             return data
         base = self._get(("data", sig), load)
         if not injuries:

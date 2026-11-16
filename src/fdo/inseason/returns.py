@@ -230,3 +230,73 @@ def yahoo_questionable_outcomes(snapshots: list[tuple[dt.date, dict]], logs: pd.
                     rows.append({"player_id": pid, "name": slot.get("player_name"), "status": status,
                                  "report_date": day, "game": game, "played": (pid, game) in on})
     return pd.DataFrame(rows, columns=cols)
+
+
+B2B_WINDOWS = (14, 30, 60)
+
+
+def b2b_play_rates(seasons: list[pd.DataFrame], *, min_spell: int = 5, min_mpg: float = 22.0,
+                   windows: tuple[int, ...] = B2B_WINDOWS) -> dict:
+    """Arka arkaya maçın ikinci gününde (B2B) oynama, diğer maçlara oranla: sağlıklı düzenli oyuncu ve sakatlık
+    dönüşünden sonraki gün aralıkları.
+
+    ``seasons``: sezon başına maç kaydı (``name``, ``nba_team``, ``game_date``, ``minutes``; yalnız oynanan maçlar).
+    Takım takvimi o takımdan birinin oynadığı günlerdir; oyuncunun takımdaki ilk ve son maçı arasındaki satırı olmayan
+    takım maçı oynanmamış sayılır. Dönüş: art arda en az ``min_spell`` takım maçı kaçırdıktan sonraki ilk maç (öncesinde
+    son 10 maçta ortalama ≥ ``min_mpg`` dakika; rotasyon dışı kalma ayıklanır). Sağlıklı taban: son 60 günde dönüşü
+    olmayan, son 10 maç ortalaması ≥ ``min_mpg``. Dönüş günü tanım gereği oynandığı için dışarıda.
+
+    Dönüş ``{"healthy": oran, "after_return": {gün: oran}, "n": {...}}``; oran = B2B ikinci maçında oynama / diğer
+    maçlarda oynama (gözlem yoksa anahtar yok)."""
+    rows = []
+    for g in seasons:
+        g = g[g["minutes"] > 0].copy()
+        if g.empty:
+            continue
+        g["day"] = pd.to_datetime(g["game_date"]).values.astype("datetime64[D]")
+        sched = {t: np.array(sorted(d["day"].unique())) for t, d in g.groupby("nba_team")}
+        for (_, team), d in g.groupby(["name", "nba_team"]):
+            days = sched[team]
+            mins = dict(zip(d["day"].values, d["minutes"]))
+            tenure = days[(days >= d["day"].min()) & (days <= d["day"].max())]
+            if len(tenure) < 10:
+                continue
+            b2b = np.r_[False, np.diff(tenure) == np.timedelta64(1, "D")]
+            on = np.array([x in mins for x in tenure])
+            returns, run = [], 0
+            for i, x in enumerate(on):
+                if not x:
+                    run += 1
+                    continue
+                if run >= min_spell:
+                    before = [mins[t] for t in tenure[:i - run] if t in mins][-10:]
+                    if len(before) >= 5 and np.mean(before) >= min_mpg:
+                        returns.append(tenure[i])
+                run = 0
+            mpg = pd.Series([mins.get(t, np.nan) for t in tenure]).ffill().rolling(10, min_periods=5).mean().shift(1)
+            for i, day in enumerate(tenure):
+                since = min((int((day - r) / np.timedelta64(1, "D")) for r in returns if r <= day), default=None)
+                if since == 0:
+                    continue
+                rows.append((bool(b2b[i]), bool(on[i]), since, mpg.iloc[i]))
+    out: dict = {"after_return": {}, "n": {}}
+    if not rows:
+        return out
+    t = pd.DataFrame(rows, columns=["b2b2", "played", "since", "mpg"])
+
+    def ratio(d: pd.DataFrame) -> float | None:
+        b, o = d[d["b2b2"]], d[~d["b2b2"]]
+        if len(b) < 30 or len(o) < 30 or o["played"].mean() <= 0:
+            return None
+        return float(min(1.0, b["played"].mean() / o["played"].mean()))
+
+    healthy = t[(t["since"].isna() | (t["since"] > max(windows))) & (t["mpg"] >= min_mpg)]
+    if (r := ratio(healthy)) is not None:
+        out["healthy"], out["n"]["healthy"] = r, int(healthy["b2b2"].sum())
+    lo = 1
+    for w in windows:
+        d = t[t["since"].between(lo, w)]
+        if (r := ratio(d)) is not None:
+            out["after_return"][w], out["n"][w] = r, int(d["b2b2"].sum())
+        lo = w + 1
+    return out

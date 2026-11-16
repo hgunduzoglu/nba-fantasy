@@ -135,6 +135,13 @@ def questionable_play(path: str | Path | None = None) -> float:
     return 1.0 if v is None else min(1.0, max(0.0, float(v)))
 
 
+def b2b_play(path: str | Path | None = None) -> dict | None:
+    """Arka arkaya maçın ikinci gününde oynama oranı / diğer maçlar (``b2b_play``: ``healthy`` ve ``after_return``
+    {gün: oran}; ``scripts/calibrate_returns.py --write`` maç kayıtlarından ölçer). Yoksa ``None`` (her maç eşit)."""
+    v = _config(path).get("b2b_play")
+    return v if isinstance(v, dict) and ("healthy" in v or v.get("after_return")) else None
+
+
 def return_delay(path: str | Path | None = None) -> int:
     """Her analizde en erken dönüş tarihine eklenen gün (varsayılan 0 = CBS'in tarihi)."""
     return return_assumptions(path)["delay_days"]

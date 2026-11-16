@@ -162,6 +162,48 @@ def test_real_default_team_is_user_flag():
             assert lg.default_team_id == flagged[lid][0]
 
 
+def test_back_to_back_second_games_weigh_less_and_keep_the_expected_total(data):
+    import dataclasses
+    from fdo.inseason.injuries import apply_injuries
+    plain = WeekModel(TradeEngine(data, "L", utilization=1), questionable=1.0)
+    d = dataclasses.replace(data, sources={**data.sources, "attendance": {"b2b": {"healthy": .8}}})
+    m = WeekModel(TradeEngine(d, "L", utilization=1), questionable=1.0)
+    w = m.play_weight["0"]
+    team = m.team[m.engine.index["0"]]
+    days = sorted(w)
+    second = [x for x in days if team in m.games.get(x - dt.timedelta(days=1), set())]
+    assert second and all(w[x] < 1 for x in second) and all(w[x] > 1 for x in days if x not in second)
+    assert sum(w.values()) == pytest.approx(len(days))                  # beklenen maç toplamı aynı
+    assert "0" not in plain.play_weight
+    # dönüşten sonraki pencere: yalnız dönüş tarihi bilinen oyuncuda, kendi oranıyla
+    inj = pd.DataFrame([{"player_id": "1", "kind": "out_until", "return_date": dt.date(2026, 11, 3)}]).set_index("player_id")
+    d2 = apply_injuries(data, inj, pmf={0: 1.0})
+    d2 = dataclasses.replace(d2, sources={**d2.sources, "attendance": {"b2b": {"healthy": 1.0, "after_return": {14: .5}}}})
+    m2 = WeekModel(TradeEngine(d2, "L", utilization=1), questionable=1.0)
+    w2, team2 = m2.play_weight["1"], m2.team[m2.engine.index["1"]]
+    after = [x for x in w2 if team2 in m2.games.get(x - dt.timedelta(days=1), set()) and x > dt.date(2026, 11, 3)]
+    assert after and all(w2[x] < 1 for x in after)
+    assert "0" not in m2.play_weight                                  # sağlıklı oran 1: dokunulmaz
+
+
+def test_b2b_play_rates_measure_second_games_against_other_games():
+    from fdo.inseason.returns import b2b_play_rates
+    rows = []
+    days = [dt.date(2026, 11, 1) + dt.timedelta(days=i) for i in range(120) if i % 3 != 2]   # her iki maçtan biri B2B
+    for team in ("AAA", "BBB"):
+        for k in range(3):
+            name = f"{team}{k}"
+            for j, day in enumerate(days):
+                b2b2 = day - dt.timedelta(days=1) in days
+                if b2b2 and j % 4 == 1 and k < 2:          # ikisi B2B ikinci maçlarının yarısını atlar, biri hep oynar
+                    continue
+                rows.append({"name": name, "nba_team": team, "game_date": day, "minutes": 30.0})
+    out = b2b_play_rates([pd.DataFrame(rows)])
+    assert out["healthy"] == pytest.approx(2 / 3, abs=.05) and out["n"]["healthy"] >= 30
+    assert out["after_return"] == {}
+    assert b2b_play_rates([pd.DataFrame(columns=["name", "nba_team", "game_date", "minutes"])]) == {"after_return": {}, "n": {}}
+
+
 def test_questionable_and_return_distribution_weight_the_games(data):
     import dataclasses
     from fdo.inseason.injuries import apply_injuries

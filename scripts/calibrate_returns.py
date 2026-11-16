@@ -25,8 +25,8 @@ import pandas as pd  # noqa: E402
 import yaml  # noqa: E402
 
 from fdo.inseason.identity import load_overrides  # noqa: E402
-from fdo.inseason.injuries import RETURNS_CONFIG, questionable_play, return_delay, return_pmf  # noqa: E402
-from fdo.inseason.returns import (delay_pmf, load_reports, load_roster_snapshots, median_delay,  # noqa: E402
+from fdo.inseason.injuries import RETURNS_CONFIG, b2b_play, questionable_play, return_delay, return_pmf  # noqa: E402
+from fdo.inseason.returns import (b2b_play_rates, delay_pmf, load_reports, load_roster_snapshots, median_delay,  # noqa: E402
                                   observed_returns, questionable_outcomes, return_curve,
                                   yahoo_questionable_outcomes)
 from fdo.inseason.roles import load_logs  # noqa: E402
@@ -80,8 +80,14 @@ def main() -> int:
     print(f"CBS belirsiz listesi, aynı ölçü: {share(cq)}")
     q, q_source = (yq, "yahoo") if len(yq) >= args.min else (cq, "cbs")
     rate = float(q["played"].mean()) if len(q) else None
+    seasons = [pd.read_csv(f) for f in sorted(Path(args.data).glob("gamelogs_nba_*.csv"))]
+    b2b = b2b_play_rates(seasons)
+    if "healthy" in b2b:
+        print(f"B2B ikinci maçında oynama / diğer maçlar ({len(seasons)} sezon): sağlıklı %{100 * b2b['healthy']:.0f} "
+              f"({b2b['n']['healthy']} maç); dönüşten sonra "
+              + ", ".join(f"≤{w} gün %{100 * r:.0f} ({b2b['n'][w]})" for w, r in b2b["after_return"].items()))
     print(f"Modelde şu an: dağılım {'var' if return_pmf(args.config) else 'yok (CBS tarihi kesin)'}, "
-          f"Q oynama {questionable_play(args.config):.2f}")
+          f"Q oynama {questionable_play(args.config):.2f}, B2B {'var' if b2b_play(args.config) else 'yok'}")
     if args.write:
         path = Path(args.config)
         cfg = (yaml.safe_load(path.read_text(encoding="utf-8")) or {}) if path.exists() else {}
@@ -93,6 +99,11 @@ def main() -> int:
             cfg["questionable_play"] = round(rate, 3)
             cfg["questionable_source"] = q_source
             wrote.append(f"questionable_play ({q_source}, {len(q)} gözlem)")
+        if "healthy" in b2b and b2b["n"]["healthy"] >= args.min:
+            cfg["b2b_play"] = {"healthy": round(b2b["healthy"], 3),
+                               "after_return": {int(w): round(r, 3) for w, r in b2b["after_return"].items()
+                                                if b2b["n"][w] >= args.min}}
+            wrote.append(f"b2b_play ({b2b['n']['healthy']} B2B maçı)")
         if wrote:
             # A calibrated parameter is not eligible for decisions on/before its
             # last observed input day. Keep a complete immutable model bundle.
