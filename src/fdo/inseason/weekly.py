@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
 
-from fdo.inseason.injuries import presence, questionable_play
+from fdo.inseason.injuries import b2b_play, presence, questionable_play
 from fdo.inseason.live import stat
 from fdo.inseason.waiver import swap_delta
 from fdo.matchup.ecw import category_corr_matrix, ecw_vs, p_at_least, p_win
@@ -102,10 +102,11 @@ class WeekModel:
     """``TradeEngine``'in kalan sezon (ROS) verisiyle tek bir haftanın eşleşmesini modeller."""
 
     def __init__(self, engine: TradeEngine, *, strategy: Strategy | None = None, out_statuses=DEFAULT_OUT,
-                 roles: dict | None = None, questionable: float | None = None):
+                 roles: dict | None = None, questionable: float | None = None, b2b: dict | None = None):
         """``roles``: oyuncu → ``fdo.inseason.roles.RoleBoost`` (takım arkadaşı yokken maç başı; ``until``'e kadar).
         ``questionable``: belirsiz (Q/GTD/DTD) oyuncunun takımının bir sonraki maçında oynama olasılığı (``None``:
-        ``config/returns.yaml``'deki ölçülmüş değer, yoksa 1)."""
+        ``config/returns.yaml``'deki ölçülmüş değer, yoksa 1). ``b2b``: arka arkaya maçın ikinci gününde oynama oranları
+        (``None``: veri kaynağındaki ya da ``config/returns.yaml``'deki ölçüm; ``{}``: kapalı)."""
         self.engine = engine
         self.config = engine.config
         self.strategy = strategy or Strategy()
@@ -192,7 +193,9 @@ class WeekModel:
                 if nxt is not None:
                     w_ = self.play_weight.setdefault(pid, {})
                     w_[nxt] = w_.get(nxt, 1.0) * self.questionable
-        b2b = (data.sources.get("attendance") or {}).get("b2b")
+        if b2b is None:
+            attendance = data.sources.get("attendance") or {}
+            b2b = attendance["b2b"] if "b2b" in attendance else b2b_play()
         if b2b:
             self._apply_b2b(b2b, games_by_team, data.as_of, ids)
         self.availability = np.where(ok & (team_left > 0), np.clip(np.nan_to_num(gp) / np.maximum(team_left, 1), 0, 1),

@@ -165,7 +165,7 @@ def test_real_default_team_is_user_flag():
 def test_back_to_back_second_games_weigh_less_and_keep_the_expected_total(data):
     import dataclasses
     from fdo.inseason.injuries import apply_injuries
-    plain = WeekModel(TradeEngine(data, "L", utilization=1), questionable=1.0)
+    plain = WeekModel(TradeEngine(data, "L", utilization=1), questionable=1.0, b2b={})
     d = dataclasses.replace(data, sources={**data.sources, "attendance": {"b2b": {"healthy": .8}}})
     m = WeekModel(TradeEngine(d, "L", utilization=1), questionable=1.0)
     w = m.play_weight["0"]
@@ -212,9 +212,9 @@ def test_questionable_and_return_distribution_weight_the_games(data):
     data.players.loc["0", "injury_status"] = "Q"
     eng = TradeEngine(data, "L", utilization=1)
     stints = [Stint("0")]
-    full = WeekModel(eng, questionable=1.0).team_week("1", stints, WEEK3)
-    half = WeekModel(eng, questionable=.5).team_week("1", stints, WEEK3)
-    m = WeekModel(eng, questionable=.5)
+    full = WeekModel(eng, questionable=1.0, b2b={}).team_week("1", stints, WEEK3)
+    half = WeekModel(eng, questionable=.5, b2b={}).team_week("1", stints, WEEK3)
+    m = WeekModel(eng, questionable=.5, b2b={})
     i, nxt = eng.index["0"], min(d for d in WEEK3 if m.has_game("0", d))
     assert m.play_weight["0"] == {nxt: .5}
     assert half.slots[WEEK3.index(nxt), 0] >= 0
@@ -224,7 +224,7 @@ def test_questionable_and_return_distribution_weight_the_games(data):
     inj = pd.DataFrame([{"player_id": "1", "kind": "out_until", "return_date": dt.date(2026, 11, 3)}]).set_index("player_id")
     d = apply_injuries(data, inj, pmf={0: .5, 1: .5})
     assert d.sources["injuries"]["delay_pmf"] == {0: .5, 1: .5}
-    wm = WeekModel(TradeEngine(d, "L", utilization=1), questionable=1.0)
+    wm = WeekModel(TradeEngine(d, "L", utilization=1), questionable=1.0, b2b={})
     w = wm.play_weight["1"]
     first = sorted(w)
     assert w[first[0]] == pytest.approx(.5) and all(w[x] == pytest.approx(1) for x in first[1:])
