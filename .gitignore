@@ -75,6 +75,8 @@ frontend/dist/
 /data/real/gamelogs_nba_2026-27.csv
 /data/real/news*.json
 /data/real/trade_reports*.json
+/data/real/injury_intel*.json
+/data/real/today*.json
 # Referans vakalar ve sonuçları (kişisel lig kimlikleri)
 /data/real/cases*.json
 /data/real/evaluation/
