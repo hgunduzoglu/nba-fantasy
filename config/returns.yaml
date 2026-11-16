@@ -1,15 +1,22 @@
 # scripts/calibrate_returns.py --write ile ölçüldü (CBS raporları, Yahoo kadro anlık görüntüleri + NBA maç kayıtları).
 delay_games:
-  0: 0.2527
-  1: 0.1099
-  2: 0.039
-  3: 0.0
-  4: 0.0798
-  5: 0.0864
-  6: 0.0
+  0: 0.25
+  1: 0.1111
+  2: 0.0456
+  3: 0.0371
+  4: 0.0618
+  5: 0.0824
+  6: 0.0412
   7: 0.0
   8: 0.0
   9: 0.0
-  10: 0.4321
-questionable_play: 0.528
+  10: 0.3708
+questionable_play: 0.543
 questionable_source: yahoo
+b2b_play:
+  healthy: 0.941
+  after_return:
+    14: 0.764
+    30: 0.899
+    60: 0.921
+trained_through: '2026-11-16'
