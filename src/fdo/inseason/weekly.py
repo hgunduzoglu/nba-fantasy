@@ -208,8 +208,11 @@ class WeekModel:
     def _apply_b2b(self, b2b: dict, games_by_team: dict[str, list[dt.date]], as_of: dt.date, ids) -> None:
         """Arka arkaya maçın ikinci gününde daha düşük oynama (``config/returns.yaml`` → ``b2b_play``, maç kayıtlarından
         ölçülmüş oran): sağlıklı oyuncuda ``healthy``; dönüş tarihi bilinen sakatta dönüşten sonraki gün aralıklarında
-        ``after_return`` (ör. ilk 14 gün). Kalan maçlardaki beklenen toplam değişmez (ROS maç sayısı dinlenmeyi zaten
-        içerir): diğer maçların ağırlığı aynı oranda artar, yalnız günlere ve haftalara dağılım değişir."""
+        ``after_return`` (ör. ilk 14 gün). Sağlıklı orana kadar olan kayıp beklenen toplamı değiştirmez (ROS maç sayısı
+        olağan dinlenmeyi zaten içerir): diğer maçların ağırlığı aynı oranda artar, yalnız günlere ve haftalara dağılım
+        değişir. Dönüş penceresinde sağlıklı oranın altında kalan kısım ise net kayıptır: dönüşten sonra oyuncu o maçı
+        gerçekten kaçırır, diğer maçlarda daha fazla oynamaz (maç kayıtlarında dönüş sonrası diğer maçlarda oynama
+        sağlıklı tabanla aynı: %87,4'e %86,6; README §13.55)."""
         healthy = min(1.0, max(0.0, float(b2b.get("healthy", 1.0))))
         after = sorted((int(k), min(1.0, max(0.0, float(v)))) for k, v in (b2b.get("after_return") or {}).items())
         second: dict[str, tuple[list[dt.date], set[dt.date]]] = {}
@@ -240,7 +243,8 @@ class WeekModel:
             if not hit or other <= 0 or all(f >= 1.0 for f in hit.values()):
                 continue
             total = sum(w.values())
-            scale = (total - sum(w[d] * f for d, f in hit.items())) / other
+            net = sum(w[d] * max(0.0, healthy - f) for d, f in hit.items())     # dönüş sonrası fazladan kaçan maç
+            scale = max(0.0, total - net - sum(w[d] * f for d, f in hit.items())) / other
             self.play_weight[pid] = {**current, **{d: w[d] * hit.get(d, scale) for d in domain}}
 
     # ------------------------------------------------------------- yardımcılar

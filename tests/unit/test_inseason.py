@@ -195,6 +195,12 @@ def test_back_to_back_second_games_weigh_less_and_keep_the_expected_total(data):
     after = [x for x in w2 if team2 in m2.games.get(x - dt.timedelta(days=1), set()) and x > dt.date(2026, 11, 3)]
     assert after and all(w2[x] < 1 for x in after)
     assert "0" not in m2.play_weight                                  # sağlıklı oran 1: dokunulmaz
+    # dönüş penceresindeki fazladan kayıp net: beklenen toplam o kadar düşer (diğer maçlara dağıtılmaz)
+    ret = dt.date(2026, 11, 3)
+    window = [x for x in after if 0 < (x - ret).days <= 14]
+    base = WeekModel(TradeEngine(d2, "L", utilization=1), questionable=1.0, b2b={}).play_weight.get("1", {})
+    before = {x: base.get(x, 1.0) for x in w2}
+    assert sum(w2.values()) == pytest.approx(sum(before.values()) - .5 * sum(before[x] for x in window))
 
 
 def test_b2b_play_rates_measure_second_games_against_other_games():

@@ -2643,6 +2643,16 @@ leaves, Raynaud starts". The scenario layer answers both in the app:
 - The acceptance model itself is still uncalibrated: the offer log has no records yet. Logging offers and answers (Trade page) is
   what will make a per-manager model possible.
 
+### 13.55 Back-to-back rest after a return is a net loss (17 November 2026)
+
+The back-to-back adjustment of §13.50 moved every lost second-night game onto the player's other games, keeping the expected
+total. That is right for healthy players (Yahoo's games already include ordinary rest), but after a return the game logs show the
+other games are not played more often (87.4% against the healthy 86.6%): the extra rest is a real absence. Now only the part up
+to the healthy rate (0.94) is redistributed; the part below it in a post-return window (0.76 in the first 14 days, 0.90 to day 30,
+0.92 to day 60) lowers the expected total. 17 November, Karaali SK: Jaren Jackson Jr. 51.07 → 50.87 expected games, Anthony
+Edwards 48.07 → 47.79, Kon Knueppel 55.07 → 54.81, Jalen Duren 59.07 → 58.89. The effect reaches the weekly model and the season
+simulation.
+
 ### 13.8 V3 candidates
 
 Beam search and H-score weight optimization; fitting the profile mix; covariance of game counts between

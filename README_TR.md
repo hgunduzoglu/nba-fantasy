@@ -2564,6 +2564,15 @@ giderse Raynaud ilk beşe girer". Senaryo katmanı ikisini de uygulamada yanıtl
 - Kabul modeli hâlâ kalibre değil: teklif günlüğünde henüz kayıt yok. Teklifleri ve cevaplarını kaydetmek (Takas Analizi)
   menajer bazında model kurmayı mümkün kılacak.
 
+### 13.55 Dönüş sonrası arka arkaya maç dinlenmesi net kayıp (17 Kasım 2026)
+
+§13.50'deki arka arkaya maç düzeltmesi, ikinci gecede kaçan her maçı oyuncunun diğer maçlarına taşıyor, beklenen toplamı
+koruyordu. Sağlıklı oyuncu için doğru (Yahoo'nun maç sayısı olağan dinlenmeyi içerir); ama dönüşten sonra maç kayıtlarında diğer
+maçlarda oynama artmıyor (%87,4'e karşı sağlıklı %86,6): fazladan dinlenme gerçek bir yokluk. Artık yalnız sağlıklı orana (0,94)
+kadar olan kısım dağıtılıyor; dönüş penceresinde onun altında kalan kısım (ilk 14 gün 0,76, 30. güne kadar 0,90, 60. güne kadar
+0,92) beklenen toplamı düşürüyor. 17 Kasım, Karaali SK: Jaren Jackson Jr. 51,07 → 50,87 beklenen maç, Anthony Edwards 48,07 →
+47,79, Kon Knueppel 55,07 → 54,81, Jalen Duren 59,07 → 58,89. Etki haftalık modele ve sezon simülasyonuna ulaşır.
+
 ### 13.8 V3 adayları
 
 Beam search ve H-score ağırlık optimizasyonu; profil karışımı uyumu; oyuncular arası maç sayısı
