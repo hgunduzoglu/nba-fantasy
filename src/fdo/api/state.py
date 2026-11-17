@@ -17,6 +17,7 @@ import pandas as pd
 from fdo.config import Config, REPO_ROOT
 from fdo.evaluation.decisions import DecisionLog
 from fdo.ingest.archive import content_signature, latest as latest_batch
+from fdo.inseason import overlay
 from fdo.inseason.data_checks import data_checks
 from fdo.inseason.durability import apply_durability
 from fdo.inseason.adddrop import available_from
@@ -53,7 +54,10 @@ class AppState:
         self.decisions = DecisionLog(self.data_dir)
 
     def log_decision(self, kind: str, action: str, league_id: str, request: dict, result: dict) -> str | None:
-        """Karar günlüğüne ekler (``fdo.evaluation.decisions``); günlük yazılamazsa analiz yine döner."""
+        """Karar günlüğüne ekler (``fdo.evaluation.decisions``); günlük yazılamazsa analiz yine döner. Senaryo açıkken
+        yazılmaz: varsayımsal kadrolarla verilmiş kararı ileriye dönük test gerçek veriyle karşılaştırmasın."""
+        if overlay.current() is not None:
+            return None
         try:
             last = latest_batch(self.data_dir)
             return self.decisions.record(kind, action, league_id, request, result,
@@ -86,8 +90,22 @@ class AppState:
         return latest_file(self.data_dir)
 
     def data(self, injuries: bool = True, delay: int | None = None) -> TradeData:
-        """Yahoo verisi + (istenirse) sakatlık dönüş tarihleri + dayanıklılık (kalan sezon maçı oynama oranıyla).
+        """Yahoo verisi + (istenirse) sakatlık dönüş tarihleri + dayanıklılık (kalan sezon maçı oynama oranıyla) + bu
+        isteğin senaryosundaki takaslar (``fdo.inseason.overlay``; README §13.53).
         ``delay``: en erken dönüş tarihine eklenen gün (``None``: ``config/returns.yaml``, varsayılan 0)."""
+        plain = self.plain_data(injuries, delay)
+        ov = overlay.current()
+        if ov is None or not ov.steps:
+            return plain
+        return self._get(("data_ov", plain.fingerprint, ov.trades_key()), lambda: overlay.apply_trades(plain, ov)[0])
+
+    def overlay_status(self, ov: "overlay.Overlay", injuries: bool = True) -> list[dict]:
+        """Senaryonun takas adımlarının durumu (uygulandı / atlandı / hata) gerçek veriye göre."""
+        plain = self.plain_data(injuries)
+        return self._get(("ov_status", plain.fingerprint, ov.trades_key()), lambda: overlay.apply_trades(plain, ov)[1])
+
+    def plain_data(self, injuries: bool = True, delay: int | None = None) -> TradeData:
+        """Senaryosuz veri (``data``'nın gerçek hali)."""
         sig = self.signature()
         def load():
             data = load_trade_data(self.data_dir, config=self.config)
@@ -107,17 +125,22 @@ class AppState:
     def basis_data(self, injuries: bool = True, basis: str = "ros") -> TradeData:
         """``data`` + kalan sezon oranlarının temeli (``fdo.inseason.scenarios``; ``ros`` = Yahoo projeksiyonu,
         ``late`` = Yahoo oranları ve gecikmeli sakatlık dönüşü)."""
+        ov = overlay.current()
         if basis == "late":
-            return self.data(injuries, delay=return_assumptions(self.returns_config)["late_days"])
-        base = self.data(injuries)
-        if basis == "ros":
-            return base
+            out = self.data(injuries, delay=return_assumptions(self.returns_config)["late_days"])
+        elif basis == "ros":
+            out = self.data(injuries)
+        else:
+            base = self.data(injuries)
 
-        def build():
-            season = next(iter(base.leagues.values())).config.league.season
-            logs = load_logs(self.data_dir, season) if basis == "recent" else None
-            return basis_data(base, basis, logs)
-        return self._get(("data_basis", base.fingerprint, injuries, basis), build)
+            def build():
+                season = next(iter(base.leagues.values())).config.league.season
+                logs = load_logs(self.data_dir, season) if basis == "recent" else None
+                return basis_data(base, basis, logs)
+            out = self._get(("data_basis", base.fingerprint, injuries, basis), build)
+        if ov is None or not ov.roles:
+            return out
+        return self._get(("data_roles", out.fingerprint, ov.roles_key()), lambda: overlay.apply_roles(out, ov))
 
     def engine(self, league_id: str, injuries: bool = True, basis: str = "ros", free_moves: bool = True) -> TradeEngine:
         """``free_moves=False``: takımların boştaki oyunculardan bedava hamle yaptığı varsayılmaz (kadrolar olduğu gibi)."""

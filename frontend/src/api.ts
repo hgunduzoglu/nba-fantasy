@@ -1,8 +1,9 @@
 import type {
-  AddDropWeekIn, AddDropWeekOut, CompleteOut, DataChecksOut, Freshness, ReportedTrade, ReportRecord, ScenariosOut, DropIn, DropOut, FixtureTeam, HistoryOut, NewsOut, NewsStatus, Meta, MispricedRow, MultiSeasonOut, MultiSuggestIn, MultiSuggestOut, MultiTradeIn, MultiTradeOut, Perceived, Player,
+  AddDropWeekIn, AddDropWeekOut, CompleteOut, DataChecksOut, Freshness, IndexPlayer, ScenarioCheckOut, ScenarioEffectOut, ReportedTrade, ReportRecord, ScenariosOut, DropIn, DropOut, FixtureTeam, HistoryOut, NewsOut, NewsStatus, Meta, MispricedRow, MultiSeasonOut, MultiSuggestIn, MultiSuggestOut, MultiTradeIn, MultiTradeOut, Perceived, Player,
   ManagersOut, OfferOutcome, OfferRow, RankingsOut, Roster, SeasonManyOut, SeasonOut, SeasonPageOut, SitStartOut, Source, StreamOut, StrategyIn, SuggestIn, SuggestOut, SyncStatus, TradeIn,
   TradeOut, WaiverOut, WeeklyIn, WeeklyOut, InjuryIntelOut, JobStatus, StrategyAdviceOut, TodayOut,
 } from "./types";
+import { payload, scenarioHeader, type WhatIf } from "./whatif";
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -13,7 +14,7 @@ export class ApiError extends Error {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
     ...init,
-    headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
+    headers: { "Content-Type": "application/json", ...scenarioHeader(), ...(init?.headers ?? {}) },
   });
   if (!res.ok) {
     let detail = res.statusText;
@@ -35,6 +36,12 @@ const codeHeader = (code?: string): Record<string, string> => (code ? { "X-Repor
 export const api = {
   meta: (injuries: boolean) => request<Meta>(`/api/meta?${q(injuries)}`),
   freshness: () => request<Freshness>("/api/freshness"),
+  scenarioCheck: (w: WhatIf, injuries: boolean) =>
+    request<ScenarioCheckOut>(`/api/scenario/check?${q(injuries)}`, { method: "POST", body: JSON.stringify(payload(w)), headers: { "X-FDO-Scenario": "" } }),
+  playersIndex: (league: string, injuries: boolean) =>
+    request<IndexPlayer[]>(`/api/leagues/${league}/players-index?${q(injuries)}`),
+  scenarioEffect: (league: string, body: { team_a: string; team_b: string; injuries: boolean; n_sims?: number; basis?: string }) =>
+    request<ScenarioEffectOut>(`/api/leagues/${league}/scenario/effect`, post(body)),
   dataChecks: (league: string, injuries: boolean) =>
     request<DataChecksOut>(`/api/data-checks?league=${league}&${q(injuries)}`),
   reportTrade: (league: string, body: TradeIn) => request<{ decision_id: string }>(`/api/leagues/${league}/trade/reported`, post(body)),

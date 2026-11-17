@@ -2603,6 +2603,30 @@ IL slot). After every sync, and in the app, each rostered player in the four lea
 them for the two teams (players in the trade first, red if one is flagged) and the Today page for the user's team. 17 November: 43
 warnings across the leagues, 10 on the user's teams (5 IL slots with Q status, 5 minutes increases such as Daniss Jenkins 24 → 33).
 
+### 13.53 Scenarios: pending trades, chained trades and role multipliers (`fdo.inseason.overlay`, 17 November 2026)
+
+Two questions kept needing hand-written scripts: "this other trade will go through, evaluate mine on top of it" and "if Sabonis
+leaves, Raynaud starts". The scenario layer answers both in the app:
+
+- **Where it lives**: in the browser (`tl.whatif`; the server is read-only). While it is on, every API request carries it in the
+  `X-FDO-Scenario` header; a middleware puts it in the request context and `AppState.data()` applies it, so every page (trade,
+  suggestions, this week, add/drop, season) computes under the same assumption. Requests without the header, background jobs and the
+  Today page use the real data. Cache keys and the data fingerprint include the scenario's hash.
+- **Trades** are applied in order with the engine's own roster resolution (`TradeEngine.resolve`: IL placement, drops, optional
+  auto-fill), each on top of the previous one. A scenario is a set of deltas, not a roster snapshot: a step whose players are no longer
+  on those teams (the trade already went through in Yahoo, or a player moved) is skipped and reported, so a re-sync never silently
+  undoes real moves. "Geçti say" on the Trade page adds the current trade; the scenario panel adds a trade between any two teams.
+- **Role multiplier** (0.25–3): the player's rest-of-season counting stats × factor on every evaluation basis (games and percentages
+  unchanged). This season's and the preseason sources are untouched, so the opponent's perceived value does not move with the user's
+  belief. A multiplier on an unmodeled player is reported as having no effect.
+- **Season effect**: `POST /api/leagues/{lid}/scenario/effect` runs the real state and the scenario with the same seed and returns
+  playoff and title probabilities for every team. 17 November, METU IE, The Last Führer–Losadanas (LaVine ⇄ Morant) plus Raynaud × 2:
+  Losadanas playoff +4.4, The Last Führer −3.9, Çatal State Warriors +11.8 (Raynaud), Kekstra's +0.2.
+- **Records**: decisions are not logged while a scenario is on (the forward test must not replay hypothetical rosters); offer and
+  trade records and the detailed (Claude) analysis are refused with 409. Saved trade scenarios computed under a scenario are labelled.
+- `POST /api/scenario/check` returns each step's status (applied / skipped / error with the reason and the roster moves) and each
+  role's; `GET /api/leagues/{lid}/players-index` serves the form.
+
 ### 13.8 V3 candidates
 
 Beam search and H-score weight optimization; fitting the profile mix; covariance of game counts between

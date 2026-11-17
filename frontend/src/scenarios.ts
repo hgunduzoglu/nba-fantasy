@@ -34,6 +34,8 @@ export interface Scenario {
     mutual: boolean;
   };
   season?: { me_playoff: number; me_champion: number; opp_playoff: number; opp_champion: number };
+  /** Kaydedilirken açık olan senaryo katmanı (README §13.53): değerler o varsayımla hesaplandı. */
+  whatif?: string;
 }
 
 const KEY = "tl.scenarios";

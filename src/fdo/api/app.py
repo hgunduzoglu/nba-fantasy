@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from fdo.api.serialize import (brief, categories_meta, clean, fixture_changes, player_row, presets,
@@ -19,6 +20,7 @@ from fdo.config import REPO_ROOT
 from fdo.evaluation.decisions import reconcile
 from fdo.evaluation.offers import offers as offer_rows
 from fdo.ingest.freshness import report as freshness_report
+from fdo.inseason import overlay
 from fdo.inseason.data_checks import as_dicts
 from fdo.inseason.injuries import return_assumptions
 from fdo.inseason.scenarios import BASES, RATE_BASES, per_game_rates
@@ -88,6 +90,33 @@ def scenario_rows(engine_for, body: TradeIn) -> tuple[list[dict], dict[str, dict
     return bases, players
 
 
+class ScenarioMiddleware:
+    """``X-FDO-Scenario`` başlığındaki senaryoyu (JSON) bu isteğin bağlamına koyar (README §13.53); biçim bozuksa 400."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        raw = dict(scope.get("headers") or ()).get(overlay.HEADER.encode()) if scope["type"] == "http" else None
+        if not raw:
+            return await self.app(scope, receive, send)
+        try:
+            ov = overlay.Overlay.parse(json.loads(raw.decode("utf-8")))
+        except (ValueError, UnicodeDecodeError) as e:          # json.JSONDecodeError da ValueError
+            return await JSONResponse({"detail": f"Senaryo okunamadı: {e}"}, status_code=400)(scope, receive, send)
+        token = overlay.CURRENT.set(ov)
+        try:
+            await self.app(scope, receive, send)
+        finally:
+            overlay.CURRENT.reset(token)
+
+
+def no_scenario(what: str) -> None:
+    """Kayıt tutan ya da arka planda çalışan işler senaryo açıkken yapılmaz (gerçek veriyle karışmasın)."""
+    if overlay.current() is not None:
+        raise HTTPException(409, f"Senaryo açıkken {what} yapılmaz; önce senaryoyu kapat.")
+
+
 def create_app(data_dir: str | Path | None = None, frontend_dir: str | Path | None = None, *,
                read_only: bool | None = None) -> FastAPI:
     """``read_only`` (varsayılan ``FDO_READ_ONLY`` ortam değişkeni): güncelleme uç noktaları 403 döner."""
@@ -97,6 +126,7 @@ def create_app(data_dir: str | Path | None = None, frontend_dir: str | Path | No
     app.state.fdo = state
     app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
                        allow_methods=["*"], allow_headers=["*"])
+    app.add_middleware(ScenarioMiddleware)
 
     def engine(lid: str, injuries: bool, basis: str = "ros", free_moves: bool = True):
         try:
@@ -176,6 +206,7 @@ def create_app(data_dir: str | Path | None = None, frontend_dir: str | Path | No
     def trade_reported(lid: str, body: TradeIn):
         """Kullanıcı "bu takası yaptım" der: ``user_reported`` olarak günlüğe eklenir; veriyi değiştirmez, bir sonraki
         içe aktarmada kadrolarla karşılaştırılır (``GET`` aynı yol)."""
+        no_scenario("takas bildirimi")
         eng = engine(lid, body.injuries)
         for tid in (body.team_a, body.team_b):
             if tid not in eng.league.teams:
@@ -203,6 +234,7 @@ def create_app(data_dir: str | Path | None = None, frontend_dir: str | Path | No
     def trade_offer(lid: str, body: OfferIn):
         """Teklif ettim (o anki ölçülerle) ya da teklife gelen cevap. Eşiklerin gerçek kayıtlarla ayarlanması için
         (``fdo.evaluation.offers``); veriyi değiştirmez."""
+        no_scenario("teklif kaydı")
         eng = engine(lid, body.injuries)
         if body.outcome != "offered":
             known = {e["decision_id"] for e in state.decisions.entries("user_reported") if e["action"] == "trade_offer"}
@@ -318,6 +350,55 @@ def create_app(data_dir: str | Path | None = None, frontend_dir: str | Path | No
             raise HTTPException(400, str(e)) from e
         return clean({"teams": fixture_changes(sim, (body.team_a, body.team_b), rosters, il,
                                               {body.team_a: sa, body.team_b: sb})})
+
+    @app.post("/api/scenario/check")
+    def scenario_check(body: dict, injuries: bool = True):
+        """Senaryonun gerçek veriye göre durumu: her takas adımı uygulandı / atlandı / hata, rol çarpanları (§13.53)."""
+        try:
+            ov = overlay.Overlay.parse(body)
+        except ValueError as e:
+            raise HTTPException(400, str(e)) from e
+        with overlay.suspended():
+            steps = state.overlay_status(ov, injuries) if ov.steps else []
+            data = state.plain_data(injuries)
+            eng = next((state.engine(lid, injuries) for lid in data.leagues), None)
+        modeled = (lambda p: bool(eng.modeled[eng.index[p]]) if eng is not None and p in eng.index else False)
+        return clean({"trades": steps, "roles": overlay.role_notes(data, ov, modeled)})
+
+    @app.get("/api/leagues/{lid}/players-index")
+    def players_index(lid: str, injuries: bool = True, free: int = 250):
+        """Ligdeki kadrolu oyuncular ve değeri en yüksek ``free`` boştaki (senaryo formu için)."""
+        eng = engine(lid, injuries)
+        owner = {p: t for t, r in eng.league.rosters.items() for p in r}
+        fa = sorted((p for p in eng.ids if p not in owner and eng.modeled[eng.index[p]]),
+                    key=lambda p: -float(eng.market[p]))[:max(0, free)]
+        P = eng.data.players
+        return [{"id": p, "name": P.loc[p, "name"], "team_id": owner.get(p), "nba_team": P.loc[p, "nba_team"],
+                 "status": P.loc[p, "injury_status"] or "", "il": p in eng.league.injury_rosters.get(owner.get(p), ())}
+                for p in [*owner, *fa]]
+
+    @app.post("/api/leagues/{lid}/scenario/effect")
+    def scenario_effect(lid: str, body: SeasonIn):
+        """Senaryonun bütün takımlara sezon etkisi: gerçek durum (senaryosuz) ile senaryo, aynı tohumla (§13.53).
+        Yalnız ``basis``, ``injuries``, ``n_sims`` kullanılır."""
+        if overlay.current() is None:
+            raise HTTPException(400, "Senaryo açık değil")
+        n = max(200, min(body.n_sims, 5000))
+        with overlay.suspended():
+            base_sim = state.season_sim(lid, body.injuries, body.basis)
+            if base_sim is None:
+                raise HTTPException(409, "Bu lig için fikstür yok")
+            base = base_sim.run(n_sims=n, seed=1)
+        sim = state.season_sim(lid, body.injuries, body.basis)
+        after = sim.run(n_sims=n, seed=1)
+        eng = engine(lid, body.injuries, body.basis)
+        rows = []
+        for t in eng.team_ids:
+            e = sim.effect(base, after, t)
+            rows.append({"team_id": t, "team": eng.league.teams[t],
+                         **{k: {"before": d.before, "after": d.after, "delta": d.delta, "se": d.se}
+                            for k, d in e.items() if k in ("playoff", "champion")}})
+        return clean({"n_sims": n, "basis": body.basis, "teams": rows})
 
     @app.get("/api/data-checks")
     def checks(league: str | None = None, injuries: bool = True):

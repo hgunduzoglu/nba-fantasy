@@ -14,7 +14,7 @@ from fdo.api.app import REPORT_CODE_ENV, _request, _strategies, scenario_rows
 from fdo.api.schemas import ReportIn
 from fdo.api.serialize import clean
 from fdo.api.state import AppState
-from fdo.inseason import news
+from fdo.inseason import news, overlay
 from fdo.inseason.roles import load_logs
 from fdo.inseason.trade_report import ReportStore, available, build_packet, report_key
 from fdo.trade import TradeError
@@ -96,6 +96,8 @@ def register(app: FastAPI, state: AppState, engine, *, read_only: bool = False) 
     @app.post("/api/leagues/{lid}/trade/report")
     def trade_report(lid: str, body: ReportIn, x_report_code: str | None = Header(default=None)):
         access(x_report_code)
+        if overlay.current() is not None:
+            raise HTTPException(409, "Senaryo açıkken detaylı analiz yapılmaz; önce senaryoyu kapat.")
         if not body.give_a or not body.give_b:
             raise HTTPException(400, "Detaylı analiz için iki taraftan da oyuncu seç.")
         eng = engine(lid, body.injuries)

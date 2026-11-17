@@ -1176,3 +1176,39 @@ export interface DataChecksOut {
   warn: number;
   info: number;
 }
+
+/** Senaryo katmanı (README §13.53). */
+export interface ScenarioStepStatus {
+  index: number;
+  league: string;
+  status: "applied" | "skipped" | "error";
+  reason?: string;
+  moves?: Record<string, Partial<Record<"drop" | "add" | "move_to_il" | "activate", string[]>>>;
+}
+
+export interface ScenarioCheckOut {
+  trades: ScenarioStepStatus[];
+  roles: { player_id: string; name?: string; factor: number; status: "applied" | "error"; reason?: string }[];
+}
+
+export interface IndexPlayer {
+  id: string;
+  name: string;
+  team_id: string | null;
+  nba_team: string;
+  status: string;
+  il: boolean;
+}
+
+export interface ScenarioEffectOut {
+  n_sims: number;
+  basis: string;
+  teams: { team_id: string; team: string; playoff?: PairedOut; champion?: PairedOut }[];
+}
+
+export interface PairedOut {
+  before: number;
+  after: number;
+  delta: number;
+  se: number;
+}

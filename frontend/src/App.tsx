@@ -13,6 +13,8 @@ import { TradePage, type TradeInit } from "./pages/TradePage";
 import { WeeklyPage } from "./pages/WeeklyPage";
 import { Icon, Sheet } from "./components/Mobile";
 import { DataStatus } from "./components/DataStatus";
+import { ScenarioBar } from "./components/ScenarioBar";
+import { useWhatIf } from "./whatif";
 import { SyncButton } from "./components/SyncButton";
 import { useIsMobile } from "./hooks";
 import type { League, Meta } from "./types";
@@ -79,6 +81,12 @@ export default function App() {
   });
   const [pending, setPending] = useState<{ trade: TradeInit; seq: number } | null>(null);
   const [version, setVersion] = useState(0);              // senkronizasyondan sonra sayfalar yeniden yüklenir
+  const whatif = useWhatIf();                               // senaryo değişince de (README §13.53)
+  const firstWhatIf = useRef(true);
+  useEffect(() => {
+    if (firstWhatIf.current) { firstWhatIf.current = false; return; }
+    setVersion((v) => v + 1);
+  }, [whatif]);
   const [sheet, setSheet] = useState<"settings" | "more" | null>(null);
   const lastSync = useRef<string | null | undefined>(undefined);
 
@@ -218,6 +226,7 @@ export default function App() {
           </nav>
         </>
       )}
+      {tab !== "today" && <ScenarioBar meta={meta} league={league} team={team} injuries={injuries} />}
       <main key={version}>
         {tab === "today" && <TodayPage go={(id, t) => { pickLeague(id); go(t); }} />}
         {tab === "trade" && (

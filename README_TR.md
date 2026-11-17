@@ -2524,6 +2524,30 @@ Her senkronizasyondan sonra ve uygulamada dört ligin kadrolu oyuncuları tek te
 takımınkileri (takastaki oyuncular önce, biri işaretliyse kırmızı), Bugün sayfası kullanıcının takımınkileri gösterir. 17 Kasım:
 liglerde 43 uyarı, kullanıcının takımlarında 10 (Q durumunda 5 IL slotu, Daniss Jenkins 24 → 33 gibi 5 dakika artışı).
 
+### 13.53 Senaryolar: bekleyen takas, zincirleme takas ve rol çarpanı (`fdo.inseason.overlay`, 17 Kasım 2026)
+
+İki soru sürekli elle yazılmış betik gerektiriyordu: "şu başka takas geçecek, benimkini onun üstüne değerlendir" ve "Sabonis
+giderse Raynaud ilk beşe girer". Senaryo katmanı ikisini de uygulamada yanıtlar:
+
+- **Nerede durur**: tarayıcıda (`tl.whatif`; sunucu salt okunur). Açıkken her API isteği onu `X-FDO-Scenario` başlığında taşır;
+  ara katman istek bağlamına koyar, `AppState.data()` uygular; böylece bütün sayfalar (takas, öneri, bu hafta, add/drop, sezon) aynı
+  varsayımla hesaplar. Başlıksız istekler, arka plan işleri ve Bugün sayfası gerçek veriyi kullanır. Önbellek anahtarları ve veri
+  parmak izi senaryonun özetini içerir.
+- **Takaslar** sırayla, motorun kendi kadro çözümüyle (`TradeEngine.resolve`: IL'e alma, bırakma, istenirse boştan doldurma)
+  uygulanır; her biri bir öncekinin üstüne. Senaryo kadro anlık görüntüsü değil, farktır: oyuncuları artık o takımlarda olmayan
+  adım (takas Yahoo'da işlenmiş ya da oyuncu el değiştirmiş) atlanır ve bildirilir; yeni senkronizasyon gerçek hamleleri sessizce
+  geri almaz. Takas Analizi'ndeki "Geçti say" o anki takası ekler; senaryo panelinden herhangi iki takım arası takas eklenir.
+- **Rol çarpanı** (0,25–3): oyuncunun kalan sezon sayım istatistikleri × çarpan, her değerlendirme temelinde (maç sayısı ve
+  yüzdeler aynı). Bu sezonun ve sezon öncesinin kaynakları değişmez; rakibin algıladığı değer kullanıcının beklentisiyle oynamaz.
+  Modellenmeyen oyuncuya verilen çarpan etkisiz olarak bildirilir.
+- **Sezon etkisi**: `POST /api/leagues/{lid}/scenario/effect` gerçek durumu ve senaryoyu aynı tohumla koşar, her takımın playoff ve
+  şampiyonluk olasılığını döner. 17 Kasım, METU IE, The Last Führer–Losadanas (LaVine ⇄ Morant) ve Raynaud × 2: Losadanas playoff
+  +4,4, The Last Führer −3,9, Çatal State Warriors +11,8 (Raynaud), Kekstra's +0,2.
+- **Kayıtlar**: senaryo açıkken karar günlüğü yazılmaz (ileriye dönük test varsayımsal kadroları tekrar oynamasın); teklif ve takas
+  kaydı ile detaylı (Claude) analiz 409 ile reddedilir. Senaryo açıkken kaydedilen takas senaryoları etiketlenir.
+- `POST /api/scenario/check` her adımın (uygulandı / atlandı / hata, nedeni ve kadro hamleleri) ve rol çarpanının durumunu döner;
+  `GET /api/leagues/{lid}/players-index` formu besler.
+
 ### 13.8 V3 adayları
 
 Beam search ve H-score ağırlık optimizasyonu; profil karışımı uyumu; oyuncular arası maç sayısı

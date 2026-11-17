@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DataChecks } from "../components/DataChecks";
+import { addTrade, isActive, summary } from "../whatif";
 import { api, ApiError } from "../api";
 import { CategoryImpact } from "../components/CategoryImpact";
 import { FixtureImpact } from "../components/FixtureImpact";
@@ -229,7 +230,7 @@ function ScenarioPanel({ list, team, onOpen, onRemove, onImport }: {
                 return (
                   <tr key={s.id}>
                     <td className="l">{s.oppName}{!s.metrics.mutual && <span className="badge out" title="İki taraf birden kazanmıyor">!</span>}</td>
-                    <td className="l wrap">{names(s.giveA)}</td>
+                    <td className="l wrap">{names(s.giveA)}{s.whatif && <span className="badge q" title="Kaydedilirken senaryo açıktı; değerler o varsayımla">🧪 {s.whatif}</span>}</td>
                     <td className="l wrap">{names(s.giveB)}</td>
                     <td className="l wrap muted">{extra || (s.auto ? "otomatik" : "—")}</td>
                     <td className="l wrap muted">{s.stratALabel} / {s.stratBLabel}</td>
@@ -402,8 +403,15 @@ export function TradePage({ meta, league, team, injuries, initial }: Props) {
       metrics: { a: pick(result.teams.a), b: pick(result.teams.b), fairness: result.fairness,
                  perceived: result.perceived_balance, mutual: result.assessments.mutual_benefit },
       season: season ? seasonPatch(season) : undefined,
+      whatif: isActive() ? summary() : undefined,
     });
     setSavedId(bodyKey);
+  };
+
+  const passTrade = () => {
+    const list = (ids: Iterable<string>) => [...ids].map(name).join(", ");
+    addTrade({ league: league.id, team_a: team, team_b: opp, give_a: [...giveA], give_b: [...giveB], drop_a: dropA, drop_b: dropB,
+               add_a: addA, add_b: addB, auto, label: `${teamName(team)}: ${list(giveA)} ⇄ ${teamName(opp)}: ${list(giveB)}` });
   };
 
   const openScenario = (s: Scenario) => {
@@ -518,6 +526,12 @@ export function TradePage({ meta, league, team, injuries, initial }: Props) {
           {result && (
             <button className="btn" onClick={save} disabled={savedId === bodyKey}>
               {savedId === bodyKey ? "✓ Kaydedildi" : "Senaryoyu kaydet"}
+            </button>
+          )}
+          {giveA.size > 0 && giveB.size > 0 && (
+            <button className="btn" onClick={passTrade}
+                    title="Bu takası gerçekleşmiş say: senaryoya eklenir, bütün sayfalar yeni kadrolarla hesaplanır (zincirleme takas için)">
+              Geçti say →
             </button>
           )}
           {(giveA.size > 0 || giveB.size > 0) && <button className="btn" onClick={clearAll}>Temizle</button>}
