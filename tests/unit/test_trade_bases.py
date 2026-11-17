@@ -30,6 +30,15 @@ def test_few_games_fall_back_to_projection(data):  # noqa: F811
     assert basis_rates(data, "blend").loc["1", "pts"] == pytest.approx(data.stats[ROS].loc["1", "pts"])
 
 
+def test_season_shrinks_small_samples_toward_projection(data):  # noqa: F811
+    ros = data.stats[ROS]
+    yahoo = ros.loc["1", "pts"] / ros.loc["1", "gp"]
+    data.stats["season_total"].loc["1", ["gp", "pts"]] = [4.0, 4 * 3 * yahoo]          # 4 maçta üç kat
+    w = 4 / (4 + 10)
+    assert basis_rates(data, "season").loc["1", "pts"] / ros.loc["1", "gp"] == pytest.approx((1 - w) * yahoo + w * 3 * yahoo)
+    assert basis_rates(data, "season").loc["1", "pts"] == pytest.approx(basis_rates(data, "blend").loc["1", "pts"])
+
+
 def test_recent_uses_last_games_from_logs(data):  # noqa: F811
     stats = {"fgm": 8, "fga": 16, "ftm": 4, "fta": 5, "fg3m": 2, "pts": 30, "reb": 5, "ast": 4, "stl": 1, "blk": 1,
              "tov": 2}

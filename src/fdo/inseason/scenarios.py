@@ -5,7 +5,8 @@ sezon projeksiyonudur. Alternatif temeller kalan maç sayısını (dayanıklıl�
 oranları değiştirir; bütün lig aynı temelde değerlenir (rakip takımlar, boştakiler, yerine koyma düzeyi, IL dönüşünde
 kimin bırakılacağı):
 
-* ``season`` — bu sezonun gerçekleşen maç başı ortalamaları (en az ``min_games`` maç; yoksa Yahoo).
+* ``season`` — bu sezonun gerçekleşen maç başı ortalamaları (en az ``min_games`` maç; yoksa Yahoo). ``full_games``'ten
+  az maçta (ör. 4 maçlık Claxton) karma ağırlıkla Yahoo'ya çekilir: birkaç maçlık örnek tek başına oran sayılmaz.
 * ``recent`` — NBA maç kayıtlarından son ``recent_games`` maçın ortalaması (rol değişimini en hızlı yansıtır; en az
   ``min_games`` maç; yoksa bu sezon, o da yoksa Yahoo).
 * ``blend`` — Yahoo ile bu sezon arasında, oynanan maça göre ağırlık ``n / (n + prior_games)`` (10 maçta yarı yarıya):
@@ -32,6 +33,7 @@ RATE_BASES = ("ros", "season", "recent", "blend")
 MIN_GAMES = 3
 RECENT_GAMES = 10
 PRIOR_GAMES = 10
+FULL_GAMES = 8               # ``season``: bu kadar maçtan azında oran Yahoo'ya karma ağırlıkla çekilir
 
 
 def _per_game(frame: pd.DataFrame) -> pd.DataFrame:
@@ -40,7 +42,8 @@ def _per_game(frame: pd.DataFrame) -> pd.DataFrame:
 
 
 def basis_rates(data: TradeData, basis: str, logs: pd.DataFrame | None = None, *, min_games: int = MIN_GAMES,
-                recent_games: int = RECENT_GAMES, prior_games: int = PRIOR_GAMES) -> pd.DataFrame:
+                recent_games: int = RECENT_GAMES, prior_games: int = PRIOR_GAMES,
+                full_games: int = FULL_GAMES) -> pd.DataFrame:
     """``basis`` temelinde kalan sezon çerçevesi: ``gp`` Yahoo'nunki, istatistikler ``oran × gp``."""
     if basis not in BASES:
         raise ValueError(f"Bilinmeyen değerlendirme temeli: {basis}")
@@ -54,6 +57,9 @@ def basis_rates(data: TradeData, basis: str, logs: pd.DataFrame | None = None, *
     known = (played >= min_games) & actual.notna().all(axis=1)
     if basis == "blend":
         w = (played / (played + prior_games)).where(known, 0.0)
+        rate = yahoo.mul(1 - w, axis=0) + actual.fillna(0).mul(w, axis=0)
+    elif basis == "season":
+        w = (played / (played + prior_games)).where(played < full_games, 1.0).where(known, 0.0)
         rate = yahoo.mul(1 - w, axis=0) + actual.fillna(0).mul(w, axis=0)
     else:
         rate = yahoo.mask(known, actual)
