@@ -1,5 +1,5 @@
 import type {
-  AddDropWeekIn, AddDropWeekOut, CompleteOut, Freshness, ReportedTrade, ReportRecord, ScenariosOut, DropIn, DropOut, FixtureTeam, HistoryOut, NewsOut, NewsStatus, Meta, MispricedRow, MultiSeasonOut, MultiSuggestIn, MultiSuggestOut, MultiTradeIn, MultiTradeOut, Perceived, Player,
+  AddDropWeekIn, AddDropWeekOut, CompleteOut, DataChecksOut, Freshness, ReportedTrade, ReportRecord, ScenariosOut, DropIn, DropOut, FixtureTeam, HistoryOut, NewsOut, NewsStatus, Meta, MispricedRow, MultiSeasonOut, MultiSuggestIn, MultiSuggestOut, MultiTradeIn, MultiTradeOut, Perceived, Player,
   ManagersOut, OfferOutcome, OfferRow, RankingsOut, Roster, SeasonManyOut, SeasonOut, SeasonPageOut, SitStartOut, Source, StreamOut, StrategyIn, SuggestIn, SuggestOut, SyncStatus, TradeIn,
   TradeOut, WaiverOut, WeeklyIn, WeeklyOut, InjuryIntelOut, JobStatus, StrategyAdviceOut, TodayOut,
 } from "./types";
@@ -35,6 +35,8 @@ const codeHeader = (code?: string): Record<string, string> => (code ? { "X-Repor
 export const api = {
   meta: (injuries: boolean) => request<Meta>(`/api/meta?${q(injuries)}`),
   freshness: () => request<Freshness>("/api/freshness"),
+  dataChecks: (league: string, injuries: boolean) =>
+    request<DataChecksOut>(`/api/data-checks?league=${league}&${q(injuries)}`),
   reportTrade: (league: string, body: TradeIn) => request<{ decision_id: string }>(`/api/leagues/${league}/trade/reported`, post(body)),
   offer: (league: string, body: TradeIn & { outcome?: Exclude<OfferOutcome, "pending"> | "offered"; about?: string }) =>
     request<{ decision_id: string }>(`/api/leagues/${league}/trade/offer`, post(body)),

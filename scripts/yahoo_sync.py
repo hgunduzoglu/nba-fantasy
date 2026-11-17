@@ -15,6 +15,7 @@ import argparse
 import sys
 import time
 
+from fdo.api.state import AppState
 from fdo.config import REPO_ROOT
 from fdo.ingest.archive import archive
 from fdo.ingest.yahoo_sync import Fetcher, NotLoggedIn, sync
@@ -53,9 +54,24 @@ def main(argv: list[str] | None = None) -> int:
         print(refresh_season(args.out, next(iter(data.leagues.values())).config.league.season))
         res = news.refresh(args.out, data.players, log=print)
         print(f"Haberler: {res['new']} yeni, {res['analyzed']} analiz edildi", *res["notes"])
+    print_checks(args.out)
     batch = archive(args.out, source="yahoo_sync", note="senkronizasyon + sakatlık, maç kaydı, haber")
     print(f"Arşiv: {batch.batch_id}" + ("" if batch.created else " (değişiklik yok)"))
     return 0
+
+
+def print_checks(out: str) -> None:
+    """Kullanıcının takımlarındaki veri uyarıları (README §13.52); kontrol bozulursa senkronizasyonu durdurmaz."""
+    try:
+        state = AppState(out)
+        found = state.data_checks()
+        mine = {(lid, lg.default_team_id) for lid, lg in state.data().leagues.items()}
+        own = [f for f in found if f.level == "warn" and any((t[0], t[1]) in mine for t in f.teams)]
+        print(f"Veri kontrolü: {sum(f.level == 'warn' for f in found)} uyarı (senin takımlarında {len(own)})")
+        for f in own:
+            print(f"  - {f.name} [{', '.join(t[2] for t in f.teams if (t[0], t[1]) in mine)}]: {f.message}")
+    except Exception as e:                       # noqa: BLE001 — kontrol isteğe bağlı
+        print(f"Veri kontrolü yapılamadı: {e}")
 
 
 if __name__ == "__main__":

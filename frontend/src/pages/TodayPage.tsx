@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
+import { DataChecks } from "../components/DataChecks";
 import { ErrorBanner, Loading } from "../components/common";
 import { fmtDate, fmtNum, fmtPct, fmtStamp } from "../format";
 import type { TodayLeague, TodayOut } from "../types";
@@ -19,6 +20,7 @@ function LeagueCard({ l, go }: { l: TodayLeague; go: Go }) {
       </div>
       <div className="card-b stack" style={{ gap: 8 }}>
         {l.alerts.map((a, k) => <div key={k} className="banner err">⚠ {a.text}</div>)}
+        <DataChecks league={l.league_id} teams={[l.team_id]} injuries={true} />
         {w && (
           <div>
             <b>{w.week}. hafta</b> · rakip {w.opponent}: beklenen kategori {fmtNum(w.expected_wins, 2)}, haftayı kazanma {fmtPct(w.p_win)}

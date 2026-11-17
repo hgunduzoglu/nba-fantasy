@@ -2587,6 +2587,22 @@ without an eligible status; Yahoo usually blocks transactions until it is fixed,
 the background once per data signature and stored in `today.json`; on the read-only server a background thread
 recomputes it after each data push (`FDO_PRECOMPUTE`, on by default there). `scripts/push_data.py` does not overwrite it.
 
+### 13.52 Data checks (`fdo.inseason.data_checks`, 17 November 2026)
+
+Silent data problems flipped trade conclusions twice in one day (Mobley at zero rest-of-season games, a healthy player sitting in an
+IL slot). After every sync, and in the app, each rostered player in the four leagues is checked:
+
+- **Unmodeled**: no rest-of-season row or zero games even after the fill of §13.19; the reason is given (`NA`, season-long, no row).
+- **Filled** (info): the §13.19 fill was used.
+- **Team**: Yahoo's NBA team differs from the team in the player's latest game log (the schedule would be counted for the wrong team).
+- **Role**: minutes over the last 5 games moved by at least 6 and 30% against the earlier games; Yahoo's projection reacts late.
+- **Idle**: not listed as injured but absent from his team's last 3 games.
+- **IL slot**: in an IL slot with a Yahoo status that is not IL-eligible (Q, GTD, healthy); Yahoo may block adds and trades.
+
+`scripts/yahoo_sync.py` prints the warnings on the user's own teams; `GET /api/data-checks?league=` serves them; the Trade page shows
+them for the two teams (players in the trade first, red if one is flagged) and the Today page for the user's team. 17 November: 43
+warnings across the leagues, 10 on the user's teams (5 IL slots with Q status, 5 minutes increases such as Daniss Jenkins 24 → 33).
+
 ### 13.8 V3 candidates
 
 Beam search and H-score weight optimization; fitting the profile mix; covariance of game counts between

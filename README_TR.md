@@ -2508,6 +2508,22 @@ durumu olmayan oyuncu; Yahoo genelde düzeltilene kadar işlemleri engeller, Yah
 arka planda bir kez hesaplanıp `today.json`'a yazılır; salt okunur sunucuda bir arka plan iş parçacığı her veri
 gönderiminden sonra yeniden hesaplar (`FDO_PRECOMPUTE`, orada varsayılan açık). `scripts/push_data.py` bu dosyayı ezmez.
 
+### 13.52 Veri kontrolleri (`fdo.inseason.data_checks`, 17 Kasım 2026)
+
+Sessiz veri sorunları bir günde iki kez takas sonucunu tersine çevirdi (Mobley kalan sezon 0 maç, IL slotunda sağlıklı oyuncu).
+Her senkronizasyondan sonra ve uygulamada dört ligin kadrolu oyuncuları tek tek kontrol edilir:
+
+- **Modelsiz**: §13.19 dolgusundan sonra da kalan sezon satırı yok ya da 0 maç; nedeni yazılır (`NA`, sezon boyu, satır yok).
+- **Dolduruldu** (bilgi): §13.19 dolgusu kullanıldı.
+- **Takım**: Yahoo'daki NBA takımı son maç kaydındaki takımdan farklı (maç takvimi yanlış takımdan sayılır).
+- **Rol**: son 5 maçta dakika öncesine göre en az 6 dk ve %30 değişti; Yahoo projeksiyonu geç tepki verir.
+- **Oynamıyor**: sakat görünmüyor ama takımının son 3 maçında yok.
+- **IL slotu**: IL slotunda ama Yahoo durumu IL'e uygun değil (Q, GTD, sağlıklı); Yahoo alım ve takası engelleyebilir.
+
+`scripts/yahoo_sync.py` kullanıcının takımlarındaki uyarıları yazar; `GET /api/data-checks?league=` sunar; Takas Analizi iki
+takımınkileri (takastaki oyuncular önce, biri işaretliyse kırmızı), Bugün sayfası kullanıcının takımınkileri gösterir. 17 Kasım:
+liglerde 43 uyarı, kullanıcının takımlarında 10 (Q durumunda 5 IL slotu, Daniss Jenkins 24 → 33 gibi 5 dakika artışı).
+
 ### 13.8 V3 adayları
 
 Beam search ve H-score ağırlık optimizasyonu; profil karışımı uyumu; oyuncular arası maç sayısı

@@ -19,6 +19,7 @@ from fdo.config import REPO_ROOT
 from fdo.evaluation.decisions import reconcile
 from fdo.evaluation.offers import offers as offer_rows
 from fdo.ingest.freshness import report as freshness_report
+from fdo.inseason.data_checks import as_dicts
 from fdo.inseason.injuries import return_assumptions
 from fdo.inseason.scenarios import BASES, RATE_BASES, per_game_rates
 from fdo.trade import TradeError, TradeRequest
@@ -317,6 +318,13 @@ def create_app(data_dir: str | Path | None = None, frontend_dir: str | Path | No
             raise HTTPException(400, str(e)) from e
         return clean({"teams": fixture_changes(sim, (body.team_a, body.team_b), rosters, il,
                                               {body.team_a: sa, body.team_b: sb})})
+
+    @app.get("/api/data-checks")
+    def checks(league: str | None = None, injuries: bool = True):
+        """Kadrolu oyuncuların veri bulguları; ``league`` verilirse yalnız o ligin kadroları (README §13.52)."""
+        rows = as_dicts(state.data_checks(injuries), league)
+        return clean({"rows": rows, "warn": sum(r["level"] == "warn" for r in rows),
+                      "info": sum(r["level"] == "info" for r in rows)})
 
     @app.get("/api/sources")
     def sources():

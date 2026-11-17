@@ -1160,3 +1160,19 @@ export interface TodayOut {
   as_of?: string;
   leagues: TodayLeague[];
 }
+
+/** Veri kontrolü bulgusu (``/api/data-checks``, README §13.52). */
+export interface DataCheck {
+  check: "unmodeled" | "filled" | "team" | "role" | "idle" | "il_slot";
+  level: "warn" | "info";
+  player_id: string;
+  name: string;
+  message: string;
+  teams: { league_id: string; team_id: string; team_name: string }[];
+}
+
+export interface DataChecksOut {
+  rows: DataCheck[];
+  warn: number;
+  info: number;
+}

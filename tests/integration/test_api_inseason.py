@@ -483,3 +483,10 @@ def test_today_computes_in_background_and_caches_by_signature(client):
     assert lg["league_id"] == "L" and "week" in lg and "season" in lg
     roster = {"players": [{"name": "A", "il": True, "status": ""}, {"name": "B", "il": True, "status": "O"}]}
     assert [a["player"] for a in alerts(roster)] == ["A"]
+
+
+def test_data_checks_endpoint(client):
+    out = client.get("/api/data-checks?league=L").json()                 # "7" IL'de ama sağlıklı
+    row = next(r for r in out["rows"] if r["player_id"] == "7")
+    assert row["check"] == "il_slot" and row["teams"] == [{"league_id": "L", "team_id": "2", "team_name": "Takım 2"}]
+    assert out["warn"] >= 1 and client.get("/api/data-checks?league=X").json()["rows"] == []

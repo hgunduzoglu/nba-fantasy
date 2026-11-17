@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { DataChecks } from "../components/DataChecks";
 import { api, ApiError } from "../api";
 import { CategoryImpact } from "../components/CategoryImpact";
 import { FixtureImpact } from "../components/FixtureImpact";
@@ -495,6 +496,8 @@ export function TradePage({ meta, league, team, injuries, initial }: Props) {
           {" "}(işlem geçmişi {fmtDate(managers.captured_at.slice(0, 10))} çekimine kadar)
         </p>
       )}
+
+      <DataChecks league={league.id} teams={[team, opp]} injuries={injuries} players={[...giveA, ...giveB]} />
 
       <div className="grid-2">
         <RosterTable title={teamName(team)} subtitle={giveA.size ? `${giveA.size} oyuncu veriyorsun` : "veriyorsun"}

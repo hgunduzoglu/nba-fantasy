@@ -17,6 +17,7 @@ import pandas as pd
 from fdo.config import Config, REPO_ROOT
 from fdo.evaluation.decisions import DecisionLog
 from fdo.ingest.archive import content_signature, latest as latest_batch
+from fdo.inseason.data_checks import data_checks
 from fdo.inseason.durability import apply_durability
 from fdo.inseason.adddrop import available_from
 from fdo.inseason.fixtures import load_fixtures
@@ -139,6 +140,16 @@ class AppState:
                                adds_limit=limit, available_from=available_from(lv.waivers, data.as_of, lg.settings)
                                if lv is not None and lv.as_of == data.as_of else None)
         return self._get(("engine", data.fingerprint, str(league_id), free_moves, used, limit), build)
+
+    def data_checks(self, injuries: bool = True) -> list:
+        """Kadrolu oyuncuların veri bulguları (``fdo.inseason.data_checks``; maç kayıtları varsa rol ve takım da)."""
+        data = self.data(injuries)
+        season = next(iter(data.leagues.values())).config.league.season if data.leagues else None
+
+        def build():
+            logs = load_logs(self.data_dir, season) if season else None
+            return data_checks(data, logs)
+        return self._get(("data_checks", data.fingerprint), build)
 
     def weeks(self, league_id: str, injuries: bool = True) -> LeagueWeeks:
         eng = self.engine(league_id, injuries)
