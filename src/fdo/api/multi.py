@@ -131,7 +131,8 @@ def register(app: FastAPI, state: AppState) -> None:
                                       min_fairness=body.min_fairness, min_strategy_gain=body.min_gain,
                                       min_win_gain=body.min_win / 100, ecw_weight=body.ecw_weight,
                                       min_opponent_view=body.min_view, rank=body.rank,
-                                      max_results=40 if sim else 20, time_budget=body.time_budget)
+                                      max_results=40 if sim else 20, time_budget=body.time_budget,
+                                      protected=frozenset(body.protected))
             strategy = _strategy(body.strategy, eng, body.team)
             found = suggest_multi(eng, body.team, strategy=strategy,
                                   opponent_strategies=assumed_strategies(eng, body.opponent_assumption, opps),

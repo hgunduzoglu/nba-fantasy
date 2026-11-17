@@ -2548,6 +2548,22 @@ giderse Raynaud ilk beşe girer". Senaryo katmanı ikisini de uygulamada yanıtl
 - `POST /api/scenario/check` her adımın (uygulandı / atlandı / hata, nedeni ve kadro hamleleri) ve rol çarpanının durumunu döner;
   `GET /api/leagues/{lid}/players-index` formu besler.
 
+### 13.54 Profilden punt tespiti, az maçta sezon oranı ve korunan oyuncular (17 Kasım 2026)
+
+- **Profilden punt** (`Strategy.detect`): rakibin bıraktığı kategoriler kategori profilinden okunur: lige karşı kazanma
+  olasılığı 0,25'in altındaki kategoriler, en zayıftan başlayarak en çok üç; yoksa dengeli. "En zayıf 1/2'yi punt"tan farkı,
+  sayının takıma göre değişmesi (17 Kasım, METU IE: Çatal State Warriors AST, The Last Führer FT% + 3PM, çoğu takım yok).
+  Takas Analizi'nde rakip stratejisinin (`auto_punt: "detect"`), Öneriler ve Çok Takımlı'da rakip varsayımının
+  (`opponent_assumption: "detect"`) varsayılanı; rakibin kazancı ve kabul edilebilirlik bıraktığı kategorileri saymaz.
+- **Az maçta "bu sezon" temeli** (`fdo.inseason.scenarios`): "bu sezon" temeli 3 maçtan itibaren gerçekleşen oranı
+  kullanıyordu (Claxton'ın 4 maçı sonuçları 10+ puan oynatıyordu). 8 maçın altında artık Yahoo'ya karma ağırlıkla
+  (`n / (n + 10)`) çekilir; 8 maçtan itibaren eskisi gibi gerçekleşen oran.
+- **Korunan oyuncular**: menajerin satmadığı (Goat Kiss Cam: KAT, Avdija, Boozer) ya da kullanıcının vermek istemediği
+  oyuncular. Lig başına tarayıcıda (`tl.protected`) tutulur, öneri, tamamlama ve çok takımlı öneriye `protected` olarak gider;
+  aday havuzuna hiç girmez (tamamlamada seçili oyuncular sabit kalır).
+- Kabul modeli hâlâ kalibre değil: teklif günlüğünde henüz kayıt yok. Teklifleri ve cevaplarını kaydetmek (Takas Analizi)
+  menajer bazında model kurmayı mümkün kılacak.
+
 ### 13.8 V3 adayları
 
 Beam search ve H-score ağırlık optimizasyonu; profil karışımı uyumu; oyuncular arası maç sayısı

@@ -210,8 +210,10 @@ class MultiSearchOptions:
     min_opponent_view: float = 0.0       # diğer takımların gözünde (algılanan değer) aldığı / verdiği; 0 = kapalı
     rank: str = "own"                    # sıralama: own = senin kazancın (diğerlerinin kazancı süzgeç); joint = ortak
     time_budget: float | None = None     # saniye; dolunca tarama durur, bulunan adaylar değerlendirilir (None = sınırsız)
+    protected: frozenset[str] = frozenset()  # takasa konmayacak oyuncular (README §13.54)
 
     def __post_init__(self):
+        object.__setattr__(self, "protected", frozenset(str(p) for p in self.protected))
         if self.rank not in ("own", "joint"):
             raise ValueError("Geçersiz sıralama politikası")
         if (self.min_opponent_view < 0 or not self.shapes or any(tuple(s) not in SHAPES for s in self.shapes) or not 2 <= self.shortlist <= 10
@@ -385,7 +387,8 @@ def suggest_multi(engine: TradeEngine, team_id: str, *, strategy: Strategy | Non
         return result
     strategies = {t: (opponent_strategies or {}).get(t) or Strategy() for t in engine.team_ids}
     strategies[team_id] = strategy
-    short = {t: _shortlist(engine, t, strategies[t], options.shortlist) for t in (team_id, *others)}
+    short = {t: [p for p in _shortlist(engine, t, strategies[t], options.shortlist + len(options.protected))
+                 if p not in options.protected][:options.shortlist] for t in (team_id, *others)}
     seen = perceived_prices(engine, "blend").reindex(list(engine.ids)).fillna(0.0)
     local = _Local(engine, strategies, short, options.ecw_weight, seen.to_numpy(float))
     slack_s, slack_w = .02, .01                      # yerel yaklaşım payı; kesin eşikler sonra

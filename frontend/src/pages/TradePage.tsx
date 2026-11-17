@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DataChecks } from "../components/DataChecks";
+import { ProtectedPicker } from "../components/ProtectedPicker";
+import { protectedIds } from "../protected";
 import { addTrade, isActive, summary } from "../whatif";
 import { api, ApiError } from "../api";
 import { CategoryImpact } from "../components/CategoryImpact";
 import { FixtureImpact } from "../components/FixtureImpact";
 import { PlayerPicker } from "../components/PlayerPicker";
 import { RosterTable } from "../components/RosterTable";
-import { BALANCED, StrategyPicker, strategyLabel, toStrategyIn, type StrategyChoice } from "../components/StrategyPicker";
+import { BALANCED, DETECT, StrategyPicker, strategyLabel, toStrategyIn, type StrategyChoice } from "../components/StrategyPicker";
 import { TradeComplete, sameIds } from "../components/TradeComplete";
 import { TradeReport } from "../components/TradeReport";
 import { BASIS_HINT, BASIS_LABELS, BASIS_SHORT, ReturnList, TradeScenarios } from "../components/TradeScenarios";
@@ -270,7 +272,7 @@ export function TradePage({ meta, league, team, injuries, initial }: Props) {
     initial && others.some((t) => t.id === initial.opp) ? initial.opp : others[0]?.id ?? "");
   const [source, setSource] = useState<Source>("ros");
   const [stratA, setStratA] = useState<StrategyChoice>(initial?.stratA ?? BALANCED);
-  const [stratB, setStratB] = useState<StrategyChoice>(initial?.stratB ?? BALANCED);
+  const [stratB, setStratB] = useState<StrategyChoice>(initial?.stratB ?? DETECT);
   const [auto, setAuto] = useState(initial?.auto ?? true);
   const [basis, setBasis] = useState<Basis>("ros");
   const [scen, setScen] = useState<{ key: string; data: ScenariosOut | null; busy: boolean } | null>(null);
@@ -439,6 +441,7 @@ export function TradePage({ meta, league, team, injuries, initial }: Props) {
     api.tradeComplete(league.id, {
       team_a: team, team_b: opp, give_a: [...giveA], give_b: [...giveB], drop_a: [], drop_b: [], add_a: [], add_b: [],
       auto_balance: auto, strategy_a: toStrategyIn(stratA), strategy_b: toStrategyIn(stratB), injuries,
+      protected: protectedIds(league.id),
     })
       .then((d) => { if (id === completeSeq.current) setComplete({ data: d, busy: false, error: null, base }); })
       .catch((e: Error) => { if (id === completeSeq.current) setComplete({ data: null, busy: false, error: e.message, base }); });
@@ -490,6 +493,7 @@ export function TradePage({ meta, league, team, injuries, initial }: Props) {
             ))}
           </div>
         </div>
+        <ProtectedPicker league={league} injuries={injuries} />
         <label className="check" title="Eşit olmayan paketlerde önce sakat oyuncu IL'e, sonra gerekirse en düşük değerli bırakılır; açılan boşluk boştaki oyuncuyla doldurulur. Elle seçtiğin işlemlerden sonra uygulanır.">
           <input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} />
           Kadroyu otomatik dengele

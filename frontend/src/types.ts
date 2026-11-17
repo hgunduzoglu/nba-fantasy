@@ -190,7 +190,7 @@ export interface StrategyIn {
   preset?: string;
   name?: string;
   weights?: number[];
-  auto_punt?: 1 | 2;
+  auto_punt?: 1 | 2 | "detect";
   auto_revive?: 1 | 2;
 }
 
@@ -425,10 +425,11 @@ export type Acceptability = "high" | "medium" | "low";
 export type Perceived = "season_total" | "preseason" | "blend";
 
 export interface SuggestIn {
+  protected?: string[];
   team: string;
   mode: SuggestMode;
   opponents?: string[] | null;
-  opponent_assumption: "balanced" | "punt1" | "punt2";
+  opponent_assumption: "balanced" | "punt1" | "punt2" | "detect";
   perceived: Perceived;
   min_balance: number;
   min_edge: number;
@@ -844,10 +845,11 @@ export interface MultiSeasonOut {
 }
 
 export interface MultiSuggestIn {
+  protected?: string[];
   team: string;
   shapes: string[];
   opponents?: string[] | null;
-  opponent_assumption: "balanced" | "punt1" | "punt2";
+  opponent_assumption: "balanced" | "punt1" | "punt2" | "detect";
   shortlist: number;
   shortlist4: number;
   min_fairness: number;

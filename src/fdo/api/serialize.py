@@ -51,6 +51,10 @@ def strategy_from(payload: dict | None, eng: TradeEngine | None = None, team: st
         if eng is None or team is None:
             raise ValueError("Otomatik strateji için takım gerekli")
         probs = eng.league_probabilities().loc[team, list(CATEGORIES)].to_numpy()
+        if payload.get("auto_punt") == "detect":
+            auto = Strategy.detect(probs)
+            punted = [CATEGORY_LABELS[c] for c, w in zip(CATEGORIES, auto.weights) if w == 0]
+            return Strategy(f"Profilden: punt {' + '.join(punted)}", auto.weights) if punted                 else Strategy("Profilden: dengeli (belirgin punt yok)")
         if payload.get("auto_punt"):
             auto = Strategy.adaptive(probs, int(payload["auto_punt"]))
             punted = [CATEGORY_LABELS[c] for c, w in zip(CATEGORIES, auto.weights) if w == 0]
@@ -67,7 +71,11 @@ def strategy_from(payload: dict | None, eng: TradeEngine | None = None, team: st
 
 
 def assumed_strategies(eng: TradeEngine, assumption: str, teams) -> dict[str, Strategy]:
-    """Rakip strateji varsayımı: ``balanced`` (boş sözlük = dengeli) ya da ``punt1``/``punt2`` (profilden)."""
+    """Rakip strateji varsayımı: ``balanced`` (boş sözlük = dengeli), ``punt1``/``punt2`` (profilden en zayıf 1–2) ya da
+    ``detect`` (profilden tespit: belirgin zayıf kategoriler, takıma göre 0–3; ``Strategy.detect``)."""
+    if assumption == "detect":
+        probs = eng.league_probabilities()
+        return {t: Strategy.detect(probs.loc[t, list(CATEGORIES)].to_numpy()) for t in teams}
     if assumption not in ("punt1", "punt2"):
         return {}
     probs = eng.league_probabilities()

@@ -38,8 +38,8 @@ export const api = {
   freshness: () => request<Freshness>("/api/freshness"),
   scenarioCheck: (w: WhatIf, injuries: boolean) =>
     request<ScenarioCheckOut>(`/api/scenario/check?${q(injuries)}`, { method: "POST", body: JSON.stringify(payload(w)), headers: { "X-FDO-Scenario": "" } }),
-  playersIndex: (league: string, injuries: boolean) =>
-    request<IndexPlayer[]>(`/api/leagues/${league}/players-index?${q(injuries)}`),
+  playersIndex: (league: string, injuries: boolean, free = 250) =>
+    request<IndexPlayer[]>(`/api/leagues/${league}/players-index?free=${free}&${q(injuries)}`),
   scenarioEffect: (league: string, body: { team_a: string; team_b: string; injuries: boolean; n_sims?: number; basis?: string }) =>
     request<ScenarioEffectOut>(`/api/leagues/${league}/scenario/effect`, post(body)),
   dataChecks: (league: string, injuries: boolean) =>
@@ -65,7 +65,7 @@ export const api = {
     request<ReportRecord>(`/api/trade/report/${key}`, { headers: codeHeader(code) }),
   tradeScenarios: (league: string, body: TradeIn) =>
     request<ScenariosOut>(`/api/leagues/${league}/trade/scenarios`, post(body)),
-  tradeComplete: (league: string, body: TradeIn) =>
+  tradeComplete: (league: string, body: TradeIn & { protected?: string[] }) =>
     request<CompleteOut>(`/api/leagues/${league}/trade/complete`, post(body)),
   suggest: (league: string, body: SuggestIn) => request<SuggestOut>(`/api/leagues/${league}/trade/suggest`, post(body)),
   multiAnalyze: (league: string, body: MultiTradeIn) =>

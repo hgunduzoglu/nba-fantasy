@@ -4,15 +4,19 @@ export type StrategyChoice =
   | { kind: "balanced" }
   | { kind: "preset"; name: string }
   | { kind: "auto"; n: 1 | 2 }
+  | { kind: "detect" }
   | { kind: "revive"; n: 1 | 2 }
   | { kind: "custom"; weights: number[] };
 
 export const BALANCED: StrategyChoice = { kind: "balanced" };
+/** Rakip için varsayılan: kategori profilinden bıraktığı kategoriler (0–3) tespit edilir. */
+export const DETECT: StrategyChoice = { kind: "detect" };
 
 export function toStrategyIn(c: StrategyChoice): StrategyIn | null {
   switch (c.kind) {
     case "preset": return { preset: c.name };
     case "auto": return { auto_punt: c.n };
+    case "detect": return { auto_punt: "detect" };
     case "revive": return { auto_revive: c.n };
     case "custom": return { name: "Özel", weights: c.weights };
     default: return null;
@@ -24,6 +28,7 @@ export function strategyLabel(c: StrategyChoice): string {
     case "preset": return c.name;
     case "auto": return c.n === 1 ? "Otomatik: en zayıf kategoriyi punt" : "Otomatik: en zayıf iki kategoriyi punt";
     case "revive": return c.n === 1 ? "Canlandır: en zayıf kategori ×3" : "Canlandır: en zayıf iki kategori ×3";
+    case "detect": return "Profilden tespit";
     case "custom": return "Özel ağırlıklar";
     default: return "Dengeli";
   }
@@ -43,6 +48,7 @@ export function StrategyPicker({ meta, value, onChange, label = "Strateji", auto
   const pick = (v: string) => {
     if (v === "balanced") onChange(BALANCED);
     else if (v === "custom") onChange({ kind: "custom", weights: value.kind === "custom" ? value.weights : Array(9).fill(1) });
+    else if (v === "detect") onChange(DETECT);
     else if (v.startsWith("auto:")) onChange({ kind: "auto", n: Number(v.slice(5)) as 1 | 2 });
     else if (v.startsWith("revive:")) onChange({ kind: "revive", n: Number(v.slice(7)) as 1 | 2 });
     else onChange({ kind: "preset", name: v.slice(7) });
@@ -51,10 +57,12 @@ export function StrategyPicker({ meta, value, onChange, label = "Strateji", auto
     <div className="field">
       <span>{label}</span>
       <select className="select" value={encode(value)} onChange={(e) => pick(e.target.value)}
-              title={value.kind === "auto" ? autoHint ?? "Takımın kategori profilinden en zayıf kategori(ler) punt kabul edilir (varsayım)."
+              title={value.kind === "detect" ? "Lig ortalamasına karşı kazanma olasılığı %25'in altındaki en zayıf kategoriler (en çok 3) bırakılmış sayılır; yoksa dengeli (varsayım)."
+                : value.kind === "auto" ? autoHint ?? "Takımın kategori profilinden en zayıf kategori(ler) punt kabul edilir (varsayım)."
                 : value.kind === "revive" ? "Punt'un tersi: takımın en zayıf kategori(ler)i üç kat önemli sayılır (vazgeçilmiş görünen kategoriyi geri kazanma)." : undefined}>
         <option value="balanced">Dengeli</option>
         <optgroup label="Otomatik (takım profilinden)">
+          <option value="detect">Profilden tespit: belirgin zayıf kategoriler (0–3)</option>
           <option value="auto:1">Otomatik: en zayıf kategoriyi punt</option>
           <option value="auto:2">Otomatik: en zayıf iki kategoriyi punt</option>
           <option value="revive:1">Canlandır: en zayıf kategori ×3</option>

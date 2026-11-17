@@ -68,8 +68,10 @@ class SearchOptions:
     max_view: float = 1.25                  # karşılıklı faydada rakibin gözünde en çok: üstü piyasa gözünde senin fazla
                                             # ödemen, karşılığında daha fazlası istenebilir (0 = kapalı)
     rank: str = "own"                       # sıralama politikası (``RANKINGS``)
+    protected: frozenset[str] = frozenset()  # takasa konmayacak oyuncular (her iki taraf; README §13.54)
 
     def __post_init__(self):
+        object.__setattr__(self, "protected", frozenset(str(p) for p in self.protected))
         if (self.mode not in MODES or self.perceived not in PERCEPTIONS or self.min_perceived_balance < 0
                 or self.min_edge < 0 or self.min_opponent_view < 0 or self.rank not in RANKINGS):
             raise ValueError("Geçersiz öneri türü ya da algılanan değer ayarı")
@@ -186,14 +188,18 @@ def suggest_trades(engine: TradeEngine, team_id: str, *, strategy: Strategy | No
     edge = (perceived - engine.market).dropna()
     sell = list(edge[edge >= options.min_edge].sort_values(ascending=False).index) if mode == "sell_high" else []
     buy = list(edge[edge <= -options.min_edge].sort_values().index) if mode == "buy_low" else []
-    own = _shortlist(engine, team_id, strategy, options.shortlist, sell)
+    free = lambda tid: [p for p in engine.league.rosters[tid]                                   # noqa: E731
+                        if engine.modeled[engine.index[p]] and p not in options.protected]
+    own = [p for p in _shortlist(engine, team_id, strategy, options.shortlist + len(options.protected), sell)
+           if p not in options.protected][:options.shortlist]
     generators = []
     for tid in others:
         os = strategies.get(tid, Strategy())
-        other = _shortlist(engine, tid, os, options.shortlist, buy)
+        other = [p for p in _shortlist(engine, tid, os, options.shortlist + len(options.protected), buy)
+                 if p not in options.protected][:options.shortlist]
         for a, b in options.package_sizes:
-            aa = [p for p in engine.league.rosters[team_id] if engine.modeled[engine.index[p]]] if a == b == 1 else own
-            bb = [p for p in engine.league.rosters[tid] if engine.modeled[engine.index[p]]] if a == b == 1 else other
+            aa = free(team_id) if a == b == 1 else own
+            bb = free(tid) if a == b == 1 else other
             combos = itertools.product(itertools.combinations(aa, a), itertools.combinations(bb, b))
             generators.append((tid, os, iter(combos)))
     # Rakip ve paket türleri sırayla taranır; bütçe ilk birkaç rakipte tüketilmez.
@@ -304,8 +310,10 @@ class CompleteOptions:
     require_reason: bool = True             # rakip için gerekçesiz paket listelenmez (``counterpart``)
     max_view: float = 1.25                  # rakibin gözünde en çok: üstü piyasa gözünde senin fazla ödemen (0 = kapalı)
     rank: str = "own"                       # sıralama politikası (``RANKINGS``)
+    protected: frozenset[str] = frozenset()  # eklenmeyecek oyuncular (seçili olanlar sabit kalır; README §13.54)
 
     def __post_init__(self):
+        object.__setattr__(self, "protected", frozenset(str(p) for p in self.protected))
         if self.rank not in RANKINGS:
             raise ValueError("Geçersiz sıralama politikası")
         if (not 1 <= self.max_side <= 3 or not 1 <= self.max_extra <= 3 or not 2 <= self.shortlist <= 20
@@ -431,9 +439,11 @@ def complete_trade(engine: TradeEngine, team_a: str, team_b: str, give_a: tuple[
             result.current = None
 
     def pool(tid: str, fixed: tuple[str, ...], strategy: Strategy, k: int) -> list[str]:
+        skip = set(fixed) | options.protected
         if k == 1:
-            return [p for p in rosters[tid] if p not in fixed and engine.modeled[engine.index[p]]]
-        return [p for p in _shortlist(engine, tid, strategy, options.shortlist + len(fixed)) if p not in fixed]
+            return [p for p in rosters[tid] if p not in skip and engine.modeled[engine.index[p]]]
+        return [p for p in _shortlist(engine, tid, strategy, options.shortlist + len(skip)) if p not in skip][
+            :options.shortlist]
 
     found: list[Suggestion] = []
     for ka, kb in _extra_sizes(len(fixed_a), len(fixed_b), options.max_side, options.max_extra):

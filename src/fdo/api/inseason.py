@@ -88,7 +88,7 @@ def register(app: FastAPI, state: AppState) -> None:
                                  body.min_gain, body.min_win / 100, body.auto_balance, body.ecw_weight,
                                  body.mode, body.perceived, body.min_balance, body.min_edge,
                                  body.min_view if body.mode == "mutual" else 0.0, body.require_reason,
-                                 body.max_view, body.rank)
+                                 body.max_view, body.rank, frozenset(body.protected))
             strategy = _strategy(body.strategy, eng, body.team)
             found = suggest_trades(eng, body.team, strategy=strategy, opponent_strategies=opp_strats,
                                    opponents=opps, options=opts)
@@ -172,7 +172,7 @@ def register(app: FastAPI, state: AppState) -> None:
                                    max_results=24 if sim else 12,
                                    min_fairness=body.min_fairness, min_view=body.min_view, perceived=body.perceived,
                                    auto_balance=body.auto_balance, require_reason=body.require_reason,
-                                   max_view=body.max_view, rank=body.rank)
+                                   max_view=body.max_view, rank=body.rank, protected=frozenset(body.protected))
             found = complete_trade(eng, body.team_a, body.team_b, tuple(body.give_a), tuple(body.give_b),
                                    strategy_a=sa, strategy_b=sb, options=opts)
         except (ValueError, TradeError) as e:

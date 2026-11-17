@@ -5,6 +5,8 @@ import { FixtureImpact } from "../components/FixtureImpact";
 import { CategoryChips, DecisionBadge, ErrorBanner, LineupCell, LineupWarnBadge, Loading, SignalBadge, PlayerName, deltaClass } from "../components/common";
 import { RosterTable } from "../components/RosterTable";
 import { BALANCED, StrategyPicker, toStrategyIn, type StrategyChoice } from "../components/StrategyPicker";
+import { ProtectedPicker } from "../components/ProtectedPicker";
+import { protectedIds } from "../protected";
 import { fmtDelta, fmtNum, fmtPct, fmtStat } from "../format";
 import type {
   FixtureTeam, League, Meta, MultiSeasonOut, MultiSuggestOut, MultiSuggestion, MultiTeamOut, MultiTradeIn, MultiTradeOut, Player,
@@ -476,7 +478,7 @@ type Effect = { playoff: number; champion: number } | "err";
 function MultiSuggest({ meta, league, team, injuries, onOpen }: Props & { onOpen: (init: MultiInit) => void }) {
   const [shapes, setShapes] = useState<string[]>(["1-1-1", "2-1-1", "1-1-2", "1-1-1-1"]);
   const [strategy, setStrategy] = useState<StrategyChoice>(BALANCED);
-  const [assume, setAssume] = useState<"balanced" | "punt1" | "punt2">("balanced");
+  const [assume, setAssume] = useState<"balanced" | "punt1" | "punt2" | "detect">("detect");
   const [minFair, setMinFair] = useState(0.5);
   const [minGain, setMinGain] = useState(0.005);
   const [minView, setMinView] = useState(0.8);
@@ -497,6 +499,7 @@ function MultiSuggest({ meta, league, team, injuries, onOpen }: Props & { onOpen
     api.multiSuggest(league.id, {
       team, shapes, opponent_assumption: assume, shortlist, shortlist4: Math.min(shortlist4, shortlist),
       min_fairness: minFair, min_gain: minGain, min_view: minView, strategy: toStrategyIn(strategy), injuries,
+      protected: protectedIds(league.id),
     }).then(setResult).catch((e: Error) => setError(e.message)).finally(() => setBusy(false));
   };
 
@@ -553,9 +556,11 @@ function MultiSuggest({ meta, league, team, injuries, onOpen }: Props & { onOpen
         </div>
         <div className="toolbar" style={{ marginTop: 14, marginBottom: 0 }}>
           <StrategyPicker meta={meta} value={strategy} onChange={setStrategy} label="Senin stratejin (yön)" />
+          <ProtectedPicker league={league} injuries={injuries} />
           <label className="field"><span>Diğer takımların stratejisi</span>
             <select className="select" value={assume} onChange={(e) => setAssume(e.target.value as typeof assume)}>
               <option value="balanced">Dengeli</option>
+              <option value="detect">Profilden tespit (belirgin zayıf kategoriler)</option>
               <option value="punt1">En zayıf kategorisini punt</option>
               <option value="punt2">En zayıf iki kategorisini punt</option>
             </select>

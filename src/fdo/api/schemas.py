@@ -2,19 +2,28 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from typing import Literal
+
+from pydantic import BaseModel, Field, field_validator
 
 
 class StrategyIn(BaseModel):
     """Hazır strateji (``preset``), özel ağırlıklar (``weights``, 9 değer 0–3), ``auto_punt`` (1 ya da 2: takımın
-    kategori profilinden en zayıf kategori(ler)i punt) ya da ``auto_revive`` (1 ya da 2: en zayıf kategori(ler)
-    üç kat önemli). Hiçbiri yoksa dengeli."""
+    kategori profilinden en zayıf kategori(ler)i punt; ``"detect"``: belirgin zayıf kategoriler, 0–3, ``Strategy.detect``)
+    ya da ``auto_revive`` (1 ya da 2: en zayıf kategori(ler) üç kat önemli). Hiçbiri yoksa dengeli."""
 
     preset: str | None = None
     name: str | None = None
     weights: list[float] | None = None
-    auto_punt: int | None = Field(default=None, ge=1, le=2)
+    auto_punt: int | Literal["detect"] | None = None
     auto_revive: int | None = Field(default=None, ge=1, le=2)
+
+    @field_validator("auto_punt")
+    @classmethod
+    def _punts(cls, v):
+        if v is not None and v != "detect" and v not in (1, 2):
+            raise ValueError("auto_punt 1, 2 ya da 'detect' olmalı")
+        return v
 
 
 class TradeIn(BaseModel):
@@ -73,13 +82,14 @@ class CompleteIn(TradeIn):
     max_evaluations: int = Field(default=4000, ge=100, le=20000)
     rank: str = Field(default="own", pattern="^(own|joint)$")   # sıralama politikası (fdo.trade.suggest.RANKINGS)
     lineup_rank: bool = True                        # finalistleri günlük kadro farkıyla yeniden sırala
+    protected: list[str] = Field(default_factory=list)     # takasa konmayacak oyuncular (README §13.54)
 
 
 class SuggestIn(BaseModel):
     team: str
     mode: str = "mutual"
     opponents: list[str] | None = None
-    opponent_assumption: str = "balanced"           # balanced | punt1 | punt2
+    opponent_assumption: str = "balanced"           # balanced | punt1 | punt2 | detect
     perceived: str = "blend"
     min_balance: float = 0.9
     min_edge: float = 1.0
@@ -98,6 +108,7 @@ class SuggestIn(BaseModel):
     injuries: bool = True
     rank: str = Field(default="own", pattern="^(own|joint)$")   # sıralama politikası (fdo.trade.suggest.RANKINGS)
     lineup_rank: bool = True                        # finalistleri günlük kadro farkıyla yeniden sırala
+    protected: list[str] = Field(default_factory=list)     # takasa konmayacak oyuncular (README §13.54)
 
 
 class MoveIn(BaseModel):
@@ -124,7 +135,7 @@ class MultiSuggestIn(BaseModel):
     team: str
     shapes: list[str] = Field(default_factory=lambda: ["1-1-1", "2-1-1", "1-1-2", "1-1-1-1"])
     opponents: list[str] | None = None
-    opponent_assumption: str = "balanced"           # balanced | punt1 | punt2
+    opponent_assumption: str = "balanced"           # balanced | punt1 | punt2 | detect
     shortlist: int = 6
     shortlist4: int = 4
     min_fairness: float = 0.5
@@ -136,6 +147,7 @@ class MultiSuggestIn(BaseModel):
     injuries: bool = True
     rank: str = Field(default="own", pattern="^(own|joint)$")   # sıralama politikası
     lineup_rank: bool = True                        # finalistleri günlük kadro farkıyla yeniden sırala
+    protected: list[str] = Field(default_factory=list)     # takasa konmayacak oyuncular (README §13.54)
     time_budget: float | None = Field(default=60, gt=0, le=900)   # saniye; None = sınırsız
 
 

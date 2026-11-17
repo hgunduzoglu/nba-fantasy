@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 import { AcceptBadge, CategoryChips, ComponentBadges, DecisionBadge, ErrorBanner, LineupWarnBadge, Loading, MovesWarnBadge, SignalBadge, PlayerName, SeasonDeltaCell, SeasonWarnBadge, deltaClass, seasonWarning } from "../components/common";
 import { BALANCED, StrategyPicker, strategyLabel, toStrategyIn, type StrategyChoice } from "../components/StrategyPicker";
+import { ProtectedPicker } from "../components/ProtectedPicker";
+import { protectedIds } from "../protected";
 import { fmtDelta, fmtNum, fmtPct } from "../format";
 import type { League, Meta, MispricedRow, Perceived, SeasonEffect, SuggestMode, SuggestOut, Suggestion } from "../types";
 
@@ -93,7 +95,7 @@ export function SuggestPage({ meta, league, team, injuries, onOpen }: Props) {
   const [mode, setMode] = useState<SuggestMode>("mutual");
   const [dirs, setDirs] = useState<DirId[]>(DEFAULT_DIRS);
   const [custom, setCustom] = useState<StrategyChoice>({ kind: "custom", weights: Array(9).fill(1) });
-  const [assume, setAssume] = useState<"balanced" | "punt1" | "punt2">("balanced");
+  const [assume, setAssume] = useState<"balanced" | "punt1" | "punt2" | "detect">("detect");
   const [perceived, setPerceived] = useState<Perceived>("blend");
   const [minBalance, setMinBalance] = useState(0.9);
   const [minEdge, setMinEdge] = useState(1.0);
@@ -141,7 +143,7 @@ export function SuggestPage({ meta, league, team, injuries, onOpen }: Props) {
         out[d.id] = await api.suggest(league.id, {
           team, mode, opponent_assumption: assume, perceived, min_balance: minBalance, min_edge: minEdge, packages,
           max_evaluations: budget, min_fairness: minFair, min_gain: 0.005, min_view: minView, auto_balance: true,
-          strategy: toStrategyIn(d.strategy), ecw_weight: d.ecw ?? 0.65, injuries,
+          strategy: toStrategyIn(d.strategy), ecw_weight: d.ecw ?? 0.65, injuries, protected: protectedIds(league.id),
         });
         setResults({ ...out });
       } catch (e) {
@@ -268,9 +270,11 @@ export function SuggestPage({ meta, league, team, injuries, onOpen }: Props) {
           </div>
         )}
         <div className="toolbar" style={{ marginTop: 14, marginBottom: 0 }}>
+          <ProtectedPicker league={league} injuries={injuries} />
           <label className="field"><span>Rakip stratejisi varsayımı</span>
             <select className="select" value={assume} onChange={(e) => setAssume(e.target.value as typeof assume)}>
               <option value="balanced">Dengeli</option>
+              <option value="detect">Profilden tespit (belirgin zayıf kategoriler)</option>
               <option value="punt1">En zayıf kategorisini punt</option>
               <option value="punt2">En zayıf iki kategorisini punt</option>
             </select>

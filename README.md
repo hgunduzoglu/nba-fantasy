@@ -2627,6 +2627,22 @@ leaves, Raynaud starts". The scenario layer answers both in the app:
 - `POST /api/scenario/check` returns each step's status (applied / skipped / error with the reason and the roster moves) and each
   role's; `GET /api/leagues/{lid}/players-index` serves the form.
 
+### 13.54 Detected punts, small-sample season rates and protected players (17 November 2026)
+
+- **Detected punts** (`Strategy.detect`): an opponent's punts are read from its category profile: categories whose win probability
+  against the league is below 0.25, the weakest first, at most three; none → balanced. Unlike "punt the weakest 1/2" the number
+  varies by team (17 November, METU IE: Çatal State Warriors AST, The Last Führer FT% + 3PM, most teams none). It is the default
+  opponent strategy on the Trade page (`auto_punt: "detect"`) and the default opponent assumption in Suggestions and Multi-team
+  (`opponent_assumption: "detect"`), so an opponent's gain and acceptability ignore the categories it has given up.
+- **Season basis with few games** (`fdo.inseason.scenarios`): the "this season" basis used a player's actual rates from 3 games on
+  (Claxton's 4 games moved results by 10+ points). Below 8 games it now uses the blend weight `n / (n + 10)` toward Yahoo; from 8
+  games the actual rates as before.
+- **Protected players**: players a manager will not trade (Goat Kiss Cam: KAT, Avdija, Boozer) or the user will not give. Kept per
+  league in the browser (`tl.protected`) and sent as `protected` to suggestions, completion and multi-team suggestions; they never
+  enter a candidate pool (chosen players in completion stay fixed).
+- The acceptance model itself is still uncalibrated: the offer log has no records yet. Logging offers and answers (Trade page) is
+  what will make a per-manager model possible.
+
 ### 13.8 V3 candidates
 
 Beam search and H-score weight optimization; fitting the profile mix; covariance of game counts between
