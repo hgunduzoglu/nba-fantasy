@@ -1785,6 +1785,14 @@ uygulanır:
 - **Tavan** = oran × dönüşten sonraki takım maçı (dönüş tarihi bilinmiyorsa bugünden). ROS maçı tavanı aşıyorsa ROS
   toplamları orantılı küçülür, maç başı değerler korunur. Yahoo'nun zaten kıstığı oyuncu (ör. Anthony Davis 59) değişmez;
   sezon öncesi projeksiyonu olmayan oyuncuya dokunulmaz.
+- **Kısa sakatlıkta 0 ROS maçı** (17 Kasım 2026): Yahoo bazen sakat oyuncuya kalan sezon için 0 maç veriyor (Evan Mobley,
+  29 Kasım'a kadar yok), bazı kadrolu rotasyon oyuncularının projeksiyon sayfalarında hiç satırı yok (Walter Clayton Jr.);
+  bunlar modellenmiyor, takasta ve sezon simülasyonunda 0 değerli görünüyordu. Oyuncunun sezon öncesi projeksiyonu varsa ve
+  CBS'te dönüş tarihi biliniyorsa ya da kadroda olup CBS'te günlük sakat veya CBS kaydı olmayan ve Yahoo'da `NA`/`O` değilse
+  ROS satırı doldurulur: maç başı = bu sezon ile sezon öncesi projeksiyonun 20 maçlık önselle ağırlıklı ortalaması, maç =
+  önsel oran × dönüşten (yoksa bugünden) sonraki takım maçı. Sezon boyu ya da tarihsiz uzun yokluklar ve kadrosuz oyuncular
+  Yahoo'nun verdiği gibi kalır. 17 Kasım: Mobley, Merrill, Porziņģis ve Clayton Jr. dolduruldu (Mobley değer sırası 65);
+  Kevin Porter Jr. (`NA`) modelsiz kalır. Doldurulanlar veri notlarında ve `durability.ros_filled`'da.
 - Etki her yerde: takas motoru (haftalık vektör, piyasa değeri), haftalık model ve sezon simülasyonu (uygunluk
   `ROS GP / kalan takım maçı`), IL dönüş payı. Kalan sezon kaynağında GP sütununda kısılan oyuncu `*` ile işaretli; üzerine
   gelince Yahoo'nun maçı ve oran görünür. Bu haftanın görünümünde de sağlıklı oyuncu beklenen değerle (oran kadar) oynar.
