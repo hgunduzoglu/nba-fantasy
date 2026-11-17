@@ -11,6 +11,9 @@ projeksiyonun maç sayısı ise bu riski içerir (ör. Caruso 58/82).
 * Tavan = oran × dönüşten sonraki takım maçı (dönüş tarihi bilinmiyorsa bugünden). ROS maçı tavanı aşıyorsa ROS
   toplamları orantılı küçültülür; maç başı değerler korunur.
 
+* Yahoo'nun 0 maç (ya da hiç satır) verdiği, dönüşü bilinen sakat ya da kadrodaki aktif oyuncu önce sezon + sezon öncesi maç başı değerleriyle
+  doldurulur (``_fill_missing_ros``); yoksa hiç modellenmez.
+
 Sezon öncesi projeksiyonu olmayan oyuncuya dokunulmaz. Ham dosyalar değişmez; düzeltme bellekte ve açıkça
 raporlanır. Sakatlık dönüş tarihlerinden (``apply_injuries``) sonra uygulanır.
 """
@@ -18,6 +21,7 @@ raporlanır. Sakatlık dönüş tarihlerinden (``apply_injuries``) sonra uygulan
 from __future__ import annotations
 
 import dataclasses
+import datetime as dt
 
 import numpy as np
 import pandas as pd
@@ -39,6 +43,7 @@ def apply_durability(data: TradeData, prior_games: float = PRIOR_GAMES) -> Trade
     stats = {k: v.copy() for k, v in data.stats.items()}
     ros, pre, season = stats[ROS], stats["preseason"]["gp"], stats["season_total"]["gp"]
     inj = data.injuries
+    filled = _fill_missing_ros(data, stats, games, prior_games)
     rows = []
     for pid in ros.index:
         gp, pre_gp = float(ros.loc[pid, "gp"]), float(pre.get(pid, np.nan))
@@ -63,10 +68,68 @@ def apply_durability(data: TradeData, prior_games: float = PRIOR_GAMES) -> Trade
     if not rows:
         return data
     table = pd.DataFrame(rows).set_index("player_id")
+    table["ros_filled"] = table.index.isin(filled)
     cut = table["ros_gp_after"] < table["ros_gp_before"] - 1e-9
     sources = {**data.sources, "durability": {"kind": "durability", "basis": "preseason projected_gp / 82",
-                                              "prior_games": prior_games, "rows": int(cut.sum())}}
+                                              "prior_games": prior_games, "rows": int(cut.sum()),
+                                              "ros_filled": sorted(filled)}}
     note = (f"Dayanıklılık uygulandı: {int(cut.sum())} oyuncunun kalan sezon maçı sezon öncesi oynama oranıyla "
             f"sınırlandı (toplam {table['ros_gp_before'].sum():.0f} → {table['ros_gp_after'].sum():.0f} maç).")
+    notes = [note]
+    if filled:
+        names = ", ".join(str(data.players.loc[p, "name"]) for p in filled)
+        notes.append(f"Kalan sezon projeksiyonu 0 maç ya da boş olan {len(filled)} oyuncu sezon ve sezon "
+                     f"öncesi maç başı değerleriyle dolduruldu: {names}")
     return dataclasses.replace(data, stats=stats, sources=sources, durability=table,
-                               fingerprint=f"{data.fingerprint}:dur{int(cut.sum())}", issues=(*data.issues, note))
+                               fingerprint=f"{data.fingerprint}:dur{int(cut.sum())}f{len(filled)}",
+                               issues=(*data.issues, *notes))
+
+
+def _fill_missing_ros(data: TradeData, stats: dict, games: dict, prior_games: float) -> list[str]:
+    """Yahoo'nun kalan sezon projeksiyonu 0 maç (ya da hiç satır) verdiği oyuncu aksi hâlde hiç modellenmez ve değeri
+    0 görünür. Doldurulanlar: CBS'te dönüş tarihi bilinen sakat (ör. birkaç hafta yok) ve kadrodaki oyunculardan günlük
+    sakat (CBS ``day_to_day``) ya da CBS kaydı olmayan, Yahoo'da aktif durumdaki (``NA`` değil) oyuncu (ör. projeksiyon
+    sayfalarında satırı çıkmayan rotasyon oyuncusu). Maç başı değer = bu sezon ile sezon öncesi projeksiyonun
+    ``prior_games`` maçlık önselle ağırlıklı ortalaması, maç = önsel oynama oranı × dönüşten (yoksa bugünden) sonraki
+    takım maçı (``stats`` yerinde güncellenir). Sezon boyu yok, dönüşü bilinmeyen uzun sakatlık ya da sezon öncesi
+    projeksiyonu olmayan oyuncuya dokunulmaz. Doldurulanların kimlikleri döner."""
+    inj = data.injuries if data.injuries is not None else pd.DataFrame(columns=["kind", "return_date"])
+    ros, pre, season = stats[ROS], stats["preseason"], stats["season_total"]
+    owned = {p for lg in data.leagues.values() for r in lg.rosters.values() for p in r}
+    starts: dict[str, dt.date] = {}
+    for pid, row in inj.iterrows():
+        if row["kind"] == "out_until" and not pd.isna(row["return_date"]):
+            starts[pid] = max(data.as_of, pd.Timestamp(row["return_date"]).date())
+        elif row["kind"] == "day_to_day" and pid in owned:
+            starts[pid] = data.as_of
+    for pid in owned - set(inj.index):
+        if str(data.players.loc[pid, "injury_status"] or "") not in ("NA", "O", "INJ", "SUSP"):
+            starts[pid] = data.as_of
+    filled = []
+    for pid, start in starts.items():
+        if pid not in ros.index:
+            continue
+        gp = float(ros.loc[pid, "gp"]) if pd.notna(ros.loc[pid, "gp"]) else 0.0
+        pre_gp = float(pre.loc[pid, "gp"]) if pid in pre.index and pd.notna(pre.loc[pid, "gp"]) else np.nan
+        if gp > 0 or not (np.isfinite(pre_gp) and pre_gp > 0):
+            continue
+        pre_pg = pre.loc[pid, list(STATS)].astype(float) / pre_gp
+        if not np.isfinite(pre_pg.to_numpy()).all():
+            continue
+        seen = float(season.loc[pid, "gp"]) if pid in season.index and pd.notna(season.loc[pid, "gp"]) else 0.0
+        cur = season.loc[pid, list(STATS)].astype(float) / seen if seen > 0 else pre_pg
+        if not np.isfinite(cur.to_numpy()).all():
+            cur, seen = pre_pg, 0.0
+        w = seen / (seen + prior_games) if seen + prior_games > 0 else 0.0
+        per_game = w * cur + (1 - w) * pre_pg
+        left = sum(d >= start for d in games.get(normalize_team(data.players.loc[pid, "nba_team"] or ""), []))
+        new_gp = min(1.0, pre_gp / SEASON_GAMES) * left
+        if new_gp <= 0:
+            continue
+        ros.loc[pid, list(STATS)] = (per_game * new_gp).to_numpy()
+        ros.loc[pid, "gp"] = new_gp
+        for col in ros.columns.difference(["gp", *STATS]):
+            if pd.api.types.is_float_dtype(ros[col]):
+                ros.loc[pid, col] = np.nan          # kaynaktaki yüzde vb. artık bu satırı anlatmaz
+        filled.append(pid)
+    return filled

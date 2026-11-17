@@ -61,3 +61,36 @@ def test_without_preseason_untouched_and_market_falls(data):  # noqa: F811
     np.testing.assert_allclose(out.stats[ROS].loc["3"], data.stats[ROS].loc["3"])
     before, after = TradeEngine(data, "L", utilization=1), TradeEngine(out, "L", utilization=1)
     assert after.vecs[after.index["5"]][0] < before.vecs[before.index["5"]][0]
+
+
+def test_zero_ros_with_known_return_is_filled(data):  # noqa: F811
+    ret = dt.date(2026, 11, 5)
+    data.stats["preseason"].loc["1", "gp"] = 41.0                          # oran .5
+    pre_pg = data.stats["preseason"].loc["1", "pts"] / 41.0
+    season_pg = data.stats["season_total"].loc["1", "pts"] / data.stats["season_total"].loc["1", "gp"]
+    seen = float(data.stats["season_total"].loc["1", "gp"])
+    data.stats[ROS].loc["1", [*data.stats[ROS].columns]] = 0.0              # Yahoo: 0 maç
+    data.stats[ROS].loc["20", "gp"] = 0.0                                  # boştaki, dönüşü bilinmiyor → dokunulmaz
+    out = apply_durability(apply_injuries(data, _injuries([
+        {"player_id": "1", "kind": "out_until", "return_date": ret},
+        {"player_id": "20", "kind": "day_to_day", "return_date": None}])))
+    ros = out.stats[ROS]
+    left = _left(data, "BBB", ret)
+    assert ros.loc["1", "gp"] == pytest.approx(.5 * left)
+    w = seen / (seen + PRIOR_GAMES)
+    assert ros.loc["1", "pts"] / ros.loc["1", "gp"] == pytest.approx(w * season_pg + (1 - w) * pre_pg)
+    assert ros.loc["20", "gp"] == 0 and bool(out.durability.loc["1", "ros_filled"])
+    assert data.stats[ROS].loc["1", "gp"] == 0                             # orijinal bozulmaz
+    eng = TradeEngine(out, "L", utilization=1)
+    assert eng.modeled[eng.index["1"]] and not eng.modeled[eng.index["20"]]
+    assert any("dolduruldu" in m for m in out.issues)
+
+
+def test_rostered_player_without_ros_row_is_filled_from_today(data):  # noqa: F811
+    data.stats["preseason"].loc[["0", "4", "20"], "gp"] = 41.0
+    data.stats[ROS].loc[["0", "4", "20"], [*data.stats[ROS].columns]] = np.nan   # sayfalarda satırı yok
+    data.players.loc["4", "injury_status"] = "NA"                          # aktif değil → dokunulmaz
+    out = apply_durability(data)
+    ros = out.stats[ROS]
+    assert ros.loc["0", "gp"] == pytest.approx(.5 * _left(data, "AAA"))    # kadroda, sağlıklı
+    assert np.isnan(ros.loc["4", "gp"]) and np.isnan(ros.loc["20", "gp"])   # NA; kadrosuz boştaki

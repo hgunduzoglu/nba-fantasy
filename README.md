@@ -1782,6 +1782,14 @@ API:
 - **Cap** = rate × team games after the return (from today if the return date is unknown). If the ROS games exceed the cap, the ROS
   totals shrink proportionally and per-game values are preserved. A player Yahoo has already scaled down (e.g. Anthony Davis 59) is unchanged;
   a player without a preseason projection is not touched.
+- **Zero ROS games for a short-term injury** (17 November 2026): Yahoo sometimes gives an injured player 0 rest-of-season games
+  (Evan Mobley, out until 29 November), and some rostered rotation players have no row on the projection pages at all (Walter
+  Clayton Jr.); they were unmodeled and worth 0 in trades and the season simulation. The ROS row is filled when the player has a
+  preseason projection and either the CBS report has a known return date, or he is rostered and day-to-day in CBS or has no CBS record
+  and is not `NA`/`O` in Yahoo: per game = this season and the preseason projection weighted with the 20-game prior, games =
+  preseason rate × team games after the return (or from today). Season-long or undated long absences and unrostered players are left
+  as Yahoo gives them. 17 November: Mobley, Merrill, Porziņģis and Clayton Jr. filled (Mobley value rank 65); Kevin Porter Jr. (`NA`)
+  stays unmodeled. The filled players are listed in the data notes and `durability.ros_filled`.
 - The effect is everywhere: trade engine (weekly vector, market value), weekly model and season simulation (availability
   `ROS GP / remaining team games`), IL return share. In the "Kalan sezon" (Rest of season) source, players who were scaled down are marked with `*` in the GP column; hovering
   shows Yahoo's games and the rate. In the "Bu Hafta" (This Week) view, a healthy player also plays at expected value (at the rate).
