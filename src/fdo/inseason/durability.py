@@ -13,6 +13,9 @@ projeksiyonun maç sayısı ise bu riski içerir (ör. Caruso 58/82).
 
 * Yahoo'nun 0 maç (ya da hiç satır) verdiği, dönüşü bilinen sakat ya da kadrodaki aktif oyuncu önce sezon + sezon öncesi maç başı değerleriyle
   doldurulur (``_fill_missing_ros``); yoksa hiç modellenmez.
+* Yahoo'nun maç başı değeri bariz bayat oyuncu (bu sezonun ve sezon öncesinin yarısının altında; çoğu yedek ve
+  rotasyon oyuncusu, ör. her maç 20+ dakika oynayana maç başı 1 sayı) bu sezon ağırlıklı oranlarla düzeltilir
+  (``_fix_stale_ros``, README §13.57).
 
 Sezon öncesi projeksiyonu olmayan oyuncuya dokunulmaz. Ham dosyalar değişmez; düzeltme bellekte ve açıkça
 raporlanır. Sakatlık dönüş tarihlerinden (``apply_injuries``) sonra uygulanır.
@@ -33,6 +36,10 @@ from fdo.types import STATS
 
 SEASON_GAMES = 82
 PRIOR_GAMES = 20.0
+STALE_RATIO = .5             # Yahoo ROS maç başı hacmi bu sezonun ve sezon öncesinin küçüğünün bu oranından azsa bayat
+STALE_MIN_GP = 5             # bu sezon en az bu kadar maç (oynadığı gerçek rol bilinsin)
+STALE_PRIOR_GAMES = 5.0      # bayat düzeltmede sezon öncesine önsel (maç): gerçek oynanan role ağırlık
+STALE_VOLUME = ("pts", "reb", "ast", "stl", "blk", "fg3m")
 
 
 def apply_durability(data: TradeData, prior_games: float = PRIOR_GAMES) -> TradeData:
@@ -44,6 +51,7 @@ def apply_durability(data: TradeData, prior_games: float = PRIOR_GAMES) -> Trade
     ros, pre, season = stats[ROS], stats["preseason"]["gp"], stats["season_total"]["gp"]
     inj = data.injuries
     filled = _fill_missing_ros(data, stats, games, prior_games)
+    stale = _fix_stale_ros(stats)
     rows = []
     for pid in ros.index:
         gp, pre_gp = float(ros.loc[pid, "gp"]), float(pre.get(pid, np.nan))
@@ -69,10 +77,11 @@ def apply_durability(data: TradeData, prior_games: float = PRIOR_GAMES) -> Trade
         return data
     table = pd.DataFrame(rows).set_index("player_id")
     table["ros_filled"] = table.index.isin(filled)
+    table["ros_stale"] = table.index.isin(stale)
     cut = table["ros_gp_after"] < table["ros_gp_before"] - 1e-9
     sources = {**data.sources, "durability": {"kind": "durability", "basis": "preseason projected_gp / 82",
                                               "prior_games": prior_games, "rows": int(cut.sum()),
-                                              "ros_filled": sorted(filled)}}
+                                              "ros_filled": sorted(filled), "ros_stale": sorted(stale)}}
     note = (f"Dayanıklılık uygulandı: {int(cut.sum())} oyuncunun kalan sezon maçı sezon öncesi oynama oranıyla "
             f"sınırlandı (toplam {table['ros_gp_before'].sum():.0f} → {table['ros_gp_after'].sum():.0f} maç).")
     notes = [note]
@@ -80,9 +89,40 @@ def apply_durability(data: TradeData, prior_games: float = PRIOR_GAMES) -> Trade
         names = ", ".join(str(data.players.loc[p, "name"]) for p in filled)
         notes.append(f"Kalan sezon projeksiyonu 0 maç ya da boş olan {len(filled)} oyuncu sezon ve sezon "
                      f"öncesi maç başı değerleriyle dolduruldu: {names}")
+    if stale:
+        notes.append(f"Yahoo kalan sezon projeksiyonu bu sezonun ve sezon öncesinin yarısının altında kalan "
+                     f"{len(stale)} oyuncunun maç başı değeri bu sezon + sezon öncesiyle düzeltildi (bayat projeksiyon).")
     return dataclasses.replace(data, stats=stats, sources=sources, durability=table,
-                               fingerprint=f"{data.fingerprint}:dur{int(cut.sum())}f{len(filled)}",
+                               fingerprint=f"{data.fingerprint}:dur{int(cut.sum())}f{len(filled)}s{len(stale)}",
                                issues=(*data.issues, *notes))
+
+
+def _fix_stale_ros(stats: dict, ratio: float = STALE_RATIO, min_gp: int = STALE_MIN_GP,
+                   prior_games: float = STALE_PRIOR_GAMES) -> list[str]:
+    """Yahoo'nun kalan sezon projeksiyonu yedek ve rotasyon oyuncularında çoğu zaman neredeyse hiç süre almayacakmış
+    gibi maç başı çok düşük değer verir (ör. her maç oynayan oyuncuya maç başı 1 sayı) ve rol değişimine tepki vermez.
+    Maç başı hacmi (sayı + ribaund + asist + top çalma + blok + üçlük) bu sezonun (en az ``min_gp`` maç) ve sezon
+    öncesinin küçüğünün ``ratio`` katından azsa maç başı değerler bu sezon ile sezon öncesinin ``prior_games``
+    maçlık önselle ağırlıklı ortalamasıyla değiştirilir (gerçek oynanan role ağırlık); maç sayısı Yahoo'nunki kalır
+    (``stats`` yerinde güncellenir). Düzeltilenlerin kimlikleri döner."""
+    ros, pre, season = stats[ROS], stats["preseason"], stats["season_total"]
+    vol = lambda f: f[list(STALE_VOLUME)].sum(axis=1) / f["gp"].where(f["gp"] > 0)      # noqa: E731
+    seen = season["gp"].reindex(ros.index).fillna(0.0)
+    floor = np.minimum(vol(season).reindex(ros.index).where(seen >= min_gp), vol(pre).reindex(ros.index))
+    bad = ros.index[(ros["gp"] > 0) & (vol(ros) < ratio * floor)]
+    out = []
+    for pid in bad:
+        cur = season.loc[pid, list(STATS)].astype(float) / seen[pid]
+        pre_pg = pre.loc[pid, list(STATS)].astype(float) / float(pre.loc[pid, "gp"])
+        if not (np.isfinite(cur.to_numpy()).all() and np.isfinite(pre_pg.to_numpy()).all()):
+            continue
+        w = seen[pid] / (seen[pid] + prior_games)
+        ros.loc[pid, list(STATS)] = ((w * cur + (1 - w) * pre_pg) * float(ros.loc[pid, "gp"])).to_numpy()
+        for col in ros.columns.difference(["gp", *STATS]):
+            if pd.api.types.is_float_dtype(ros[col]):
+                ros.loc[pid, col] = np.nan          # kaynaktaki yüzde vb. artık bu satırı anlatmaz
+        out.append(pid)
+    return out
 
 
 def _fill_missing_ros(data: TradeData, stats: dict, games: dict, prior_games: float) -> list[str]:

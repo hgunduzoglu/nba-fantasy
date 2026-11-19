@@ -76,3 +76,16 @@ def test_known_return_date_limits_the_boost_and_week_model_uses_it(data):  # noq
     from fdo.inseason.weekly import Stint
     stints = [Stint(p, slot=k) for k, p in enumerate(roster)]
     assert boosted.team_week("1", stints, WEEK3).vector[1] >= plain.team_week("1", stints, WEEK3).vector[1]
+
+
+def test_stale_low_base_uses_the_absence_average(data):  # noqa: F811
+    """Yahoo tabanı bayat (maç başı 1 sayı): fark eklemek rolü göstermez, o yokkenki ortalama kullanılır (§13.57)."""
+    data.players.loc["4", "injury_status"] = "O"
+    ros = data.stats["remaining_games_projection"]
+    ros.loc["8", ["fgm", "fga", "ftm", "fta", "fg3m", "pts", "reb", "ast", "stl", "blk", "tov"]] *= 1 / 30
+    r = role_boosts(data, _logs())["8"]
+    k = 2 / (2 + SHRINK_GAMES)
+    base = ros.loc["8", "pts"] / ros.loc["8", "gp"]
+    assert r.per_game["pts"] == pytest.approx(k * 15 + (1 - k) * base)
+    assert r.per_game["pts"] > base + 7 * k
+    assert r.delta["pts"] == pytest.approx(r.per_game["pts"] - base)

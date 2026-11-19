@@ -9,8 +9,11 @@ için kısa vadeli rol önemlidir:
   sezon boyu). Bütün sezonu kaçıran oyuncu önemli sayılmaz (yokluğu zaten bütün maçlarda ve projeksiyonda).
 * Takımın maçları: A'nın hiçbirinin oynamadığı (W) ve hepsinin oynadığı (H). W boşsa (A'dakiler farklı zamanlarda
   yoktu) en çok dakika alan X tek başına kullanılır.
-* **Takım arkadaşı Y**: W'de en az 1, H'de en az 2 maçı varsa fark ``Δ = ort(W) − ort(H)``, küçültme
-  ``n_W / (n_W + 4)``. Kalan sezon (ROS) maç başına eklenir (negatif olmaz, isabet ≤ deneme, üçlük ≤ isabet).
+* **Takım arkadaşı Y**: W'de en az 1, H'de en az 2 maçı varsa, ``k = n_W / (n_W + 4)`` ile iki tahmin:
+  fark ``ROS + k · (ort(W) − ort(H))`` ve o yokken oynanan maçların ortalaması ``k · ort(W) + (1 − k) · ROS``.
+  Dakikası arttıysa sayısı büyük olan (Yahoo tabanı bayatsa, ör. maç başı 1 sayı, fark tek başına rolü
+  göstermiyordu; §13.57), azaldıysa fark kullanılır. Negatif olmaz, isabet ≤ deneme, üçlük ≤ isabet.
+  ``delta`` uygulanan maç başı − ROS, ``raw`` küçültülmemiş ``ort(W) − ort(H)``.
 * **Geçerlilik**: A'nın en erken bilinen dönüşüne kadar (hariç); bilinmiyorsa bugünden 14 gün.
 
 Eşleştirme: ``fdo.inseason.identity`` (ad + takım, yalnız ad, baş harf + soyad + takım; yalnız tek aday kalınca).
@@ -46,9 +49,9 @@ class RoleBoost:
     until: dt.date                     # bu güne kadar (hariç) geçerli
     n_without: int
     n_with: int
-    delta: dict[str, float]            # maç başı fark (küçültülmüş), ``minutes`` dahil
-    raw: dict[str, float]              # küçültülmemiş fark
-    per_game: dict[str, float]         # uygulanan maç başı (ROS + Δ, STATS)
+    delta: dict[str, float]            # uygulanan maç başı − ROS (STATS); ``minutes``: küçültülmüş ort(W) − ort(H)
+    raw: dict[str, float]              # küçültülmemiş ort(W) − ort(H), ``minutes`` dahil
+    per_game: dict[str, float]         # uygulanan maç başı (STATS; fark ya da o yokkenki ortalama)
 
 
 def load_logs(directory: str | Path, season: str) -> pd.DataFrame | None:
@@ -126,13 +129,17 @@ def role_boosts(data: TradeData, logs: pd.DataFrame | None) -> dict[str, RoleBoo
                 continue
             raw = (w[list(FIELDS)].mean() - h[list(FIELDS)].mean()).to_dict()
             k = len(w) / (len(w) + SHRINK_GAMES)
-            delta = {s: float(v) * k for s, v in raw.items()}
             base = (ros.loc[pid, list(STATS)] / ros.loc[pid, "gp"]).astype(float)
-            pg = {s: max(0.0, float(base[s]) + delta[s]) for s in STATS}
+            during = w[list(STATS)].mean()
+            shifted = {s: float(base[s]) + k * float(raw[s]) for s in STATS}
+            observed = {s: k * float(during[s]) + (1 - k) * float(base[s]) for s in STATS}
+            use = observed if raw["minutes"] > 0 and observed["pts"] > shifted["pts"] else shifted
+            pg = {s: max(0.0, v) for s, v in use.items()}
             pg["fgm"], pg["ftm"] = min(pg["fgm"], pg["fga"]), min(pg["ftm"], pg["fta"])
             pg["fg3m"] = min(pg["fg3m"], pg["fgm"])
             if not np.isfinite(list(pg.values())).all():
                 continue
+            delta = {s: pg[s] - float(base[s]) for s in STATS} | {"minutes": float(raw["minutes"]) * k}
             out[pid] = RoleBoost(pid, team, tuple(used), until, len(w), len(h), delta,
                                  {s: float(v) for s, v in raw.items()}, pg)
     return out

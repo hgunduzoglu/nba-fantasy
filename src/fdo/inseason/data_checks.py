@@ -5,6 +5,7 @@ takımları ve kısa bir açıklamayla döner. Kontroller:
 
 * ``unmodeled``: kalan sezon projeksiyonu yok ya da 0 maç (dolgudan sonra da): takasta ve simülasyonda 0 değerli.
 * ``filled``: Yahoo'nun 0 maç verdiği ya da satırı olmayan oyuncu sezon + sezon öncesi değerlerle dolduruldu (bilgi).
+* ``stale``: Yahoo'nun maç başı projeksiyonu bariz bayattı; bu sezon + sezon öncesiyle düzeltildi (bilgi).
 * ``team``: Yahoo'daki NBA takımı son maç kaydındaki takımdan farklı (takas sonrası gecikme; maç takvimi yanlış takımdan).
 * ``role``: son ``RECENT`` maçta dakika, öncesine göre belirgin değişti; projeksiyon rol değişimine geç tepki verir.
 * ``idle``: sakat görünmüyor ama takımının son maçlarında hiç oynamadı.
@@ -66,6 +67,8 @@ def data_checks(data: TradeData, logs: pd.DataFrame | None = None) -> list[Findi
     inj = data.injuries
     filled = set(data.durability.index[data.durability["ros_filled"]]) \
         if data.durability is not None and "ros_filled" in data.durability.columns else set()
+    stale = set(data.durability.index[data.durability["ros_stale"]]) \
+        if data.durability is not None and "ros_stale" in data.durability.columns else set()
     found: list[Finding] = []
 
     def add(check, level, pid, message, teams=None):
@@ -88,6 +91,9 @@ def data_checks(data: TradeData, logs: pd.DataFrame | None = None) -> list[Findi
         elif pid in filled:
             add("filled", "info", pid, f"Yahoo projeksiyonu yoktu ya da 0 maçtı; sezon + sezon öncesi değerlerle "
                                        f"dolduruldu ({ros.loc[pid, 'gp']:.0f} maç).")
+        elif pid in stale:
+            add("stale", "info", pid, "Yahoo projeksiyonu bayattı (bu sezonun yarısının altında); maç başı değerler "
+                                      "bu sezon + sezon öncesiyle düzeltildi.")
         if pid in il_at and st not in IL_OK:
             add("il_slot", "warn", pid, f"IL slotunda ama Yahoo durumu {st or 'sağlıklı'}; Yahoo bu durumda alım ve "
                                         "takası engelleyebilir, aktife almak gerekebilir.", il_at[pid])

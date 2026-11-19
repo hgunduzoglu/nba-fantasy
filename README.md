@@ -2677,6 +2677,21 @@ completed trades in the four leagues cannot calibrate the threshold: values have
 injured afterwards) and most completed trades favour one side in any lens. The thresholds are a judgement until
 logged offers and answers (`/trade/offer`) accumulate; `scripts/calibrate_thresholds.py` reads them.
 
+### 13.57 Stale Yahoo projections and role changes (19 November 2026)
+
+Yahoo's rest-of-season projection gives many bench and rotation players an almost-DNP line: a guard playing 22–30
+minutes a night was projected at 1.0 point a game over 57 games, and 79 players were below half of both their
+season and preseason per-game volume (points + rebounds + assists + steals + blocks + threes), most of them playing
+normal minutes. `_fix_stale_ros` (in `apply_durability`) replaces such a row's per-game rates with this season's and
+the preseason's average weighted by `seen / (seen + 5)` games (at least 5 games played; Yahoo's game count is kept)
+and reports it (`ros_stale`, data check `stale`).
+
+The role change of §13.24 added the shrunk with/without difference to Yahoo's per-game base, so a stale base hid
+the role: with a starter out the same guard averaged 27 minutes and 10.4 points, and the model showed 3.9. The role
+now uses the larger (by points) of that estimate and the absence-period average shrunk toward the base,
+`k · mean(without) + (1 − k) · ROS` with `k = n / (n + 4)`, when minutes went up; when they went down the difference
+is kept. A good base is not lowered.
+
 ### 13.8 V3 candidates
 
 Beam search and H-score weight optimization; fitting the profile mix; covariance of game counts between

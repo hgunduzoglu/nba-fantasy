@@ -94,3 +94,21 @@ def test_rostered_player_without_ros_row_is_filled_from_today(data):  # noqa: F8
     ros = out.stats[ROS]
     assert ros.loc["0", "gp"] == pytest.approx(.5 * _left(data, "AAA"))    # kadroda, sağlıklı
     assert np.isnan(ros.loc["4", "gp"]) and np.isnan(ros.loc["20", "gp"])   # NA; kadrosuz boştaki
+
+
+def test_stale_ros_per_game_is_replaced_by_season_weighted_rates(data):  # noqa: F811
+    from fdo.inseason.durability import STALE_PRIOR_GAMES
+    from fdo.types import STATS
+    season, pre = data.stats["season_total"], data.stats["preseason"]
+    season.loc["2", "gp"] = max(float(season.loc["2", "gp"]), 6.0)
+    data.stats[ROS].loc["2", list(STATS)] *= .1                              # Yahoo: maç başı onda bir
+    gp_before = float(data.stats[ROS].loc["2", "gp"])
+    out = apply_durability(data)
+    ros = out.stats[ROS]
+    seen = float(season.loc["2", "gp"])
+    w = seen / (seen + STALE_PRIOR_GAMES)
+    want = w * season.loc["2", "pts"] / seen + (1 - w) * pre.loc["2", "pts"] / pre.loc["2", "gp"]
+    assert ros.loc["2", "pts"] / ros.loc["2", "gp"] == pytest.approx(want)
+    assert ros.loc["2", "gp"] <= gp_before + 1e-9                           # maç sayısı Yahoo'nun (ya da tavan)
+    assert bool(out.durability.loc["2", "ros_stale"]) and not out.durability["ros_stale"].drop("2").any()
+    assert any("bayat" in m for m in out.issues)

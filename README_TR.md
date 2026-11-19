@@ -2597,6 +2597,21 @@ Değişiklikle beşi de "düşük" (oranlar 0,74–0,90, Knueppel'li Barnes taka
 sakatlandı) ve gerçekleşen takasların çoğu her ölçüde bir tarafın lehine. Kaydedilen teklif ve cevaplar
 (`/trade/offer`) birikene kadar eşikler bir yargıdır; `scripts/calibrate_thresholds.py` onları okur.
 
+### 13.57 Bayat Yahoo projeksiyonu ve rol değişimi (19 Kasım 2026)
+
+Yahoo'nun kalan sezon projeksiyonu birçok yedek ve rotasyon oyuncusuna neredeyse hiç oynamayacakmış gibi değer
+veriyor: maçta 22–30 dakika oynayan bir guard 57 maçta maç başı 1,0 sayıyla projekte edilmişti; 79 oyuncunun maç
+başı hacmi (sayı + ribaund + asist + top çalma + blok + üçlük) hem bu sezonun hem sezon öncesinin yarısının altındaydı,
+çoğu normal dakika alırken. `_fix_stale_ros` (`apply_durability` içinde) böyle bir satırın maç başı değerlerini bu
+sezon ile sezon öncesinin `oynanan / (oynanan + 5)` maçla ağırlıklı ortalamasıyla değiştiriyor (en az 5 maç; maç
+sayısı Yahoo'nunki kalır) ve bildiriyor (`ros_stale`, veri kontrolü `stale`).
+
+§13.24'teki rol değişimi, varken/yokken farkını küçültüp Yahoo'nun maç başı tabanına ekliyordu; taban bayatsa rol
+görünmüyordu: bir as oyuncu yokken aynı guard 27 dakikada 10,4 sayı ortalıyordu, model 3,9 gösteriyordu. Dakika
+arttıysa rol artık bu tahminle, o yokken oynanan maçların tabana doğru küçültülmüş ortalamasının
+(`k · ort(yokken) + (1 − k) · ROS`, `k = n / (n + 4)`) sayıca büyüğünü kullanıyor; dakika azaldıysa fark kalıyor. İyi
+bir taban düşürülmüyor.
+
 ### 13.8 V3 adayları
 
 Beam search ve H-score ağırlık optimizasyonu; profil karışımı uyumu; oyuncular arası maç sayısı
