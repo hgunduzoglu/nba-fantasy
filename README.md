@@ -2744,6 +2744,15 @@ also detected from the game logs (`recent_returns`: first game after at least fi
 plays the other games at 0.95 for 20 team games, as a net loss. No separate multiplier for hamstring or calf injuries:
 past seasons have no injury types and this season's handful of cases shows no gap yet.
 
+### 13.60 Widely rostered players are not drop candidates (20 November 2026)
+
+With the new rates (§13.59) the weekly add/drop menu offered to drop Zach Edey, who is rostered in 83% of Yahoo leagues,
+because his remaining-season value fell among the three lowest on the roster. No manager drops such a player: he has
+trade value and would be claimed at once. `kept` now excludes players rostered in at least 60% of Yahoo leagues from drop
+candidates (waiver table, drop ranking, default droppable of the weekly plan, the recommended drop when an IL player
+returns), unless out for the season or with a return more than 60 days away. A list the user passes explicitly is
+respected, and when nobody else can be dropped the IL-return recommendation falls back to them (`kept` is shown).
+
 ### 13.8 V3 candidates
 
 Beam search and H-score weight optimization; fitting the profile mix; covariance of game counts between

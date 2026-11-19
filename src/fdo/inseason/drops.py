@@ -20,6 +20,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
+from fdo.inseason.waiver import kept
 from fdo.inseason.weekly import Stint, WeekModel, accumulated_vector
 from fdo.matchup.ecw import ecw_vs
 from fdo.roster.assignment import best_assignment
@@ -104,6 +105,11 @@ def drop_plan(model: WeekModel, team_id: str, opp_id: str, days: list[dt.date], 
     table = pd.DataFrame(rows)
     if len(table):
         table = table.sort_values(["ros_loss", "week_loss"], kind="stable").reset_index(drop=True)
-    ok = table[table["open_slots"] == 0] if len(table) else table
+    hold = kept(eng, team_id)                    # yaygın kadroda olan oyuncu önerilmez (README §13.60)
+    if len(table):
+        table["kept"] = table["player"].isin(hold)
+    ok = table[(table["open_slots"] == 0) & ~table["kept"]] if len(table) else table
+    if len(table) and len(ok) < need:
+        ok = table[table["open_slots"] == 0]
     recommended = list(ok["player"].head(max(1, need))) if len(ok) else []
     return DropPlan(act, active, need, (p0, ew0, p50), table, recommended)

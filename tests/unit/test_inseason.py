@@ -264,3 +264,20 @@ def test_recently_returned_player_loses_b2b_and_other_games(data):
     other = [x for x in days if x not in second and sum(back < y <= x for y in team_days) <= RETURN_OTHER_GAMES]
     assert hit and all(w[x] == pytest.approx(.5) for x in hit)
     assert sum(w.values()) == pytest.approx(len(days) - .5 * len(hit) - (1 - RETURN_OTHER_PLAY) * len(other))
+
+
+def test_widely_rostered_players_are_not_drop_candidates(data):
+    import dataclasses
+    from fdo.inseason.waiver import KEEP_ROSTERED, drop_candidates, kept
+    eng = TradeEngine(data, "L", utilization=1)
+    active = drop_candidates(eng, "1")
+    star = active[0]
+    y = pd.DataFrame({"rank_current": 1.0, "rank_preseason": 1.0, "pct_rostered": 10.0}, index=list(data.players.index))
+    y.loc[star, "pct_rostered"] = KEEP_ROSTERED + 23
+    eng2 = TradeEngine(dataclasses.replace(data, yahoo=y), "L", utilization=1)
+    assert kept(eng2, "1") == {star} and star not in drop_candidates(eng2, "1")
+    assert star in drop_candidates(eng2, "1", keep=False)
+    assert set(waiver_table(eng2, "1", top=500)["drop"]) <= set(active) - {star}
+    inj = pd.DataFrame([{"player_id": star, "kind": "season", "return_date": None}]).set_index("player_id")
+    eng3 = TradeEngine(dataclasses.replace(data, yahoo=y, injuries=inj), "L", utilization=1)
+    assert kept(eng3, "1") == set()                                         # sezon boyu yok: bırakılabilir

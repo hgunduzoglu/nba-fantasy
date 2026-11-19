@@ -3,12 +3,15 @@
 Kullanıcının kadrosunda ``d`` yerine boştaki ``f`` gelirse takımın kalan sezon (ROS, tipik hafta)
 vektörü ``R − v_d + v_f`` olur; ligdeki diğer takımlara karşı kategori olasılıkları yeniden hesaplanır.
 Strateji puanı ``9·Σ w_c·ΔP_c`` (normalize ağırlıklar), ağırlıksız ΔECW ayrıca verilir. IL'deki oyuncular
-bırakma adayı değildir. Pozisyon kontrolü: bırakma sonrası doldurulamayan aktif slot sayısı artmamalı.
+bırakma adayı değildir; Yahoo liglerinin en az ``KEEP_ROSTERED`` yüzdesinde kadroda olan oyuncu da (uzun süre
+sakat değilse) bırakma adayı sayılmaz (``kept``, README §13.60): takasta değeri vardır, bırakılırsa hemen alınır. Pozisyon kontrolü: bırakma sonrası doldurulamayan aktif slot sayısı artmamalı.
 IL'den dönecek oyuncu varsa dönüşte yer açma bedeli (``TradeEngine.crunch_vector``) her iki kadroda da düşülür:
 eklenen oyuncu dönüşte bırakılacaksa yalnız dönüşe kadar katkı verir.
 """
 
 from __future__ import annotations
+
+import datetime as dt
 
 import numpy as np
 import pandas as pd
@@ -41,9 +44,41 @@ def free_agents(engine: TradeEngine) -> list[str]:
     return [p for p in engine.ids if p not in owned and engine.modeled[engine.index[p]]]
 
 
-def drop_candidates(engine: TradeEngine, team_id: str) -> list[str]:
+KEEP_ROSTERED = 60.0          # Yahoo'da en az bu yüzdede kadroda olan oyuncu bırakılmaz
+KEEP_UNLESS_OUT_DAYS = 60     # ... bu kadar günden uzun sakat (ya da sezon boyu yok) değilse
+
+
+def kept(engine: TradeEngine, team_id: str) -> set[str]:
+    """Takımın bırakılmayacak oyuncuları: Yahoo liglerinin en az ``KEEP_ROSTERED`` yüzdesinde kadroda (menajerlerin
+    değer verdiği, takasta karşılığı olan oyuncu); sezon boyu yok ya da dönüşü ``KEEP_UNLESS_OUT_DAYS`` günden uzaksa
+    hariç. Yahoo sütunu yoksa boş."""
+    y = engine.data.yahoo
+    if y is None or "pct_rostered" not in y.columns:
+        return set()
+    roster = list(engine.league.rosters[team_id])
+    pct = y["pct_rostered"].reindex(roster)
+    inj = engine.data.injuries
+    limit = engine.data.as_of + dt.timedelta(days=KEEP_UNLESS_OUT_DAYS)
+    out = set()
+    for p in roster:
+        if not (pct.get(p, np.nan) >= KEEP_ROSTERED):
+            continue
+        if str(engine.data.players.loc[p, "injury_status"] or "") == "OFS":
+            continue
+        if inj is not None and p in inj.index:
+            r = inj.loc[p]
+            if r["kind"] == "season" or (r["kind"] == "out_until" and not pd.isna(r["return_date"])
+                                         and pd.Timestamp(r["return_date"]).date() > limit):
+                continue
+        out.add(p)
+    return out
+
+
+def drop_candidates(engine: TradeEngine, team_id: str, keep: bool = True) -> list[str]:
+    """Aktif kadro (IL hariç); ``keep``: ``kept`` oyuncular da hariç."""
     lg = engine.league
-    return [p for p in lg.rosters[team_id] if p not in lg.injury_rosters[team_id]]
+    hold = kept(engine, team_id) if keep else set()
+    return [p for p in lg.rosters[team_id] if p not in lg.injury_rosters[team_id] and p not in hold]
 
 
 def waiver_table(engine: TradeEngine, team_id: str, strategy: Strategy | None = None, *,
@@ -73,7 +108,7 @@ def waiver_table(engine: TradeEngine, team_id: str, strategy: Strategy | None = 
     dp = p1 - p0
     score = 9 * dp @ w                                                                 # (F, D)
     # pozisyon: bırakma sonrası doldurulamayan aktif slot artmamalı
-    active = drop_candidates(engine, team_id)
+    active = drop_candidates(engine, team_id, keep=False)
     open0 = best_assignment(engine.positions(active), engine.config).n_open_active
     order = np.argsort(-score.max(axis=1), kind="stable")[: max(top * 2, top)]
     feas_cache: dict[tuple[str, str], bool] = {}

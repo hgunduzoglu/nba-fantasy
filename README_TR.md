@@ -2663,6 +2663,15 @@ oyunculara haftalık model dönüş sonrası B2B oranlarını uyguluyor ve diğe
 oynatıyor (net kayıp). Hamstring ya da baldır için ayrı çarpan yok: geçmiş sezonlarda sakatlık türü yok, bu sezonki az
 sayıda örnekte henüz fark görünmüyor.
 
+### 13.60 Yaygın kadroda olan oyuncu bırakma adayı değil (20 Kasım 2026)
+
+Yeni oranlarla (§13.59) haftalık add/drop menüsü Yahoo liglerinin %83'ünde kadroda olan Zach Edey'i bırakmayı önerdi;
+kalan sezon değeri kadrodaki en düşük üç oyuncu arasına inmişti. Hiçbir menajer böyle bir oyuncuyu bırakmaz: takas
+değeri var, bırakılırsa hemen alınır. `kept` artık Yahoo liglerinin en az %60'ında kadroda olan oyuncuları bırakma
+adaylarından çıkarıyor (waiver tablosu, bırakma sırası, haftalık planın varsayılan bırakılabilirleri, IL'den dönüşte
+önerilen bırakma); sezon boyu yoksa ya da dönüşü 60 günden uzaksa hariç. Kullanıcının açıkça verdiği liste geçerli; IL
+dönüşünde başka bırakılacak kimse yoksa öneri onlara düşer (`kept` gösterilir).
+
 ### 13.8 V3 adayları
 
 Beam search ve H-score ağırlık optimizasyonu; profil karışımı uyumu; oyuncular arası maç sayısı

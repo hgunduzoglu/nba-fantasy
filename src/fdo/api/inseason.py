@@ -20,7 +20,7 @@ from fdo.inseason.history import team_history
 from fdo.inseason.lineup_rank import executable_plans, final_decision, final_rejection, lineup_deltas, ranked_method, rerank
 from fdo.inseason.managers import load_transactions, profiles
 from fdo.inseason.sitstart import plan_week, today_changes
-from fdo.inseason.waiver import drop_ranking, waiver_table
+from fdo.inseason.waiver import drop_ranking, kept, waiver_table
 from fdo.inseason.weekly import DEFAULT_OUT, QUESTIONABLE, Stint, WeekOutlook, acquisition_limit, vector_totals
 from fdo.roster.assignment import best_assignment
 from fdo.trade import Strategy, TradeError
@@ -293,7 +293,8 @@ def register(app: FastAPI, state: AppState) -> None:
         drops = drop_ranking(eng, body.team, _strategy(body.strategy, eng, body.team))
         active = model.active_roster(body.team)
         ranked = [p for p in (list(drops["drop"]) if len(drops) else []) if p in active]
-        cheapest = sorted(active, key=lambda p: float(eng.market.get(p, 0.0)))     # kalan sezon değeri en düşük
+        hold = kept(eng, body.team)                                                # yaygın kadroda: bırakılmaz
+        cheapest = sorted((p for p in active if p not in hold), key=lambda p: float(eng.market.get(p, 0.0)))
         return list(dict.fromkeys([*ranked, *cheapest]))[:3]
 
     def _availability(lid: str, eng, injuries: bool) -> dict:
@@ -449,7 +450,8 @@ def register(app: FastAPI, state: AppState) -> None:
             alt = better.get(p)
             rows.append({"player": {**_brief(eng, p), "injury": injury_info(eng, p), "return_date": ret(p),
                                     "rank": float(ranks[p]) if p in ranks.index else None},
-                         "returning": r.returning, "ros_loss": r.ros_loss, "ros_d_ecw": r.ros_d_ecw, "ros_dp": r.ros_dp,
+                         "returning": r.returning, "kept": bool(getattr(r, "kept", False)),
+                         "ros_loss": r.ros_loss, "ros_d_ecw": r.ros_d_ecw, "ros_dp": r.ros_dp,
                          "week_loss": r.week_loss, "week_d_expected": r.week_d_expected, "week_d_p5": r.week_d_p5,
                          "week_dp": r.week_dp, "games": r.games, "games_left": r.games_left,
                          "games_next": model.games_in(p, nxt), "open_slots": r.open_slots,
