@@ -103,3 +103,62 @@ def test_complete_keeps_trades_the_market_sees_as_balanced(trade_data):  # noqa:
     strict = CompleteOptions(min_fairness=(model + c.fairness) / 2, min_view=0.0, perceived="preseason")
     assert any(s.request.give_b == (strong,)
                for s in complete_trade(eng, ta, tb, (weak,), (), options=strict).suggestions)
+
+
+# --- Yahoo'da görünen algı, kadro yeri maliyeti ve en iyi oyuncu kuralı (README §13.56) ---
+
+from fdo.trade.data import yahoo_market  # noqa: E402
+from fdo.trade.perception import gives_best, opponent_view  # noqa: E402
+from fdo.trade.suggest import STAR_PREMIUM, counterpart  # noqa: E402
+
+
+def test_yahoo_market_parses_rank_and_rostered_columns():
+    headers = [["", "", "Players", "Opp", "Roster Status", "GP*", "Pre-Season", "Current", "% Ros", "MPG"]]
+    pages = [{"kind": "season_total", "table": {"headers": headers, "rows": [
+        {"player_id": "7", "cells": ["", "", "A", "", "FA", "14", "292", "197", "1%", "19:25"]},
+        {"player_id": "8", "cells": ["", "", "B", "", "FA", "14", "10", "-", "98%", "30:00"]}]}},
+        {"kind": "remaining_games_projection", "table": {"headers": headers, "rows": [
+            {"player_id": "7", "cells": ["", "", "A", "", "FA", "60", "292", "359", "1%", "-"]}]}}]
+    y = yahoo_market(pages)
+    assert y.loc["7"].tolist() == [197.0, 292.0, 1.0]           # yalnız bu sezon sayfasının "Current" sırası
+    assert np.isnan(y.loc["8", "rank_current"]) and y.loc["8", "pct_rostered"] == 98.0
+    assert yahoo_market([]) is None
+
+
+def test_market_perception_follows_yahoo_columns_and_falls_back(trade_data):  # noqa: F811
+    eng = TradeEngine(trade_data, "L", utilization=1, horizon_weeks=4)
+    ids = [p for p in eng.ids if eng.modeled[eng.index[p]]]
+    assert perceived_prices(eng, "market").equals(perceived_prices(eng, "blend"))      # Yahoo sütunu yoksa
+    worst = min(ids, key=lambda p: eng.market[p])
+    y = pd.DataFrame({"rank_current": range(2, len(ids) + 2), "rank_preseason": 1.0,
+                      "pct_rostered": np.linspace(90, 10, len(ids))}, index=ids, dtype=float)
+    y.loc[worst, ["rank_current", "pct_rostered"]] = [1.0, 100.0]       # Yahoo'da en üstte görünüyor
+    eng2 = TradeEngine(dataclasses.replace(trade_data, yahoo=y), "L", utilization=1, horizon_weeks=4)
+    assert perceived_ranks(eng2, "market")[worst] == 1
+    assert perceived_prices(eng2, "market")[worst] == pytest.approx(eng2.market[ids].max())
+
+
+def test_opponent_view_charges_roster_spot_for_filler(trade_data):  # noqa: F811
+    eng = TradeEngine(trade_data, "L", utilization=1, horizon_weeks=4)
+    price = eng.market.copy()
+    mine = sorted(eng.league.rosters["1"], key=lambda p: -price[p])
+    theirs = sorted(eng.league.rosters["2"], key=lambda p: -price[p])
+    star, filler = mine[0], mine[-1]
+    plain = opponent_view(eng, price, "2", [star], [theirs[0]])
+    assert plain == pytest.approx(price[star] / price[theirs[0]])
+    # 2'ye 1: rakip en zayıf oyuncusunu bırakır; dolgu oyuncu değer katmaz ya da az katar
+    with_filler = opponent_view(eng, price, "2", [star, filler], [theirs[0]])
+    raw = (price[star] + price[filler]) / price[theirs[0]]
+    assert with_filler < raw
+    assert with_filler >= plain - 1e-9
+    assert np.isnan(opponent_view(eng, price, "2", [star], []))
+
+
+def test_gives_best_and_star_premium():
+    p = pd.Series({"a": 5.0, "b": 4.0, "x": 8.0, "y": 1.0})
+    assert gives_best(p, ["a", "b"], ["x"]) and not gives_best(p, ["x"], ["a", "b"])
+    level, _ = counterpart(1.0, .1, 1.0)
+    assert level == "high"
+    level, why = counterpart(1.0, .1, 1.0, gives_star=True)            # eşit görünüyor ama en iyiyi veriyor
+    assert level == "medium" and "en iyi" in why[1]
+    assert counterpart(1.0, .1, STAR_PREMIUM, gives_star=True)[0] == "high"

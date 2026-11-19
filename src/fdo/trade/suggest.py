@@ -31,7 +31,7 @@ import numpy as np
 import pandas as pd
 
 from fdo.trade.engine import TradeEngine, TradeError, TradeRequest
-from fdo.trade.perception import PERCEPTIONS, perceived_prices
+from fdo.trade.perception import DEFAULT_PERCEPTION, PERCEPTIONS, gives_best, opponent_view, perceived_prices
 from fdo.trade.strategy import Strategy
 
 MODES = {"mutual": "Karşılıklı fayda", "sell_high": "Sat yüksek", "buy_low": "Al düşük"}
@@ -60,7 +60,7 @@ class SearchOptions:
     auto_balance: bool = True
     ecw_weight: float = .65
     mode: str = "mutual"
-    perceived: str = "blend"
+    perceived: str = DEFAULT_PERCEPTION
     min_perceived_balance: float = .9
     min_edge: float = 1.0
     min_opponent_view: float = 0.0          # karşılıklı faydada rakibin gözünde en az denge (0 = kapalı)
@@ -97,6 +97,7 @@ class Suggestion:
     key_players: tuple[str, ...] = ()            # yanlış fiyatlanan (sat-yüksek / al-düşük) oyuncular
     acceptability: str = ""                      # rakip için: high / medium / low (``counterpart``; olasılık değil)
     counterpart_reasons: tuple[str, ...] = ()
+    gives_star: bool = False                     # takasın algılanan en değerli oyuncusunu rakip veriyor
 
 
 @dataclass
@@ -149,21 +150,31 @@ def _minimal(found: list[Suggestion]) -> list[Suggestion]:
 ACCEPTABILITY = {"high": "yüksek", "medium": "orta", "low": "düşük"}
 #: Algılanan değer oranı bu kadarsa "aşağı yukarı eşit" sayılır (algının gürültüsü). Başlangıç varsayımı, doğrulanmadı.
 PERCEIVED_EVEN = .95
+#: Takasın algılanan en değerli oyuncusunu veren taraf kendi gözünde bu kadar fazla almalı (menajerler "en iyi oyuncu
+#: kimde kalıyor"a bakar; README §13.56). Kullanıcının reddedilecek dediği takaslarla seçildi, kalibre değil.
+STAR_PREMIUM = 1.1
 
 
-def counterpart(gain: float, strategy_delta: float, view: float) -> tuple[str, tuple[str, ...]]:
+def counterpart(gain: float, strategy_delta: float, view: float, gives_star: bool = False
+                ) -> tuple[str, tuple[str, ...]]:
     """Karşı tarafın takası kabul etmek için gerekçesi.
 
     İki gerekçeye bakılır: modelde kazanç (``gain``: kendi stratejisiyle kalan sezon kategori ve P(5+) karması; tür
     sınıflandırmasıyla aynı ölçü) ve kendi gözünde (algılanan değer: draft fiyatı + bu sezon) en az eşit karşılık
     (``view`` ≥ ``PERCEIVED_EVEN``). İkisi de varsa ``high``, biri varsa ``medium``, hiçbiri yoksa ``low``: rakip hem
     modelde hem kendi algısında kaybediyor, teklif için gerekçe yok. Kabul olasılığı değildir; menajer davranışı
-    modellenmedi."""
+    modellenmedi. Takasın en değerli oyuncusunu rakip veriyorsa (``gives_star``) kendi gözünde en az ``STAR_PREMIUM``
+    alması gerekir."""
     model = gain > 0
-    seen = bool(np.isfinite(view) and view >= PERCEIVED_EVEN)
+    need = STAR_PREMIUM if gives_star else PERCEIVED_EVEN
+    seen = bool(np.isfinite(view) and view >= need)
     reasons = [f"modelde {'kazanıyor' if model else 'kaybediyor'} ({strategy_delta:+.2f} kategori/hafta)"]
     if np.isfinite(view):
-        reasons.append(f"kendi gözünde {'aşağı yukarı eşit ya da fazla' if seen else 'daha az'} alıyor ({view:.2f})")
+        if gives_star:
+            reasons.append(f"takasın en iyi oyuncusunu veriyor; kendi gözünde {'belirgin fazla' if seen else 'yeterince fazla değil'}"
+                           f" alıyor ({view:.2f}, en az {STAR_PREMIUM:.2f} gerekir)")
+        else:
+            reasons.append(f"kendi gözünde {'aşağı yukarı eşit ya da fazla' if seen else 'daha az'} alıyor ({view:.2f})")
     return ("high", "medium", "low")[2 - model - seen], tuple(reasons)
 
 
@@ -221,8 +232,9 @@ def suggest_trades(engine: TradeEngine, team_id: str, *, strategy: Strategy | No
                                auto_drop=options.auto_balance, auto_fill=options.auto_balance)
             fair = engine.fairness(req)
             keys = ()
-            taken = float(perceived.reindex(list(give_b)).fillna(0).sum())
-            balance = float(perceived.reindex(list(give_a)).fillna(0).sum()) / taken if taken > 0 else 0.0
+            balance = opponent_view(engine, perceived, tid, give_a, give_b)
+            balance = balance if np.isfinite(balance) else 0.0
+            star = gives_best(perceived, give_a, give_b)
             if mode == "mutual":
                 if fair < options.min_fairness:
                     result.rejected_fairness += 1
@@ -262,13 +274,13 @@ def suggest_trades(engine: TradeEngine, team_id: str, *, strategy: Strategy | No
             if ga <= 0 or (mode == "mutual" and gb <= 0):
                 continue
             value = rank_value(options.rank, ga, gb, fair)
-            level, why = counterpart(gb, o["strategy_delta"], balance)
+            level, why = counterpart(gb, o["strategy_delta"], balance, star)
             if options.require_reason and level == "low":
                 result.rejected_reason += 1
                 continue
             result.suggestions.append(Suggestion(req, value, m["strategy_delta"], o["strategy_delta"],
                                                   m["win_delta"], o["win_delta"], fair, os, mode, balance, keys,
-                                                  level, why))
+                                                  level, why, star))
             if len(result.suggestions) > options.max_results * 4:
                 result.suggestions = _minimal(result.suggestions)[:options.max_results * 2]
         active = remaining
@@ -304,7 +316,7 @@ class CompleteOptions:
     min_fairness: float = .55               # değer dengesi (küçük / büyük paket): modelin (ROS) ya da piyasanın
                                             # (algılanan) gözünde, hangisi yüksekse (README §13.30)
     min_view: float = .8                    # rakibin gözünde (algılanan) aldığı / verdiği; 0 = kapalı
-    perceived: str = "blend"
+    perceived: str = DEFAULT_PERCEPTION
     auto_balance: bool = True
     ecw_weight: float = .65
     require_reason: bool = True             # rakip için gerekçesiz paket listelenmez (``counterpart``)
@@ -370,24 +382,23 @@ def offer_features(engine: TradeEngine, req: TradeRequest, sa: Strategy, sb: Str
     """Bir teklifin karar anındaki ölçüleri (teklif/cevap kaydı ve eşik ayarı için): iki tarafın kazancı, değer
     dengesi, rakibin gözünde oran ve kabul gerekçesi düzeyi. ``perceived``: algılanan fiyatlar (``perceived_prices``)."""
     m, o, ga, gb = _gains(engine, req, sa, sb, w)
-    given = float(perceived.reindex(list(req.give_a)).fillna(0).sum())
-    taken = float(perceived.reindex(list(req.give_b)).fillna(0).sum())
-    view = given / taken if taken > 0 else float("nan")
-    level, why = counterpart(gb, o["strategy_delta"], view)
+    view = opponent_view(engine, perceived, req.team_b, req.give_a, req.give_b)
+    star = gives_best(perceived, req.give_a, req.give_b)
+    level, why = counterpart(gb, o["strategy_delta"], view, star)
     return {"own_delta": float(m["strategy_delta"]), "other_delta": float(o["strategy_delta"]),
             "own_gain": float(ga), "other_gain": float(gb), "fairness": float(engine.fairness(req)),
             "perceived_view": view if np.isfinite(view) else None, "acceptability": level, "reasons": list(why)}
 
 
 def _tiered(req: TradeRequest, m: dict, o: dict, ga: float, gb: float, fair: float, view: float,
-            sb: Strategy, rank: str = "own") -> Suggestion:
+            sb: Strategy, rank: str = "own", star: bool = False) -> Suggestion:
     tier = "mutual" if ga > 0 and gb > 0 else "own" if ga > 0 else "loss"
     value = rank_value(rank, ga, gb, fair) if rank == "joint" or tier != "own" else ga
     if rank == "joint" and tier == "own":
         value = ga * fair
-    level, why = counterpart(gb, o["strategy_delta"], view)
+    level, why = counterpart(gb, o["strategy_delta"], view, star)
     return Suggestion(req, value, m["strategy_delta"], o["strategy_delta"], m["win_delta"], o["win_delta"], fair, sb,
-                      tier, view, (), level, why)
+                      tier, view, (), level, why, star)
 
 
 def complete_trade(engine: TradeEngine, team_a: str, team_b: str, give_a: tuple[str, ...], give_b: tuple[str, ...], *,
@@ -420,9 +431,9 @@ def complete_trade(engine: TradeEngine, team_a: str, team_b: str, give_a: tuple[
     w, auto = options.ecw_weight, options.auto_balance
 
     def view(ga_: tuple[str, ...], gb_: tuple[str, ...]) -> float:
-        """Rakibin gözünde: aldığı (senin verdiğin) / verdiği algılanan değer."""
-        taken = float(perceived.reindex(list(gb_)).fillna(0).sum())
-        return float(perceived.reindex(list(ga_)).fillna(0).sum()) / taken if taken > 0 else 0.0
+        """Rakibin gözünde: aldığı (senin verdiğin) / verdiği algılanan değer (``opponent_view``)."""
+        v = opponent_view(engine, perceived, team_b, ga_, gb_)
+        return v if np.isfinite(v) else 0.0
 
     def balance(req: TradeRequest, v: float) -> float:
         """Değer dengesi: modelin (ROS) ya da piyasanın (algılanan) gözünde, hangisi yüksekse. Piyasanın dengeli
@@ -434,7 +445,8 @@ def complete_trade(engine: TradeEngine, team_a: str, team_b: str, give_a: tuple[
         try:
             m, o, ga, gb = _gains(engine, req, sa, sb, w)
             v = view(fixed_a, fixed_b)
-            result.current = _tiered(req, m, o, ga, gb, balance(req, v), v, sb, options.rank)
+            result.current = _tiered(req, m, o, ga, gb, balance(req, v), v, sb, options.rank,
+                                     gives_best(perceived, fixed_a, fixed_b))
         except TradeError:
             result.current = None
 
@@ -472,7 +484,7 @@ def complete_trade(engine: TradeEngine, team_a: str, team_b: str, give_a: tuple[
             except TradeError:
                 result.rejected_roster += 1
                 continue
-            s = _tiered(req, m, o, ga, gb, fair, v, sb, options.rank)
+            s = _tiered(req, m, o, ga, gb, fair, v, sb, options.rank, gives_best(perceived, ga_, gb_))
             if options.require_reason and s.acceptability == "low":
                 result.rejected_reason += 1              # rakip modelde de kendi gözünde de kaybediyor
                 continue

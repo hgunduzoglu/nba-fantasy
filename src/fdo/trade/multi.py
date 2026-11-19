@@ -32,7 +32,7 @@ from fdo.matchup.player_week import WEEK_DIM
 from fdo.roster.assignment import best_assignment
 from fdo.trade.data import MODES
 from fdo.trade.engine import LeagueView, TradeEngine, TradeError
-from fdo.trade.perception import perceived_prices
+from fdo.trade.perception import DEFAULT_PERCEPTION, perceived_prices
 from fdo.trade.strategy import Strategy
 from fdo.trade.suggest import _shortlist
 
@@ -389,7 +389,7 @@ def suggest_multi(engine: TradeEngine, team_id: str, *, strategy: Strategy | Non
     strategies[team_id] = strategy
     short = {t: [p for p in _shortlist(engine, t, strategies[t], options.shortlist + len(options.protected))
                  if p not in options.protected][:options.shortlist] for t in (team_id, *others)}
-    seen = perceived_prices(engine, "blend").reindex(list(engine.ids)).fillna(0.0)
+    seen = perceived_prices(engine, DEFAULT_PERCEPTION).reindex(list(engine.ids)).fillna(0.0)
     local = _Local(engine, strategies, short, options.ecw_weight, seen.to_numpy(float))
     slack_s, slack_w = .02, .01                      # yerel yaklaşım payı; kesin eşikler sonra
     pool: list[tuple[float, tuple[int, ...], tuple[str, ...], tuple[int, ...]]] = []

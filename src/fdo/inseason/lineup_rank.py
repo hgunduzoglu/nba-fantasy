@@ -75,7 +75,7 @@ def final_decision(s: Suggestion, delta: LineupDelta | None, requested: bool) ->
         return {"decision": "unmeasured", "evaluation_method": "fast_fallback",
                 "acceptability": "low", "counterpart_reasons": ["Rakibin günlük kadro faydası ölçülemedi."]}
     tier = "loss" if delta.strategy <= 1e-8 else "mutual" if other > 1e-8 else "own"
-    level, reasons = counterpart(other, other, s.perceived_balance)
+    level, reasons = counterpart(other, other, s.perceived_balance, s.gives_star)
     return {"decision": tier, "evaluation_method": "lineup", "acceptability": level,
             "counterpart_reasons": [f"Günlük kadro: {r}" for r in reasons], "other_lineup_delta": other,
             "own_lineup_delta": delta.strategy}

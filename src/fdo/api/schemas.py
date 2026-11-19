@@ -77,7 +77,7 @@ class CompleteIn(TradeIn):
     min_view: float = Field(default=.8, ge=0, le=3)
     require_reason: bool = True                  # rakip için gerekçesiz paketleri listeleme
     max_view: float = Field(default=1.25, ge=0, le=10)   # rakibin gözünde en çok (üstü senin fazla ödemen); 0 = kapalı
-    perceived: str = Field(default="blend", pattern="^(season_total|preseason|blend)$")
+    perceived: str = Field(default="market", pattern="^(market|season_total|preseason|blend)$")
     max_extra: int = Field(default=3, ge=1, le=3)
     max_evaluations: int = Field(default=4000, ge=100, le=20000)
     rank: str = Field(default="own", pattern="^(own|joint)$")   # sıralama politikası (fdo.trade.suggest.RANKINGS)
@@ -90,7 +90,7 @@ class SuggestIn(BaseModel):
     mode: str = "mutual"
     opponents: list[str] | None = None
     opponent_assumption: str = "balanced"           # balanced | punt1 | punt2 | detect
-    perceived: str = "blend"
+    perceived: str = "market"
     min_balance: float = 0.9
     min_edge: float = 1.0
     min_view: float = 0.8                           # karşılıklı faydada rakibin gözünde en az denge

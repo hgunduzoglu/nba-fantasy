@@ -11,6 +11,7 @@ import pandas as pd
 from fdo.api.state import SOURCES
 from fdo.trade.data import MODES
 from fdo.trade.engine import TradeEngine, TradeResult
+from fdo.trade.perception import opponent_view
 from fdo.trade.report import category_changes
 from fdo.trade.strategy import CATEGORIES, PRESETS, Strategy
 from fdo.types import CATEGORY_LABELS
@@ -257,9 +258,8 @@ def trade_result(eng: TradeEngine, result: TradeResult, *, perceived: pd.Series 
     req = result.request
     balance = None
     if perceived is not None:
-        given = float(perceived.reindex(list(req.give_a)).fillna(0).sum())
-        taken = float(perceived.reindex(list(req.give_b)).fillna(0).sum())
-        balance = given / taken if taken > 0 else None
+        v = opponent_view(eng, perceived, req.team_b, req.give_a, req.give_b)
+        balance = v if np.isfinite(v) else None
     for side, tid in (("a", a), ("b", b)):
         teams[side]["net_value"] = result.assessments["roster_values"][tid]
     return clean({"teams": teams, "fairness": result.assessments["fairness_ratio"],

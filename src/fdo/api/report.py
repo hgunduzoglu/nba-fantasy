@@ -18,7 +18,7 @@ from fdo.inseason import news, overlay
 from fdo.inseason.roles import load_logs
 from fdo.inseason.trade_report import ReportStore, available, build_packet, report_key
 from fdo.trade import TradeError
-from fdo.trade.perception import perceived_prices
+from fdo.trade.perception import DEFAULT_PERCEPTION, opponent_view, perceived_prices
 from fdo.trade.suggest import CompleteOptions, complete_trade
 
 
@@ -46,9 +46,9 @@ def register(app: FastAPI, state: AppState, engine, *, read_only: bool = False) 
             weakest = min(gb, key=lambda p: float(eng.market.get(p, 0.0)))
             fixed_b = tuple(p for p in gb if p != weakest)
         # eşikler teklifin kendisine göre: rakip bu dengede teklif ettiyse benzer dengedeki seçenekler de gerçekçidir
-        perceived = perceived_prices(eng, "blend")
-        taken = float(perceived.reindex(list(gb)).fillna(0).sum())
-        view = float(perceived.reindex(list(ga)).fillna(0).sum()) / taken if taken > 0 else 0.0
+        perceived = perceived_prices(eng, DEFAULT_PERCEPTION)
+        view = opponent_view(eng, perceived, body.team_b, ga, gb)
+        view = view if view == view else 0.0
         fair = max(eng.fairness(_request(body)), min(view, 1 / view) if view > 0 else 0.0)   # complete_trade ile aynı
         opts = CompleteOptions(max_extra=1, max_results=8, auto_balance=body.auto_balance,
                                min_fairness=min(0.55, 0.9 * fair), min_view=min(0.8, 0.9 * view))

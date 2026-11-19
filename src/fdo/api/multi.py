@@ -14,7 +14,7 @@ from fdo.trade import Strategy, TradeError
 from fdo.trade.data import MODES
 from fdo.trade.multi import (SHAPES, MultiSearchOptions, MultiTradeRequest, analyze_multi, resolve_multi,
                              suggest_multi, value_flow)
-from fdo.trade.perception import perceived_prices
+from fdo.trade.perception import DEFAULT_PERCEPTION, perceived_prices
 from fdo.trade.strategy import CATEGORIES
 from fdo.types import CATEGORY_LABELS
 
@@ -56,7 +56,7 @@ def register(app: FastAPI, state: AppState) -> None:
         except (TradeError, ValueError) as e:
             raise HTTPException(400, str(e)) from e
         names, teams = eng.data.players["name"], eng.league.teams
-        perceived = value_flow(eng, req, perceived_prices(eng, "blend"))
+        perceived = value_flow(eng, req, perceived_prices(eng, DEFAULT_PERCEPTION))
         po = state.playoff_games(lid, body.injuries)
         out = []
         for t in r.teams:

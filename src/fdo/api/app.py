@@ -25,7 +25,7 @@ from fdo.inseason.data_checks import as_dicts
 from fdo.inseason.injuries import return_assumptions
 from fdo.inseason.scenarios import BASES, RATE_BASES, per_game_rates
 from fdo.trade import TradeError, TradeRequest
-from fdo.trade.perception import perceived_prices
+from fdo.trade.perception import DEFAULT_PERCEPTION, perceived_prices
 from fdo.trade.suggest import offer_features
 
 FRONTEND_DIST = REPO_ROOT / "frontend" / "dist"
@@ -187,7 +187,7 @@ def create_app(data_dir: str | Path | None = None, frontend_dir: str | Path | No
             _, _, il = eng.resolve(_request(body), {body.team_a: sa, body.team_b: sb})
         except (TradeError, ValueError) as e:
             raise HTTPException(400, str(e)) from e
-        out = trade_result(eng, result, perceived=perceived_prices(eng, "blend"))
+        out = trade_result(eng, result, perceived=perceived_prices(eng, DEFAULT_PERCEPTION))
         plain = plain_metrics(engine(lid, body.injuries, body.basis, False), _request(body),
                               {body.team_a: sa, body.team_b: sb})
         for side, tid in (("a", body.team_a), ("b", body.team_b)):
@@ -245,7 +245,7 @@ def create_app(data_dir: str | Path | None = None, frontend_dir: str | Path | No
         else:
             sa, sb = _strategies(eng, body)
             try:
-                features = offer_features(eng, _request(body), sa, sb, perceived_prices(eng, "blend"))
+                features = offer_features(eng, _request(body), sa, sb, perceived_prices(eng, DEFAULT_PERCEPTION))
             except (TradeError, ValueError) as e:
                 raise HTTPException(400, str(e)) from e
             names = {p: eng.data.players.loc[p, "name"] for p in [*body.give_a, *body.give_b]}

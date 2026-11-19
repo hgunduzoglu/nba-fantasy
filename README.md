@@ -2653,6 +2653,30 @@ to the healthy rate (0.94) is redistributed; the part below it in a post-return 
 Edwards 48.07 → 47.79, Kon Knueppel 55.07 → 54.81, Jalen Duren 59.07 → 58.89. The effect reaches the weekly model and the season
 simulation.
 
+### 13.56 What the other manager sees: Yahoo rank, rostered share, filler and the best player (19 November 2026)
+
+Five trades the search rated as roughly fair to the other side were each judged certain to be rejected. Three
+causes, all in the perceived value (§13.15):
+
+* **The wrong screen.** The perceived rank averaged our per-game season z rank with the draft rank, so after five
+  weeks half of it was still preseason name value. Managers look at Yahoo's player list instead. Its "Current" rank
+  (this season's totals, so missed games count) and "% Ros" (share of Yahoo leagues rostering the player: name value
+  and current opinion) are now read from the season pages (`TradeData.yahoo`). The new default perception
+  `market` is the average of the two ranks; a player without them falls back to `blend`. Example: Jaden McDaniels is
+  19th on Yahoo and Desmond Bane 68th, but the old blend priced McDaniels below Bane.
+* **Filler counted as value.** The view was a plain sum, so adding two near-waiver players (9–11% rostered) to a
+  package raised it. `opponent_view` now charges the roster spot: when a team receives more players than it sends,
+  its lowest-valued active players (incoming ones included) are dropped and subtracted from what it receives.
+* **Two average players for one good one.** In every one of the five trades the other side gave up the deal's best
+  player. Managers ask who ends up with the best player; a sum does not. `counterpart` now requires a side that
+  gives the deal's most valuable player (`gives_best`) to see at least `STAR_PREMIUM` = 1.1 in its own eyes;
+  otherwise the even-view reason (`PERCEIVED_EVEN` = 0.95) does not count.
+
+With the change all five are "low" (views 0.74–0.90, Knueppel-for-Barnes 0.13; before, two were "medium"). The 13
+completed trades in the four leagues cannot calibrate the threshold: values have moved since (one traded player was
+injured afterwards) and most completed trades favour one side in any lens. The thresholds are a judgement until
+logged offers and answers (`/trade/offer`) accumulate; `scripts/calibrate_thresholds.py` reads them.
+
 ### 13.8 V3 candidates
 
 Beam search and H-score weight optimization; fitting the profile mix; covariance of game counts between

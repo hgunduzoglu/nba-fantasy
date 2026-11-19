@@ -2573,6 +2573,30 @@ kadar olan kısım dağıtılıyor; dönüş penceresinde onun altında kalan k�
 0,92) beklenen toplamı düşürüyor. 17 Kasım, Karaali SK: Jaren Jackson Jr. 51,07 → 50,87 beklenen maç, Anthony Edwards 48,07 →
 47,79, Kon Knueppel 55,07 → 54,81, Jalen Duren 59,07 → 58,89. Etki haftalık modele ve sezon simülasyonuna ulaşır.
 
+### 13.56 Karşı menajerin gördüğü: Yahoo sırası, kadroda olma oranı, dolgu oyuncu ve en iyi oyuncu (19 Kasım 2026)
+
+Aramanın rakip için aşağı yukarı adil bulduğu beş takasın her biri kesin reddedilecek diye değerlendirildi. Üç neden,
+hepsi algılanan değerde (§13.15):
+
+* **Yanlış ekran.** Algılanan sıra bizim maç başı sezon z sırası ile draft sırasının ortalamasıydı; beş hafta sonra
+  bile yarısı sezon öncesi isim değeriydi. Menajer Yahoo'nun oyuncu listesine bakar. Listedeki "Current" sırası (bu
+  sezonun toplamları; kaçırılan maçlar düşürür) ve "% Ros" (oyuncunun Yahoo liglerinde kadroda olma oranı: isim
+  değeri ve güncel algı) artık bu sezon sayfalarından okunuyor (`TradeData.yahoo`). Yeni varsayılan algı `market`
+  iki sıranın ortalaması; bu sütunları olmayan oyuncu `blend`'e düşer. Örnek: Jaden McDaniels Yahoo'da 19., Desmond
+  Bane 68.; eski karma McDaniels'ı Bane'in altında fiyatlıyordu.
+* **Dolgu oyuncu değer sayılıyordu.** Oran düz toplamdı; pakete kadroda olma oranı %9–11 olan iki oyuncu eklemek
+  oranı yükseltiyordu. `opponent_view` artık kadro yerini ödetiyor: takım verdiğinden fazla oyuncu alıyorsa en düşük
+  değerli aktif oyuncuları (gelenler dahil) bırakılır ve aldığından düşülür.
+* **İki orta oyuncu bir iyi oyuncu yerine.** Beş takasın hepsinde takasın en iyi oyuncusunu karşı taraf veriyordu.
+  Menajer "en iyi oyuncu kimde kalıyor"a bakar, toplam bakmaz. `counterpart` artık takasın en değerli oyuncusunu
+  veren tarafın (`gives_best`) kendi gözünde en az `STAR_PREMIUM` = 1,1 almasını istiyor; yoksa eşit görme gerekçesi
+  (`PERCEIVED_EVEN` = 0,95) sayılmıyor.
+
+Değişiklikle beşi de "düşük" (oranlar 0,74–0,90, Knueppel'li Barnes takası 0,13; önce ikisi "orta"ydı). Dört ligdeki
+13 gerçekleşmiş takas eşiği kalibre edemiyor: değerler o günden beri değişti (takas edilen bir oyuncu sonradan
+sakatlandı) ve gerçekleşen takasların çoğu her ölçüde bir tarafın lehine. Kaydedilen teklif ve cevaplar
+(`/trade/offer`) birikene kadar eşikler bir yargıdır; `scripts/calibrate_thresholds.py` onları okur.
+
 ### 13.8 V3 adayları
 
 Beam search ve H-score ağırlık optimizasyonu; profil karışımı uyumu; oyuncular arası maç sayısı

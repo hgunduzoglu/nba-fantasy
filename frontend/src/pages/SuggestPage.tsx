@@ -26,6 +26,7 @@ const MODES: { id: SuggestMode; label: string; desc: string }[] = [
     desc: "Aldığın pakette olduğundan kötü görünen bir oyuncu var. Rakip, baktığı değere göre takası adil ya da kârlı görür; sen kalan sezonda kazanırsın." },
 ];
 const PERCEIVED: { id: Perceived; label: string }[] = [
+  { id: "market", label: "Yahoo'da görünen (sıra + % sahiplik)" },
   { id: "blend", label: "Bu sezon + isim değeri" },
   { id: "season_total", label: "Bu sezonun rakamları" },
   { id: "preseason", label: "Sezon öncesi isim değeri" },
@@ -96,7 +97,7 @@ export function SuggestPage({ meta, league, team, injuries, onOpen }: Props) {
   const [dirs, setDirs] = useState<DirId[]>(DEFAULT_DIRS);
   const [custom, setCustom] = useState<StrategyChoice>({ kind: "custom", weights: Array(9).fill(1) });
   const [assume, setAssume] = useState<"balanced" | "punt1" | "punt2" | "detect">("detect");
-  const [perceived, setPerceived] = useState<Perceived>("blend");
+  const [perceived, setPerceived] = useState<Perceived>("market");
   const [minBalance, setMinBalance] = useState(0.9);
   const [minEdge, setMinEdge] = useState(1.0);
   const [packages, setPackages] = useState<string[]>(["1x1", "2x1", "1x2", "2x2"]);

@@ -98,7 +98,6 @@ def register(app: FastAPI, state: AppState) -> None:
         if sim is not None:                     # README §13.47: finalistler günlük kadroyla yeniden sıralanır
             found.suggestions, lineups = rerank(found.suggestions,
                                                 lineup_deltas(sim, eng, body.team, strategy, found.suggestions))
-        perceived = perceived_prices(eng, body.perceived)
         po_games = state.playoff_games(lid, body.injuries)
         plain_eng = engine(lid, body.injuries, False)
         rows, kept_lineups = [], []
@@ -120,14 +119,13 @@ def register(app: FastAPI, state: AppState) -> None:
                 continue
             plain = plain_metrics(plain_eng, r, pair)
             p, _ = eng.score_many(rosters, pair, il, plans=plans)
-            taken = float(perceived.reindex(list(r.give_b)).fillna(0).sum())
             active = [x for x in rosters[body.team] if x not in il[body.team]]
             rows.append({"my_categories": category_deltas(eng, p, body.team, pair),
                          "other_categories": category_deltas(eng, p, r.team_b, pair),
                          "playoff_games": games_delta(po_games, eng.league.rosters[body.team], rosters[body.team]),
                          "position_gap": best_assignment(eng.positions(active), eng.config).n_open_active,
-                         "perceived_view": float(perceived.reindex(list(r.give_a)).fillna(0).sum()) / taken
-                         if taken > 0 else None,"team_b": r.team_b, "team_b_name": eng.league.teams[r.team_b],
+                         "perceived_view": s.perceived_balance if s.perceived_balance > 0 else None,
+                         "team_b": r.team_b, "team_b_name": eng.league.teams[r.team_b],
                          "give_a": [_brief(eng, p) for p in r.give_a], "give_b": [_brief(eng, p) for p in r.give_b],
                          "own_delta": s.own_strategy_delta, "other_delta": s.other_strategy_delta,
                          "own_delta_plain": plain[body.team]["strategy_delta"] if plain else None,
@@ -253,7 +251,7 @@ def register(app: FastAPI, state: AppState) -> None:
              "days_since": (as_of - p.last_action).days if p.last_action else None} for t, p in prof.items()]})
 
     @app.get("/api/leagues/{lid}/trade/mispricing")
-    def mispriced(lid: str, team: str, perceived: str = Query("blend", pattern="^(season_total|preseason|blend)$"),
+    def mispriced(lid: str, team: str, perceived: str = Query("market", pattern="^(market|season_total|preseason|blend)$"),
                   injuries: bool = True):
         eng = engine(lid, injuries)
         team_check(eng, team)

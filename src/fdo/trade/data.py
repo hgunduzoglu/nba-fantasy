@@ -62,6 +62,7 @@ class TradeData:
     durability: pd.DataFrame | None = None   # fdo.inseason.durability.apply_durability ile (oynama oranları)
     adp: pd.Series | None = None             # Yahoo sezon öncesi ADP: oyuncu → ortalama draft sırası
     draft: pd.DataFrame | None = None        # liglerin kendi draftı: league_id, player_id, pick, cost (açık artırma)
+    yahoo: pd.DataFrame | None = None        # Yahoo oyuncu listesinde görünen: rank_current, rank_preseason, pct_rostered
 
 
 def number(value) -> float:
@@ -133,6 +134,27 @@ def _stat_pages(pages: list[dict], kind: str) -> tuple[pd.DataFrame, dict]:
         raise ValueError(f"{kind}: aynı oyuncu birden fazla istatistik satırında")
     return df, {"captured_at": max(dates), "source_url": urls[0], "pages": len(urls),
                 "basis": "period_total", "kind": kind}
+
+
+def yahoo_market(pages: list[dict]) -> pd.DataFrame | None:
+    """Yahoo oyuncu listesinde menajerin gördüğü piyasa sütunları (bu sezon sayfaları): güncel sıra (``Current``,
+    bu sezonun toplamlarıyla), sezon öncesi sıra ve Yahoo genelinde kadroda olma oranı (``% Ros``, 0–100). Algılanan
+    değer bunlarla ölçülür (``fdo.trade.perception``); sütun yoksa ``None``."""
+    rows = {}
+    for page in pages:
+        if page["kind"] != "season_total":
+            continue
+        headers = page["table"]["headers"][-1]
+        at = {k: next((i for i, h in enumerate(headers) if str(h).startswith(v)), None)
+              for k, v in (("rank_current", "Current"), ("rank_preseason", "Pre-Season"), ("pct_rostered", "% Ros"))}
+        if any(i is None for i in at.values()):
+            continue
+        for row in page["table"]["rows"]:
+            c = row["cells"]
+            rows.setdefault(str(row["player_id"]), {k: number(str(c[i]).rstrip("%")) for k, i in at.items()})
+    if not rows:
+        return None
+    return pd.DataFrame.from_dict(rows, orient="index").astype(float)
 
 
 def preseason_file(directory: Path, season: str, schedule: pd.DataFrame | None) -> Path:
@@ -237,7 +259,7 @@ def load_trade_data(directory: str | Path | None = None, *, config: Config | Non
     issues = [msg for mode, frame in stats.items() for msg in quality_issues(frame, MODES[mode], players["name"])]
     adp, draft = draft_market(directory)
     return TradeData(leagues, players, stats, sources, variance, schedule, as_of,
-                     file_signature(directory), tuple(issues), adp=adp, draft=draft)
+                     file_signature(directory), tuple(issues), adp=adp, draft=draft, yahoo=yahoo_market(pages))
 
 
 #: Sayı tutarlılığında yuvarlama payı: kaynak toplamları bir ondalıkla verir (ör. 0,2 + 0,1 → 0,4 görünen sayı).

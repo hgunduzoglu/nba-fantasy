@@ -13,6 +13,14 @@ karar ölçümüz kalan sezon projeksiyonudur (ROS). İkisini aynı ölçeğe ko
 3. ``edge = algılanan fiyat − ROS değeri`` (piyasa birimi): pozitif = sat-yüksek adayı (olduğundan iyi
    görünüyor), negatif = al-düşük hedefi. Oran kullanılmaz: yedek seviyesindeki oyuncularda (ROS ≈ 0.1)
    anlamsız büyür.
+
+``market`` (varsayılan) menajerin takas ekranında gördüğüdür (README §13.56): Yahoo'nun güncel sırası (bu sezonun
+toplamları; sakat kaldığı maçlar sırayı düşürür) ve Yahoo genelinde kadroda olma oranı (isim değeri ve güncel algı).
+İkisinin sıralarının ortalaması; Yahoo sütunları olmayan oyuncu ``blend`` sırasına düşer.
+
+Rakibin gözünde oran (``opponent_view``) toplamların oranıdır, iki düzeltmeyle: aldığı oyuncu sayısı verdiğinden
+fazlaysa kadrosundaki en düşük algılanan değerli oyuncular (gelenler dahil) bırakılır ve aldığından düşülür (dolgu
+oyuncu değer sayılmaz); takasın en değerli oyuncusunu veren taraf için ``gives_best`` (bkz. ``counterpart``).
 """
 
 from __future__ import annotations
@@ -25,8 +33,9 @@ from fdo.trade.engine import TradeEngine
 from fdo.types import STATS
 from fdo.valuation import value_players
 
-PERCEPTIONS = {"season_total": "Bu sezonun rakamları", "preseason": "Sezon öncesi isim değeri (draft sırası)",
-               "blend": "İkisinin ortalaması"}
+PERCEPTIONS = {"market": "Yahoo'da görünen (güncel sıra + kadroda olma oranı)", "season_total": "Bu sezonun rakamları",
+               "preseason": "Sezon öncesi isim değeri (draft sırası)", "blend": "Bu sezon + sezon öncesi ortalaması"}
+DEFAULT_PERCEPTION = "market"
 
 
 def _per_game_rank(engine: TradeEngine, mode: str, ids: list[str], min_gp: float = 0.0) -> pd.Series:
@@ -84,7 +93,41 @@ def perceived_ranks(engine: TradeEngine, basis: str = "season_total", *, min_gp:
         cur = _per_game_rank(engine, "season_total", ids, min_gp)
         cur = cur.fillna(pre)
         rank = cur if basis == "season_total" else (cur + pre.fillna(cur)) / 2
+        if basis == "market":
+            rank = _market_rank(engine, ids).fillna(rank.rank(method="first"))
     return rank.rank(method="first")
+
+
+def _market_rank(engine: TradeEngine, ids: list[str]) -> pd.Series:
+    """Yahoo'nun güncel sırası ile kadroda olma oranı sırasının ortalaması (biri eksikse diğeri); ikisi de yoksa NaN."""
+    y = engine.data.yahoo
+    if y is None:
+        return pd.Series(np.nan, index=ids)
+    y = y.reindex(ids)
+    parts = pd.concat([y["rank_current"].rank(method="average"),
+                       (-y["pct_rostered"]).rank(method="average")], axis=1)
+    return parts.mean(axis=1)
+
+
+def opponent_view(engine: TradeEngine, perceived: pd.Series, team: str, receive, give) -> float:
+    """``team``'in gözünde aldığı / verdiği algılanan değer. Fazla gelen oyuncu kadar en düşük değerli oyuncusu
+    (IL dışı; gelenler dahil, gidenler hariç) bırakılır ve aldığından düşülür. Verdiği değer 0 ise NaN."""
+    receive, give = list(receive), list(give)
+    price = lambda ids: perceived.reindex(ids).fillna(0.0)                                   # noqa: E731
+    got, gave = float(price(receive).sum()), float(price(give).sum())
+    extra = len(receive) - len(give)
+    if extra > 0 and team in engine.league.rosters:
+        il = engine.league.injury_rosters.get(team, frozenset())
+        after = [p for p in engine.league.rosters[team] if p not in give and p not in il] + receive
+        got -= float(np.sort(price(after).to_numpy(float))[:extra].sum())
+    return max(got, 0.0) / gave if gave > 0 else float("nan")
+
+
+def gives_best(perceived: pd.Series, receive, give) -> bool:
+    """Takasın algılanan en değerli oyuncusu bu tarafın verdikleri arasında mı."""
+    a = perceived.reindex(list(receive)).fillna(0.0)
+    b = perceived.reindex(list(give)).fillna(0.0)
+    return bool(len(b) and (not len(a) or b.max() > a.max()))
 
 
 def perceived_prices(engine: TradeEngine, basis: str = "season_total", *, min_gp: int = 3) -> pd.Series:
@@ -117,4 +160,5 @@ def mispricing(engine: TradeEngine, perceived: pd.Series, team_ids=None) -> pd.D
     return df.sort_values("edge", ascending=False).reset_index(drop=True) if len(df) else df
 
 
-__all__ = ["PERCEPTIONS", "mispricing", "perceived_prices", "perceived_ranks", "ROS"]
+__all__ = ["DEFAULT_PERCEPTION", "PERCEPTIONS", "gives_best", "mispricing", "opponent_view", "perceived_prices",
+           "perceived_ranks", "ROS"]

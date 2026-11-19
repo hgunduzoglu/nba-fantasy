@@ -422,7 +422,7 @@ export interface CompleteOut {
 
 export type SuggestMode = "mutual" | "sell_high" | "buy_low";
 export type Acceptability = "high" | "medium" | "low";
-export type Perceived = "season_total" | "preseason" | "blend";
+export type Perceived = "market" | "season_total" | "preseason" | "blend";
 
 export interface SuggestIn {
   protected?: string[];
