@@ -38,6 +38,10 @@ from fdo.types import STATS
 DEFAULT_OUT = ("NA", "O", "INJ", "SUSP")
 #: Belirsiz durumlar: varsayılan olarak oynar; "Q oynamaz" senaryosunda ``out_statuses``a eklenir (kalibre değil).
 QUESTIONABLE = ("Q", "GTD", "DTD")
+#: Yeni dönmüş oyuncu (maç kayıtlarından, ``sources["recent_returns"]``): dönüşten sonraki ilk ``RETURN_OTHER_GAMES``
+#: takım maçında B2B dışı maçlarda da oynama oranı (geçmiş iki sezon: sağlıklıya göre %91–94 toplam; README §13.59).
+RETURN_OTHER_PLAY = .95
+RETURN_OTHER_GAMES = 20
 #: Elle girilen haftalık skor sütunları → vektördeki ortalama indeksleri.
 ACC_FIELDS = ("fgm", "fga", "ftm", "fta", "fg3m", "pts", "reb", "ast", "stl", "blk", "tov")
 
@@ -212,7 +216,11 @@ class WeekModel:
         olağan dinlenmeyi zaten içerir): diğer maçların ağırlığı aynı oranda artar, yalnız günlere ve haftalara dağılım
         değişir. Dönüş penceresinde sağlıklı oranın altında kalan kısım ise net kayıptır: dönüşten sonra oyuncu o maçı
         gerçekten kaçırır, diğer maçlarda daha fazla oynamaz (maç kayıtlarında dönüş sonrası diğer maçlarda oynama
-        sağlıklı tabanla aynı: %87,4'e %86,6; README §13.55)."""
+        sağlıklı tabanla aynı: %87,4'e %86,6; README §13.55).
+
+        CBS listesinden çıkmış, son günlerde dönmüş oyuncu (``sources["recent_returns"]``, maç kayıtlarından) için de
+        dönüş pencereleri uygulanır; ayrıca dönüşten sonraki ilk ``RETURN_OTHER_GAMES`` takım maçında B2B dışı
+        maçlarda ``RETURN_OTHER_PLAY`` oranında oynar (net kayıp; README §13.59)."""
         healthy = min(1.0, max(0.0, float(b2b.get("healthy", 1.0))))
         after = sorted((int(k), min(1.0, max(0.0, float(v)))) for k, v in (b2b.get("after_return") or {}).items())
         second: dict[str, tuple[list[dt.date], set[dt.date]]] = {}
@@ -220,32 +228,48 @@ class WeekModel:
             all_days = set(days)
             future = sorted(d for d in days if d >= as_of)
             second[team] = (future, {d for d in future if d - dt.timedelta(days=1) in all_days})
+        recent = {str(k): v if isinstance(v, dt.date) else dt.date.fromisoformat(str(v))
+                  for k, v in ((self.engine.data.sources or {}).get("recent_returns") or {}).items()}
         for pid in ids:
-            future, b2 = second.get(self.team[self.engine.index[pid]], ([], set()))
-            if not b2:
-                continue
+            team = self.team[self.engine.index[pid]]
+            future, b2 = second.get(team, ([], set()))
             current = self.play_weight.get(pid, {})
             ret = self.return_date.get(pid)
             ret = ret if ret is not None and ret != dt.date.max and ret > as_of else None
+            back = recent.get(pid) if ret is None else None          # CBS'ten çıkmış, yeni dönmüş
+            start = ret or back
+            if not b2 and back is None:
+                continue
             domain = sorted(current) if ret is not None and current else [d for d in future if ret is None or d >= ret]
+            if not domain:
+                continue
+            team_days = sorted(games_by_team.get(team, []))
 
             def factor(d: dt.date) -> float:
-                if ret is not None:
-                    since = (d - ret).days
+                if start is not None:
+                    since = (d - start).days
                     for window, rate in after:
                         if 0 < since <= window:
                             return rate
                 return healthy
 
+            def other_play(d: dt.date) -> float:
+                if back is None:
+                    return 1.0
+                since = sum(back < x <= d for x in team_days)
+                return RETURN_OTHER_PLAY if since <= RETURN_OTHER_GAMES else 1.0
+
             w = {d: current.get(d, 1.0) for d in domain}
             hit = {d: factor(d) for d in domain if d in b2}
-            other = sum(v for d, v in w.items() if d not in hit)
-            if not hit or other <= 0 or all(f >= 1.0 for f in hit.values()):
+            miss = {d: other_play(d) for d in domain if d not in hit}
+            other = sum(w[d] * f for d, f in miss.items())
+            # dönüş sonrası fazladan kaçan maç: B2B'de sağlıklı oranın altı, diğer maçlarda eksik oynama
+            net = sum(w[d] * max(0.0, healthy - f) for d, f in hit.items()) + sum(w[d] * (1 - f) for d, f in miss.items())
+            if other <= 0 or ((not hit or all(f >= 1.0 for f in hit.values())) and net <= 0):
                 continue
             total = sum(w.values())
-            net = sum(w[d] * max(0.0, healthy - f) for d, f in hit.items())     # dönüş sonrası fazladan kaçan maç
             scale = max(0.0, total - net - sum(w[d] * f for d, f in hit.items())) / other
-            self.play_weight[pid] = {**current, **{d: w[d] * hit.get(d, scale) for d in domain}}
+            self.play_weight[pid] = {**current, **{d: w[d] * (hit[d] if d in hit else miss[d] * scale) for d in domain}}
 
     # ------------------------------------------------------------- yardımcılar
     def playable(self, pid: str, use_status: bool = True) -> bool:

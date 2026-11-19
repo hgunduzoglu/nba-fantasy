@@ -550,7 +550,7 @@ def register(app: FastAPI, state: AppState) -> None:
 
     @app.get("/api/leagues/{lid}/strategy-advice")
     def strategy_advice(lid: str, team: str, n: int = 2000, injuries: bool = True,
-                        basis: str = Query("ros", pattern="^(ros|season|blend)$")):
+                        basis: str = Query("ros", pattern="^(ros|yahoo|season|blend)$")):
         """Takımın kendi stratejisinin sezona etkisi: her hazır strateji ile kalan sezon aynı tohumla simüle edilir
         (kadro, waiver ve günlük kadro kararları stratejiyle), dengeliye göre eşleşmeli P(playoff) ve P(şampiyon) farkı
         ve simülasyon standart hatası. Rakiplerin stratejisi değişmez. Veri değişene kadar önbellekte. ``basis``: kalan

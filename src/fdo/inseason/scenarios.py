@@ -1,10 +1,12 @@
 """Takas değerlendirmesinin istatistik temeli (README §13.28).
 
-Takas hesapları kalan sezon için "maç başı oran × kalan maç" vektörleriyle yapılır. Varsayılan temel Yahoo'nun kalan
-sezon projeksiyonudur. Alternatif temeller kalan maç sayısını (dayanıklılık dahil) aynı bırakır, yalnızca maç başı
+Takas hesapları kalan sezon için "maç başı oran × kalan maç" vektörleriyle yapılır. Varsayılan temel (``ros``) modelin
+tahminidir: Yahoo'nun kalan sezon projeksiyonu, kategori başına bu sezona kaydırılmış ve dakika değişimiyle çarpılmış
+(``fdo.inseason.durability``, README §13.59). ``yahoo`` kaydırma öncesi Yahoo oranlarıdır. Alternatif temeller kalan maç sayısını (dayanıklılık dahil) aynı bırakır, yalnızca maç başı
 oranları değiştirir; bütün lig aynı temelde değerlenir (rakip takımlar, boştakiler, yerine koyma düzeyi, IL dönüşünde
 kimin bırakılacağı):
 
+* ``yahoo`` — Yahoo'nun maç başı oranları (bayat düzeltme sonrası, bu sezona kaydırılmadan).
 * ``season`` — bu sezonun gerçekleşen maç başı ortalamaları (en az ``min_games`` maç; yoksa Yahoo). ``full_games``'ten
   az maçta (ör. 4 maçlık Claxton) karma ağırlıkla Yahoo'ya çekilir: birkaç maçlık örnek tek başına oran sayılmaz.
 * ``recent`` — NBA maç kayıtlarından son ``recent_games`` maçın ortalaması (rol değişimini en hızlı yansıtır; en az
@@ -22,14 +24,15 @@ import dataclasses
 
 import pandas as pd
 
+from fdo.inseason.durability import YAHOO
 from fdo.inseason.roles import match_ids
 from fdo.trade.data import ROS, TradeData
 from fdo.types import STATS
 
-BASES = {"ros": "Yahoo projeksiyonu", "season": "Bu sezonki oranlar", "recent": "Son 10 maç", "blend": "Karma",
+BASES = {"ros": "Model (Yahoo + bu sezon)", "yahoo": "Yahoo projeksiyonu", "season": "Bu sezonki oranlar", "recent": "Son 10 maç", "blend": "Karma",
          "late": "Geç dönüş"}
 #: Oranı değiştiren temeller (``late`` yalnız dönüş tarihini değiştirir).
-RATE_BASES = ("ros", "season", "recent", "blend")
+RATE_BASES = ("ros", "yahoo", "season", "recent", "blend")
 MIN_GAMES = 3
 RECENT_GAMES = 10
 PRIOR_GAMES = 10
@@ -50,7 +53,11 @@ def basis_rates(data: TradeData, basis: str, logs: pd.DataFrame | None = None, *
     ros = data.stats[ROS]
     if basis in ("ros", "late"):
         return ros
-    yahoo = _per_game(ros)
+    yahoo = _per_game(data.stats.get(YAHOO, ros).reindex(ros.index))
+    if basis == "yahoo":
+        out = ros.copy()
+        out[list(STATS)] = yahoo[list(STATS)].fillna(_per_game(ros)[list(STATS)]).mul(ros["gp"], axis=0)
+        return out
     season = data.stats["season_total"].reindex(ros.index)
     played = season["gp"].fillna(0)
     actual = _per_game(season)

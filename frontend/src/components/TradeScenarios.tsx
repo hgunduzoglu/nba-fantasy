@@ -3,13 +3,15 @@ import { fmtDate, fmtDelta, fmtNum, fmtStat } from "../format";
 import type { Basis, CategoryKey, ReturnEvent, ScenariosOut } from "../types";
 
 export const BASIS_LABELS: Record<Basis, string> = {
-  ros: "Yahoo projeksiyonu", season: "Bu sezonki oranlar", recent: "Son 10 maç", blend: "Karma", late: "Geç dönüş",
+  ros: "Model (Yahoo + bu sezon)", yahoo: "Yahoo projeksiyonu", season: "Bu sezonki oranlar", recent: "Son 10 maç", blend: "Karma", late: "Geç dönüş",
 };
 export const BASIS_SHORT: Record<Basis, string> = {
-  ros: "Yahoo", season: "Bu sezon", recent: "Son 10 maç", blend: "Karma", late: "Geç dönüş",
+  ros: "Model", yahoo: "Yahoo", season: "Bu sezon", recent: "Son 10 maç", blend: "Karma", late: "Geç dönüş",
 };
 export const BASIS_HINT: Record<Basis, string> = {
-  ros: "Yahoo'nun kalan sezon projeksiyonu (varsayılan)",
+  ros: "Modelin tahmini (varsayılan): Yahoo projeksiyonu kategori başına bu sezona kaydırılmış, dakikası son maçlarda " +
+    "değişen oyuncuda dakika oranıyla çarpılmış",
+  yahoo: "Yahoo'nun kalan sezon projeksiyonu (bu sezona kaydırılmadan)",
   season: "Bu sezonun gerçekleşen maç başı ortalamaları, kalan maçlara uygulanır (en az 3 maç; yoksa Yahoo)",
   recent: "Son 10 maçın ortalaması: rol değişimini en hızlı yansıtır (en az 3 maç)",
   blend: "Yahoo ile bu sezon arasında, oynanan maça göre ağırlık (10 maçta yarı yarıya)",

@@ -104,6 +104,9 @@ def role_boosts(data: TradeData, logs: pd.DataFrame | None) -> dict[str, RoleBoo
     important = set(games.index[(games["n"] >= MIN_GAMES) & (games["mpg"] >= MIN_MINUTES)])
     absent_all = out_until(data)
     ros = data.stats[ROS]
+    # dakika oranı (README §13.59) aynı rol değişimini kısmen yansıtır: tahmin onun öncesindeki tabandan yapılır,
+    # fark güncel ROS'a göre yazılır (iki kez sayılmaz)
+    mf = data.durability["minutes_factor"] if data.durability is not None and "minutes_factor" in         data.durability.columns else pd.Series(dtype=float)
     out: dict[str, RoleBoost] = {}
     for team, tl in logs.groupby("nba_team"):
         absent = [p for p in absent_all if p in important and set(tl.loc[tl["player_id"] == p, "nba_team"]) == {team}
@@ -129,7 +132,8 @@ def role_boosts(data: TradeData, logs: pd.DataFrame | None) -> dict[str, RoleBoo
                 continue
             raw = (w[list(FIELDS)].mean() - h[list(FIELDS)].mean()).to_dict()
             k = len(w) / (len(w) + SHRINK_GAMES)
-            base = (ros.loc[pid, list(STATS)] / ros.loc[pid, "gp"]).astype(float)
+            current = (ros.loc[pid, list(STATS)] / ros.loc[pid, "gp"]).astype(float)
+            base = current / float(mf.get(pid, 1.0) or 1.0)
             during = w[list(STATS)].mean()
             shifted = {s: float(base[s]) + k * float(raw[s]) for s in STATS}
             observed = {s: k * float(during[s]) + (1 - k) * float(base[s]) for s in STATS}
@@ -139,7 +143,7 @@ def role_boosts(data: TradeData, logs: pd.DataFrame | None) -> dict[str, RoleBoo
             pg["fg3m"] = min(pg["fg3m"], pg["fgm"])
             if not np.isfinite(list(pg.values())).all():
                 continue
-            delta = {s: pg[s] - float(base[s]) for s in STATS} | {"minutes": float(raw["minutes"]) * k}
+            delta = {s: pg[s] - float(current[s]) for s in STATS} | {"minutes": float(raw["minutes"]) * k}
             out[pid] = RoleBoost(pid, team, tuple(used), until, len(w), len(h), delta,
                                  {s: float(v) for s, v in raw.items()}, pg)
     return out

@@ -16,6 +16,11 @@ projeksiyonun maç sayısı ise bu riski içerir (ör. Caruso 58/82).
 * Yahoo'nun maç başı değeri bariz bayat oyuncu (bu sezonun ve sezon öncesinin yarısının altında; çoğu yedek ve
   rotasyon oyuncusu, ör. her maç 20+ dakika oynayana maç başı 1 sayı) bu sezon ağırlıklı oranlarla düzeltilir
   (``_fix_stale_ros``, README §13.57).
+* Diğer oyuncularda Yahoo'nun maç başı değeri bu sezona doğru kaydırılır (``_shrink_to_season``, README §13.59):
+  kategori başına ``n / (n + k)`` ağırlıkla (``n`` bu sezon oynanan maç; ``k`` sayı ve isabette küçük, top çalma ve
+  blokta büyük: Yahoo orada daha isabetli). Maç kayıtları verilirse dakikası son maçlarda değişen oyuncunun maç başı
+  değerleri dakika oranıyla çarpılır (``_minutes_factor``): ``((1 − q) · sezon dk + q · son 5 maç dk) / sezon dk``.
+  Kaydırma öncesi Yahoo satırı ``stats["yahoo_ros"]``'ta kalır (``yahoo`` temeli).
 
 Sezon öncesi projeksiyonu olmayan oyuncuya dokunulmaz. Ham dosyalar değişmez; düzeltme bellekte ve açıkça
 raporlanır. Sakatlık dönüş tarihlerinden (``apply_injuries``) sonra uygulanır.
@@ -40,10 +45,20 @@ STALE_RATIO = .5             # Yahoo ROS maç başı hacmi bu sezonun ve sezon �
 STALE_MIN_GP = 5             # bu sezon en az bu kadar maç (oynadığı gerçek rol bilinsin)
 STALE_PRIOR_GAMES = 5.0      # bayat düzeltmede sezon öncesine önsel (maç): gerçek oynanan role ağırlık
 STALE_VOLUME = ("pts", "reb", "ast", "stl", "blk", "fg3m")
+YAHOO = "yahoo_ros"          # kaydırma öncesi Yahoo kalan sezon satırı (bayat düzeltme ve doldurma sonrası)
+#: Bu sezona kaydırma: kategori başına önsel maç (geçmiş iki sezonun maç kayıtlarıyla ölçüldü; README §13.59).
+SHRINK_GAMES = {"fgm": 4.0, "fga": 4.0, "pts": 3.0, "reb": 5.0, "ast": 5.0, "ftm": 8.0, "fta": 8.0, "fg3m": 8.0,
+                "tov": 8.0, "stl": 14.0, "blk": 12.0}
+SHRINK_MIN_GAMES = 3         # en az bu kadar maç (tek maçlık sakatlık çıkışı oranı bozmasın)
+MINUTES_WEIGHT = .25         # dakika oranında son maçların ağırlığı
+MINUTES_RECENT = 5           # son kaç maç
+MINUTES_MIN_GAMES = 5        # en az bu kadar oynanan maç
+MINUTES_CLIP = (.6, 1.5)
 
 
-def apply_durability(data: TradeData, prior_games: float = PRIOR_GAMES) -> TradeData:
-    """ROS toplamlarını beklenen oynama oranına göre kısar ve oran tablosunu ekler (yeni ``TradeData``)."""
+def apply_durability(data: TradeData, prior_games: float = PRIOR_GAMES, logs: pd.DataFrame | None = None) -> TradeData:
+    """ROS toplamlarını beklenen oynama oranına göre kısar ve oran tablosunu ekler (yeni ``TradeData``). ``logs``: bu
+    sezonun NBA maç kayıtları (dakika oranı için; yoksa yalnız bu sezona kaydırma)."""
     if data.schedule is None or prior_games < 0:
         return data
     games = team_games_from(data.schedule)
@@ -52,6 +67,13 @@ def apply_durability(data: TradeData, prior_games: float = PRIOR_GAMES) -> Trade
     inj = data.injuries
     filled = _fill_missing_ros(data, stats, games, prior_games)
     stale = _fix_stale_ros(stats)
+    stats[YAHOO] = stats[ROS].copy()
+    skip = set(filled) | set(stale)
+    shrunk = _shrink_to_season(stats, skip)
+    minutes = _minutes_factor(data, logs, skip)
+    for pid, f in minutes.items():
+        if pid in ros.index:
+            ros.loc[pid, list(STATS)] = ros.loc[pid, list(STATS)] * f
     rows = []
     for pid in ros.index:
         gp, pre_gp = float(ros.loc[pid, "gp"]), float(pre.get(pid, np.nan))
@@ -78,13 +100,21 @@ def apply_durability(data: TradeData, prior_games: float = PRIOR_GAMES) -> Trade
     table = pd.DataFrame(rows).set_index("player_id")
     table["ros_filled"] = table.index.isin(filled)
     table["ros_stale"] = table.index.isin(stale)
+    table["ros_shrunk"] = table.index.isin(shrunk)
+    table["minutes_factor"] = pd.Series(minutes, dtype=float).reindex(table.index).fillna(1.0)
     cut = table["ros_gp_after"] < table["ros_gp_before"] - 1e-9
     sources = {**data.sources, "durability": {"kind": "durability", "basis": "preseason projected_gp / 82",
                                               "prior_games": prior_games, "rows": int(cut.sum()),
-                                              "ros_filled": sorted(filled), "ros_stale": sorted(stale)}}
+                                              "ros_filled": sorted(filled), "ros_stale": sorted(stale),
+                                              "shrink_games": SHRINK_GAMES, "ros_shrunk": len(shrunk),
+                                              "minutes_weight": MINUTES_WEIGHT, "minutes_adjusted": len(minutes)}}
     note = (f"Dayanıklılık uygulandı: {int(cut.sum())} oyuncunun kalan sezon maçı sezon öncesi oynama oranıyla "
             f"sınırlandı (toplam {table['ros_gp_before'].sum():.0f} → {table['ros_gp_after'].sum():.0f} maç).")
     notes = [note]
+    if shrunk or minutes:
+        notes.insert(0, f"Yahoo projeksiyonu {len(shrunk)} oyuncuda bu sezona doğru kaydırıldı (kategori başına önsel "
+                        f"maç); {len(minutes)} oyuncunun maç başı değeri son {MINUTES_RECENT} maçtaki dakika "
+                        f"değişimiyle çarpıldı.")
     if filled:
         names = ", ".join(str(data.players.loc[p, "name"]) for p in filled)
         notes.append(f"Kalan sezon projeksiyonu 0 maç ya da boş olan {len(filled)} oyuncu sezon ve sezon "
@@ -93,7 +123,8 @@ def apply_durability(data: TradeData, prior_games: float = PRIOR_GAMES) -> Trade
         notes.append(f"Yahoo kalan sezon projeksiyonu bu sezonun ve sezon öncesinin yarısının altında kalan "
                      f"{len(stale)} oyuncunun maç başı değeri bu sezon + sezon öncesiyle düzeltildi (bayat projeksiyon).")
     return dataclasses.replace(data, stats=stats, sources=sources, durability=table,
-                               fingerprint=f"{data.fingerprint}:dur{int(cut.sum())}f{len(filled)}s{len(stale)}",
+                               fingerprint=f"{data.fingerprint}:dur{int(cut.sum())}f{len(filled)}s{len(stale)}"
+                                           f"k{len(shrunk)}m{len(minutes)}",
                                issues=(*data.issues, *notes))
 
 
@@ -122,6 +153,61 @@ def _fix_stale_ros(stats: dict, ratio: float = STALE_RATIO, min_gp: int = STALE_
             if pd.api.types.is_float_dtype(ros[col]):
                 ros.loc[pid, col] = np.nan          # kaynaktaki yüzde vb. artık bu satırı anlatmaz
         out.append(pid)
+    return out
+
+
+def _shrink_to_season(stats: dict, skip: set[str], games: dict[str, float] | None = None) -> list[str]:
+    """Yahoo'nun maç başı değerini bu sezonun maç başına kaydırır: kategori ``s`` için ``w = n / (n + k_s)``
+    (``n`` bu sezon oynanan maç, en az ``SHRINK_MIN_GAMES``; ``k_s`` ``SHRINK_GAMES``), maç başı = ``(1 − w) · Yahoo + w · bu sezon``; maç sayısı
+    Yahoo'nunki kalır. Geçmiş sezonlarda saf Yahoo'ya göre hata ~%6,5 düşük (README §13.59). ``skip``: bayat düzeltilen
+    ya da doldurulan (zaten bu sezon ağırlıklı) oyuncular. ``stats`` yerinde güncellenir; kaydırılanlar döner."""
+    games = SHRINK_GAMES if games is None else games
+    ros, season = stats[ROS], stats["season_total"].reindex(stats[ROS].index)
+    n = season["gp"].fillna(0.0)
+    ok = (ros["gp"] > 0) & (n >= SHRINK_MIN_GAMES) & ~ros.index.isin(list(skip))
+    cols = list(STATS)
+    yahoo = ros.loc[ok, cols].div(ros.loc[ok, "gp"], axis=0)
+    cur = season.loc[ok, cols].div(n[ok], axis=0)
+    good = np.isfinite(yahoo.to_numpy(float)).all(axis=1) & np.isfinite(cur.to_numpy(float)).all(axis=1)
+    yahoo, cur, n = yahoo[good], cur[good], n[ok][good]
+    if yahoo.empty:
+        return []
+    w = pd.DataFrame({c: n / (n + games.get(c, 8.0)) for c in cols})
+    pg = yahoo * (1 - w) + cur * w
+    pg["fgm"] = np.minimum(pg["fgm"], pg["fga"])
+    pg["ftm"] = np.minimum(pg["ftm"], pg["fta"])
+    pg["fg3m"] = np.minimum(pg["fg3m"], pg["fgm"])
+    ros.loc[pg.index, cols] = pg.mul(ros.loc[pg.index, "gp"], axis=0).to_numpy()
+    for col in ros.columns.difference(["gp", *STATS]):
+        if pd.api.types.is_float_dtype(ros[col]):
+            ros.loc[pg.index, col] = np.nan              # kaynaktaki yüzde artık bu satırı anlatmaz
+    return list(pg.index)
+
+
+def _minutes_factor(data: TradeData, logs: pd.DataFrame | None, skip: set[str], q: float = MINUTES_WEIGHT,
+                    recent: int = MINUTES_RECENT, min_games: int = MINUTES_MIN_GAMES) -> dict[str, float]:
+    """Oyuncu → maç başı çarpanı ``((1 − q) · sezon dk + q · son ``recent`` maç dk) / sezon dk`` (``data.as_of``
+    öncesi oynanan maçlar; en az ``min_games``; ``MINUTES_CLIP`` ile sınırlı). Rol değişimi geçmiş sezonlarda böyle
+    oyuncularda hatayı %8–14 düşürüyor; dakikası sabit olanda etkisiz (README §13.59). Bayat düzeltilen ve doldurulan
+    oyuncu (``skip``) hariç; 1 olanlar dönmez."""
+    if logs is None or logs.empty or q <= 0:
+        return {}
+    from fdo.inseason.roles import match_ids
+    g = logs[(logs["game_date"] < data.as_of) & (logs["minutes"] > 0)]
+    if g.empty:
+        return {}
+    g = g.assign(player_id=match_ids(g, data.players).values).dropna(subset=["player_id"]).sort_values("game_date")
+    out: dict[str, float] = {}
+    lo, hi = MINUTES_CLIP
+    for pid, pl in g.groupby("player_id"):
+        if pid in skip or len(pl) < min_games:
+            continue
+        season, last = float(pl["minutes"].mean()), float(pl["minutes"].iloc[-recent:].mean())
+        if season <= 0:
+            continue
+        f = min(hi, max(lo, ((1 - q) * season + q * last) / season))
+        if abs(f - 1) > 1e-9:
+            out[str(pid)] = f
     return out
 
 

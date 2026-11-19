@@ -112,3 +112,29 @@ def test_stale_ros_per_game_is_replaced_by_season_weighted_rates(data):  # noqa:
     assert ros.loc["2", "gp"] <= gp_before + 1e-9                           # maç sayısı Yahoo'nun (ya da tavan)
     assert bool(out.durability.loc["2", "ros_stale"]) and not out.durability["ros_stale"].drop("2").any()
     assert any("bayat" in m for m in out.issues)
+
+
+def test_yahoo_rates_shrink_toward_season_by_category_and_minutes(data):  # noqa: F811
+    import pandas as pd
+    from fdo.inseason.durability import SHRINK_GAMES, YAHOO, _minutes_factor
+    season = data.stats["season_total"]
+    season.loc["3", "gp"] = 6.0
+    yahoo_pg = data.stats[ROS].loc["3", "pts"] / data.stats[ROS].loc["3", "gp"]
+    yahoo_stl = data.stats[ROS].loc["3", "stl"] / data.stats[ROS].loc["3", "gp"]
+    out = apply_durability(data)
+    ros, n = out.stats[ROS], 6.0
+    cur = lambda c: season.loc["3", c] / n                                    # noqa: E731
+    w = lambda c: n / (n + SHRINK_GAMES[c])                                    # noqa: E731
+    assert ros.loc["3", "pts"] / ros.loc["3", "gp"] == pytest.approx((1 - w("pts")) * yahoo_pg + w("pts") * cur("pts"))
+    assert ros.loc["3", "stl"] / ros.loc["3", "gp"] == pytest.approx((1 - w("stl")) * yahoo_stl + w("stl") * cur("stl"))
+    assert w("stl") < w("pts")                                                 # top çalmada Yahoo'ya daha çok güvenilir
+    y = out.stats[YAHOO]                                                       # kaydırma öncesi Yahoo satırı korunur
+    assert y.loc["3", "pts"] / y.loc["3", "gp"] == pytest.approx(yahoo_pg)
+    assert bool(out.durability.loc["3", "ros_shrunk"])
+    # dakika: son 5 maçta dakikası artan oyuncunun maç başı değeri çeyrek ağırlıkla artar
+    name, team = str(data.players.loc["3", "name"]), str(data.players.loc["3", "nba_team"])
+    days = [data.as_of - dt.timedelta(days=i) for i in range(10, 0, -1)]
+    logs = pd.DataFrame({"name": name, "nba_team": team, "game_date": days, "minutes": [20.0] * 5 + [30.0] * 5})
+    f = _minutes_factor(data, logs, set())
+    assert f[str("3")] == pytest.approx((.75 * 25 + .25 * 30) / 25)
+    assert _minutes_factor(data, logs.iloc[:4], set()) == {}                   # az maç: dokunulmaz

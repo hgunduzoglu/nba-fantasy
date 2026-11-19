@@ -27,6 +27,7 @@ from fdo.inseason.injuries import (apply_return_ramp, b2b_play, latest_file, que
 from fdo.inseason.live import LiveLeague, load_live
 from fdo.inseason.managers import load_transactions, waiver_order
 from fdo.inseason.roles import RoleBoost, load_logs, role_boosts
+from fdo.inseason.returns import recent_returns
 from fdo.inseason.scenarios import basis_data
 from fdo.inseason.season import SeasonResult, SeasonSim
 from fdo.inseason.standings import league_standings, load_standings
@@ -115,12 +116,25 @@ class AppState:
                     "b2b": b2b_play(self.returns_config)}})
             return data
         base = self._get(("data", sig), load)
+        logs = self._get(("logs", sig), lambda: self._season_logs(base))
         if not injuries:
-            return self._get(("data_dur", sig), lambda: apply_durability(base))
+            return self._get(("data_dur", sig), lambda: self._returns(apply_durability(base, logs=logs), logs))
         return self._get(("data_inj", sig, delay),
-                         lambda: apply_return_ramp(apply_durability(with_injuries(
-                             base, self.data_dir, delay, config_path=self.returns_config)),
-                             ramp=return_ramp(self.returns_config)))
+                         lambda: self._returns(apply_return_ramp(apply_durability(with_injuries(
+                             base, self.data_dir, delay, config_path=self.returns_config), logs=logs),
+                             ramp=return_ramp(self.returns_config)), logs))
+
+    def _season_logs(self, data: TradeData) -> pd.DataFrame | None:
+        """Bu sezonun NBA maç kayıtları (yoksa ``None``)."""
+        if not data.leagues:
+            return None
+        return load_logs(self.data_dir, next(iter(data.leagues.values())).config.league.season)
+
+    @staticmethod
+    def _returns(data: TradeData, logs: pd.DataFrame | None) -> TradeData:
+        """Maç kayıtlarından son dönüşler (``sources["recent_returns"]``; haftalık model, README §13.59)."""
+        found = recent_returns(logs, data.players, data.as_of) if logs is not None else {}
+        return replace(data, sources={**data.sources, "recent_returns": found})
 
     def basis_data(self, injuries: bool = True, basis: str = "ros") -> TradeData:
         """``data`` + kalan sezon oranlarının temeli (``fdo.inseason.scenarios``; ``ros`` = Yahoo projeksiyonu,

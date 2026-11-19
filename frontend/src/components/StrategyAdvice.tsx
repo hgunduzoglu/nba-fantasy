@@ -15,7 +15,7 @@ export function StrategyAdvice({ league, team, injuries }: { league: string; tea
   const [data, setData] = useState<StrategyAdviceOut | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [basis, setBasis] = useState<"ros" | "season" | "blend">("ros");
+  const [basis, setBasis] = useState<"ros" | "yahoo" | "season" | "blend">("ros");
   const run = () => {
     setBusy(true);
     api.strategyAdvice(league, team, injuries, basis).then((d) => { setData(d); setError(null); })
@@ -28,7 +28,7 @@ export function StrategyAdvice({ league, team, injuries }: { league: string; tea
         <span className="muted">Kadro, waiver ve günlük kadro kararlarını hangi stratejiyle verirsen sezonun nasıl değişir</span>
         <span className="spacer" />
         <div className="seg" title="Kalan sezon oranlarının temeli">
-          {([["ros", "Yahoo"], ["season", "Bu sezon"], ["blend", "Karma"]] as const).map(([k, l]) => (
+          {([["ros", "Model"], ["yahoo", "Yahoo"], ["season", "Bu sezon"], ["blend", "Karma"]] as const).map(([k, l]) => (
             <button key={k} aria-pressed={basis === k} onClick={() => { setBasis(k); setData(null); }}>{l}</button>
           ))}
         </div>

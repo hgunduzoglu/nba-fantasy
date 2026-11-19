@@ -245,3 +245,22 @@ def test_questionable_and_return_distribution_weight_the_games(data):
     w = wm.play_weight["1"]
     first = sorted(w)
     assert w[first[0]] == pytest.approx(.5) and all(w[x] == pytest.approx(1) for x in first[1:])
+
+
+def test_recently_returned_player_loses_b2b_and_other_games(data):
+    import dataclasses
+    from fdo.inseason.weekly import RETURN_OTHER_GAMES, RETURN_OTHER_PLAY
+    b2b = {"healthy": 1.0, "after_return": {14: .5}}
+    back = data.as_of - dt.timedelta(days=2)
+    d = dataclasses.replace(data, sources={**data.sources, "attendance": {"b2b": b2b}})
+    assert "0" not in WeekModel(TradeEngine(d, "L", utilization=1), questionable=1.0).play_weight
+    d = dataclasses.replace(d, sources={**d.sources, "recent_returns": {"0": back.isoformat()}})
+    m = WeekModel(TradeEngine(d, "L", utilization=1), questionable=1.0)
+    w, team = m.play_weight["0"], m.team[m.engine.index["0"]]
+    days = sorted(w)
+    team_days = sorted(x for x, t in m.games.items() if team in t)
+    second = {x for x in days if team in m.games.get(x - dt.timedelta(days=1), set())}
+    hit = [x for x in second if 0 < (x - back).days <= 14]
+    other = [x for x in days if x not in second and sum(back < y <= x for y in team_days) <= RETURN_OTHER_GAMES]
+    assert hit and all(w[x] == pytest.approx(.5) for x in hit)
+    assert sum(w.values()) == pytest.approx(len(days) - .5 * len(hit) - (1 - RETURN_OTHER_PLAY) * len(other))

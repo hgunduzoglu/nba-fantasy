@@ -235,6 +235,42 @@ def yahoo_questionable_outcomes(snapshots: list[tuple[dt.date, dict]], logs: pd.
 B2B_WINDOWS = (14, 30, 60)
 
 
+RECENT_RETURN_DAYS = 60         # dönüşten bu kadar gün sonrasına kadar "yeni dönmüş" (B2B penceresinin sonu)
+
+
+def recent_returns(logs: pd.DataFrame, players: pd.DataFrame, as_of: dt.date, *, min_spell: int = 5,
+                   min_mpg: float = 22.0, days: int = RECENT_RETURN_DAYS) -> dict[str, dt.date]:
+    """Son ``days`` günde sakatlıktan dönmüş oyuncu → dönüş günü (``b2b_play_rates`` ile aynı tanım: art arda en az
+    ``min_spell`` takım maçı kaçırdıktan sonraki ilk maç, öncesindeki son 10 maçta ortalama ≥ ``min_mpg`` dakika).
+    CBS listesinden çıkmış oyuncunun dönüşü yalnız maç kayıtlarında görünür; haftalık model dönüş sonrası B2B ve
+    diğer maçlardaki eksik oynamayı bunlara da uygular (README §13.59). ``as_of`` öncesi maçlar kullanılır."""
+    if logs is None or logs.empty:
+        return {}
+    from fdo.inseason.roles import match_ids
+    g = logs[(logs["game_date"] < as_of) & (logs["minutes"] > 0)]
+    if g.empty:
+        return {}
+    g = g.assign(player_id=match_ids(g, players).values).dropna(subset=["player_id"])
+    sched = {t: sorted(set(d["game_date"])) for t, d in g.groupby("nba_team")}
+    out: dict[str, dt.date] = {}
+    for (pid, team), d in g.groupby(["player_id", "nba_team"]):
+        mins = dict(zip(d["game_date"], d["minutes"]))
+        tenure = [x for x in sched[team] if min(mins) <= x <= max(mins)]
+        run, last = 0, None
+        for i, day in enumerate(tenure):
+            if day not in mins:
+                run += 1
+                continue
+            if run >= min_spell:
+                before = [mins[t] for t in tenure[:i - run] if t in mins][-10:]
+                if len(before) >= 5 and np.mean(before) >= min_mpg:
+                    last = day
+            run = 0
+        if last is not None and (as_of - last).days <= days and (str(pid) not in out or out[str(pid)] < last):
+            out[str(pid)] = last
+    return out
+
+
 def b2b_play_rates(seasons: list[pd.DataFrame], *, min_spell: int = 5, min_mpg: float = 22.0,
                    windows: tuple[int, ...] = B2B_WINDOWS) -> dict:
     """Arka arkaya maçın ikinci gününde (B2B) oynama, diğer maçlara oranla: sağlıklı düzenli oyuncu ve sakatlık

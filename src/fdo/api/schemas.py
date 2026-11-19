@@ -39,7 +39,7 @@ class TradeIn(BaseModel):
     strategy_a: StrategyIn | None = None
     strategy_b: StrategyIn | None = None
     injuries: bool = True
-    basis: str = Field(default="ros", pattern="^(ros|season|recent|blend|late)$")   # kalan sezon temeli (§13.28)
+    basis: str = Field(default="ros", pattern="^(ros|yahoo|season|recent|blend|late)$")   # kalan sezon temeli (§13.28)
 
 
 class OfferIn(TradeIn):
@@ -67,7 +67,7 @@ class SeasonManyIn(BaseModel):
     n_sims: int = 2000
     strength_sd: float = 0.06
     injuries: bool = True
-    basis: str = Field(default="ros", pattern="^(ros|season|recent|blend|late)$")
+    basis: str = Field(default="ros", pattern="^(ros|yahoo|season|recent|blend|late)$")
 
 
 class CompleteIn(TradeIn):

@@ -375,9 +375,10 @@ def test_mutual_recommendations_must_survive_both_final_lineup_checks(client, mo
 def test_trade_scenarios_and_basis(client):
     body = {"team_a": "1", "team_b": "2", "give_a": ["0"], "give_b": ["4"]}
     s = client.post("/api/leagues/L/trade/scenarios", json=body).json()
-    assert [b["basis"] for b in s["bases"]] == ["ros", "season", "recent", "blend", "late"]
+    assert [b["basis"] for b in s["bases"]] == ["ros", "yahoo", "season", "recent", "blend", "late"]
     assert s["bases"][-1]["label"] == "Geç dönüş (+7 gün)"                     # etiketli senaryo, oran değiştirmez
-    assert {p["id"] for p in s["players"]} == {"0", "4"} and set(s["players"][0]["rates"]) == {"ros", "season", "recent", "blend"}
+    assert {p["id"] for p in s["players"]} == {"0", "4"} and set(s["players"][0]["rates"]) == {
+        "ros", "yahoo", "season", "recent", "blend"}
     a = client.post("/api/leagues/L/trade/analyze", json={**body, "basis": "season"}).json()
     assert a["basis"] == "season" and isinstance(a["teams"]["a"]["returns"], list)
     assert client.post("/api/leagues/L/trade/analyze", json={**body, "basis": "late"}).status_code == 200

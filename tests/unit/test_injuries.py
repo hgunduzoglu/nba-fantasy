@@ -114,3 +114,16 @@ def test_return_ramp_scales_rest_of_season_by_the_lost_minutes(data, tmp_path): 
     assert return_ramp(tmp_path / "yok.yaml") == DEFAULT_RAMP
     (tmp_path / "r.yaml").write_text("ramp: [0.6, 1.4]\n", encoding="utf-8")
     assert return_ramp(tmp_path / "r.yaml") == (0.6, 1.0)
+
+
+def test_recent_returns_found_from_game_logs():
+    import pandas as pd
+    from fdo.inseason.returns import recent_returns
+    players = pd.DataFrame({"name": ["A B", "C D"], "nba_team": ["AAA", "AAA"]}, index=["1", "2"])
+    days = [dt.date(2026, 10, 20) + dt.timedelta(days=2 * i) for i in range(20)]
+    rows = [{"name": "C D", "nba_team": "AAA", "game_date": d, "minutes": 30.0} for d in days]
+    rows += [{"name": "A B", "nba_team": "AAA", "game_date": d, "minutes": 30.0} for i, d in enumerate(days) if not 8 <= i < 14]
+    logs = pd.DataFrame(rows)
+    out = recent_returns(logs, players, dt.date(2026, 11, 30))
+    assert out == {"1": days[14]}                                             # 6 maç kaçırdı, döndüğü ilk maç
+    assert recent_returns(logs, players, dt.date(2027, 3, 1)) == {}          # 60 günden eski

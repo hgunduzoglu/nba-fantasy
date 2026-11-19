@@ -212,7 +212,7 @@ export interface TradeIn {
 }
 
 /** ``late``: Yahoo oranları, sakatlar en erken dönüş tarihinden ``meta.returns.late_days`` gün sonra döner (senaryo). */
-export type Basis = "ros" | "season" | "recent" | "blend" | "late";
+export type Basis = "ros" | "yahoo" | "season" | "recent" | "blend" | "late";
 
 /** IL dönüş takvimi: kim döner, kim bırakılır (``self_cut``: dönen kadroya girmez). */
 export interface ReturnEvent {

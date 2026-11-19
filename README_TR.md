@@ -2632,6 +2632,37 @@ Reddedilen beş takas "düşük" kalıyor (oranlar 0,51–0,90), Haliburton taka
 verdiği ikiye bir takaslar artık belirgin fazlasını gerektiriyor (önceki bir "yüksek" öneri 1,28'den 1,06'ya, yani
 `STAR_PREMIUM`'un altına indi).
 
+### 13.59 Varsayılan oranlar Yahoo'yu bu sezona kaydırıyor; yeni dönenler maç kaybediyor (19 Kasım 2026)
+
+Bütün günlük kararlar (add/drop, waiver, haftalık plan, IL dönüşünde bırakma, takas) Yahoo'nun kalan sezon maç başı
+değerini kullanıyordu; Yahoo bunu geç ve toplu günceller (iki gün arayla iki senkron arasında 474 satırın 410'u, 104'ü
+bir sayıdan fazla değişti). Arşivdeki senkronlarla ileriye dönük test (31 Ekim, 7 ve 14 Kasım; 928 oyuncu-gün, hedef
+her günden sonraki maçlar) adayları gerçekleşen maç başıyla karşılaştırdı:
+
+* Tek başına son 5 ya da son 10 maç Yahoo'dan kötü (normalleştirilmiş hata +%4 ile +%9): birkaç maç gürültü.
+* Yahoo'yu oynanan maça göre bu sezonun maç başına kaydırmak kazanıyor: mevcut `blend` temeli −%5, kategori başına
+  önsel −%6,5, dakika terimiyle −%6,7 (değer hatası −%5,8, sıra korelasyonu +0,036; bootstrap aralıkları sıfırı
+  içermiyor). Sabitler 2024-25 ve 2025-26 maç kayıtlarıyla bulundu; bu sezon örnek dışı.
+* Top çalma, blok ve serbest atışta Yahoo hâlâ daha iyi (oradaki önseller büyük); bayat satırlarda da öyle, onlarda
+  §13.57'deki düzeltme kalıyor.
+
+Temel veri (`ros`) artık modelin değeri (`apply_durability` içinde `_shrink_to_season`, `_minutes_factor`): maç başı =
+`(1 − w) · Yahoo + w · bu sezon`, `w = n / (n + k)`, `n` oynanan maç (en az 3; tek maçlık sakatlık çıkışı sayılmasın),
+`k` = 3 (sayı), 4 (isabet), 5 (ribaund, asist), 8 (serbest atış, üçlük, top kaybı), 12 (blok), 14 (top çalma).
+Ardından maç kayıtlarından maç başı değerler `(0,75 · sezon dakikası + 0,25 · son 5 maç dakikası) / sezon dakikası` ile
+çarpılıyor (en az 5 maç); rol değişimini dakika açıklıyor (geçmiş sezonlar: dakikası değişen oyuncuda hata −%8 ile
+−%14, sabit olanda etkisiz). §13.24'teki rol değişimi dakika terimi öncesindeki tabandan tahmin edilip onun yerine
+geçiyor, ikisi üst üste binmiyor. Yahoo'nun kendi değeri `yahoo` temeli olarak duruyor (`stats["yahoo_ros"]`).
+
+Dönüş sonrası oynama: son iki sezonda en az beş maç kaçırıp dönen düzenli oyuncular sonraki 10–20 takım maçının
+%76–79'unda oynadı, sağlıklı düzenli oyuncular %84–86 (oran 0,91–0,94); arka arkaya maçın ikinci gecesinde %65'e %83.
+§13.55'teki dönüş sonrası B2B oranları bu sayılarla tutuyordu ama yalnız CBS gelecek bir dönüş tarihi verirken
+uygulanıyordu; oyuncu döndüğü anda tamamen sağlıklı sayılıyordu. Dönüşler artık maç kayıtlarından da bulunuyor
+(`recent_returns`: en az beş takım maçı kaçırdıktan sonraki ilk maç, öncesinde ortalama ≥ 22 dakika, son 60 gün). Bu
+oyunculara haftalık model dönüş sonrası B2B oranlarını uyguluyor ve diğer maçlarda 20 takım maçı boyunca 0,95 oranında
+oynatıyor (net kayıp). Hamstring ya da baldır için ayrı çarpan yok: geçmiş sezonlarda sakatlık türü yok, bu sezonki az
+sayıda örnekte henüz fark görünmüyor.
+
 ### 13.8 V3 adayları
 
 Beam search ve H-score ağırlık optimizasyonu; profil karışımı uyumu; oyuncular arası maç sayısı

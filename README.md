@@ -2712,6 +2712,38 @@ The five rejected trades stay "low" (views 0.51–0.90), the Haliburton deal fal
 which the other side gives the best player now need clearly more (one earlier "high" suggestion fell from 1.28 to
 1.06, below `STAR_PREMIUM`).
 
+### 13.59 Default rates shrink Yahoo toward this season; recent returns lose games (19 November 2026)
+
+Every daily decision (add/drop, waiver, weekly plan, IL drops, trades) used Yahoo's rest-of-season per-game line, which
+Yahoo updates late and in bursts (between two syncs two days apart 410 of 474 lines moved, 104 by more than a point).
+A forward test on archived syncs (31 Oct, 7 Nov, 14 Nov; 928 player-days, targets the games after each day) compared
+candidates with the realised per-game line:
+
+* Last 5 or last 10 games alone are worse than Yahoo (normalised error +4% to +9%): a few games are noise.
+* Shrinking Yahoo toward this season's per-game line by games played wins: the existing `blend` basis is −5%, a
+  per-category prior is −6.5%, and with a minutes term −6.7% (value error −5.8%, rank correlation +0.036; bootstrap
+  intervals exclude zero). Constants were fitted on the 2024-25 and 2025-26 logs, so this season is out of sample.
+* Yahoo is still better for steals, blocks and free throws, hence large priors there, and for stale lines, which keep
+  the §13.57 fix.
+
+The base data (`ros`) is now the model's line (`_shrink_to_season`, `_minutes_factor` in `apply_durability`):
+per-game = `(1 − w) · Yahoo + w · season` with `w = n / (n + k)`, `n` games played (at least 3, so a one-game injury
+exit does not count) and `k` = 3 (points), 4 (field goals), 5 (rebounds, assists), 8 (free throws, threes,
+turnovers), 12 (blocks), 14 (steals). Then, from the game logs, per-game values are multiplied by
+`(0.75 · season minutes + 0.25 · last-5 minutes) / season minutes` (at least 5 games); minutes explain role changes
+(past seasons: −8% to −14% error for players whose minutes moved, nothing for stable ones). The role change of §13.24
+is estimated from the pre-minutes base and replaces it, so the two do not stack. Yahoo's own line stays available as
+the `yahoo` basis (`stats["yahoo_ros"]`).
+
+Post-return availability: in the last two seasons regulars who came back from at least five missed games played
+76–79% of the next 10–20 team games against 84–86% for healthy regulars (ratio 0.91–0.94), and 65% of back-to-back
+second nights against 83%. The after-return back-to-back rates of §13.55 matched these numbers but were applied only
+while CBS still listed a future return date; once the player was back he counted as fully healthy. Returns are now
+also detected from the game logs (`recent_returns`: first game after at least five missed team games, earlier average
+≥ 22 minutes, last 60 days). For those players the weekly model applies the after-return back-to-back rates and
+plays the other games at 0.95 for 20 team games, as a net loss. No separate multiplier for hamstring or calf injuries:
+past seasons have no injury types and this season's handful of cases shows no gap yet.
+
 ### 13.8 V3 candidates
 
 Beam search and H-score weight optimization; fitting the profile mix; covariance of game counts between
