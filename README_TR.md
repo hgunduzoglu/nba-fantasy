@@ -2612,6 +2612,26 @@ arttıysa rol artık bu tahminle, o yokken oynanan maçların tabana doğru kü�
 (`k · ort(yokken) + (1 − k) · ROS`, `k = n / (n + 4)`) sayıca büyüğünü kullanıyor; dakika azaldıysa fark kalıyor. İyi
 bir taban düşürülmüyor.
 
+### 13.58 Rakibin gözünde sakat yıldızlar ve yedek seviyesi (19 Kasım 2026)
+
+§13.56'daki `market` ölçüsünde sonraki aramada iki açık çıktı:
+
+* **Sakat yıldızlar ucuz görünüyordu.** Yahoo'nun "Current" sırası sezon toplamlarına bakar; maçların çoğunu kaçıran
+  bir yıldız 200.–300. sıraya düşer (Tyrese Haliburton 204., Kawhi Leonard 309.) ve ortalama bir ilk beş oyuncusundan
+  ucuz fiyatlanıyordu; orta bir oyuncu artı dolgu karşılığında onu almak adil görünüyor, `gives_best` onun tarafında
+  hiç devreye girmiyordu. Menajer böyle bir oyuncuyu sağlıklı isim değeriyle fiyatlar. Sakat görünen (Yahoo O, INJ ya
+  da D veya dönüş tarihli sakatlık; sezon boyu yok olanlar hariç) ya da takımının maçlarının %75'inden azında oynamış
+  ve hâlâ Yahoo liglerinin en az %50'sinde kadroda olan oyuncu artık `market` ve `blend` fiyatlarının büyüğüyle
+  fiyatlanıyor (`absent`). Sıralar değişmiyor, diğer oyuncuların fiyatı kaymıyor.
+* **Yedek seviyesi.** `opponent_view` artık her oyuncuyu yalnız yedek seviyesinin üstündeki değeriyle sayıyor: ligdeki
+  üçüncü en iyi sağlıklı serbest oyuncunun algılanan fiyatı (`replacement_price`, fiyatların `attrs`'ında), en az
+  piyasa ölçeğinin tabanı (0,1). Rakibin serbestten alabileceği oyuncu pakete değer katmıyor; 16 takımlı ligde
+  seviye 0,51, diğerlerinde 0,84–1,33.
+
+Reddedilen beş takas "düşük" kalıyor (oranlar 0,51–0,90), Haliburton takası 0,50'ye iniyor; rakibin en iyi oyuncuyu
+verdiği ikiye bir takaslar artık belirgin fazlasını gerektiriyor (önceki bir "yüksek" öneri 1,28'den 1,06'ya, yani
+`STAR_PREMIUM`'un altına indi).
+
 ### 13.8 V3 adayları
 
 Beam search ve H-score ağırlık optimizasyonu; profil karışımı uyumu; oyuncular arası maç sayısı

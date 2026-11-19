@@ -162,3 +162,37 @@ def test_gives_best_and_star_premium():
     level, why = counterpart(1.0, .1, 1.0, gives_star=True)            # eşit görünüyor ama en iyiyi veriyor
     assert level == "medium" and "en iyi" in why[1]
     assert counterpart(1.0, .1, STAR_PREMIUM, gives_star=True)[0] == "high"
+
+
+def test_injured_star_keeps_healthy_name_value(trade_data):  # noqa: F811
+    eng = TradeEngine(trade_data, "L", utilization=1, horizon_weeks=4)
+    ids = [p for p in eng.ids if eng.modeled[eng.index[p]]]
+    best = max(ids, key=lambda p: eng.market[p])
+    y = pd.DataFrame({"rank_current": range(1, len(ids) + 1), "rank_preseason": 1.0,
+                      "pct_rostered": 40.0}, index=ids, dtype=float)
+    y.loc[best, ["rank_current", "pct_rostered"]] = [float(len(ids)), 99.0]   # maç kaçırdı, sırası en altta
+    players = trade_data.players.copy()
+    players.loc[best, "injury_status"] = "O"
+    data = dataclasses.replace(trade_data, yahoo=y, players=players)
+    eng2 = TradeEngine(data, "L", utilization=1, horizon_weeks=4)
+    market, blend = perceived_prices(eng2, "market"), perceived_prices(eng2, "blend")
+    assert market[best] == pytest.approx(max(blend[best], market.drop(best).min()))
+    assert market[best] > market.dropna().median()
+    players.loc[best, "injury_status"] = ""                       # sağlıklı: kaçırdığı maç da yoksa düzeltme yok
+    y.loc[best, "pct_rostered"] = 30.0
+    eng3 = TradeEngine(dataclasses.replace(data, yahoo=y, players=players), "L", utilization=1, horizon_weeks=4)
+    assert perceived_prices(eng3, "market")[best] < market[best]
+
+
+def test_opponent_view_counts_only_value_above_replacement(trade_data):  # noqa: F811
+    from fdo.trade.perception import FLOOR
+    eng = TradeEngine(trade_data, "L", utilization=1, horizon_weeks=4)
+    price = eng.market.copy()
+    mine = sorted(eng.league.rosters["1"], key=lambda p: -price[p])
+    theirs = sorted(eng.league.rosters["2"], key=lambda p: -price[p])
+    repl = float(price[mine[-1]]) + .01                           # en zayıf oyuncum yedek seviyesinin altında
+    price.attrs["replacement"] = repl
+    above = lambda p: max(price[p] - repl, 0.0) + FLOOR          # noqa: E731
+    v = opponent_view(eng, price, "2", [mine[0], mine[-1]], theirs[:2])
+    assert v == pytest.approx((above(mine[0]) + FLOOR) / (above(theirs[0]) + above(theirs[1])))
+    assert opponent_view(eng, price, "2", [mine[-1]], [theirs[0]]) == pytest.approx(FLOOR / above(theirs[0]))

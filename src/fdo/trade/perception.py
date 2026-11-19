@@ -16,11 +16,17 @@ karar ölçümüz kalan sezon projeksiyonudur (ROS). İkisini aynı ölçeğe ko
 
 ``market`` (varsayılan) menajerin takas ekranında gördüğüdür (README §13.56): Yahoo'nun güncel sırası (bu sezonun
 toplamları; sakat kaldığı maçlar sırayı düşürür) ve Yahoo genelinde kadroda olma oranı (isim değeri ve güncel algı).
-İkisinin sıralarının ortalaması; Yahoo sütunları olmayan oyuncu ``blend`` sırasına düşer.
+İkisinin sıralarının ortalaması; Yahoo sütunları olmayan oyuncu ``blend`` sırasına düşer. Sakat (Yahoo O/INJ/D ya da
+dönüş tarihli sakatlık) ya da takımının maçlarının ``MISSED_SHARE``'inden azında oynamış ama hâlâ yaygın kadroda olan
+oyuncunun güncel sırası kaçırdığı maçlarla düşer; menajer ona sağlıklı isim değeriyle bakar, bu yüzden fiyatı ``market``
+ve ``blend`` fiyatlarının büyüğüdür (sıralar değişmez, diğer oyuncuların fiyatı kaymaz).
 
 Rakibin gözünde oran (``opponent_view``) toplamların oranıdır, iki düzeltmeyle: aldığı oyuncu sayısı verdiğinden
 fazlaysa kadrosundaki en düşük algılanan değerli oyuncular (gelenler dahil) bırakılır ve aldığından düşülür (dolgu
-oyuncu değer sayılmaz); takasın en değerli oyuncusunu veren taraf için ``gives_best`` (bkz. ``counterpart``).
+oyuncu değer sayılmaz); her oyuncu yalnız yedek seviyesinin (ligdeki ``REPLACEMENT_FA``. en iyi sağlıklı serbest
+oyuncunun algılanan fiyatı) üstündeki değeriyle sayılır, tabanı piyasa ölçeğinin tabanı ``FLOOR`` (serbestten
+alınabilecek oyuncu pakete değer katmaz); takasın en değerli oyuncusunu veren taraf için ``gives_best`` (bkz.
+``counterpart``).
 """
 
 from __future__ import annotations
@@ -36,6 +42,11 @@ from fdo.valuation import value_players
 PERCEPTIONS = {"market": "Yahoo'da görünen (güncel sıra + kadroda olma oranı)", "season_total": "Bu sezonun rakamları",
                "preseason": "Sezon öncesi isim değeri (draft sırası)", "blend": "Bu sezon + sezon öncesi ortalaması"}
 DEFAULT_PERCEPTION = "market"
+ABSENT_STATUS = {"O", "INJ", "D"}      # sakat görünen Yahoo durumları (OFS/NA sezon dışı: isim değeri korunmaz)
+MISSED_SHARE = .75                      # takımının maçlarının bundan azında oynamış ...
+HELD_PCT = 50.0                         # ... ve Yahoo'da en az bu oranda kadroda (isim değeri korunuyor)
+REPLACEMENT_FA = 3                      # yedek seviyesi: ligdeki kaçıncı en iyi sağlıklı serbest oyuncu
+FLOOR = .1                              # yedek seviyesindeki oyuncunun değeri (``engine.market`` tabanı)
 
 
 def _per_game_rank(engine: TradeEngine, mode: str, ids: list[str], min_gp: float = 0.0) -> pd.Series:
@@ -98,6 +109,37 @@ def perceived_ranks(engine: TradeEngine, basis: str = "season_total", *, min_gp:
     return rank.rank(method="first")
 
 
+def absent(engine: TradeEngine, ids: list[str]) -> pd.Series:
+    """Sakat görünen (Yahoo durumu ya da dönüş tarihli sakatlık; sezon boyu yok olanlar hariç) ya da takımının
+    maçlarının ``MISSED_SHARE``'inden azında oynamış, Yahoo'da en az ``HELD_PCT`` kadroda olan (menajerlerin isim
+    değeriyle tuttuğu) oyuncular. Kadroda olma oranı yoksa yalnız sakatlık durumuna bakılır."""
+    d = engine.data
+    status = d.players["injury_status"].reindex(ids).fillna("").astype(str)
+    out = status.isin(ABSENT_STATUS)
+    if d.injuries is not None and "kind" in d.injuries.columns:
+        kind = d.injuries["kind"].reindex(ids)
+        out |= kind.eq("out_until")
+        out &= ~kind.eq("season")
+    if d.yahoo is not None:
+        gp = d.stats["season_total"]["gp"].reindex(ids).fillna(0.0)
+        team = d.players["nba_team"].reindex(ids).fillna("")
+        played = gp.groupby(team).transform("max")
+        out |= (gp < MISSED_SHARE * played) & team.ne("")
+        out &= d.yahoo["pct_rostered"].reindex(ids) >= HELD_PCT
+    out &= ~status.isin({"OFS", "NA"})
+    return out.fillna(False).astype(bool)
+
+
+def replacement_price(engine: TradeEngine, perceived: pd.Series) -> float:
+    """Yedek seviyesi: ligdeki ``REPLACEMENT_FA``. en iyi sağlıklı serbest oyuncunun algılanan fiyatı."""
+    pool = list(engine.free_agents)
+    if not pool:
+        return 0.0
+    pool = [p for p, a in absent(engine, pool).items() if not a]
+    vals = np.sort(perceived.reindex(pool).dropna().to_numpy(float))[::-1]
+    return float(vals[min(REPLACEMENT_FA, len(vals)) - 1]) if len(vals) else 0.0
+
+
 def _market_rank(engine: TradeEngine, ids: list[str]) -> pd.Series:
     """Yahoo'nun güncel sırası ile kadroda olma oranı sırasının ortalaması (biri eksikse diğeri); ikisi de yoksa NaN."""
     y = engine.data.yahoo
@@ -110,10 +152,17 @@ def _market_rank(engine: TradeEngine, ids: list[str]) -> pd.Series:
 
 
 def opponent_view(engine: TradeEngine, perceived: pd.Series, team: str, receive, give) -> float:
-    """``team``'in gözünde aldığı / verdiği algılanan değer. Fazla gelen oyuncu kadar en düşük değerli oyuncusu
-    (IL dışı; gelenler dahil, gidenler hariç) bırakılır ve aldığından düşülür. Verdiği değer 0 ise NaN."""
+    """``team``'in gözünde aldığı / verdiği algılanan değer. Her oyuncu yedek seviyesinin üstündeki değeriyle sayılır
+    (taban ``FLOOR``; modellenemeyen 0). Fazla gelen oyuncu kadar en düşük değerli oyuncusu (IL dışı; gelenler dahil,
+    gidenler hariç) bırakılır ve aldığından düşülür. Verdiği değer 0 ise NaN. Yedek seviyesi ``perceived.attrs``
+    içindeyse (``perceived_prices``) oradan, yoksa hesaplanır."""
     receive, give = list(receive), list(give)
-    price = lambda ids: perceived.reindex(ids).fillna(0.0)                                   # noqa: E731
+    repl = perceived.attrs.get("replacement")
+    repl = replacement_price(engine, perceived) if repl is None else float(repl)
+    above = (perceived - repl).clip(lower=0.0) + FLOOR
+
+    def price(ids):
+        return above.reindex(ids).fillna(0.0)
     got, gave = float(price(receive).sum()), float(price(give).sum())
     extra = len(receive) - len(give)
     if extra > 0 and team in engine.league.rosters:
@@ -135,8 +184,16 @@ def perceived_prices(engine: TradeEngine, basis: str = "season_total", *, min_gp
     rank = perceived_ranks(engine, basis, min_gp=min_gp)
     ids = list(rank.index)
     ladder = np.sort(engine.market.loc[ids].to_numpy(float))[::-1]
-    pos = (rank.fillna(len(ladder)).astype(int).clip(1, len(ladder)) - 1).to_numpy()
-    return pd.Series(ladder[pos], index=ids).reindex(engine.ids)
+
+    def at(r: pd.Series) -> pd.Series:
+        return pd.Series(ladder[(r.fillna(len(ladder)).astype(int).clip(1, len(ladder)) - 1).to_numpy()], index=ids)
+
+    out = at(rank)
+    if basis == "market":                     # sakat ya da çok maç kaçırmış: sağlıklı isim değerinin altına inmez
+        out = out.where(~absent(engine, ids), np.maximum(out, at(perceived_ranks(engine, "blend", min_gp=min_gp))))
+    out = out.reindex(engine.ids)
+    out.attrs["replacement"] = replacement_price(engine, out)
+    return out
 
 
 def mispricing(engine: TradeEngine, perceived: pd.Series, team_ids=None) -> pd.DataFrame:
@@ -160,5 +217,5 @@ def mispricing(engine: TradeEngine, perceived: pd.Series, team_ids=None) -> pd.D
     return df.sort_values("edge", ascending=False).reset_index(drop=True) if len(df) else df
 
 
-__all__ = ["DEFAULT_PERCEPTION", "PERCEPTIONS", "gives_best", "mispricing", "opponent_view", "perceived_prices",
-           "perceived_ranks", "ROS"]
+__all__ = ["DEFAULT_PERCEPTION", "PERCEPTIONS", "absent", "gives_best", "mispricing", "opponent_view", "perceived_prices",
+           "perceived_ranks", "replacement_price", "ROS"]

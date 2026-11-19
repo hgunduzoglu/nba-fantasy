@@ -2692,6 +2692,26 @@ now uses the larger (by points) of that estimate and the absence-period average 
 `k · mean(without) + (1 − k) · ROS` with `k = n / (n + 4)`, when minutes went up; when they went down the difference
 is kept. A good base is not lowered.
 
+### 13.58 Injured stars and replacement level in the other side's view (19 November 2026)
+
+Two gaps in the `market` lens of §13.56 showed up in the next search:
+
+* **Injured stars looked cheap.** Yahoo's "Current" rank counts season totals, so a star who has missed most games
+  ranks 200th–300th (Tyrese Haliburton 204th, Kawhi Leonard 309th) and was priced below an average starter; a deal
+  that sent a mid-level player plus filler for him passed as fair, and `gives_best` never fired on his side. A
+  manager prices such a player by his healthy name value. A player who looks out (Yahoo O, INJ or D, or an injury
+  with a return date; out for the season excluded) or has played fewer than 75% of his team's games, and is still
+  rostered in at least 50% of Yahoo leagues, is now priced at the larger of the `market` and `blend` prices
+  (`absent`). Ranks do not change, so other players' prices do not shift.
+* **Replacement level.** `opponent_view` now counts each player only by his value above replacement: the perceived
+  price of the league's third-best healthy free agent (`replacement_price`, stored in the prices' `attrs`), with the
+  market scale's floor (0.1) as the minimum. A player the other manager can pick up from waivers adds nothing; in
+  the 16-team league the level is 0.51, in the others 0.84–1.33.
+
+The five rejected trades stay "low" (views 0.51–0.90), the Haliburton deal falls to 0.50, and two-for-one deals in
+which the other side gives the best player now need clearly more (one earlier "high" suggestion fell from 1.28 to
+1.06, below `STAR_PREMIUM`).
+
 ### 13.8 V3 candidates
 
 Beam search and H-score weight optimization; fitting the profile mix; covariance of game counts between
