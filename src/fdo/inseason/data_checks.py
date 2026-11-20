@@ -9,7 +9,7 @@ takımları ve kısa bir açıklamayla döner. Kontroller:
 * ``team``: Yahoo'daki NBA takımı son maç kaydındaki takımdan farklı (takas sonrası gecikme; maç takvimi yanlış takımdan).
 * ``role``: son ``RECENT`` maçta dakika, öncesine göre belirgin değişti; projeksiyon rol değişimine geç tepki verir.
 * ``idle``: sakat görünmüyor ama takımının son maçlarında hiç oynamadı.
-* ``il_slot``: IL slotunda ama Yahoo durumu IL'e uygun değil (Q, GTD ya da sağlıklı): Yahoo alım/takası engelleyebilir.
+* ``il_slot``: IL slotunda ama Yahoo'da sağlıklı (sağlıklı olmayan her durum IL'e uygun): Yahoo alım/takası engelleyebilir.
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ RECENT = 5                   # son kaç maç
 ROLE_MIN_DELTA = 6.0         # dakika farkı (en az)
 ROLE_MIN_RATIO = .3          # göreli fark (en az)
 IDLE_TEAM_GAMES = 3          # takımın son kaç maçında hiç oynamadıysa
-IL_OK = {"O", "INJ", "IL", "OFS", "NA", "SUSP", "D"}    # IL slotunda durabilecek Yahoo durumları
+EXPLAINED = {"O", "INJ", "IL", "OFS", "NA", "SUSP", "D"}    # oynamamayı açıklayan Yahoo durumları
 
 
 @dataclass(frozen=True)
@@ -94,8 +94,8 @@ def data_checks(data: TradeData, logs: pd.DataFrame | None = None) -> list[Findi
         elif pid in stale:
             add("stale", "info", pid, "Yahoo projeksiyonu bayattı (bu sezonun yarısının altında); maç başı değerler "
                                       "bu sezon + sezon öncesiyle düzeltildi.")
-        if pid in il_at and st not in IL_OK:
-            add("il_slot", "warn", pid, f"IL slotunda ama Yahoo durumu {st or 'sağlıklı'}; Yahoo bu durumda alım ve "
+        if pid in il_at and not st:                                        # sağlıklı olmayan her durum IL'e uygun
+            add("il_slot", "warn", pid, "IL slotunda ama Yahoo'da sağlıklı; Yahoo bu durumda alım ve "
                                         "takası engelleyebilir, aktife almak gerekebilir.", il_at[pid])
     if logs is not None and not logs.empty:
         found += _log_checks(data, logs, owners, status)
@@ -124,7 +124,7 @@ def _log_checks(data, logs, owners, status) -> list[Finding]:
         st = status.get(pid, "")
         dates = team_dates.get(last["nba_team"], [])
         recent_team = dates[-IDLE_TEAM_GAMES:]
-        if st not in IL_OK and len(recent_team) == IDLE_TEAM_GAMES and not set(played["game_date"]) & set(recent_team):
+        if st not in EXPLAINED and len(recent_team) == IDLE_TEAM_GAMES and not set(played["game_date"]) & set(recent_team):
             add("idle", pid, f"Sakat görünmüyor (Yahoo: {st or 'sağlıklı'}) ama takımının son {IDLE_TEAM_GAMES} maçında "
                              "oynamadı.")
         if len(played) >= RECENT + 3:

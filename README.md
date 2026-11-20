@@ -2597,7 +2597,7 @@ IL slot). After every sync, and in the app, each rostered player in the four lea
 - **Team**: Yahoo's NBA team differs from the team in the player's latest game log (the schedule would be counted for the wrong team).
 - **Role**: minutes over the last 5 games moved by at least 6 and 30% against the earlier games; Yahoo's projection reacts late.
 - **Idle**: not listed as injured but absent from his team's last 3 games.
-- **IL slot**: in an IL slot with a Yahoo status that is not IL-eligible (Q, GTD, healthy); Yahoo may block adds and trades.
+- **IL slot**: in an IL slot while healthy on Yahoo (any non-healthy status such as P, Q, D or O is IL-eligible); Yahoo may block adds and trades.
 
 `scripts/yahoo_sync.py` prints the warnings on the user's own teams; `GET /api/data-checks?league=` serves them; the Trade page shows
 them for the two teams (players in the trade first, red if one is flagged) and the Today page for the user's team. 17 November: 43

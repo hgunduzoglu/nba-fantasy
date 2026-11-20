@@ -27,7 +27,7 @@ def test_unmodeled_and_il_slot_findings(data):  # noqa: F811
     by = {(f.check, f.player_id): f for f in found}
     assert ("unmodeled", "3") in by and "NA" in by[("unmodeled", "3")].message
     assert ("il_slot", "7") in by and by[("il_slot", "7")].teams == (("L", "2", "Takım 2"),)
-    data.players.loc["7", "injury_status"] = "O"
+    data.players.loc["7", "injury_status"] = "Q"                       # sağlıklı olmayan her durum IL'e uygun
     assert not any(f.check == "il_slot" for f in data_checks(data))
     assert all(f.level == "warn" for f in found) and as_dicts(found, "other") == []
 

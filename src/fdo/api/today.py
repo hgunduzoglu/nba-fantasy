@@ -23,8 +23,6 @@ from fdo.api.state import AppState
 
 FILE = "today.json"
 PRECOMPUTE_ENV = "FDO_PRECOMPUTE"
-#: Yahoo IL slotuna uygun durumlar; başka durumda IL'deki oyuncu Yahoo'da genelde kadro işlemlerini engeller.
-IL_OK = frozenset({"O", "INJ", "IL", "IL+", "NA", "OUT", "D"})
 
 
 def _load(directory: Path) -> dict | None:
@@ -44,14 +42,14 @@ def _save(directory: Path, payload: dict) -> None:
 
 
 def alerts(roster: dict) -> list[dict]:
-    """Kadro uyarıları: IL'de uygun olmayan oyuncu (kadro işlemlerini engeller), aktifte oynamayacak (O) oyuncu."""
+    """Kadro uyarıları: IL'de sağlıklı oyuncu (kadro işlemlerini engeller); sağlıklı olmayan her durum (P, Q, D, O...) IL'e uygun."""
     out = []
     for p in roster.get("players", []):
         status = (p.get("status") or "").upper()
-        if p.get("il") and status not in IL_OK:
+        if p.get("il") and not status:
             out.append({"kind": "il_ineligible", "player": p["name"],
-                        "text": f"{p['name']} IL slotunda ama durumu '{status or 'sağlıklı'}': Yahoo genelde IL'de uygun "
-                                f"olmayan oyuncu varken ekleme, bırakma ve takası engeller (Yahoo'da kontrol et)."})
+                        "text": f"{p['name']} IL slotunda ama sağlıklı: Yahoo IL'de sağlıklı "
+                                f"oyuncu varken ekleme, bırakma ve takası engeller (Yahoo'da kontrol et)."})
     return out
 
 

@@ -482,7 +482,8 @@ def test_today_computes_in_background_and_caches_by_signature(client):
     assert out["fresh"] is True and out["leagues"]
     lg = out["leagues"][0]
     assert lg["league_id"] == "L" and "week" in lg and "season" in lg
-    roster = {"players": [{"name": "A", "il": True, "status": ""}, {"name": "B", "il": True, "status": "O"}]}
+    roster = {"players": [{"name": "A", "il": True, "status": ""}, {"name": "B", "il": True, "status": "O"},
+                        {"name": "C", "il": True, "status": "Q"}]}
     assert [a["player"] for a in alerts(roster)] == ["A"]
 
 

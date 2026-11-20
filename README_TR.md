@@ -2518,7 +2518,7 @@ Her senkronizasyondan sonra ve uygulamada dört ligin kadrolu oyuncuları tek te
 - **Takım**: Yahoo'daki NBA takımı son maç kaydındaki takımdan farklı (maç takvimi yanlış takımdan sayılır).
 - **Rol**: son 5 maçta dakika öncesine göre en az 6 dk ve %30 değişti; Yahoo projeksiyonu geç tepki verir.
 - **Oynamıyor**: sakat görünmüyor ama takımının son 3 maçında yok.
-- **IL slotu**: IL slotunda ama Yahoo durumu IL'e uygun değil (Q, GTD, sağlıklı); Yahoo alım ve takası engelleyebilir.
+- **IL slotu**: IL slotunda ama Yahoo'da sağlıklı (P, Q, D, O gibi sağlıklı olmayan her durum IL'e uygun); Yahoo alım ve takası engelleyebilir.
 
 `scripts/yahoo_sync.py` kullanıcının takımlarındaki uyarıları yazar; `GET /api/data-checks?league=` sunar; Takas Analizi iki
 takımınkileri (takastaki oyuncular önce, biri işaretliyse kırmızı), Bugün sayfası kullanıcının takımınkileri gösterir. 17 Kasım:
