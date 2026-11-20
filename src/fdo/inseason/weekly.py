@@ -133,7 +133,9 @@ class WeekModel:
         dur = getattr(data, "durability", None)
         near = dur["near_minutes"].reindex(ids).fillna(1.0) if dur is not None and "near_minutes" in dur else None
         self.near_unit = self.unit
+        self.near_role = np.zeros(len(engine.ids), dtype=bool)        # yalnız bunlarda yakın vade vektörü
         if near is not None and (near.to_numpy() != 1.0).any():
+            self.near_role[[engine.index[p] for p in ids[near.to_numpy() != 1.0]]] = True
             nproj = (per_game.mul(near.to_numpy(), axis=0)).assign(player_id=ids, projected_gp=cap).reset_index(drop=True)
             nvar, _ = per_game_variance(nproj, data.variance, self.config.model.variance.phi)
             nunit = weekly_vectors(nproj, nvar, cfg1, games=pd.Series(1.0, index=ids))
@@ -218,11 +220,12 @@ class WeekModel:
                                      0.0)
         # yakın vadede maça çıkma: sezon öncesi önselli ROS oranı yerine son takım maçları (dönüş tarihi bilinen hariç)
         self.near_availability = self.availability.copy()
+        self.near_present = np.zeros(len(engine.ids), dtype=bool)     # yalnız bunlarda yakın vade maça çıkma
         if dur is not None and "near_attendance" in dur:
             att = dur["near_attendance"].reindex(list(engine.ids)).to_numpy(float)
             known = np.array([p in self.return_date for p in engine.ids], dtype=bool)
-            use = ok & np.isfinite(att) & ~known & (self.availability > 0)
-            self.near_availability[use] = np.clip(att[use], 0.0, 1.0)
+            self.near_present = ok & np.isfinite(att) & ~known & (self.availability > 0)
+            self.near_availability[self.near_present] = np.clip(att[self.near_present], 0.0, 1.0)
         self.corr = category_corr_matrix(self.config)
         self.positions = {p: frozenset(str(engine.data.players.loc[p, "yahoo_positions"]).split(","))
                           for p in engine.ids}
@@ -444,10 +447,11 @@ class WeekModel:
         for j, i in enumerate(idx):
             pw = self.play_weight.get(self.engine.ids[i], {})
             weight[:, j] = [pw.get(day, 1.0) for day in days]
+        role, present = self.near_role[idx], self.near_present[idx]
         for d, day in enumerate(days):
             if day < self.near_until:
-                units[d] = self.near_unit[idx]
-                avail[d] = self.near_availability[idx]
+                units[d, role] = self.near_unit[idx[role]]
+                avail[d, present] = self.near_availability[idx[present]]
             boosted = day < self.boost_until[idx]
             units[d, boosted] = self.boost_unit[idx[boosted]]
         return attendance_vectors(units, np.minimum(weight * avail, 1.0))
