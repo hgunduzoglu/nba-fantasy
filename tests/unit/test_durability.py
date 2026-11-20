@@ -138,3 +138,23 @@ def test_yahoo_rates_shrink_toward_season_by_category_and_minutes(data):  # noqa
     f = _minutes_factor(data, logs, set())
     assert f[str("3")] == pytest.approx((.75 * 25 + .25 * 30) / 25)
     assert _minutes_factor(data, logs.iloc[:4], set()) == {}                   # az maç: dokunulmaz
+
+
+def test_near_term_minutes_and_attendance_follow_recent_games(data):  # noqa: F811
+    import pandas as pd
+    from fdo.inseason.durability import NEAR_ATTENDANCE, NEAR_MINUTES, _near_term
+    name, team = str(data.players.loc["3", "name"]), str(data.players.loc["3", "nba_team"])
+    days = [data.as_of - dt.timedelta(days=i) for i in range(14, 0, -1)]
+    mate = pd.DataFrame({"name": "Takım Arkadaşı", "nba_team": team, "game_date": days, "minutes": 30.0})
+    played = days[:4] + days[9:]                                               # 5 maçlık bitmiş kaçırma serisi
+    me = pd.DataFrame({"name": name, "nba_team": team, "game_date": played, "minutes": [20.0] * 4 + [30.0] * 5})
+    logs = pd.concat([me, mate]).iloc[::-1]                                    # kaynak dosya gibi yeniden eskiye
+    near = _near_term(data, logs, {"3": 1.1})
+    a, b, c = NEAR_MINUTES
+    season = (4 * 20 + 5 * 30) / 9
+    assert near.loc["3", "near_minutes"] == pytest.approx((a * season + b * 30 + c * 30) / (season * 1.1))
+    # sakatlık serisi pencereden çıkar: dönüşten sonra her maç oynadı
+    assert near.loc["3", "near_attendance"] == pytest.approx((1 - NEAR_ATTENDANCE) * 9 / 14 + NEAR_ATTENDANCE)
+    benched = me.assign(game_date=days[:9])                                    # hâlâ süren seri: düşük kalır
+    out = _near_term(data, pd.concat([benched.iloc[:5], mate]), {})
+    assert out.loc["3", "near_attendance"] < .5

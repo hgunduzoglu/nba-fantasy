@@ -2753,6 +2753,29 @@ candidates (waiver table, drop ranking, default droppable of the weekly plan, th
 returns), unless out for the season or with a return more than 60 days away. A list the user passes explicitly is
 respected, and when nobody else can be dropped the IL-return recommendation falls back to them (`kept` is shown).
 
+### 13.61 Recent minutes and attendance for the coming days (20 November 2026)
+
+Streaming kept offering bench players whose minutes had collapsed (e.g. 25 → 8) and missed backups who had moved into
+the rotation. Three causes: players with a stale Yahoo line (§13.57) got no minutes factor at all; the minutes factor uses
+a quarter weight on recent games, which is right for the rest of the season but slow for the next few games; and the play
+rate keeps a preseason prior, so a backup who barely played last season but now plays every game was counted for about
+half of his games.
+
+- The rest-of-season minutes factor now also applies to stale-fixed players. Their line is built from this season's
+  rates, so it scales with this season's minutes.
+- `durability._near_term` adds `near_minutes` and `near_attendance` to the durability table:
+  - **Minutes:** `.40 · season + .45 · last 5 + .15 · last game`, divided by the minutes of the rest-of-season line.
+  - **Attendance:** `.25 · season + .75 · last 10` team games. A finished absence of 5 or more games is left out of the
+    window, so a player back from injury is not counted as absent; a run of misses that is still going stays in.
+- `WeekModel` uses both for the first `NEAR_DAYS` = 7 days. Players with a known return date keep their existing
+  availability, and role boosts (§13.24) still take precedence. Later weeks, rest-of-season and trade values are
+  unchanged.
+
+The weights were fitted on the 2024-25 and 2025-26 game logs (players at 10–30 minutes per game, next 3 team games). The
+error on next-game minutes fell from 5.61 to 5.28 overall, and from 6.64 to 5.97 for players whose minutes had moved by
+more than 5. Checked on 16 dates across three seasons, including this one, it was the best rule or tied for best on every
+date. Recent attendance cut the error on the next 3 games from .35 to .31.
+
 ### 13.8 V3 candidates
 
 Beam search and H-score weight optimization; fitting the profile mix; covariance of game counts between

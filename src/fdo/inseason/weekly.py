@@ -42,6 +42,8 @@ QUESTIONABLE = ("Q", "GTD", "DTD")
 #: takım maçında B2B dışı maçlarda da oynama oranı (geçmiş iki sezon: sağlıklıya göre %91–94 toplam; README §13.59).
 RETURN_OTHER_PLAY = .95
 RETURN_OTHER_GAMES = 20
+#: Yakın vade: bu kadar gün son maçların dakikası ve maça çıkması kullanılır (``durability._near_term``; README §13.61).
+NEAR_DAYS = 7
 #: Elle girilen haftalık skor sütunları → vektördeki ortalama indeksleri.
 ACC_FIELDS = ("fgm", "fga", "ftm", "fta", "fg3m", "pts", "reb", "ast", "stl", "blk", "tov")
 
@@ -126,6 +128,16 @@ class WeekModel:
         cfg1 = self.config.with_overrides({"model": {"matchup": {"utilization": 1.0, "games_variance": False}}})
         unit = weekly_vectors(proj, var, cfg1, games=pd.Series(1.0, index=ids))
         self.unit = unit.reindex(list(engine.ids)).fillna(0.0).to_numpy(float)          # (n, 24) maç başı
+        # yakın vade (ilk NEAR_DAYS gün): son maçların dakikası ve maça çıkması (README §13.61)
+        self.near_until = data.as_of + dt.timedelta(days=NEAR_DAYS)
+        dur = getattr(data, "durability", None)
+        near = dur["near_minutes"].reindex(ids).fillna(1.0) if dur is not None and "near_minutes" in dur else None
+        self.near_unit = self.unit
+        if near is not None and (near.to_numpy() != 1.0).any():
+            nproj = (per_game.mul(near.to_numpy(), axis=0)).assign(player_id=ids, projected_gp=cap).reset_index(drop=True)
+            nvar, _ = per_game_variance(nproj, data.variance, self.config.model.variance.phi)
+            nunit = weekly_vectors(nproj, nvar, cfg1, games=pd.Series(1.0, index=ids))
+            self.near_unit = nunit.reindex(list(engine.ids)).fillna(0.0).to_numpy(float)
         # rol değişimi: dönüşe kadar (hariç) maç başı vektörü yerine bu kullanılır (README §13.24)
         self.roles = {p: r for p, r in (roles or {}).items() if p in engine.index and ok[engine.index[p]]}
         self.boost_unit = self.unit.copy()
@@ -204,6 +216,13 @@ class WeekModel:
             self._apply_b2b(b2b, games_by_team, data.as_of, ids)
         self.availability = np.where(ok & (team_left > 0), np.clip(np.nan_to_num(gp) / np.maximum(team_left, 1), 0, 1),
                                      0.0)
+        # yakın vadede maça çıkma: sezon öncesi önselli ROS oranı yerine son takım maçları (dönüş tarihi bilinen hariç)
+        self.near_availability = self.availability.copy()
+        if dur is not None and "near_attendance" in dur:
+            att = dur["near_attendance"].reindex(list(engine.ids)).to_numpy(float)
+            known = np.array([p in self.return_date for p in engine.ids], dtype=bool)
+            use = ok & np.isfinite(att) & ~known & (self.availability > 0)
+            self.near_availability[use] = np.clip(att[use], 0.0, 1.0)
         self.corr = category_corr_matrix(self.config)
         self.positions = {p: frozenset(str(engine.data.players.loc[p, "yahoo_positions"]).split(","))
                           for p in engine.ids}
@@ -421,13 +440,17 @@ class WeekModel:
         idx = np.asarray(idx, int)
         units = np.broadcast_to(self.unit[idx], (len(days), len(idx), WEEK_DIM)).copy()
         weight = np.ones((len(days), len(idx)))
+        avail = np.broadcast_to(self.availability[idx], (len(days), len(idx))).copy()
         for j, i in enumerate(idx):
             pw = self.play_weight.get(self.engine.ids[i], {})
             weight[:, j] = [pw.get(day, 1.0) for day in days]
         for d, day in enumerate(days):
+            if day < self.near_until:
+                units[d] = self.near_unit[idx]
+                avail[d] = self.near_availability[idx]
             boosted = day < self.boost_until[idx]
             units[d, boosted] = self.boost_unit[idx[boosted]]
-        return attendance_vectors(units, np.minimum(weight * self.availability[idx], 1.0))
+        return attendance_vectors(units, np.minimum(weight * avail, 1.0))
 
     def _score(self, p: np.ndarray) -> float:
         return float(9 * p @ self.strategy.normalized)

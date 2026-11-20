@@ -266,6 +266,22 @@ def test_recently_returned_player_loses_b2b_and_other_games(data):
     assert sum(w.values()) == pytest.approx(len(days) - .5 * len(hit) - (1 - RETURN_OTHER_PLAY) * len(other))
 
 
+def test_near_term_role_and_attendance_used_only_this_week(data):
+    import dataclasses
+    from fdo.inseason.weekly import NEAR_DAYS
+    base = WeekModel(TradeEngine(data, "L", utilization=1), questionable=1.0, b2b={})
+    dur = pd.DataFrame({"near_minutes": 1.0, "near_attendance": np.nan}, index=list(data.players.index))
+    dur.loc["0", ["near_minutes", "near_attendance"]] = [1.3, .5]
+    m = WeekModel(TradeEngine(dataclasses.replace(data, durability=dur), "L", utilization=1), questionable=1.0, b2b={})
+    i, j = m.engine.index["0"], m.engine.index["1"]
+    assert m.near_availability[i] == pytest.approx(.5) and m.near_availability[j] == base.availability[j]
+    assert np.allclose(m.near_unit[j], base.unit[j]) and not np.allclose(m.near_unit[i], base.unit[i])
+    days = [data.as_of, data.as_of + dt.timedelta(days=NEAR_DAYS)]
+    v, v0 = m.daily_vectors(np.array([i, j]), days), base.daily_vectors(np.array([i, j]), days)
+    assert not np.allclose(v[0, 0], v0[0, 0]) and np.allclose(v[1, 0], v0[1, 0])   # yalnız yakın günler
+    assert np.allclose(v[:, 1], v0[:, 1])
+
+
 def test_widely_rostered_players_are_not_drop_candidates(data):
     import dataclasses
     from fdo.inseason.waiver import KEEP_ROSTERED, drop_candidates, kept

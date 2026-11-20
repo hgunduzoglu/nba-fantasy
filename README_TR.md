@@ -2672,6 +2672,32 @@ adaylarından çıkarıyor (waiver tablosu, bırakma sırası, haftalık planın
 önerilen bırakma); sezon boyu yoksa ya da dönüşü 60 günden uzaksa hariç. Kullanıcının açıkça verdiği liste geçerli; IL
 dönüşünde başka bırakılacak kimse yoksa öneri onlara düşer (`kept` gösterilir).
 
+### 13.61 Önümüzdeki günler için son maçların dakikası ve maça çıkma (20 Kasım 2026)
+
+Streaming önerileri dakikası çöken yedekleri (ör. 25 → 8) önermeye devam ediyor, rotasyona giren yedekleri ise
+kaçırıyordu. Üç sebebi vardı:
+- Yahoo satırı bayat olan oyunculara (§13.57) dakika çarpanı hiç uygulanmıyordu.
+- Dakika çarpanı son maçlara çeyrek ağırlık veriyordu. Bu kalan sezon için doğru, ama önümüzdeki birkaç maçta rol
+  değişimini geç yakalıyor.
+- Oynama oranında sezon öncesi önsel vardı. Geçen sezon az oynamış ama şimdi her maç oynayan bir yedek, maçlarının
+  yarısında oynuyormuş gibi sayılıyordu.
+
+Yapılan değişiklikler:
+- Kalan sezon dakika çarpanı artık bayat düzeltilen oyunculara da uygulanıyor; bu oyuncuların satırı zaten bu sezonun
+  oranlarından kuruluyor.
+- `durability._near_term` dayanıklılık tablosuna iki sütun ekliyor:
+  - **`near_minutes`:** `.40 · sezon + .45 · son 5 maç + .15 · son maç` dakikası, ROS satırının dakikasına bölünür.
+  - **`near_attendance`:** `.25 · sezon + .75 · son 10` takım maçında maça çıkma oranı. Bitmiş 5+ maçlık bir kaçırma
+    serisi pencereden çıkarılır, böylece sakatlıktan dönen oyuncu oynamıyormuş gibi sayılmaz. Hâlâ süren seri pencerede
+    kalır.
+- `WeekModel` ilk `NEAR_DAYS` = 7 gün bu iki değeri kullanıyor. Dönüş tarihi bilinen oyuncuda mevcut uygunluk kalıyor;
+  rol artışı (§13.24) önceliğini koruyor. Sonraki haftalar, kalan sezon ve takas değerleri değişmiyor.
+
+Ağırlıklar 2024-25 ve 2025-26 maç kayıtlarıyla ölçüldü (maç başı 10–30 dakika oynayanlar, sonraki 3 takım maçı):
+- Sonraki maçların dakika hatası genelde 5,61'den 5,28'e, dakikası 5'ten fazla değişenlerde 6,64'ten 5,97'ye düştü.
+- Bu sezon dahil üç sezonda 16 ayrı tarihte denendi; her tarihte en iyi ya da en iyiyle eşit kural oldu.
+- Maça çıkmada son maçlar, sonraki 3 maçın hatasını ,35'ten ,31'e indirdi.
+
 ### 13.8 V3 adayları
 
 Beam search ve H-score ağırlık optimizasyonu; profil karışımı uyumu; oyuncular arası maç sayısı

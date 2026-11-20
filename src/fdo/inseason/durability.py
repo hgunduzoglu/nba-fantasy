@@ -54,6 +54,13 @@ MINUTES_WEIGHT = .25         # dakika oranında son maçların ağırlığı
 MINUTES_RECENT = 5           # son kaç maç
 MINUTES_MIN_GAMES = 5        # en az bu kadar oynanan maç
 MINUTES_CLIP = (.6, 1.5)
+#: Yakın vade (önümüzdeki birkaç maç, haftalık model): dakika = sezon, son 5 maç ve son maç ağırlıkları; maça çıkma
+#: = sezon ve son ``NEAR_WINDOW`` takım maçı. Geçmiş iki sezonun maç kayıtlarında sonraki 3 maça göre en iyi (README §13.61).
+NEAR_MINUTES = (.40, .45, .15)
+NEAR_ATTENDANCE = .75
+NEAR_WINDOW = 10
+NEAR_SPELL = 5               # bu kadar art arda kaçırılan (bitmiş) seri pencereden çıkarılır: sakatlıktan dönen
+NEAR_MIN_GAMES = 5
 
 
 def apply_durability(data: TradeData, prior_games: float = PRIOR_GAMES, logs: pd.DataFrame | None = None) -> TradeData:
@@ -70,7 +77,8 @@ def apply_durability(data: TradeData, prior_games: float = PRIOR_GAMES, logs: pd
     stats[YAHOO] = stats[ROS].copy()
     skip = set(filled) | set(stale)
     shrunk = _shrink_to_season(stats, skip)
-    minutes = _minutes_factor(data, logs, skip)
+    minutes = _minutes_factor(data, logs, set(filled))
+    near = _near_term(data, logs, minutes)
     for pid, f in minutes.items():
         if pid in ros.index:
             ros.loc[pid, list(STATS)] = ros.loc[pid, list(STATS)] * f
@@ -102,6 +110,8 @@ def apply_durability(data: TradeData, prior_games: float = PRIOR_GAMES, logs: pd
     table["ros_stale"] = table.index.isin(stale)
     table["ros_shrunk"] = table.index.isin(shrunk)
     table["minutes_factor"] = pd.Series(minutes, dtype=float).reindex(table.index).fillna(1.0)
+    table["near_minutes"] = near["near_minutes"].reindex(table.index).fillna(1.0)
+    table["near_attendance"] = near["near_attendance"].reindex(table.index)
     cut = table["ros_gp_after"] < table["ros_gp_before"] - 1e-9
     sources = {**data.sources, "durability": {"kind": "durability", "basis": "preseason projected_gp / 82",
                                               "prior_games": prior_games, "rows": int(cut.sum()),
@@ -188,8 +198,9 @@ def _minutes_factor(data: TradeData, logs: pd.DataFrame | None, skip: set[str], 
                     recent: int = MINUTES_RECENT, min_games: int = MINUTES_MIN_GAMES) -> dict[str, float]:
     """Oyuncu → maç başı çarpanı ``((1 − q) · sezon dk + q · son ``recent`` maç dk) / sezon dk`` (``data.as_of``
     öncesi oynanan maçlar; en az ``min_games``; ``MINUTES_CLIP`` ile sınırlı). Rol değişimi geçmiş sezonlarda böyle
-    oyuncularda hatayı %8–14 düşürüyor; dakikası sabit olanda etkisiz (README §13.59). Bayat düzeltilen ve doldurulan
-    oyuncu (``skip``) hariç; 1 olanlar dönmez."""
+    oyuncularda hatayı %8–14 düşürüyor; dakikası sabit olanda etkisiz (README §13.59). Doldurulan oyuncu (``skip``)
+    hariç (bayat düzeltilen dahil: satırı bu sezonun dakikasıyla, rolü yükselen yedek tam bu oyuncu); 1 olanlar
+    dönmez."""
     if logs is None or logs.empty or q <= 0:
         return {}
     from fdo.inseason.roles import match_ids
@@ -209,6 +220,56 @@ def _minutes_factor(data: TradeData, logs: pd.DataFrame | None, skip: set[str], 
         if abs(f - 1) > 1e-9:
             out[str(pid)] = f
     return out
+
+
+def _near_term(data: TradeData, logs: pd.DataFrame | None, minutes: dict[str, float]) -> pd.DataFrame:
+    """Oyuncu → yakın vade (haftalık model, README §13.61):
+
+    * ``near_minutes``: ``(a · sezon dk + b · son 5 maç dk + c · son maç dk)`` / ROS satırının dakikası (sezon dk ×
+      ``minutes``); ``MINUTES_CLIP`` ile sınırlı. ROS'taki ``q = .25`` kalan sezon için doğru, önümüzdeki birkaç maç
+      için rolü geç yakalar (geçmiş sezonlarda sonraki 3 maçın dakika hatası 5,61 → 5,28; rolü değişenlerde 6,64 → 5,97).
+    * ``near_attendance``: ``(1 − q) · bu sezon maça çıkma + q · son ``NEAR_WINDOW`` takım maçında`` (takımın maç
+      kaydı olan günler; sakatlıktan dönmüşse bitmiş ``NEAR_SPELL``+ maçlık kaçırma serisi sayılmaz). Sezon öncesi
+      önselli ROS oranı (ör. geçen sezon az oynamış, şimdi her maç oynayan) yerine haftalık modelde kullanılır."""
+    cols = ["near_minutes", "near_attendance"]
+    if logs is None or logs.empty:
+        return pd.DataFrame(columns=cols, dtype=float)
+    from fdo.inseason.roles import match_ids
+    g = logs[logs["game_date"] < data.as_of]
+    if g.empty:
+        return pd.DataFrame(columns=cols, dtype=float)
+    team_days = {t: sorted(set(x)) for t, x in g.groupby(g["nba_team"].map(normalize_team))["game_date"]}
+    g = g[g["minutes"] > 0]
+    g = g.assign(player_id=match_ids(g, data.players).values).dropna(subset=["player_id"]).sort_values("game_date")
+    a, b, c = NEAR_MINUTES
+    lo, hi = MINUTES_CLIP
+    rows = {}
+    for pid, pl in g.groupby("player_id"):
+        pid = str(pid)
+        if pid not in data.players.index or len(pl) < NEAR_MIN_GAMES:
+            continue
+        m = pl["minutes"].to_numpy(float)
+        season = float(m.mean())
+        near_min = (a * season + b * float(m[-MINUTES_RECENT:].mean()) + c * float(m[-1])) / \
+            (season * minutes.get(pid, 1.0)) if season > 0 else 1.0
+        team = normalize_team(data.players.loc[pid, "nba_team"] or "")
+        mine = pl[pl["nba_team"].map(normalize_team) == team]
+        days = [d for d in team_days.get(team, []) if len(mine) and d >= mine["game_date"].min()]
+        played = set(mine["game_date"])
+        att = np.nan
+        if len(days) >= NEAR_MIN_GAMES:
+            hit = np.array([d in played for d in days])
+            window, run = hit, 0
+            for k in range(len(hit) - 1, -1, -1):              # son bitmiş uzun kaçırma serisinden sonrası
+                run = run + 1 if not hit[k] else 0
+                if run >= NEAR_SPELL and k + run < len(hit) and hit[k + run:].any():
+                    window = hit[k + run:]
+                    break
+            recent = window[-NEAR_WINDOW:]
+            if len(recent) >= NEAR_MIN_GAMES:
+                att = (1 - NEAR_ATTENDANCE) * float(hit.mean()) + NEAR_ATTENDANCE * float(recent.mean())
+        rows[pid] = {"near_minutes": min(hi, max(lo, near_min)), "near_attendance": att}
+    return pd.DataFrame.from_dict(rows, orient="index", columns=cols, dtype=float)
 
 
 def _fill_missing_ros(data: TradeData, stats: dict, games: dict, prior_games: float) -> list[str]:
